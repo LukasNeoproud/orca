@@ -123,15 +123,25 @@ export function BranchWorktreeDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{translate('branchManagement.title', 'Branch & worktree')}</DialogTitle>
-          <DialogDescription className="break-all">
-            {preview?.path ?? worktree.path}
+          <DialogDescription className="space-y-1">
+            <span className="block font-medium text-foreground">
+              {translate('branchManagement.worktreePath', 'Worktree path')}
+            </span>
+            <span className="block break-all">{preview?.path ?? worktree.path}</span>
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm">
-          {preview
-            ? (preview.current ??
-              `${translate('branchManagement.detached', 'Detached HEAD')} · ${preview.head.slice(0, 12)}`)
-            : translate('branchManagement.loading', 'Loading checkout…')}
+        <p className="space-y-1 text-sm">
+          <span className="block font-medium">
+            {preview && !preview.current
+              ? translate('branchManagement.currentCommit', 'Current commit')
+              : translate('branchManagement.currentBranch', 'Current branch')}
+          </span>
+          <span className="block break-all text-muted-foreground">
+            {preview
+              ? (preview.current ??
+                `${translate('branchManagement.detached', 'Detached HEAD')} · ${preview.head.slice(0, 12)}`)
+              : translate('branchManagement.loading', 'Loading checkout…')}
+          </span>
         </p>
         <div className="space-y-2">
           <Label htmlFor="worktree-sidebar-label">

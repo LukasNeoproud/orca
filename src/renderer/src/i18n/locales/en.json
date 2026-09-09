@@ -17824,6 +17824,9 @@
     "apply": "Apply branch change",
     "menu": "Branch & worktree…",
     "detached": "Detached HEAD",
-    "unavailableWorktree": "The registered worktree could not be loaded. Refresh and try again."
+    "unavailableWorktree": "The registered worktree could not be loaded. Refresh and try again.",
+    "worktreePath": "Worktree path",
+    "currentCommit": "Current commit",
+    "currentBranch": "Current branch"
   }
 }
