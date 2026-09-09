@@ -148,7 +148,11 @@ export async function createRuntimeLocalGitWorktree(args: {
       : remoteOption
   const addProjectGitOptions = (options?: AddWorktreeOptions): AddWorktreeOptions | undefined =>
     args.hasLocalWorktreeGitOptions ? { ...options, ...args.localWorktreeGitOptions } : options
-  const addOptions = addProjectGitOptions(baseOptions)
+  const addOptions = addProjectGitOptions(
+    args.request.recoverCompletedCheckoutFailure
+      ? { ...baseOptions, recoverCompletedCheckoutFailure: true }
+      : baseOptions
+  )
   const defaultAddWorktreeOption = addProjectGitOptions()
   const preparedWorktreeOptions = suggestLocalBaseRefUpdate
     ? addProjectGitOptions({ ...remoteOption, suggestLocalBaseRefUpdate })

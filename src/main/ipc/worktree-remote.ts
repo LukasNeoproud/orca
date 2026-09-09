@@ -2111,17 +2111,19 @@ export async function createRemoteWorktree(
   const releaseDestination = args.explicitCreation
     ? await reserveWorktreeCreationDestination(remotePath, fsProvider)
     : undefined
+  let checkoutWarning: CreateWorktreeResult['checkoutWarning']
   try {
-    await timing.time('git_worktree_add', async () =>
-      provider.addWorktree(
-        repo.path,
-        branchName,
-        remotePath,
-        checkoutExistingBranch
+    const result = await timing.time('git_worktree_add', async () =>
+      provider.addWorktree(repo.path, branchName, remotePath, {
+        ...(checkoutExistingBranch
           ? { checkoutExistingBranch }
-          : { base: baseBranch, ...(sparseDirectories.length > 0 ? { noCheckout: true } : {}) }
-      )
+          : { base: baseBranch, ...(sparseDirectories.length > 0 ? { noCheckout: true } : {}) }),
+        ...(args.recoverCompletedCheckoutFailure && sparseDirectories.length === 0
+          ? { recoverCompletedCheckoutFailure: true }
+          : {})
+      })
     )
+    checkoutWarning = result?.checkoutWarning
   } catch (err) {
     await releaseDestination?.()
     if (
@@ -2275,7 +2277,7 @@ export async function createRemoteWorktree(
 
   let setup: CreateWorktreeResult['setup']
   let defaultTabs: CreateWorktreeResult['defaultTabs']
-  if (fsProvider) {
+  if (fsProvider && !checkoutWarning) {
     await timing.time('prepare_setup', async () => {
       const yamlHooks = await readRemoteOrcaYaml(fsProvider, created.path)
       const hooks = getEffectiveHooksFromConfig(repo, yamlHooks)
@@ -2331,6 +2333,7 @@ export async function createRemoteWorktree(
     ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
     ...(localBaseRefUpdateSuggestion ? { localBaseRefUpdateSuggestion } : {}),
     ...(baseFallback ? { baseFallback } : {}),
+    ...(checkoutWarning ? { checkoutWarning } : {}),
     timing: timing.finish()
   }
 }
@@ -2372,6 +2375,9 @@ export async function createLocalWorktree(
     ? [localWorktreeGitOptions]
     : []
   const addProjectGitOptions = (options?: AddWorktreeOptions): AddWorktreeOptions | undefined => {
+    if (args.recoverCompletedCheckoutFailure) {
+      options = { ...options, recoverCompletedCheckoutFailure: true }
+    }
     if (!hasLocalWorktreeGitOptions) {
       return options
     }
@@ -3051,6 +3057,9 @@ export async function createLocalWorktree(
   let setup: CreateWorktreeResult['setup']
   let defaultTabs: CreateWorktreeResult['defaultTabs']
   await timing.time('prepare_setup', async () => {
+    if (addResult.checkoutWarning) {
+      return
+    }
     const createdYamlHooks = loadHooks(worktreePath)
     const createdEffectiveHooks = getEffectiveHooksFromConfig(repo, createdYamlHooks)
     try {
@@ -3092,17 +3101,19 @@ export async function createLocalWorktree(
 
   // Startup resolves the new id before lifecycle notifications invalidate runtime caches.
   runtime?.invalidateWorktreeCatalog?.(repo.id)
-  const stagedStartup = await timing.time('spawn_startup_terminal', () =>
-    spawnLocalStartupAndSetupTerminals({
-      runtime,
-      worktree,
-      startup: args.startup,
-      setup,
-      defaultTabs,
-      settings,
-      createdWithAgent: args.createdWithAgent
-    })
-  )
+  const stagedStartup = addResult.checkoutWarning
+    ? { didSpawnSetup: false }
+    : await timing.time('spawn_startup_terminal', () =>
+        spawnLocalStartupAndSetupTerminals({
+          runtime,
+          worktree,
+          startup: args.startup,
+          setup,
+          defaultTabs,
+          settings,
+          createdWithAgent: args.createdWithAgent
+        })
+      )
 
   notifyWorktreesChanged(mainWindow, repo.id)
   return {
@@ -3129,6 +3140,7 @@ export async function createLocalWorktree(
       : {}),
     ...(stagedStartup.startupTerminal ? { startupTerminal: stagedStartup.startupTerminal } : {}),
     ...(baseFallback ? { baseFallback } : {}),
+    ...(addResult.checkoutWarning ? { checkoutWarning: addResult.checkoutWarning } : {}),
     ...(stagedStartup.warning
       ? { warning: appendWorktreeCreateWarning(includeCopyWarning, stagedStartup.warning) }
       : includeCopyWarning

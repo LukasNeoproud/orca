@@ -65,6 +65,9 @@ export function createWorktreesApi(): NonNullable<Partial<PreloadApi>['worktrees
         {
           repo: args.repoId,
           name: args.name,
+          ...(args.recoverCompletedCheckoutFailure
+            ? { recoverCompletedCheckoutFailure: true }
+            : {}),
           ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {}),
           // Absent means user-typed, which is what the host must assume — so send it only when true.
           ...(args.nameWasGenerated ? { nameWasGenerated: true } : {}),

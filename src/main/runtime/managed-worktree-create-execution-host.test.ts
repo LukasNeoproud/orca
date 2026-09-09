@@ -49,7 +49,8 @@ function makeRuntime(repo: Record<string, unknown>): {
 } {
   const store = {
     getSettings: () => ({ disabledTuiAgents: [], workspaceDir: '/tmp/workspaces' }),
-    getProjectHostSetups: () => []
+    getProjectHostSetups: () => [],
+    getRepos: () => [repo]
   }
   const runtime = new OrcaRuntimeService(store as never)
   const internals = runtime as unknown as RuntimeInternals
@@ -152,4 +153,43 @@ describe('createManagedWorktree execution-host routing', () => {
     expect(trustMocks.local).toHaveBeenCalledWith('codex', '/Users/me/notes')
     expect(trustMocks.remote).not.toHaveBeenCalled()
   })
+})
+
+it('returns a recovered native checkout without preparing setup or starting terminals', async () => {
+  const repo = { id: 'local', path: '/repo' }
+  const { runtime } = makeRuntime(repo)
+  const checkoutWarning = {
+    kind: 'post-checkout-hook-failed',
+    message: 'missing script',
+    path: '/repo/feature'
+  }
+  createRuntimeLocalManagedWorktreeMock.mockResolvedValue({
+    worktree: {
+      id: '/repo/feature',
+      path: '/repo/feature',
+      branch: 'feature',
+      displayName: 'My label'
+    },
+    worktreePath: '/repo/feature',
+    created: {},
+    addResult: { checkoutWarning },
+    metadataResult: { lineage: null, workspaceLineage: null, warnings: [] }
+  })
+  const createTerminal = vi.spyOn(runtime, 'createTerminal')
+  const result = await runtime.createManagedWorktree({
+    repoSelector: 'local',
+    name: 'feature',
+    recoverCompletedCheckoutFailure: true,
+    startup: { command: 'agent' },
+    setupDecision: 'run',
+    awaitTerminalProvisioning: true,
+    activate: true
+  })
+  expect(result.checkoutWarning).toEqual(checkoutWarning)
+  expect(result.worktree.displayName).toBe('My label')
+  expect(result.setup).toBeUndefined()
+  expect(result.defaultTabs).toBeUndefined()
+  expect(result.startupTerminal).toBeUndefined()
+  expect(result.setupReceipt?.state).toBe('skipped')
+  expect(createTerminal).not.toHaveBeenCalled()
 })

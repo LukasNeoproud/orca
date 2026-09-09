@@ -1,3 +1,4 @@
+import type { WorktreeCheckoutWarning } from './checkout-warning'
 import type { ExplicitWorktreeCreation } from './explicit-creation'
 import type { ExecutionHostId } from '../execution-host'
 import type { WorkspaceSource } from '../workspace-source'
@@ -90,6 +91,7 @@ export type SparsePreset = {
 
 export type CreateWorktreeArgs = {
   executionHostId?: ExecutionHostId
+  recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
   repoId: string
   name: string
@@ -163,6 +165,7 @@ export type AdoptProvisionedRootArgs = CreateWorktreeArgs & {
 }
 
 export type CreateWorktreeResult = {
+  checkoutWarning?: WorktreeCheckoutWarning
   worktree: Worktree & {
     parentWorktreeId?: string | null
     childWorktreeIds?: string[]

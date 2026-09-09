@@ -6,6 +6,7 @@ import type { WorkspaceLinkedItem } from '../../../../../../shared/worktree/type
 
 /** Trailing bag for `createWorktree` args that outgrew its positional list. */
 export type CreateWorktreeCallOptions = {
+  recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: CreateWorktreeArgs['explicitCreation']
   executionHostId?: ExecutionHostId
   automationProvenanceRequest?: CreateWorktreeArgs['automationProvenanceRequest']
@@ -47,6 +48,7 @@ function sharedCreateFields(
   const { options } = request
   return {
     name: attempt.name,
+    ...(options?.recoverCompletedCheckoutFailure ? { recoverCompletedCheckoutFailure: true } : {}),
     ...(options?.executionHostId ? { executionHostId: options.executionHostId } : {}),
     ...(options?.explicitCreation ? { explicitCreation: options.explicitCreation } : {}),
     ...(options?.nameWasGenerated ? { nameWasGenerated: true } : {}),

@@ -32,6 +32,7 @@ export const WorktreeCreate = z
     baseBranch: OptionalString,
     compareBaseRef: OptionalString,
     branchNameOverride: OptionalString,
+    recoverCompletedCheckoutFailure: z.boolean().optional(),
     explicitCreation: ExplicitWorktreeCreationSchema.optional(),
     linkedIssue: TriStateLinkedIssue,
     linkedPR: TriStateLinkedIssue,

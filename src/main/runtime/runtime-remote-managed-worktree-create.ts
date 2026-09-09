@@ -72,6 +72,25 @@ export async function createRuntimeRemoteManagedWorktree(
   deps.invalidateWorktreeScan(repo.id)
   deps.notifyWorktreesChanged(repo.id)
 
+  if (result.checkoutWarning) {
+    return {
+      ...result,
+      setup: undefined,
+      defaultTabs: undefined,
+      startupTerminal: undefined,
+      ...(args.awaitTerminalProvisioning
+        ? {
+            setupReceipt: {
+              requested: args.setupDecision ?? 'inherit',
+              hookFound: false,
+              startupPolicy: 'start-immediately',
+              state: 'skipped'
+            }
+          }
+        : {})
+    }
+  }
+
   const shouldActivate = args.activate === true || args.runHooks === true
   let warning = result.warning
   let didSpawnStartup = false

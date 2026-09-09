@@ -27,6 +27,7 @@ export async function requestRuntimeRemoteWorktree(
     {
       repoId: repo.id,
       name: args.name,
+      recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
       explicitCreation: args.explicitCreation,
       ...(args.displayName ? { displayName: args.displayName } : {}),
       ...(args.displayNameKind ? { displayNameKind: args.displayNameKind } : {}),
