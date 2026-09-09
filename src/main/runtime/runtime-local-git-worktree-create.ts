@@ -1,3 +1,4 @@
+import { reserveWorktreeCreationDestination } from '../worktree-creation-destination'
 import type { GitPushTarget, GitWorktreeInfo } from '../../shared/worktree/types'
 import type { Repo } from '../../shared/repo-types'
 import { resolveCreatedWorktree } from '../ipc/created-worktree-reconciliation'
@@ -176,10 +177,15 @@ export async function createRuntimeLocalGitWorktree(args: {
           args.baseBranch,
           args.settings.refreshLocalBaseRefOnWorktreeCreate
         )) ?? {})
+  const releaseDestination = args.request.explicitCreation
+    ? await reserveWorktreeCreationDestination(args.worktreePath)
+    : undefined
   let addResult: AddWorktreeResult
   try {
     const preparedAttempt =
-      sparseDirectories.length === 0 && !args.checkoutExistingBranch
+      !args.request.explicitCreation &&
+      sparseDirectories.length === 0 &&
+      !args.checkoutExistingBranch
         ? await consumePreparedWorktreeCreate({
             repoPath: args.repo.path,
             workspaceRoot: args.workspaceRoot,
@@ -217,6 +223,7 @@ export async function createRuntimeLocalGitWorktree(args: {
       addResult = await addStandardWorktree()
     }
   } catch (error) {
+    await releaseDestination?.()
     if (shouldRetireGeneratedName && failedWorktreeCreationNeedsRetirement(error)) {
       await retireGeneratedWorktreeName(
         args.store as Parameters<typeof retireGeneratedWorktreeName>[0],

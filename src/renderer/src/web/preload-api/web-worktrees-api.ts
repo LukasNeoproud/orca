@@ -46,53 +46,69 @@ export function createWorktreesApi(): NonNullable<Partial<PreloadApi>['worktrees
     },
     listDetected: async ({ repoId }) => callRuntimeDetectedWorktrees(repoId),
     listAll: () => listAllRuntimeWorktrees(),
+    ignoreCreationLocally: (args) =>
+      callRuntimeResult('worktree.ignoreCreationLocally', {
+        repo: args.repoId,
+        explicitCreation: args.explicitCreation,
+        baseBranch: args.baseBranch
+      }),
+    previewCreation: (args) =>
+      callRuntimeResult('worktree.previewCreation', {
+        repo: args.repoId,
+        explicitCreation: args.explicitCreation,
+        baseBranch: args.baseBranch
+      }),
     create: async (args) => {
       invalidateRuntimeWorktreeCaches()
-      const owned = await callRuntimeResultWithOwner<{ worktree: Worktree }>('worktree.create', {
-        repo: args.repoId,
-        name: args.name,
-        // Absent means user-typed, which is what the host must assume — so send it only when true.
-        ...(args.nameWasGenerated ? { nameWasGenerated: true } : {}),
-        ...(args.displayNameKind ? { displayNameKind: args.displayNameKind } : {}),
-        baseBranch: args.baseBranch,
-        compareBaseRef: args.compareBaseRef,
-        branchNameOverride: args.branchNameOverride,
-        linkedIssue: args.linkedIssue,
-        linkedPR: args.linkedPR,
-        linkedLinearIssue: args.linkedLinearIssue,
-        linkedLinearIssueWorkspaceId: args.linkedLinearIssueWorkspaceId,
-        linkedLinearIssueOrganizationUrlKey: args.linkedLinearIssueOrganizationUrlKey,
-        linkedGitLabIssue: args.linkedGitLabIssue,
-        linkedGitLabMR: args.linkedGitLabMR,
-        linkedBitbucketPR: args.linkedBitbucketPR,
-        linkedAzureDevOpsPR: args.linkedAzureDevOpsPR,
-        linkedGiteaPR: args.linkedGiteaPR,
-        displayName: args.displayName,
-        sparseCheckout: args.sparseCheckout,
-        pushTarget: args.pushTarget,
-        setupDecision: args.setupDecision,
-        createdWithAgent: args.createdWithAgent,
-        pendingFirstAgentMessageRename: args.pendingFirstAgentMessageRename,
-        ...(args.startup
-          ? {
-              startupCommand: args.startup.command,
-              ...(args.startup.env ? { startupEnv: args.startup.env } : {}),
-              ...(args.startup.launchConfig
-                ? { startupLaunchConfig: args.startup.launchConfig }
-                : {}),
-              ...(args.startup.startupCommandDelivery
-                ? { startupCommandDelivery: args.startup.startupCommandDelivery }
-                : {}),
-              activate: true
-            }
-          : {}),
-        parentWorkspace: args.parentWorkspace,
-        // Why: every create through this API is an in-app action, never the CLI's parent flag.
-        ...(args.parentWorkspace ? { parentWorkspaceOrigin: 'manual' } : {}),
-        workspaceStatus: args.workspaceStatus,
-        manualOrder: args.manualOrder,
-        automationProvenanceRequest: args.automationProvenanceRequest
-      })
+      const owned = await callRuntimeResultWithOwner<{ worktree: Worktree }>(
+        args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
+        {
+          repo: args.repoId,
+          name: args.name,
+          ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {}),
+          // Absent means user-typed, which is what the host must assume — so send it only when true.
+          ...(args.nameWasGenerated ? { nameWasGenerated: true } : {}),
+          ...(args.displayNameKind ? { displayNameKind: args.displayNameKind } : {}),
+          baseBranch: args.baseBranch,
+          compareBaseRef: args.compareBaseRef,
+          branchNameOverride: args.branchNameOverride,
+          linkedIssue: args.linkedIssue,
+          linkedPR: args.linkedPR,
+          linkedLinearIssue: args.linkedLinearIssue,
+          linkedLinearIssueWorkspaceId: args.linkedLinearIssueWorkspaceId,
+          linkedLinearIssueOrganizationUrlKey: args.linkedLinearIssueOrganizationUrlKey,
+          linkedGitLabIssue: args.linkedGitLabIssue,
+          linkedGitLabMR: args.linkedGitLabMR,
+          linkedBitbucketPR: args.linkedBitbucketPR,
+          linkedAzureDevOpsPR: args.linkedAzureDevOpsPR,
+          linkedGiteaPR: args.linkedGiteaPR,
+          displayName: args.displayName,
+          sparseCheckout: args.sparseCheckout,
+          pushTarget: args.pushTarget,
+          setupDecision: args.setupDecision,
+          createdWithAgent: args.createdWithAgent,
+          pendingFirstAgentMessageRename: args.pendingFirstAgentMessageRename,
+          ...(args.startup
+            ? {
+                startupCommand: args.startup.command,
+                ...(args.startup.env ? { startupEnv: args.startup.env } : {}),
+                ...(args.startup.launchConfig
+                  ? { startupLaunchConfig: args.startup.launchConfig }
+                  : {}),
+                ...(args.startup.startupCommandDelivery
+                  ? { startupCommandDelivery: args.startup.startupCommandDelivery }
+                  : {}),
+                activate: true
+              }
+            : {}),
+          parentWorkspace: args.parentWorkspace,
+          // Why: every create through this API is an in-app action, never the CLI's parent flag.
+          ...(args.parentWorkspace ? { parentWorkspaceOrigin: 'manual' } : {}),
+          workspaceStatus: args.workspaceStatus,
+          manualOrder: args.manualOrder,
+          automationProvenanceRequest: args.automationProvenanceRequest
+        }
+      )
       return {
         ...owned.result,
         worktree: withRuntimeWorktreeOwner(owned.result.worktree, owned.hostId)

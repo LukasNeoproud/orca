@@ -1,3 +1,4 @@
+import { applySimplifiedWorktreeSubmission } from '@/lib/simplified-worktree-submission'
 import { describe, expect, it } from 'vitest'
 import { buildQuickCreationRequest, type QuickCreationRequestInput } from './quick-creation-request'
 
@@ -48,6 +49,46 @@ function createInput(
 }
 
 describe('quick composer creation request', () => {
+  it('pins explicit names while preserving linked review, setup and startup context', () => {
+    const request = buildQuickCreationRequest(
+      createInput({
+        workspaceName: 'generated',
+        nameWasGenerated: true,
+        displayName: 'Issue title',
+        displayNameKind: 'generated',
+        pendingFirstAgentMessageRename: true,
+        linkedPR: 17,
+        setupDecision: 'skip',
+        note: 'keep this note'
+      })
+    )
+    applySimplifiedWorktreeSubmission(
+      request,
+      {
+        name: 'feature/123',
+        displayName: 'feature/123',
+        baseBranch: 'refs/heads/master',
+        explicitCreation: {
+          branch: { kind: 'new', name: 'feature/123' },
+          destination: { root: '.worktrees', relativeDirectory: 'feature/123' }
+        }
+      },
+      'ssh:host'
+    )
+    expect(request).toMatchObject({
+      name: 'feature/123',
+      displayName: 'feature/123',
+      displayNameKind: 'user',
+      nameWasGenerated: false,
+      pendingFirstAgentMessageRename: false,
+      branchNameOverride: 'feature/123',
+      executionHostId: 'ssh:host',
+      linkedPR: 17,
+      setupDecision: 'skip',
+      note: 'keep this note'
+    })
+  })
+
   it('preserves omission semantics for unset optional creation fields', () => {
     const request = buildQuickCreationRequest(createInput())
 

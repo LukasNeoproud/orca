@@ -1,3 +1,5 @@
+import { useSimplifiedWorktreeForm } from './new-workspace/use-simplified-worktree-form'
+import { SimplifiedWorktreeFields } from './new-workspace/SimplifiedWorktreeFields'
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
@@ -117,6 +119,7 @@ function QuickTabBody({
   active: boolean
 }): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
+  const [simplifiedAtOpen] = useState(() => settings?.experimentalSimplifiedCreateWorktree === true)
   const {
     cardProps,
     composerRef,
@@ -124,6 +127,8 @@ function QuickTabBody({
     nameInputRef,
     submitQuick,
     createDisabled,
+    selectedBaseBranch,
+    suggestedBranchName,
     selectAddedProjectRepo
   } = useComposerState({
     initialName: modalData.prefilledName ?? '',
@@ -145,6 +150,37 @@ function QuickTabBody({
     enableIssueAutomation: modalData.enableIssueAutomation === true,
     createGateMode: 'quick'
   })
+  const simplified = simplifiedAtOpen && cardProps.selectedRepoIsGit
+  const selectedReview =
+    cardProps.smartNameSelection?.kind === 'github-pr' ||
+    cardProps.smartNameSelection?.kind === 'gitlab-mr'
+  const reviewBasePending = selectedReview && !selectedBaseBranch && !modalData.initialBaseBranch
+  const simpleForm = useSimplifiedWorktreeForm({
+    enabled: simplified,
+    repoId: cardProps.repoId,
+    hostId: cardProps.selectedRepoExecutionHostId,
+    initialName:
+      modalData.initialGitHubWorkItem?.branchName ??
+      cardProps.branchNameOverride ??
+      modalData.prefilledName ??
+      cardProps.name,
+    initialBaseBranch:
+      modalData.initialBaseBranch ?? (selectedReview ? selectedBaseBranch : undefined)
+  })
+  const handleReviewPrefill = cardProps.onSmartGitHubItemSelect
+  const reviewPrefillApplied = useRef(false)
+  useEffect(() => {
+    if (
+      simplified &&
+      !reviewPrefillApplied.current &&
+      modalData.initialGitHubWorkItem?.type === 'pr'
+    ) {
+      reviewPrefillApplied.current = true
+      handleReviewPrefill(modalData.initialGitHubWorkItem)
+    }
+  }, [simplified, modalData.initialGitHubWorkItem, handleReviewPrefill])
+  const validateSimplified = simpleForm.validate
+  const submitInFlight = useRef(false)
   // Why: the composer's built-in `onOpenAgentSettings` handler navigates to
   // the settings page and closes the modal. For the quick-create flow we want
   // a less disruptive affordance — a nested dialog layered over the composer
@@ -184,8 +220,23 @@ function QuickTabBody({
   }, [])
 
   const handleCreate = useCallback(async (): Promise<void> => {
-    await submitQuick(quickAgent)
-  }, [quickAgent, submitQuick])
+    if (submitInFlight.current || (simplified && reviewBasePending)) {
+      return
+    }
+    submitInFlight.current = true
+    try {
+      if (simplified) {
+        const explicit = await validateSimplified()
+        if (explicit) {
+          await submitQuick(quickAgent, explicit)
+        }
+      } else {
+        await submitQuick(quickAgent)
+      }
+    } finally {
+      submitInFlight.current = false
+    }
+  }, [quickAgent, submitQuick, simplified, validateSimplified, reviewBasePending])
   // Why: Add Project layers over the composer as a nested dialog instead of
   // replacing it in the activeModal slot — closing the composer mid-flow (and
   // losing the typed name/prompt) was the old, abrupt behavior. Once opened it
@@ -302,6 +353,30 @@ function QuickTabBody({
         quickAgent={quickAgent}
         onQuickAgentChange={handleQuickAgentChange}
         {...cardProps}
+        simplifiedFields={
+          simplified ? (
+            <SimplifiedWorktreeFields
+              form={simpleForm}
+              suggestedBranchName={suggestedBranchName}
+              card={{
+                ...cardProps,
+                primaryActionLabel,
+                nameInputRef,
+                quickAgent,
+                onQuickAgentChange: handleQuickAgentChange,
+                onCreate: () => {
+                  if (!createDisabled && !simpleForm.disabled) {
+                    void handleCreate()
+                  }
+                }
+              }}
+              onClose={onClose}
+            />
+          ) : undefined
+        }
+        createDisabled={
+          createDisabled || (simplified && (simpleForm.disabled || reviewBasePending))
+        }
         primaryActionLabel={primaryActionLabel}
         onOpenAgentSettings={() => setAgentSettingsOpen(true)}
         onCreate={() => void handleCreate()}

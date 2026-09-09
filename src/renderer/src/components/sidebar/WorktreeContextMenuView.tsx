@@ -162,6 +162,15 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               {translate('auto.components.sidebar.WorktreeContextMenu.439fa94d53', 'Update')}
             </DropdownMenuItem>
           )}
+          {!isMultiContext && !folderWorkspaceId && repo?.kind !== 'folder' ? (
+            <DropdownMenuItem
+              onSelect={() => model.setBranchManagementOpen(true)}
+              disabled={isDeleting}
+            >
+              <Workflow className="size-3.5" />
+              {translate('branchManagement.menu', 'Branch & worktree…')}
+            </DropdownMenuItem>
+          ) : null}
           <WorktreeStatusMenuItems
             contextWorkspaceStatus={contextWorkspaceStatus}
             deletingContext={deletingContext}

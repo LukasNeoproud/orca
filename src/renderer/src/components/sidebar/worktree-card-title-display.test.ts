@@ -5,6 +5,21 @@ import {
 } from './worktree-card-title-display'
 
 describe('worktree card title display', () => {
+  it('keeps a fixed branch-like label after issue arrival and external branch switches', () => {
+    for (const branchName of ['feature/orca-123', 'other-branch']) {
+      expect(
+        getWorktreeCardTitleDisplay({
+          storedDisplayName: 'feature/orca-123',
+          displayNameMode: 'fixed',
+          branchName,
+          jiraIssueTitle: 'Late Jira title',
+          linearIssueTitle: 'Late Linear title',
+          reviewTitle: 'Late review title'
+        })
+      ).toBe('feature/orca-123')
+    }
+  })
+
   it('keeps custom workspace titles', () => {
     expect(
       getWorktreeCardTitleDisplay({

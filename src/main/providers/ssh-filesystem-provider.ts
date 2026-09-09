@@ -265,6 +265,14 @@ export class SshFilesystemProvider implements IFilesystemProvider {
     await this.mux.request('fs.createDir', { dirPath })
   }
 
+  async reserveEmptyDirectory(dirPath: string): Promise<void> {
+    await this.mux.request('fs.emptyDirectoryReservation', { dirPath, action: 'reserve' })
+  }
+
+  async removeEmptyDirectory(dirPath: string): Promise<void> {
+    await this.mux.request('fs.emptyDirectoryReservation', { dirPath, action: 'release' })
+  }
+
   async createDirNoClobber(dirPath: string): Promise<void> {
     await this.mux.request('fs.createDirNoClobber', { dirPath })
   }

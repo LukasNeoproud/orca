@@ -230,6 +230,30 @@ describe('updateWorktreeGitIdentity', () => {
     expect(store.getState().worktreesByRepo.repo1[0].displayName).toBe('feature')
   })
 
+  it('preserves a label pinned while detached when creating a branch from HEAD', () => {
+    const store = createTestStore()
+    const existing = makeWorktree({
+      id: 'repo1::/path/wt1',
+      repoId: 'repo1',
+      path: '/path/wt1',
+      branch: 'refs/heads/feature',
+      displayName: 'feature'
+    })
+    store.setState({ worktreesByRepo: { repo1: [existing] } } as Partial<AppState>)
+    store.getState().updateWorktreeGitIdentity(existing.id, { branch: null })
+    const detached = store.getState().worktreesByRepo.repo1[0]
+    store.setState({
+      worktreesByRepo: { repo1: [{ ...detached, displayNameMode: 'fixed' }] }
+    } as Partial<AppState>)
+    store.getState().updateWorktreeGitIdentity(existing.id, { branch: 'refs/heads/rescued' })
+    expect(store.getState().worktreesByRepo.repo1[0]).toMatchObject({
+      id: existing.id,
+      path: existing.path,
+      displayName: 'feature',
+      branch: 'refs/heads/rescued'
+    })
+  })
+
   it('preserves a legacy CLI title even without projected display-name mode', () => {
     const store = createTestStore()
     const existing = makeWorktree({

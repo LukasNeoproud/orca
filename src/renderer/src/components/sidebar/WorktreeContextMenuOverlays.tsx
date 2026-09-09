@@ -1,3 +1,4 @@
+import { BranchWorktreeDialog } from './BranchWorktreeDialog'
 import { ProjectGroupNameDialog } from './ProjectGroupNameDialog'
 import { WorktreeParentPickerPopover } from './WorktreeParentPickerPopover'
 import { translate } from '@/i18n/i18n'
@@ -6,6 +7,12 @@ import type { WorktreeContextMenuModel } from './use-worktree-context-menu-model
 export function WorktreeContextMenuOverlays({ model }: { model: WorktreeContextMenuModel }) {
   return (
     <>
+      {model.branchManagementOpen ? (
+        <BranchWorktreeDialog
+          worktree={model.worktree}
+          onOpenChange={model.setBranchManagementOpen}
+        />
+      ) : null}
       <ProjectGroupNameDialog
         open={model.createGroupDialogOpen}
         title={translate(

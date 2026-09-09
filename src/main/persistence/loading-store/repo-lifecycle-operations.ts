@@ -171,6 +171,8 @@ export class RepoLifecycleOperations {
         | 'hookSettings'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
+        | 'simplifiedWorktreeLayout'
+        | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'executionHostId'
         | 'symlinkPaths'

@@ -41,6 +41,8 @@ export const worktreesApi = {
     return () => ipcRenderer.removeListener('createWorktree:progress', listener)
   },
 
+  ignoreCreationLocally: (args) => ipcRenderer.invoke('worktrees:ignoreCreationLocally', args),
+  previewCreation: (args) => ipcRenderer.invoke('worktrees:previewCreation', args),
   prefetchCreateBase: (args) => ipcRenderer.invoke('worktrees:prefetchCreateBase', args),
 
   resolvePrBase: (args) => ipcRenderer.invoke('worktrees:resolvePrBase', args),

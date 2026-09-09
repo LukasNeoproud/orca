@@ -74,6 +74,8 @@ export function sanitizeRepoUpdatesForPersistence<
       | 'upstream'
       | 'gitRemoteIdentity'
       | 'worktreeBasePath'
+      | 'simplifiedWorktreeLayout'
+      | 'simplifiedWorktreeLocation'
       | 'projectHostSetupMethod'
       | 'forkSyncMode'
       | 'customWorktreeVisibilitySources'
@@ -114,6 +116,21 @@ export function sanitizeRepoUpdatesForPersistence<
     } else {
       sanitized.gitRemoteIdentity = gitRemoteIdentity
     }
+  }
+  if (
+    'simplifiedWorktreeLocation' in sanitized &&
+    sanitized.simplifiedWorktreeLocation !== 'inside' &&
+    sanitized.simplifiedWorktreeLocation !== 'orca-default' &&
+    sanitized.simplifiedWorktreeLocation !== 'custom'
+  ) {
+    delete sanitized.simplifiedWorktreeLocation
+  }
+  if (
+    'simplifiedWorktreeLayout' in sanitized &&
+    sanitized.simplifiedWorktreeLayout !== 'nested' &&
+    sanitized.simplifiedWorktreeLayout !== 'flat'
+  ) {
+    delete sanitized.simplifiedWorktreeLayout
   }
   if ('worktreeBasePath' in sanitized && sanitized.worktreeBasePath !== undefined) {
     if (typeof sanitized.worktreeBasePath === 'string') {

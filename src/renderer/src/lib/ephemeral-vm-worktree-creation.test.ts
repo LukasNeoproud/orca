@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import type { PendingWorktreeCreation } from './pending-worktree-creation'
+import { applySimplifiedWorktreeSubmission } from './simplified-worktree-submission'
+import type { WorktreeCreationRequest, PendingWorktreeCreation } from './pending-worktree-creation'
 
 const { prepareTargetMock } = vi.hoisted(() => ({ prepareTargetMock: vi.fn() }))
 
@@ -85,3 +86,70 @@ it('carries the captured provisioned-root ref identity into adoption', async () 
     ephemeralVmExpectedRefHead: 'abc123'
   })
 })
+
+it.each([
+  { hostId: 'ssh:vm', checkoutMode: 'orca-worktree' },
+  { hostId: 'runtime:vm', checkoutMode: 'orca-worktree' },
+  { hostId: 'ssh:vm', checkoutMode: 'provisioned-root' }
+] as const)(
+  'retargets explicit creation to $hostId for $checkoutMode',
+  async ({ hostId, checkoutMode }) => {
+    prepareTargetMock.mockResolvedValue({
+      ok: true,
+      runtimeId: 'vm',
+      checkoutMode,
+      expectedRefHead: 'abc123',
+      warnings: [],
+      ...(hostId === 'runtime:vm' ? { environmentId: 'vm' } : {}),
+      setup: {
+        repo: { id: 'vm-repo', path: '/workspace/repo' },
+        setup: { id: 'vm-setup', projectId: 'project', hostId }
+      }
+    })
+    const request: WorktreeCreationRequest = {
+      repoId: 'repo-1',
+      name: 'feature/topic',
+      pendingFirstAgentMessageRename: true,
+      setupDecision: 'inherit',
+      agent: null,
+      note: '',
+      startupPlan: null,
+      quickPrompt: '',
+      quickTelemetry: null,
+      ephemeralVmRecipe: {
+        sourceRepoId: 'repo-1',
+        recipeId: 'vm',
+        projectId: 'project',
+        checkoutMode
+      }
+    }
+    applySimplifiedWorktreeSubmission(
+      request,
+      {
+        name: 'feature/topic',
+        displayName: 'Fixed label',
+        baseBranch: 'refs/heads/main',
+        explicitCreation: {
+          branch: { kind: 'new', name: 'feature/topic' },
+          destination: { root: '.worktrees', relativeDirectory: 'feature/topic' }
+        }
+      },
+      'local'
+    )
+    const prepared = await prepareRequestForCreate('creation-1', request)
+    expect(prepared).toMatchObject({
+      repoId: 'vm-repo',
+      executionHostId: hostId,
+      workspaceRunContext: { hostId, repoId: 'vm-repo', path: '/workspace/repo' },
+      explicitCreation: request.explicitCreation,
+      displayName: 'Fixed label',
+      displayNameKind: 'user',
+      pendingFirstAgentMessageRename: false
+    })
+    expect(request.executionHostId).toBe('local')
+    expect(store.updatePendingWorktreeCreation).toHaveBeenLastCalledWith('creation-1', {
+      phase: 'fetching',
+      request: prepared
+    })
+  }
+)

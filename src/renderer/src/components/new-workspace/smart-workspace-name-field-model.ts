@@ -30,6 +30,8 @@ export type SmartWorkspaceNameFieldProps = {
   jiraSourceContext?: TaskSourceContext | null
   inputRef?: React.RefObject<HTMLInputElement | null>
   onPlainEnter?: () => void
+  compactSourcePicker?: boolean
+  onLookupError?: (message: string) => void
   disabled?: boolean
   disabledPlaceholder?: string
   textOnly?: boolean

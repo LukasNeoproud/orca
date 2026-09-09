@@ -86,6 +86,12 @@ export async function executeWorktreeCreation(
         preparedRequest.linkedGiteaPR,
         preparedRequest.compareBaseRef,
         {
+          ...(preparedRequest.executionHostId
+            ? { executionHostId: preparedRequest.executionHostId }
+            : {}),
+          ...(preparedRequest.explicitCreation
+            ? { explicitCreation: preparedRequest.explicitCreation }
+            : {}),
           ...(preparedRequest.nameWasGenerated ? { nameWasGenerated: true } : {}),
           ...(preparedRequest.displayNameKind
             ? { displayNameKind: preparedRequest.displayNameKind }

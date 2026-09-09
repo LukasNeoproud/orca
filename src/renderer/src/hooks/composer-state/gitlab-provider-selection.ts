@@ -27,7 +27,7 @@ type GitLabProviderSelectionInput = Pick<
   | 'settings'
 >
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import type { GitLabWorkItem } from '../../../../shared/gitlab-types'
 import {
   toGitLabLinkedWorkItem,
@@ -67,9 +67,12 @@ export function useGitLabProviderSelection(input: GitLabProviderSelectionInput) 
     settings
   } = input
 
+  const selectionVersion = useRef(0)
+
   // Why: GitLab parallel of handleSmartGitHubItemSelect — resolves MR base via worktrees:resolveMrBase (refs/merge-requests/<iid>/head); issues short-circuit.
   const handleSmartGitLabItemSelect = useCallback(
     (item: GitLabWorkItem): void => {
+      const version = ++selectionVersion.current
       if (isProjectGroupTarget) {
         const linkedItem = toGitLabLinkedWorkItem(item)
         setLinkedGitLabIssue(item.type === 'issue' ? item.number : null)
@@ -92,6 +95,9 @@ export function useGitLabProviderSelection(input: GitLabProviderSelectionInput) 
         return
       }
       applyLinkedGitLabWorkItem(item)
+      setBaseBranch(undefined)
+      setCompareBaseRef(undefined)
+      setPushTarget(undefined)
       setStartFromResetHint(null)
       setBranchNameOverride(undefined)
       setBranchNameOverridePreservesNameEdits(false)
@@ -100,10 +106,8 @@ export function useGitLabProviderSelection(input: GitLabProviderSelectionInput) 
       // Why: MR metadata can be sourced from one host/account while the workspace is created on another for the same logical project.
       const runRepo = selectedRepo ?? eligibleRepos.find((repo) => repo.id === item.repoId)
       if (item.type !== 'mr' || !runRepo) {
-        setCompareBaseRef(undefined)
         return
       }
-      setCompareBaseRef(undefined)
       const itemRepoSettings = getSettingsForRepoRuntimeOwner(
         { repos: [runRepo], settings },
         runRepo.id
@@ -139,6 +143,9 @@ export function useGitLabProviderSelection(input: GitLabProviderSelectionInput) 
             )
       void resolveMrBase
         .then((result) => {
+          if (version !== selectionVersion.current) {
+            return
+          }
           if ('error' in result) {
             // Why: an unsurfaced failure silently falls back to the repo default branch, so clear stale base state and toast — mirrors the GitHub PR path.
             setBaseBranch(undefined)
@@ -155,6 +162,9 @@ export function useGitLabProviderSelection(input: GitLabProviderSelectionInput) 
           )
         })
         .catch((error: unknown) => {
+          if (version !== selectionVersion.current) {
+            return
+          }
           setBaseBranch(undefined)
           setCompareBaseRef(undefined)
           setPushTarget(undefined)

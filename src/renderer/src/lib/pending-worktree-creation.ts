@@ -1,3 +1,5 @@
+import type { ExecutionHostId } from '../../../shared/execution-host'
+import type { ExplicitWorktreeCreation } from '../../../shared/worktree/explicit-creation'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { WorkspaceSource as WorkspaceCreateTelemetrySource } from '../../../shared/workspace-source'
 import type {
@@ -33,6 +35,8 @@ export type WorktreeCreationProgressMode = 'stepped' | 'indeterminate'
  */
 export type WorktreeCreationRequest = {
   repoId: string
+  executionHostId?: ExecutionHostId
+  explicitCreation?: ExplicitWorktreeCreation
   /** Source host/account that produced the linked task. Kept separate from the
    *  run context so Retry does not infer provider ownership from the run host. */
   taskSourceContext?: TaskSourceContext | null

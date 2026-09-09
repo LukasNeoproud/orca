@@ -1,3 +1,5 @@
+import { applySimplifiedWorktreeSubmission } from '@/lib/simplified-worktree-submission'
+import type { SimplifiedWorktreeSubmission } from '@/lib/simplified-worktree-submission'
 import type { ComposerModel } from './composer-model'
 
 type QuickCreationExecutionInput = Pick<
@@ -91,7 +93,8 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
       workspaceNameSeed: string,
       workspaceRunContext: WorktreeCreationRequest['workspaceRunContext'],
       repoId: string,
-      selectedRepo: Repo
+      selectedRepo: Repo,
+      explicit?: SimplifiedWorktreeSubmission
     ): Promise<void> => {
       const prepared = await prepareQuickSubmit(
         smartGitHubResolution,
@@ -260,6 +263,10 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         quickTelemetry,
         suppressTerminalFocusOnCompletion: createMultiple
       })
+
+      if (explicit) {
+        applySimplifiedWorktreeSubmission(request, explicit, selectedRepoExecutionHostId)
+      }
 
       if (isSubmissionCancelled()) {
         return

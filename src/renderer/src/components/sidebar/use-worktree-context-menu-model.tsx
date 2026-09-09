@@ -32,16 +32,8 @@ import { useWorktreeContextMenuCommands } from './use-worktree-context-menu-comm
 import { useWorktreeParentPickerTransition } from './use-worktree-parent-picker-transition'
 import { useWorktreeContextMenuSecondaryActions } from './use-worktree-context-menu-secondary-actions'
 
-export type WorktreeContextMenuProps = {
-  worktree: Worktree
-  children: React.ReactNode
-  contentClassName?: string
-  selectedWorktrees?: readonly Worktree[]
-  onContextMenuSelect?: (event: React.MouseEvent<HTMLElement>) => readonly Worktree[]
-  onAssignWorkspaceStatus?: (worktreeIds: readonly string[], status: string) => void
-  onOpenChange?: (open: boolean) => void
-  onLifecycleComplete?: () => void
-}
+export type { WorktreeContextMenuProps } from './worktree-context-menu-props'
+import type { WorktreeContextMenuProps } from './worktree-context-menu-props'
 
 export function useWorktreeContextMenuModel({
   worktree,
@@ -66,11 +58,8 @@ export function useWorktreeContextMenuModel({
   const deleteState = useAppStore((s) =>
     getDeleteStateForWorktreeHost(worktree, s.deleteStateByWorktreeId)
   )
+  const [branchManagementOpen, setBranchManagementOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  // Why: the Developer submenu is a power-user affordance, so it is revealed by
-  // holding Option/Alt at right-click — captured at open time (like the Help
-  // menu's admin options) so the submenu can't appear or vanish mid-menu and
-  // shift the rows under the pointer.
   const [developerMenuRevealed, setDeveloperMenuRevealed] = useState(false)
   const [menuPoint, setMenuPoint] = useState({ x: 0, y: 0 })
   const [contextWorktrees, setContextWorktrees] = useState<readonly Worktree[]>(
@@ -247,6 +236,7 @@ export function useWorktreeContextMenuModel({
     if (
       !lifecycleStartedRef.current ||
       menuOpen ||
+      branchManagementOpen ||
       createGroupDialogOpen ||
       createGroupDialogActiveRef.current ||
       parentPicker !== null ||
@@ -262,7 +252,7 @@ export function useWorktreeContextMenuModel({
       onLifecycleComplete?.()
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [createGroupDialogOpen, menuOpen, onLifecycleComplete, parentPicker])
+  }, [branchManagementOpen, createGroupDialogOpen, menuOpen, onLifecycleComplete, parentPicker])
 
   useEffect(() => {
     const closeMenu = (): void => setMenuOpenState(false)
@@ -357,6 +347,8 @@ export function useWorktreeContextMenuModel({
   )
 
   return {
+    branchManagementOpen,
+    setBranchManagementOpen,
     activeContextWorktrees,
     allWorktrees,
     batchDeleteWorktrees,

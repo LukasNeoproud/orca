@@ -385,7 +385,7 @@ describe('WorktreeCard linked PR display', () => {
 
     expect(markup).toContain('data-worktree-title-inline-rename=""')
     expect(markup).toContain('>Fix stale GH PR</span>')
-    expect(markup).not.toContain('>feature/local-branch</span>')
+    expect(markup).toContain('>feature/local-branch</span>')
   })
 
   it('shows task and notes metadata while keeping PR out of the right metadata list', async () => {
@@ -438,7 +438,7 @@ describe('WorktreeCard linked PR display', () => {
     expect(markup).toContain('Linked Linear ENG-123')
     expect(markup).not.toContain('Linked PR #456')
     expect(markup).toContain('Workspace notes')
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expect(markup).not.toContain('Reviewer handoff note')
   })
 

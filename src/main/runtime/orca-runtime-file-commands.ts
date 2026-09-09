@@ -1,4 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { getBranchManagementSessions } from './runtime-branch-management-sessions'
 import { OrcaRuntimeWithPreservedBranchCleanup } from './orca-runtime-preserved-branch-cleanup'
 import { RuntimeFileCommands } from './orca-runtime-files'
 import { nativeChatTranscriptIncludesPath } from '../native-chat/native-chat-file-provenance'
@@ -70,6 +71,14 @@ export class OrcaRuntimeWithFileCommands extends OrcaRuntimeWithPreservedBranchC
   acquireFileWatcherRemoval = this.fileWatcherRemoval.acquire
 
   protected readonly gitCommands = new RuntimeGitCommands({
+    pinManagedBranchSidebarLabel: async (target) => {
+      await this.updateManagedWorktreeMeta(`id:${target.worktree.id}`, {
+        displayName: target.worktree.displayName,
+        displayNameIsPinned: true
+      })
+    },
+    getBranchManagementSessions: (target) =>
+      getBranchManagementSessions(this.ptyController, target),
     resolveRuntimeGitTarget: (selector) => this.resolveRuntimeGitTarget(selector),
     getRuntimeSettings: () => this.requireStore().getSettings() as GlobalSettings,
     getCommitMessageAgentEnvironment: () => this.accounts.getCommitMessageAgentEnvironment(),

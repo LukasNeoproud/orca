@@ -1,3 +1,4 @@
+import { ExplicitWorktreeCreationSchema } from '../../../../shared/worktree/explicit-creation'
 import { z } from 'zod'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import { workspaceSourceSchema } from '../../../../shared/telemetry-events'
@@ -31,6 +32,7 @@ export const WorktreeCreate = z
     baseBranch: OptionalString,
     compareBaseRef: OptionalString,
     branchNameOverride: OptionalString,
+    explicitCreation: ExplicitWorktreeCreationSchema.optional(),
     linkedIssue: TriStateLinkedIssue,
     linkedPR: TriStateLinkedIssue,
     linkedLinearIssue: z.string().optional(),

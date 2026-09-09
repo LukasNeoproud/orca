@@ -57,7 +57,7 @@ export async function listProcessesFromRuntimeController(
   opts?: { deadlineMs?: number; includeForegroundProcessEvidence?: boolean }
 ) {
   if (connectionId === null) {
-    return localProvider.listProcesses()
+    return opts ? localProvider.listProcesses(opts) : localProvider.listProcesses()
   }
   if (connectionId !== undefined) {
     try {

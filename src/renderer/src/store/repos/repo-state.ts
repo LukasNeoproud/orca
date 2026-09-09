@@ -38,6 +38,8 @@ export type RepoUpdate = Partial<
     | 'hookSettings'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
+    | 'simplifiedWorktreeLayout'
+    | 'simplifiedWorktreeLocation'
     | 'kind'
     | 'symlinkPaths'
     | 'issueSourcePreference'

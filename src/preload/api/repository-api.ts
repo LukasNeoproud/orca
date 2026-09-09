@@ -54,6 +54,8 @@ export type RepositoryApi = {
         | 'hookSettings'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
+        | 'simplifiedWorktreeLayout'
+        | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'issueSourcePreference'
         | 'externalWorktreeVisibilityPromptDismissedAt'

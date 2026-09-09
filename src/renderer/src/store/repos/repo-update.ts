@@ -38,8 +38,27 @@ export function sanitizeRepoUpdate(updates: RepoUpdate): RepoUpdate {
       sanitized.repoIcon = repoIcon
     }
   }
+  if (
+    'simplifiedWorktreeLocation' in sanitized &&
+    sanitized.simplifiedWorktreeLocation !== 'inside' &&
+    sanitized.simplifiedWorktreeLocation !== 'orca-default' &&
+    sanitized.simplifiedWorktreeLocation !== 'custom'
+  ) {
+    delete sanitized.simplifiedWorktreeLocation
+  }
+  if (
+    'simplifiedWorktreeLayout' in sanitized &&
+    sanitized.simplifiedWorktreeLayout !== 'nested' &&
+    sanitized.simplifiedWorktreeLayout !== 'flat'
+  ) {
+    delete sanitized.simplifiedWorktreeLayout
+  }
   if ('worktreeBasePath' in sanitized && sanitized.worktreeBasePath !== undefined) {
     sanitized.worktreeBasePath = sanitized.worktreeBasePath.trim() || undefined
+  }
+  if (sanitized.simplifiedWorktreeLocation === 'orca-default') {
+    // Preserve the clear sentinel through JSON; undefined would keep a remote project's old path.
+    sanitized.worktreeBasePath = ''
   }
   if (
     'forkSyncMode' in sanitized &&

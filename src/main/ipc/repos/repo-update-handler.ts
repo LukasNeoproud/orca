@@ -33,6 +33,8 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
             | 'hookSettings'
             | 'worktreeBaseRef'
             | 'worktreeBasePath'
+            | 'simplifiedWorktreeLayout'
+            | 'simplifiedWorktreeLocation'
             | 'kind'
             | 'symlinkPaths'
             | 'issueSourcePreference'

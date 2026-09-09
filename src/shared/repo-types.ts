@@ -56,6 +56,9 @@ export type Repo = {
   worktreeBaseRef?: string
   /** Optional repo-scoped workspace root override. Relative paths resolve from `path`. */
   worktreeBasePath?: string
+  /** Directory layout for explicit branch-first creation; existing directories are unchanged. */
+  simplifiedWorktreeLayout?: 'nested' | 'flat'
+  simplifiedWorktreeLocation?: 'inside' | 'orca-default' | 'custom'
   hookSettings?: RepoHookSettings
   /** SSH target ID for remote repos. null/undefined = local. */
   connectionId?: string | null

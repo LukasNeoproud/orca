@@ -2760,6 +2760,9 @@
       }
     }
   },
+  "simplifiedWorktree": {
+    "openFailed": "Could not open this checkout. Refresh the project and try again."
+  },
   "worktreeJumpPalette": {
     "filter": {
       "chipOverflow": "+{{value0}}",

@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { defineMethod, type RpcMethod } from '../core'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
@@ -22,6 +23,20 @@ import {
 } from './git-params'
 
 export const GIT_METHODS: RpcMethod[] = [
+  defineMethod({
+    name: 'git.branchManagementPreview',
+    params: WorktreeSelector,
+    handler: async (params, { runtime }) => runtime.inspectRuntimeBranchManagement(params.worktree)
+  }),
+  defineMethod({
+    name: 'git.manageBranch',
+    params: WorktreeSelector.extend({
+      action: z.enum(['switch', 'create', 'rename']),
+      branch: z.string().min(1)
+    }),
+    handler: async (params, { runtime }) =>
+      runtime.manageRuntimeBranch(params.worktree, params.action, params.branch)
+  }),
   defineMethod({
     name: 'git.status',
     params: GitStatusParams,

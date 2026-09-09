@@ -302,7 +302,7 @@ describe('WorktreeCard quick actions', () => {
 
     const markup = renderToStaticMarkup(
       <WorktreeCard
-        worktree={makeWorktree({ displayName: 'quick-action', branch: 'quick-action' })}
+        worktree={makeWorktree({ displayName: 'Workspace label', branch: 'quick-action' })}
         repo={makeRepo()}
         isActive={false}
         hideRepoBadge
@@ -355,7 +355,7 @@ describe('WorktreeCard quick actions', () => {
     expect(markup).toContain('tabindex="0"')
   })
 
-  it('omits the branch metadata row when the workspace has a custom title', () => {
+  it('shows the branch metadata row when the workspace has a custom title', () => {
     worktreeCardProperties = []
     settings = { compactWorktreeCards: true }
 
@@ -369,8 +369,8 @@ describe('WorktreeCard quick actions', () => {
     )
 
     expect(markup).toContain('Custom workspace')
-    expect(markup).not.toContain('>quick-action<')
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('>quick-action<')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expect(markup).not.toContain('text-[11px] text-muted-foreground truncate leading-none')
   })
 
@@ -392,7 +392,7 @@ describe('WorktreeCard quick actions', () => {
 
     expect(markup).toContain('primary')
     expect(markup).not.toContain('aria-label="Primary worktree"')
-    expect(markup).toContain('data-worktree-card-meta-row=""')
+    expect(markup).not.toContain('data-worktree-card-meta-row=""')
   })
 
   it('keeps unread in the status lane and moves primary into the title row when compact cards are enabled', () => {

@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Command } from '@/components/ui/command'
@@ -88,30 +95,43 @@ export function renderSmartWorkspaceNameField(
     setEmojiCursor
   } = controller
 
+  const changeMode = (next: string) => {
+    const nextMode = next as typeof mode
+    onActiveSourceModeChange?.(nextMode)
+    setMode(nextMode)
+    if (!disabled && nextMode !== 'text' && selectedSource === null) {
+      markSourcePopoverUserEngaged()
+      setOpen(true)
+    } else {
+      setOpen(false)
+    }
+    cancelLocalInputFocusFrame()
+    localInputFocusFrameRef.current = requestAnimationFrame(() => {
+      localInputFocusFrameRef.current = null
+      localInputRef.current?.focus({ preventScroll: true })
+    })
+  }
+
   return (
     <div className="min-w-0 space-y-1.5">
-      {textOnly ? null : (
+      {textOnly ? null : controller.compactSourcePicker ? (
+        <Select value={mode} onValueChange={changeMode}>
+          <SelectTrigger aria-label={translate('simplifiedWorktree.issueSource', 'Issue source')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableModes
+              .filter((option) => option.id !== 'text' && option.id !== 'branches')
+              .map(({ id, label }) => (
+                <SelectItem key={id} value={id}>
+                  {label}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      ) : (
         <div className="flex min-w-0 items-center gap-2 border-b border-border/40">
-          <Tabs
-            value={mode}
-            onValueChange={(next) => {
-              const nextMode = next as typeof mode
-              onActiveSourceModeChange?.(nextMode)
-              setMode(nextMode)
-              if (!disabled && nextMode !== 'text' && selectedSource === null) {
-                markSourcePopoverUserEngaged()
-                setOpen(true)
-              } else {
-                setOpen(false)
-              }
-              cancelLocalInputFocusFrame()
-              localInputFocusFrameRef.current = requestAnimationFrame(() => {
-                localInputFocusFrameRef.current = null
-                localInputRef.current?.focus({ preventScroll: true })
-              })
-            }}
-            className="min-w-0 flex-1 gap-0"
-          >
+          <Tabs value={mode} onValueChange={changeMode} className="min-w-0 flex-1 gap-0">
             <TabsList
               ref={tabsListRef}
               variant="line"

@@ -51,6 +51,8 @@ export class RepoUpdatePersistenceOperations {
         | 'hookSettings'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
+        | 'simplifiedWorktreeLayout'
+        | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'executionHostId'
         | 'symlinkPaths'

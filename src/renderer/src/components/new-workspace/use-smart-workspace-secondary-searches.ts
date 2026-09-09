@@ -28,6 +28,7 @@ export function useSmartWorkspaceSecondarySearches({
   jiraSearchJql: string | null
 }): void {
   const {
+    onLookupError,
     disabled,
     jiraSource,
     branchesEnabled,
@@ -185,8 +186,9 @@ export function useSmartWorkspaceSecondarySearches({
           setLinearIssues(issues)
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!stale) {
+          onLookupError?.(error instanceof Error ? error.message : String(error))
           setLinearIssues([])
         }
       })
@@ -209,7 +211,8 @@ export function useSmartWorkspaceSecondarySearches({
     linearSourceContext,
     linearUrlIntent,
     setSettledLinearUrlQuery,
-    shouldQueryLinear
+    shouldQueryLinear,
+    onLookupError
   ])
 
   useEffect(() => {
@@ -234,8 +237,9 @@ export function useSmartWorkspaceSecondarySearches({
           setJiraIssues(issues)
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!stale) {
+          onLookupError?.(error instanceof Error ? error.message : String(error))
           setJiraIssues([])
         }
       })
@@ -256,6 +260,7 @@ export function useSmartWorkspaceSecondarySearches({
     searchJiraIssues,
     setJiraIssues,
     setJiraLoading,
-    shouldQueryJira
+    shouldQueryJira,
+    onLookupError
   ])
 }

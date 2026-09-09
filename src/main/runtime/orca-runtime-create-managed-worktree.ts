@@ -1,4 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { ignoreCreationLocally } from '../ipc/worktrees/create/ignore-creation-locally'
+import { previewWorktreeCreation } from '../ipc/worktrees/create/explicit-creation-preview'
 import { OrcaRuntimeWithGetWorktreeTerminalProvisioningHost } from './orca-runtime-get-worktree-terminal-provisioning-host'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
@@ -13,6 +15,22 @@ import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { startRuntimeLocalWorktreeTerminals } from './runtime-local-worktree-terminal-startup'
 
 export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWorktreeTerminalProvisioningHost {
+  async ignoreManagedWorktreeCreationLocally(args: RuntimeManagedWorktreeCreateArgs) {
+    if (!this.store) {
+      throw new Error('runtime_unavailable')
+    }
+    const repo = await this.resolveRepoSelector(args.repoSelector)
+    return ignoreCreationLocally(args, repo, this.store)
+  }
+
+  async previewManagedWorktreeCreation(args: RuntimeManagedWorktreeCreateArgs) {
+    if (!this.store) {
+      throw new Error('runtime_unavailable')
+    }
+    const repo = await this.resolveRepoSelector(args.repoSelector)
+    return previewWorktreeCreation(args, repo, this.store)
+  }
+
   async createManagedWorktree(
     args: RuntimeManagedWorktreeCreateArgs
   ): Promise<CreateWorktreeResult> {
