@@ -17,12 +17,14 @@ export type NativeChatPaneResolutionInput = {
    *  captured `providerSession` (the agent's own session id) once the agent has
    *  reported it, plus the detected `agentType`. */
   agentStatusEntry?: AgentStatusEntry
+  /** Live hook or valid foreground identity, ahead of launch/title hints. */
+  detectedAgent?: AgentType | null
   /** Runtime PTY id bound to this pane. ptyId is pane-manager runtime state, so
    *  it's passed in rather than looked up inside this pure function. */
   ptyId: string | null
   /** Agent identity resolved from trusted terminal title/foreground signals.
    *  Fallback only: launch metadata and hook status remain authoritative. */
-  resolvedAgent?: TuiAgent | null
+  resolvedAgent?: AgentType | null
 }
 
 export type NativeChatPaneResolution = {
@@ -46,7 +48,11 @@ export type NativeChatPaneResolution = {
 export function resolveNativeChatSession(
   input: NativeChatPaneResolutionInput
 ): NativeChatPaneResolution | null {
-  const agent = input.agentStatusEntry?.agentType ?? input.launchAgent ?? input.resolvedAgent
+  const agent =
+    input.agentStatusEntry?.agentType ??
+    input.detectedAgent ??
+    input.launchAgent ??
+    input.resolvedAgent
   if (!agent || !isNativeChatSupportedAgent(agent)) {
     return null
   }

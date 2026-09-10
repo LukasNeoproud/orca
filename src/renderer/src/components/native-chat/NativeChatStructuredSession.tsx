@@ -1,3 +1,5 @@
+import { canShowAdoptedTerminal } from './structured-agent-session-terminal-escape'
+import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHandoffChrome'
 import { useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { encodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
@@ -46,8 +48,8 @@ export function NativeChatStructuredSession(
     sequence: number
   } | null>(null)
   const paneKey = useMemo(
-    () => structuredAgentSessionPaneKey(props.tabId, props.sessionId),
-    [props.sessionId, props.tabId]
+    () => props.composerPaneKey ?? structuredAgentSessionPaneKey(props.tabId, props.sessionId),
+    [props.composerPaneKey, props.sessionId, props.tabId]
   )
   const rootRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<NativeChatComposerHandle>(null)
@@ -182,6 +184,18 @@ export function NativeChatStructuredSession(
       onContextMenuCapture={paneCommands.onContextMenuCapture}
       className="flex h-full min-h-0 w-full flex-col bg-background focus:outline-none"
     >
+      <StructuredAgentSessionHandoffChrome
+        status={controller.handoff}
+        onShowTerminal={
+          canShowAdoptedTerminal(controller.handoff, props.composerPaneKey)
+            ? props.onSwitchToTerminal
+            : undefined
+        }
+        isWorking={controller.isWorking}
+        onRequest={(direction, mode, action) => {
+          void controller.requestHandoff(direction, mode, action)
+        }}
+      />
       <div className="flex min-h-0 flex-1 flex-col">
         {viewState.kind === 'loading' ? (
           <NativeChatEmptyState kind="loading" />
@@ -349,7 +363,7 @@ export function NativeChatStructuredSession(
           paneKey={paneKey}
           targetPtyId={null}
           agent={props.agent}
-          canSend={!prompt}
+          canSend={!prompt && controller.canSend}
           isWorking={controller.isWorking}
           onStop={() => {
             if (controller.turnId) {

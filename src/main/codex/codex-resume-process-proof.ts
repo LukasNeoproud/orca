@@ -60,7 +60,7 @@ function tokenizeWindowsProcessCommandLine(commandLine: string): string[] {
   return tokens
 }
 
-function tokenizeProcessCommandLine(
+export function tokenizeProcessCommandLine(
   commandLine: string,
   platform: NodeJS.Platform
 ): string[] | null {

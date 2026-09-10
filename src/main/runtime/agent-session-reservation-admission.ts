@@ -7,6 +7,7 @@
  */
 
 import {
+  agentSessionOperationKey,
   evaluateAgentSessionOperation,
   pruneAgentSessionOperationRows,
   type AgentSessionOperationDecision,
@@ -76,6 +77,31 @@ export type AgentSessionReserveResult = {
   record: AgentSessionRecord
   disposition: AgentSessionReserveDisposition
   operationRow: AgentSessionOperationRow
+}
+
+export function reserveAgentSessionRecordOwner(
+  state: AgentSessionStoreState,
+  request: AgentSessionReserveRequest,
+  leaseTtlMs: number
+): AgentSessionReserveResult {
+  const decision = evaluateAgentSessionReserveOperation(state, request)
+  if (decision.decision === 'refused') {
+    throw new Error(decision.code)
+  }
+  if (decision.decision === 'replay') {
+    let record = requireAgentSessionRecordForReplay(state, decision.row, request.sessionId)
+    if (decision.row.outcome.status === 'pending' && request.handoffOperationId !== null) {
+      record = admitPendingAgentSessionReservationReplay(record, request)
+    }
+    return { record, disposition: 'replayed', operationRow: decision.row }
+  }
+  const result = applyAgentSessionReservation(state, request, leaseTtlMs)
+  state.operations.set(
+    agentSessionOperationKey(request.operation.callerKey, request.operation.operationId),
+    decision.row
+  )
+  state.records.set(result.record.sessionId, result.record)
+  return { ...result, operationRow: decision.row }
 }
 
 export function evaluateAgentSessionReserveOperation(

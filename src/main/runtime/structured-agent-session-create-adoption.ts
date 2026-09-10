@@ -95,7 +95,7 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
 }
 
 /** Recognised adoption homes, most-preferred first. */
-function structuredAdoptionAccountHomeCandidates(input: {
+export function structuredAdoptionAccountHomeCandidates(input: {
   settings: AdoptionSettings
   agent: 'claude' | 'codex'
   selectedAccountHomePath: string

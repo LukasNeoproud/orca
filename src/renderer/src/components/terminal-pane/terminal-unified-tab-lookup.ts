@@ -6,6 +6,7 @@ export type UnifiedTerminalTabChatFields = {
   structuredSessionAgent: AgentType | undefined
   isChatViewMode: boolean
   structuredSessionId: string | null
+  structuredSessionPaneKey?: string
   unifiedTabLabel: string | undefined
 }
 
@@ -69,6 +70,9 @@ export function selectUnifiedTerminalTabChatFields(
     structuredSessionAgent: tab?.agentSessionAgent,
     isChatViewMode: tab?.viewMode === 'chat',
     structuredSessionId: tab?.structuredSessionId ?? null,
+    ...(tab?.structuredSessionPaneKey
+      ? { structuredSessionPaneKey: tab.structuredSessionPaneKey }
+      : {}),
     unifiedTabLabel: tab?.label
   }
 }

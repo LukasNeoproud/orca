@@ -8,7 +8,13 @@ import type { AgentSessionRecordStore } from '../../runtime/agent-session-record
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 
 export type StructuredTuiOwner = {
-  terminal: { handle: string; tabId: string; paneKey: string; ptyId: string }
+  terminal: {
+    handle: string
+    tabId: string
+    paneKey: string
+    ptyId: string
+    incarnationId?: string
+  }
   process: AgentSessionProcessIdentity
   link: AgentSessionProviderHandleLink
   transcriptPath?: string

@@ -29,7 +29,8 @@ export function TerminalPaneNativeChatPortal({
     structuredSessionId,
     switchNativeChatToTerminal,
     tabId,
-    unifiedTabId
+    unifiedTabId,
+    worktreeId
   } = controller
   const chatPaneSessionId = useAppStore((state) =>
     effectiveChatViewMode && chatPane
@@ -70,11 +71,13 @@ export function TerminalPaneNativeChatPortal({
       {structuredSessionId && structuredChatAgent ? (
         <NativeChatView
           mode="structured"
+          onSwitchToTerminal={switchNativeChatToTerminal}
           tabId={unifiedTabId ?? tabId}
           sessionId={structuredSessionId}
           agent={structuredChatAgent}
           isVisible={isRendererVisible}
           target={structuredChatTarget}
+          composerPaneKey={makePaneKey(tabId, chatPane.leafId)}
           contextMenuActions={contextMenuActions}
         />
       ) : (
@@ -89,6 +92,11 @@ export function TerminalPaneNativeChatPortal({
           onSwitchToTerminal={switchNativeChatToTerminal}
           readTerminalScreen={readNativeChatTerminalScreen}
           contextMenuActions={contextMenuActions}
+          terminalContext={
+            unifiedTabId
+              ? { worktreeId, unifiedTabId, singlePane: managedPanes.length === 1 }
+              : undefined
+          }
         />
       )}
     </div>,

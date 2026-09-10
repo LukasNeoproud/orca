@@ -35,6 +35,16 @@ export const CLEANUP_METHODS = [
 
 /** Starts, extends, retains or reads work, so every one stays refused once the setting is off. */
 export const ADMISSION_METHODS = [
+  {
+    method: 'agentSession.adoptTerminal',
+    params: {
+      envelope: envelope({ expectedRuntimeFence: null }),
+      worktree: 'id:workspace-1',
+      agent: 'codex',
+      providerSessionId: 'thread-1',
+      terminal: { tabId: 'tab', paneKey: 'tab:pane', ptyId: 'pty' }
+    }
+  },
   { method: 'agentSession.createSupport', params: { worktree: 'id:workspace-1', agent: 'codex' } },
   {
     method: 'agentSession.create',

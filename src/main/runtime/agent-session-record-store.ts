@@ -1,9 +1,12 @@
 import { setVisibleSessionId } from './agent-session-visible-tab-index'
+import {
+  adoptAgentSessionTerminalOwner,
+  type AgentSessionTerminalOwnerAdoption
+} from './agent-session-terminal-owner-adoption'
 import { commitConversationCommandRecord } from './agent-session-conversation-command-record'
 /** Durable single-writer session records and their operation ledger. */
 
 import {
-  agentSessionOperationKey,
   settleAgentSessionOperation,
   type AgentSessionOperationDecision,
   type AgentSessionOperationOutcome,
@@ -51,10 +54,7 @@ import {
   type AgentSessionReservationProcesslessProof
 } from './agent-session-processless-reservation'
 import {
-  admitPendingAgentSessionReservationReplay,
-  applyAgentSessionReservation,
-  evaluateAgentSessionReserveOperation,
-  requireAgentSessionRecordForReplay,
+  reserveAgentSessionRecordOwner,
   type AgentSessionReserveRequest,
   type AgentSessionReserveResult
 } from './agent-session-reservation-admission'
@@ -170,26 +170,9 @@ export class AgentSessionRecordStore {
    * operation returns the recorded outcome and never reaches the reservation.
    */
   async reserveOwner(request: AgentSessionReserveRequest): Promise<AgentSessionReserveResult> {
-    return this.transact(() => {
-      const decision = evaluateAgentSessionReserveOperation(this.state, request)
-      if (decision.decision === 'refused') {
-        throw new Error(decision.code)
-      }
-      if (decision.decision === 'replay') {
-        let record = requireAgentSessionRecordForReplay(this.state, decision.row, request.sessionId)
-        if (decision.row.outcome.status === 'pending' && request.handoffOperationId !== null) {
-          record = admitPendingAgentSessionReservationReplay(record, request)
-        }
-        return { record, disposition: 'replayed' as const, operationRow: decision.row }
-      }
-      const result = applyAgentSessionReservation(this.state, request, AGENT_SESSION_LEASE_TTL_MS)
-      this.state.operations.set(
-        agentSessionOperationKey(request.operation.callerKey, request.operation.operationId),
-        decision.row
-      )
-      this.state.records.set(result.record.sessionId, result.record)
-      return { ...result, operationRow: decision.row }
-    })
+    return this.transact(() =>
+      reserveAgentSessionRecordOwner(this.state, request, AGENT_SESSION_LEASE_TTL_MS)
+    )
   }
 
   async commitProcessIdentity(
@@ -199,6 +182,11 @@ export class AgentSessionRecordStore {
       commitAgentSessionProcessIdentity({ ...args, record })
     )
   }
+
+  adoptTerminalOwner = (input: AgentSessionTerminalOwnerAdoption): Promise<AgentSessionRecord> =>
+    this.transact(() =>
+      adoptAgentSessionTerminalOwner(this.state, input, AGENT_SESSION_LEASE_TTL_MS)
+    )
 
   setReservationProcesslessProof = (
     args: AgentSessionReservationProcesslessProof & { processlessAt: number | null }

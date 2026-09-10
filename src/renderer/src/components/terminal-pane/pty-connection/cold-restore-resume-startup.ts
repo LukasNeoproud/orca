@@ -22,6 +22,17 @@ export function bindBuildColdRestoreAgentResumeStartup(session: ConnectPanePtySe
       return null
     }
     const state = useAppStore.getState()
+    const structuredTab = state.unifiedTabsByWorktree?.[session.deps.worktreeId]?.find(
+      (tab) =>
+        tab.contentType === 'terminal' &&
+        tab.entityId === session.deps.tabId &&
+        tab.structuredSessionId &&
+        (!tab.structuredSessionPaneKey || tab.structuredSessionPaneKey === session.cacheKey)
+    )
+    // Only the structured host may resume the provider once this pane has handed it over.
+    if (structuredTab) {
+      return null
+    }
     const entry = state.agentStatusByPaneKey[session.cacheKey]
     const sleepingRecordEntry = session.getSleepingRecordForPane(state)
     const sleepingRecord = sleepingRecordEntry?.record

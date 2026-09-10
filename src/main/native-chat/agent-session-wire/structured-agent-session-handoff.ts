@@ -36,7 +36,8 @@ import {
 } from './structured-agent-session-handoff-status'
 import type {
   StructuredAgentSessionHandoffDeps,
-  StructuredAgentSessionHandoffFlowContext
+  StructuredAgentSessionHandoffFlowContext,
+  StructuredTuiOwner
 } from './structured-agent-session-handoff-types'
 import { StructuredAgentSessionHandoffState } from './structured-agent-session-handoff-state'
 export class StructuredAgentSessionHandoffCoordinator {
@@ -64,6 +65,8 @@ export class StructuredAgentSessionHandoffCoordinator {
     this.closeRetainedOwner(sessionId)
   setStatus = (sessionId: string, status: AgentSessionHandoffStatus): void =>
     this.state.setStatus(sessionId, status)
+  retainProvenTuiOwner = (sessionId: string, owner: StructuredTuiOwner): void =>
+    this.state.retainProvenOwner(sessionId, owner)
   async request(
     callerKey: string,
     params: AgentSessionHandoffRequest

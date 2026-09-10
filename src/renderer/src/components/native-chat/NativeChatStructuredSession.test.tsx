@@ -4,12 +4,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React, { forwardRef, useImperativeHandle } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
-import type { AgentSessionBackgroundTask } from '../../../../shared/agent-session-wire'
+import type * as Wire from '../../../../shared/agent-session-wire'
 import { decodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { NativeChatQuestionCardProps } from './NativeChatQuestionCard'
 
 const mocks = vi.hoisted(() => ({
   call: vi.fn(),
+  handoff: null as Wire.AgentSessionHandoffStatus | null,
+  requestHandoff: vi.fn(),
   fileLinkClick: vi.fn(),
   mode: 'static' as 'static' | 'outbox',
   messageListProps: null as null | {
@@ -21,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   composerProps: null as null | {
     structuredTransport?: Record<string, unknown>
     isWorking?: boolean
+    canSend?: boolean
+    paneKey?: string
   },
   questionCardProps: null as NativeChatQuestionCardProps | null,
   promptItems: [] as AgentJournalRenderItem[],
@@ -30,7 +34,7 @@ const mocks = vi.hoisted(() => ({
   submissions: [] as unknown[],
   monitoringBackgroundTasks: false,
   supportsBackgroundTaskStop: false,
-  backgroundTasks: [] as AgentSessionBackgroundTask[],
+  backgroundTasks: [] as Wire.AgentSessionBackgroundTask[],
   stopBackgroundTask: vi.fn()
 }))
 
@@ -75,6 +79,9 @@ vi.mock('./use-structured-agent-session', async () => {
         send: outbox.send,
         retry: outbox.retry,
         isWorking: false,
+        handoff: mocks.handoff,
+        requestHandoff: mocks.requestHandoff,
+        canSend: !mocks.handoff,
         isMonitoringBackgroundTasks: mocks.monitoringBackgroundTasks,
         supportsBackgroundTaskStop: mocks.supportsBackgroundTaskStop,
         backgroundTasks: mocks.backgroundTasks,
@@ -159,6 +166,8 @@ describe('NativeChatStructuredSession', () => {
     cleanup()
     mocks.call.mockReset()
     mocks.mode = 'static'
+    mocks.handoff = null
+    mocks.requestHandoff.mockReset()
     mocks.messageListProps = null
     mocks.composerProps = null
     mocks.questionCardProps = null
@@ -211,18 +220,30 @@ describe('NativeChatStructuredSession', () => {
   // Turn status and transcript image previews shipped Codex-first. Every
   // structured session renders through the same list, so neither is agent-gated.
   it.each(['codex', 'claude'] as const)(
-    'renders the same structured transcript chrome for %s',
+    'renders the structured transcript and handoff controls for %s',
     (agent) => {
+      mocks.handoff = {
+        owner: 'tui',
+        phase: 'idle',
+        direction: null,
+        stage: null,
+        operationId: null
+      }
       render(
         <NativeChatStructuredSession
           isVisible
           tabId="structured-tab-parity"
+          composerPaneKey="original-tab:original-leaf"
           sessionId="session-parity"
           target={{ kind: 'local' }}
           agent={agent}
         />
       )
 
+      expect(mocks.composerProps?.paneKey).toBe('original-tab:original-leaf')
+      expect(mocks.composerProps?.canSend).toBe(false)
+      fireEvent.click(screen.getAllByRole('button', { name: 'Return to chat' })[0])
+      expect(mocks.requestHandoff).toHaveBeenCalledWith('to-native', 'after-turn', undefined)
       expect(mocks.messageListProps?.showTurnStatus).toBe(true)
       expect(mocks.messageListProps?.runtimeContext).not.toBeUndefined()
     }

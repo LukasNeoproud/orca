@@ -1,4 +1,5 @@
 import { useEffect, useRef, type JSX, type ReactNode } from 'react'
+import { isNativeChatSupportedAgent } from './native-chat-availability'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import {
   resolveNativeChatSession,
@@ -18,8 +19,12 @@ export function NativeChatSessionGate({
 }: NativeChatSessionGateProps): JSX.Element {
   const lastResolutionRef = useRef<NativeChatPaneResolution | null>(null)
   const currentResolution = resolveNativeChatSession(input)
+  const detectedAgent = input.agentStatusEntry?.agentType ?? input.detectedAgent
+  const unsupportedAgent = Boolean(detectedAgent && !isNativeChatSupportedAgent(detectedAgent))
   const previousResolution =
-    lastResolutionRef.current?.paneKey === input.paneKey ? lastResolutionRef.current : null
+    !unsupportedAgent && lastResolutionRef.current?.paneKey === input.paneKey
+      ? lastResolutionRef.current
+      : null
   const resolution = (() => {
     if (!currentResolution) {
       return previousResolution
@@ -41,12 +46,14 @@ export function NativeChatSessionGate({
     return currentResolution
   })()
   useEffect(() => {
-    if (resolution) {
+    if (unsupportedAgent) {
+      lastResolutionRef.current = null
+    } else if (resolution) {
       // Why: hook and title evidence are transport-fed and can vanish between a
       // disconnect and replay. Commit the last rendered conversation identity.
       lastResolutionRef.current = resolution
     }
-  }, [resolution])
+  }, [resolution, unsupportedAgent])
   if (!resolution) {
     return <NativeChatEmptyState kind="not-agent" />
   }

@@ -117,7 +117,9 @@ export function renderTabBarItems({
           resolvedAgent: tabWideFallbackSafe ? resolvedAgent : null,
           nativeChatTranscriptIsLocalReadable,
           isChatViewMode: unifiedTabForItem.viewMode === 'chat',
-          structuredSessionId: unifiedTabForItem.structuredSessionId ?? null
+          structuredSessionId: unifiedTabForItem.structuredSessionId ?? null,
+          structuredSessionPaneKey: unifiedTabForItem.structuredSessionPaneKey,
+          activePaneKey: runtime.structuredTerminalReturnPanes?.[terminalTab.id]
         })
       return (
         <SortableTab

@@ -10,6 +10,7 @@ import { translate } from '@/i18n/i18n'
 type Props = {
   status: AgentSessionHandoffStatus | null
   isWorking: boolean
+  onShowTerminal?: () => void
   onRequest: (
     direction: AgentSessionHandoffDirection,
     mode: AgentSessionHandoffMode,
@@ -54,6 +55,7 @@ function handoffStageCopy(status: AgentSessionHandoffStatus): string {
 export function StructuredAgentSessionHandoffChrome({
   status,
   isWorking,
+  onShowTerminal,
   onRequest
 }: Props): React.JSX.Element | null {
   if (!status) {
@@ -73,6 +75,11 @@ export function StructuredAgentSessionHandoffChrome({
               : translate('components.native-chat.handoff.mode.chat', 'Chat')}
         </Badge>
         <div className="ml-auto flex items-center gap-1.5">
+          {onShowTerminal ? (
+            <Button type="button" variant="ghost" size="xs" onClick={onShowTerminal}>
+              {translate('components.native-chat.adoption.showTerminal', 'Show terminal')}
+            </Button>
+          ) : null}
           {phase === 'queued' && status?.direction ? (
             <>
               <span className="text-xs text-muted-foreground">

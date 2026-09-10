@@ -1,9 +1,11 @@
+import { selectTerminalTabAgentTypesByLeaf } from '../terminal-pane/terminal-tab-agent-type-index'
+import type { PaneForegroundAgentEntry } from '../../store/slices/pane-foreground-agent'
 import { useEffect } from 'react'
 import { useAppStore } from '../../store'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { TerminalLayoutSnapshot } from '../../../../shared/terminal-tab-types'
 import { resolveNativeChatTabAgentEvidence } from '../tab-bar/native-chat-tab-agent-evidence'
-import { canToggleNativeChat } from './native-chat-availability'
+import { canSwitchNativeChatView } from './native-chat-availability'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 import { isMacPlatform, matchesNativeChatToggleShortcut } from './native-chat-shortcut'
 import { getConnectionIdFromState } from '@/lib/connection-context'
@@ -15,24 +17,27 @@ import {
 export function resolveNativeChatToggleShortcutDetectedAgent({
   terminalTabId,
   terminalLayout,
-  agentStatusByPaneKey
+  agentStatusByPaneKey,
+  paneForegroundAgentByPaneKey
 }: {
   terminalTabId: string
   terminalLayout?: TerminalLayoutSnapshot | null
   agentStatusByPaneKey: Record<string, { agentType?: AgentType }>
+  paneForegroundAgentByPaneKey?: Record<string, PaneForegroundAgentEntry>
 }): AgentType | null {
+  const byLeaf = selectTerminalTabAgentTypesByLeaf(
+    agentStatusByPaneKey,
+    terminalTabId,
+    paneForegroundAgentByPaneKey
+  )
   const activeLeafId = resolveNativeChatActiveLayoutLeafId(terminalLayout)
   if (activeLeafId) {
-    return agentStatusByPaneKey[`${terminalTabId}:${activeLeafId}`]?.agentType ?? null
+    return byLeaf[activeLeafId] ?? null
   }
   if (!isNativeChatTabWideFallbackSafe(terminalLayout)) {
     return null
   }
-  return (
-    Object.entries(agentStatusByPaneKey).find(([paneKey]) =>
-      paneKey.startsWith(`${terminalTabId}:`)
-    )?.[1].agentType ?? null
-  )
+  return Object.values(byLeaf)[0] ?? null
 }
 
 /** Toggles the active worktree's focused agent-terminal tab between the terminal
@@ -58,10 +63,8 @@ export function useNativeChatToggleShortcut(worktreeId: string, isWorktreeActive
       const tab = (state.unifiedTabsByWorktree[worktreeId] ?? []).find(
         (candidate) => candidate.id === group.activeTabId
       )
-      // contentType gates out standalone structured (agent-session) tabs;
-      // structuredSessionId gates out a terminal tab that adopted one, which
-      // renders the structured surface with no TUI to switch back to.
-      if (!tab || tab.contentType !== 'terminal' || tab.structuredSessionId) {
+      // Standalone structured tabs have no original terminal surface.
+      if (!tab || tab.contentType !== 'terminal') {
         return
       }
       const terminalTab = (state.tabsByWorktree[worktreeId] ?? []).find(
@@ -76,14 +79,15 @@ export function useNativeChatToggleShortcut(worktreeId: string, isWorktreeActive
       const detectedAgent = resolveNativeChatToggleShortcutDetectedAgent({
         terminalTabId: tab.entityId,
         terminalLayout,
-        agentStatusByPaneKey: state.agentStatusByPaneKey
+        agentStatusByPaneKey: state.agentStatusByPaneKey,
+        paneForegroundAgentByPaneKey: state.paneForegroundAgentByPaneKey
       })
       const titleFallbackAgent =
         tabWideFallbackSafe && terminalTab
           ? resolveNativeChatTabAgentEvidence(terminalTab, tab)
           : null
       if (
-        !canToggleNativeChat({
+        !canSwitchNativeChatView({
           experimentalNativeChatEnabled: state.settings?.experimentalNativeChat === true,
           contentType: 'terminal',
           launchAgent: detectedAgent || !tabWideFallbackSafe ? null : terminalTab?.launchAgent,
@@ -92,7 +96,13 @@ export function useNativeChatToggleShortcut(worktreeId: string, isWorktreeActive
           nativeChatTranscriptIsLocalReadable: isNativeChatTranscriptLocalReadable(
             getConnectionIdFromState(state, worktreeId)
           ),
-          isChatViewMode: tab.viewMode === 'chat'
+          isChatViewMode: tab.viewMode === 'chat',
+          structuredSessionId: tab.structuredSessionId,
+          structuredSessionPaneKey: tab.structuredSessionPaneKey,
+          activePaneKey: (() => {
+            const leaf = resolveNativeChatActiveLayoutLeafId(terminalLayout)
+            return leaf ? `${tab.entityId}:${leaf}` : null
+          })()
         })
       ) {
         return

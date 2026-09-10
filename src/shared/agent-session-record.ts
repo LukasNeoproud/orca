@@ -1,4 +1,5 @@
 import { isAgentSessionRewindRecord, type AgentSessionRewindRecord } from './agent-session-rewind'
+import * as terminalAdoption from './structured-agent-session-terminal-adoption'
 /**
  * Durable agent-session record and its single-writer lease.
  *
@@ -133,6 +134,7 @@ export type AgentSessionRecord = {
   rewind?: AgentSessionRewindRecord
   conversationCommand?: AgentSessionConversationCommandRecord
   launchArgs?: AgentSessionLaunchArgs
+  adoptedTerminal?: terminalAdoption.AgentSessionAdoptedTerminal
   lease: AgentSessionLease
   createdAt: number
   updatedAt: number
@@ -346,6 +348,8 @@ export function isAgentSessionRecord(value: unknown): value is AgentSessionRecor
     (record.conversationCommand === undefined ||
       isAgentSessionConversationCommandRecord(record.conversationCommand)) &&
     (record.launchArgs === undefined || isAgentSessionLaunchArgs(record.launchArgs)) &&
+    (record.adoptedTerminal === undefined ||
+      terminalAdoption.isAgentSessionAdoptedTerminal(record.adoptedTerminal)) &&
     !Object.hasOwn(record, 'launchEnv') &&
     isAgentSessionLease(record.lease) &&
     record.lease.sessionId === record.sessionId &&

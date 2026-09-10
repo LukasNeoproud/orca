@@ -12,6 +12,8 @@ import {
   resolveTerminalTabStripDropTarget
 } from './terminal-pane-tab-detach'
 import { clearPaneTerminalError } from './terminal-error-accumulation'
+import { requestStructuredTerminalPaneClose } from './structured-terminal-pane-close'
+import { structuredTerminalSessionId } from '../terminal/structured-terminal-session-disposal'
 import type { TerminalPaneBindingController } from './use-terminal-pane-layout-bindings'
 
 export function useTerminalPaneCloseActions(controller: TerminalPaneBindingController) {
@@ -41,21 +43,43 @@ export function useTerminalPaneCloseActions(controller: TerminalPaneBindingContr
       if (manager.getPanes().length <= 1) {
         onCloseTab()
       } else {
-        const ptyId = paneTransportsRef.current.get(paneId)?.getPtyId() ?? null
-        closeWebRuntimeTerminal(ptyId)
-        clearSessionRestoredBannerForPane(paneId)
         const leafId = manager.getLeafId(paneId)
-        if (leafId) {
-          useAppStore.getState().setCacheTimerStartedAt(makePaneKey(tabId, leafId), null)
-          useAppStore.getState().dropAgentStatus(makePaneKey(tabId, leafId), { paneRemoved: true })
+        const closePane = (): void => {
+          if (manager.getPanes().length <= 1) {
+            onCloseTab()
+            return
+          }
+          const ptyId = paneTransportsRef.current.get(paneId)?.getPtyId() ?? null
+          closeWebRuntimeTerminal(ptyId)
+          clearSessionRestoredBannerForPane(paneId)
+          if (leafId) {
+            useAppStore.getState().setCacheTimerStartedAt(makePaneKey(tabId, leafId), null)
+            useAppStore
+              .getState()
+              .dropAgentStatus(makePaneKey(tabId, leafId), { paneRemoved: true })
+          }
+          setTerminalErrorsByPaneId((current) => clearPaneTerminalError(current, paneId))
+          if (leafId) {
+            syncPanePtyLayoutBindingForLeaf?.(leafId, null, paneId)
+          } else {
+            syncPanePtyLayoutBinding(paneId, null)
+          }
+          manager.closePane(paneId)
         }
-        setTerminalErrorsByPaneId((current) => clearPaneTerminalError(current, paneId))
-        if (leafId) {
-          syncPanePtyLayoutBindingForLeaf?.(leafId, null, paneId)
-        } else {
-          syncPanePtyLayoutBinding(paneId, null)
+        if (
+          leafId &&
+          requestStructuredTerminalPaneClose({
+            worktreeId,
+            tabId,
+            paneKey: makePaneKey(tabId, leafId),
+            isPaneCurrent: () =>
+              managerRef.current === manager && manager.getLeafId(paneId) === leafId,
+            onClosed: closePane
+          })
+        ) {
+          return
         }
-        manager.closePane(paneId)
+        closePane()
       }
     },
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- Preserve the pre-split dependency contract.
@@ -64,7 +88,8 @@ export function useTerminalPaneCloseActions(controller: TerminalPaneBindingContr
       onCloseTab,
       syncPanePtyLayoutBinding,
       syncPanePtyLayoutBindingForLeaf,
-      tabId
+      tabId,
+      worktreeId
     ]
   )
   const getCloseDialogCopyKind = useCallback(
@@ -176,15 +201,27 @@ export function useTerminalPaneCloseActions(controller: TerminalPaneBindingContr
       if (panes.length <= 1 || !panes.some((pane) => pane.id === sourcePaneId)) {
         return null
       }
+      const leafId = managerRef.current?.getLeafId(sourcePaneId)
+      const state = useAppStore.getState()
+      if (
+        leafId &&
+        structuredTerminalSessionId(
+          state.unifiedTabsByWorktree[worktreeId],
+          tabId,
+          makePaneKey(tabId, leafId)
+        )
+      ) {
+        return null
+      }
       return resolveTerminalTabStripDropTarget({
         clientX,
         clientY,
-        groupsByWorktree: useAppStore.getState().groupsByWorktree,
+        groupsByWorktree: state.groupsByWorktree,
         worktreeId
       })
     },
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- Preserve the pre-split dependency contract.
-    [worktreeId]
+    [tabId, worktreeId]
   )
   const handleExternalPaneDrop = useCallback(
     (sourcePaneId: number, target: PaneExternalDropTarget): boolean => {

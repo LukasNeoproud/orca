@@ -5,6 +5,50 @@ import {
 } from './structured-tui-process-identity'
 
 describe('structured TUI process identity', () => {
+  it('unwraps the Codex npm launcher only for adopted child-only stopping', async () => {
+    const onProcessCommand = vi.fn()
+    await expect(
+      readStructuredTuiProcessIdentity({
+        hostId: 'local',
+        rootPid: 100,
+        spawnToken: 'adopting',
+        agent: 'codex',
+        platform: 'darwin',
+        unwrapCodexLauncher: true,
+        onProcessCommand,
+        readPosixRows: async () => [
+          { pid: 100, ppid: 1, stat: 'Ss', command: '/bin/zsh' },
+          { pid: 101, ppid: 100, stat: 'S+', command: 'node /opt/codex/bin/codex resume abc' },
+          {
+            pid: 102,
+            ppid: 101,
+            stat: 'S+',
+            command: '/opt/codex/vendor/codex resume abc -m gpt-5.6'
+          }
+        ],
+        readStartTime: async () => 1700000000000
+      })
+    ).resolves.toMatchObject({ pid: 102 })
+    expect(onProcessCommand).toHaveBeenCalledWith('/opt/codex/vendor/codex resume abc -m gpt-5.6')
+  })
+
+  it('refuses an ambiguous native writer behind a Codex launcher', () => {
+    expect(
+      resolveStructuredTuiChildPid(
+        [
+          { pid: 100, ppid: 1, command: '/bin/zsh', foreground: false },
+          { pid: 101, ppid: 100, command: 'node /opt/codex/bin/codex', foreground: true },
+          { pid: 102, ppid: 101, command: '/opt/codex/vendor/codex', foreground: true },
+          { pid: 103, ppid: 101, command: '/opt/codex/vendor/codex', foreground: true }
+        ],
+        100,
+        'codex',
+        undefined,
+        undefined,
+        true
+      )
+    ).toBeNull()
+  })
   it('keeps the first row when a process snapshot contains duplicate PIDs', () => {
     const child = {
       pid: 101,

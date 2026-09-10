@@ -68,32 +68,36 @@ describe('resolveNativeChatFileLinkContext', () => {
     expect(resolveNativeChatFileLinkContext(state({ tabsByWorktree: {} }), 'tab-1')).toBeNull()
   })
 
-  it('resolves the worktree context for a structured session tab', () => {
-    const structuredTab = {
-      id: 'structured-tab-1',
-      worktreeId: 'wt-1',
-      groupId: 'group-1',
-      contentType: 'agent-session',
-      entityId: 'session-1',
-      label: 'Codex Chat',
-      customLabel: null,
-      color: null,
-      sortOrder: 0,
-      createdAt: 0,
-      isPinned: false,
-      agentSessionAgent: 'codex'
-    } satisfies Tab
+  it.each(['agent-session', 'terminal'] as const)(
+    'resolves the worktree context for a structured %s tab',
+    (contentType) => {
+      const structuredTab = {
+        id: 'structured-tab-1',
+        worktreeId: 'wt-1',
+        groupId: 'group-1',
+        contentType,
+        ...(contentType === 'terminal' ? { structuredSessionId: 'session-1' } : {}),
+        entityId: 'session-1',
+        label: 'Codex Chat',
+        customLabel: null,
+        color: null,
+        sortOrder: 0,
+        createdAt: 0,
+        isPinned: false,
+        agentSessionAgent: 'codex'
+      } satisfies Tab
 
-    expect(
-      resolveNativeChatFileLinkContext(
-        state({
-          tabsByWorktree: {},
-          unifiedTabsByWorktree: { 'wt-1': [structuredTab] }
-        }),
-        structuredTab.id
-      )
-    ).toEqual(context)
-  })
+      expect(
+        resolveNativeChatFileLinkContext(
+          state({
+            tabsByWorktree: {},
+            unifiedTabsByWorktree: { 'wt-1': [structuredTab] }
+          }),
+          structuredTab.id
+        )
+      ).toEqual(context)
+    }
+  )
 
   it('falls back to repo-scoped worktrees when a known worktree has no path', () => {
     expect(

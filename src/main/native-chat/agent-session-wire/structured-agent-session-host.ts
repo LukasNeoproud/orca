@@ -38,11 +38,11 @@ import type { StructuredAgentSessionAttachContext } from './structured-agent-ses
 import { listStructuredAgentSessionTabs } from './structured-agent-session-host-tabs'
 import {
   cancelStructuredAgentSessionTurn,
+  createStructuredSessionMutationContext,
   readStructuredAgentSessionOptions,
   respondToStructuredAgentSessionPrompt,
   setStructuredAgentSessionOption,
-  settleStructuredAgentSessionLateDispatch,
-  type StructuredAgentSessionMutationContext
+  settleStructuredAgentSessionLateDispatch
 } from './structured-agent-session-host-mutations'
 import {
   structuredAgentSessionHostTeardownPhases,
@@ -51,12 +51,15 @@ import {
 import type {
   StructuredAgentSessionCaller,
   StructuredAgentSessionHostDeps,
-  StructuredAgentSessionHostSession,
-  StructuredAgentSessionReveal
+  StructuredAgentSessionHostSession
 } from './structured-agent-session-host-types'
 import { StructuredAgentSessionStatusFeed } from './structured-agent-session-status-feed'
 import { StructuredAgentSessionEventRecovery } from './structured-agent-session-event-recovery'
 import { StructuredAgentSessionBackgroundTaskChannel } from './structured-agent-session-background-task-channel'
+import {
+  registerStructuredTerminalOwner,
+  type StructuredTerminalOwnerRegistration
+} from './structured-agent-session-terminal-adoption'
 export type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 
 export class StructuredAgentSessionHost {
@@ -161,6 +164,8 @@ export class StructuredAgentSessionHost {
   private now = (): number => this.deps.now?.() ?? Date.now()
 
   hasSession = (sessionId: string): boolean => this.sessions.has(sessionId)
+  registerTerminalOwner = (input: StructuredTerminalOwnerRegistration) =>
+    registerStructuredTerminalOwner(this.attachContext(), this.handoffs, this.statusFeed, input)
   isHeld = (sessionId: string): boolean => this.holds.isHeld(sessionId)
 
   /** A surface bound to this session and wants it live. The FIRST hold on a session with no
@@ -230,8 +235,7 @@ export class StructuredAgentSessionHost {
     this.restore.restoreReadableSessions(sessionIds)
 
   /** Make one persisted session addressable again; see `structured-agent-session-reveal`. */
-  revealSession = (sessionId: string): Promise<StructuredAgentSessionReveal> =>
-    this.restore.revealSession(sessionId)
+  revealSession = (sessionId: string) => this.restore.revealSession(sessionId)
 
   private serialize = this.tasks.serialize.bind(this.tasks)
 
@@ -265,15 +269,10 @@ export class StructuredAgentSessionHost {
     })
   }
 
-  private mutationContext(): StructuredAgentSessionMutationContext {
-    return {
-      deps: this.deps,
-      sessions: this.sessions,
-      publish: (sessionId, journal) => this.subscribers.publish(sessionId, journal),
-      requireSession: (sessionId) => this.requireSession(sessionId),
-      serialize: (sessionId, task) => this.serialize(sessionId, task),
-      now: () => this.now()
-    }
+  private mutationContext() {
+    return createStructuredSessionMutationContext(this.attachContext(), (id) =>
+      this.requireSession(id)
+    )
   }
 
   send = (...args: Parameters<StructuredConversationCommandController['send']>) =>

@@ -24,8 +24,47 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { parseWslUncPath } from '../../shared/wsl-paths'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
+import {
+  adoptStructuredRuntimeTerminal,
+  recoverAdoptedRuntimeTerminal
+} from './structured-terminal-runtime-binding'
+import type { StructuredAgentSessionTerminalAdoptionParams } from '../../shared/structured-agent-session-terminal-adoption'
+import { StructuredTerminalAdoptionError } from '../native-chat/agent-session-wire/structured-agent-session-terminal-adoption'
+import type { AgentSessionRecord } from '../../shared/agent-session-record'
 
 export class OrcaRuntimeWithResolveRecoveredStructuredTuiTranscript extends OrcaRuntimeWithStopStructuredSessionProcess {
+  protected recoverAdoptedStructuredTerminal(record: AgentSessionRecord) {
+    return recoverAdoptedRuntimeTerminal(this, record)
+  }
+  async adoptStructuredAgentSessionTerminal(
+    request: StructuredAgentSessionTerminalAdoptionParams,
+    callerKey: string
+  ) {
+    const support = await this.getStructuredAgentSessionCreateSupport(
+      request.worktree,
+      request.agent
+    )
+    if (!support.supported) {
+      throw new StructuredTerminalAdoptionError(
+        'structured_agent_session_unsupported',
+        'Structured chat is unavailable for this execution host or account.'
+      )
+    }
+    await this.ensureStructuredAgentSessionHost()
+    const location = await this.resolveStructuredAgentSessionLocation(request.worktree)
+    return adoptStructuredRuntimeTerminal(
+      {
+        runtime: this,
+        host: getStructuredAgentSessionHost()!,
+        location,
+        workspacePath: (await this.resolveRuntimeFileTarget(request.worktree)).worktree.path,
+        settings: this.requireStore().getSettings(),
+        claudeAccountHome: this.accounts.getClaudeConfigDirectory({ runtime: 'host' })
+      },
+      request,
+      callerKey
+    )
+  }
   protected async resolveRecoveredStructuredTuiTranscript(input: {
     handle: string
     paneKey: string

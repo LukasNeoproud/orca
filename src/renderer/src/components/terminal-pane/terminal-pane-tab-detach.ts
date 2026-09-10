@@ -2,6 +2,8 @@ import type { AppState } from '@/store'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { PaneCwdEntry } from './resolve-split-cwd'
 import { detachTerminalLayoutLeaf } from './terminal-layout-leaf-detach'
+import { makePaneKey } from '../../../../shared/stable-pane-id'
+import { structuredTerminalSessionId } from '../terminal/structured-terminal-session-disposal'
 export {
   isTerminalTabStripDropTarget,
   resolveTerminalTabStripDropTarget
@@ -19,6 +21,7 @@ export type TerminalPaneTabDetachStore = Pick<
   | 'syncPaneDetachPtyOwnership'
   | 'tabsByWorktree'
   | 'terminalLayoutsByTabId'
+  | 'unifiedTabsByWorktree'
 >
 
 type TerminalPaneTabDetachManager = {
@@ -101,6 +104,16 @@ export function detachTerminalPaneToTab(args: {
   if (!sourceLeafId) {
     return null
   }
+  const sourcePaneKey = makePaneKey(args.sourceTabId, sourceLeafId)
+  if (
+    structuredTerminalSessionId(
+      initialStore.unifiedTabsByWorktree?.[args.worktreeId],
+      args.sourceTabId,
+      sourcePaneKey
+    )
+  ) {
+    return null
+  }
 
   const persistedPtyId =
     initialStore.terminalLayoutsByTabId[args.sourceTabId]?.ptyIdsByLeafId?.[sourceLeafId]
@@ -113,6 +126,15 @@ export function detachTerminalPaneToTab(args: {
 
   args.persistLayoutSnapshot()
   const store = args.getStore()
+  if (
+    structuredTerminalSessionId(
+      store.unifiedTabsByWorktree?.[args.worktreeId],
+      args.sourceTabId,
+      sourcePaneKey
+    )
+  ) {
+    return null
+  }
   const detached = detachTerminalLayoutLeaf(
     store.terminalLayoutsByTabId[args.sourceTabId],
     sourceLeafId

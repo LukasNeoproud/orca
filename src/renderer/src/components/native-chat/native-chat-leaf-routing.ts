@@ -92,6 +92,7 @@ export function resolveNativeChatLeafRoute(args: {
   activeLeafIsEligible: boolean
   chatLeafHasConfirmedAgentExit?: boolean
   structuredSessionId?: string | null
+  structuredSessionLeafId?: string
 }): NativeChatLeafRoute {
   const confirmedAgentExit = args.chatLeafHasConfirmedAgentExit && !args.structuredSessionId
   if (!args.isChatViewMode) {
@@ -99,7 +100,7 @@ export function resolveNativeChatLeafRoute(args: {
   }
   if (args.structuredSessionId) {
     return {
-      chatLeafId: args.chatLeafId ?? args.activeLeafId,
+      chatLeafId: args.chatLeafId ?? args.structuredSessionLeafId ?? args.activeLeafId,
       exitChat: false
     }
   }

@@ -52,7 +52,14 @@ function findStructuredTabWorktreeId(
   tabId: string
 ): string | null {
   for (const [worktreeId, tabs] of Object.entries(unifiedTabsByWorktree ?? {})) {
-    if (tabs.some((tab) => tab.id === tabId && tab.contentType === 'agent-session')) {
+    if (
+      tabs.some(
+        (tab) =>
+          tab.id === tabId &&
+          (tab.contentType === 'agent-session' ||
+            (tab.contentType === 'terminal' && tab.structuredSessionId))
+      )
+    ) {
       return worktreeId
     }
   }

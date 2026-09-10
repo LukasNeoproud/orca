@@ -16,6 +16,7 @@ import {
   scopedAgentSessionClaimsEqual
 } from '../../shared/claimed-agent-pty-owner-snapshot'
 import { agentSessionPtyWriteGate } from './agent-session-pty-write-gate'
+import { isOriginalAdoptedTerminalOwner } from '../../shared/structured-agent-session-terminal-adoption'
 
 export class OrcaRuntimeWithStructuredAgentSessionRecoverTuiOwner extends OrcaRuntimeWithStructuredAgentSessionReproveTuiOwner {
   protected createStructuredAgentSessionRecoverTuiOwnerCallback() {
@@ -40,6 +41,12 @@ export class OrcaRuntimeWithStructuredAgentSessionRecoverTuiOwner extends OrcaRu
           pty.paneKey
       )
       let handle = candidate ? this.issueStructuredTuiPtyHandle(candidate) : null
+      if (!candidate && isOriginalAdoptedTerminalOwner(record)) {
+        const adopted = await this.recoverAdoptedStructuredTerminal(record).catch(() => null)
+        if (adopted) {
+          return adopted
+        }
+      }
       let durableOwner: { binding: AgentSessionOwnerBinding; incarnationId: string } | undefined
       if (!candidate) {
         const workspace = await this.resolveTerminalWorkspaceLaunchScope(

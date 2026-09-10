@@ -1,3 +1,4 @@
+import { useStructuredAgentSessionHandoff } from './use-structured-agent-session-handoff'
 import * as conversationCommands from './structured-conversation-command-send'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -77,10 +78,11 @@ export function useStructuredAgentSession(args: {
   )
   const activeOptionRecordRef = useRef(optionState.record)
   const optionCatalog = useMemo(() => getAgentSessionOptionCatalog(agent), [agent])
+  const handoff = useStructuredAgentSessionHandoff(args, state)
   const outboxController = useStructuredAgentSessionOutbox({
     sessionId,
     target,
-    fence: state.fence,
+    fence: handoff.canSend ? state.fence : null,
     submissions: state.submissions
   })
 
@@ -101,7 +103,7 @@ export function useStructuredAgentSession(args: {
       fields: Record<string, unknown>,
       operationIdOverride?: string | null
     ): Promise<T | null> => {
-      if (stateRef.current.fence === null) {
+      if (!handoff.canSend || stateRef.current.fence === null) {
         return null
       }
       const targetFence = stateRef.current.fence
@@ -151,7 +153,7 @@ export function useStructuredAgentSession(args: {
       setWriteError(null)
       return result.value
     },
-    [sessionId, target]
+    [handoff.canSend, sessionId, target]
   )
 
   // Refresh options each turn to confirm which model the provider actually selected.
@@ -268,7 +270,10 @@ export function useStructuredAgentSession(args: {
       }),
     messages,
     status: state.status,
-    error: state.error ?? writeError ?? outboxController.error,
+    error: state.error ?? handoff.error ?? writeError ?? outboxController.error,
+    handoff: handoff.handoff,
+    requestHandoff: handoff.requestHandoff,
+    canSend: handoff.canSend,
     hasOlder: state.hasOlder,
     loadingOlder,
     loadOlder,
@@ -276,7 +281,7 @@ export function useStructuredAgentSession(args: {
     outbox,
     blockedClientMessageId: outboxController.blockedClientMessageId,
     send: (...input: Parameters<typeof outboxController.send>) =>
-      !commandPending.current && outboxController.send(...input),
+      handoff.canSend && !commandPending.current && outboxController.send(...input),
     retry: outboxController.retry,
     isWorking: turnId !== null,
     turnActivity,

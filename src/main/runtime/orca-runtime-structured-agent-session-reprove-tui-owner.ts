@@ -41,6 +41,9 @@ export class OrcaRuntimeWithStructuredAgentSessionReproveTuiOwner extends OrcaRu
       if (!sameProviderIdentity) {
         throw new Error('agent_session_identity_required')
       }
+      if (current.adoptedTerminal) {
+        return this.recoverAdoptedStructuredTerminal(record)
+      }
       if (current.link.handle.provider === 'claude' && head.handle.provider === 'claude') {
         const proof = await this.waitForStructuredClaudeTuiProof({
           handle: current.terminal.handle,

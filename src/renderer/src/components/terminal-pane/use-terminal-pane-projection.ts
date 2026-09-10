@@ -46,6 +46,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     shouldMeasureHiddenStartup,
     structuredSessionAgent,
     structuredSessionId,
+    structuredSessionLeafId,
     tabId,
     sshReconnectOwnsTerminalErrors,
     systemPrefersDark,
@@ -124,7 +125,8 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
         activeLeafId,
         chatLeafStillMounted,
         activeLeafIsEligible: isChatEligibleForLeaf(activeLeafId),
-        structuredSessionId
+        structuredSessionId,
+        structuredSessionLeafId
       })
     )
   }, [
@@ -134,7 +136,8 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     chatLeafStillMounted,
     applyNativeChatLeafRoute,
     isChatEligibleForLeaf,
-    structuredSessionId
+    structuredSessionId,
+    structuredSessionLeafId
   ])
   const chatPane =
     isChatViewMode && chatLeafId
@@ -143,7 +146,9 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
   const chatPanePtyId = chatPane
     ? (paneTransportsRef.current.get(chatPane.id)?.getPtyId() ?? null)
     : null
-  const chatPaneResolvedAgent = chatPane ? resolveTitleAgentForLeaf(chatPane.leafId) : null
+  const chatPaneResolvedAgent = chatPane
+    ? (tabAgentTypeByLeaf[chatPane.leafId] ?? resolveTitleAgentForLeaf(chatPane.leafId))
+    : null
   const chatPaneLaunchAgent = nativeChatLaunchAgentForLeaf({
     launchAgent: terminalTab?.launchAgent,
     launchAgentLeafId: getTabWideAgentHintLeafId(),

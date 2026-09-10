@@ -59,15 +59,24 @@ export function canToggleNativeChat(input: NativeChatAvailabilityInput): boolean
   return isNativeChatSupportedAgent(agent)
 }
 
-/** Whether a user-facing terminal⇄chat switcher may be offered. A structured
- *  session IS the conversation — it owns the surface with no live TUI beneath
- *  it — so only terminal-backed (bridge) chat, which renders a terminal we can
- *  return to, gets the switch. */
+/** A bound terminal may return to its structured pane; leaving structured chat
+ *  requires the ownership-aware escape control instead of a blind view toggle. */
 export function canSwitchNativeChatView(
-  input: NativeChatAvailabilityInput & { structuredSessionId?: string | null }
+  input: NativeChatAvailabilityInput & {
+    structuredSessionId?: string | null
+    structuredSessionPaneKey?: string | null
+    activePaneKey?: string | null
+  }
 ): boolean {
   if (input.structuredSessionId) {
-    return false
+    return (
+      input.experimentalNativeChatEnabled === true &&
+      input.contentType === 'terminal' &&
+      input.isChatViewMode !== true &&
+      Boolean(
+        input.structuredSessionPaneKey && input.structuredSessionPaneKey === input.activePaneKey
+      )
+    )
   }
   return canToggleNativeChat(input)
 }

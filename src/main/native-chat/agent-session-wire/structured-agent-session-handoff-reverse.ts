@@ -102,7 +102,9 @@ export async function handoffStructuredSessionToNative(
     throw new Error('agent_session_operation_conflict')
   }
   deps.stopTuiHistoryCatchup?.(sessionId)
-  if (owner?.historySource !== 'provider-resume') {
+  const resumesAdoptedCodexHistory = record.provider === 'codex' && record.adoptedTerminal
+  // A restart after the old owner stopped has no retained owner to carry the history policy.
+  if (!resumesAdoptedCodexHistory && owner?.historySource !== 'provider-resume') {
     await deps.importTuiHistory({
       sessionId,
       fence: record.lease.runtimeFence,

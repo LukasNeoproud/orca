@@ -239,6 +239,17 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     // we must republish when a pane loses its PTY instead of waiting for a
     // broader layout change that may never happen.
     scheduleRuntimeGraphSync()
+    if (
+      structuredTerminalSessionId(
+        useAppStore.getState().unifiedTabsByWorktree?.[session.deps.worktreeId],
+        session.deps.tabId,
+        session.cacheKey
+      )
+    ) {
+      // Its host session, not the exited PTY, owns the adopted chat's lifetime.
+      session.manager.setPaneGpuRendering(session.pane.id, true)
+      return
+    }
     if (isUnverifiedExit && !isSuppressedExit) {
       // The tab-level owner records liveness as unknown and leaves the row in
       // place. This must happen before the split/sole-pane close branches.
@@ -367,3 +378,4 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     })
   }
 }
+import { structuredTerminalSessionId } from '../../terminal/structured-terminal-session-disposal'

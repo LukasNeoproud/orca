@@ -1,4 +1,8 @@
-import { recognizeAgentProcessFromCommandLine } from '../../shared/agent-process-recognition'
+import {
+  isAgentForegroundWrapperProcess,
+  recognizeAgentProcessFromCommandLine
+} from '../../shared/agent-process-recognition'
+import { getFirstCommandToken } from '../../shared/command-token-scanner'
 import { getFreshProcessTableSnapshot } from '../../shared/process-table-snapshot-reader'
 import type { ProcessTableRow } from '../../shared/process-table-snapshot'
 import type { AgentSessionProcessIdentity } from '../../shared/agent-session-record'
@@ -130,7 +134,8 @@ export function resolveStructuredTuiChildPid(
   rootPid: number,
   agent: AgentSessionHandleProvider,
   processCommandMatches?: (command: string) => boolean,
-  excludedPids?: ReadonlySet<number>
+  excludedPids?: ReadonlySet<number>,
+  unwrapCodexLauncher = false
 ): number | null {
   const candidates = descendants(rows, rootPid).filter(
     (row) =>
@@ -143,6 +148,19 @@ export function resolveStructuredTuiChildPid(
   eligible.sort((left, right) => left.depth - right.depth || left.pid - right.pid)
   if (eligible.length === 0 || eligible[1]?.depth === eligible[0]?.depth) {
     return null
+  }
+  const selected = eligible[0]!
+  if (
+    unwrapCodexLauncher &&
+    agent === 'codex' &&
+    isAgentForegroundWrapperProcess(getFirstCommandToken(selected.command))
+  ) {
+    const nativeChildren = candidates.filter(
+      (row) =>
+        row.ppid === selected.pid &&
+        !isAgentForegroundWrapperProcess(getFirstCommandToken(row.command))
+    )
+    return nativeChildren.length === 1 ? nativeChildren[0]!.pid : null
   }
   return eligible[0]!.pid
 }
@@ -170,6 +188,8 @@ export async function readStructuredTuiProcessIdentity(input: {
   now?: () => number
   sleep?: (delayMs: number) => Promise<void>
   processCommandMatches?: (command: string) => boolean
+  onProcessCommand?: (command: string) => void
+  unwrapCodexLauncher?: boolean
   excludedProcessTreeRootIdentities?: readonly {
     pid: number
     processStartTimeMs: number | null
@@ -215,9 +235,11 @@ export async function readStructuredTuiProcessIdentity(input: {
       input.rootPid,
       input.agent,
       input.processCommandMatches,
-      excludedPids
+      excludedPids,
+      input.unwrapCodexLauncher
     )
     if (pid !== null) {
+      input.onProcessCommand?.(rows.find((row) => row.pid === pid)!.command)
       return {
         hostId: input.hostId,
         pid,

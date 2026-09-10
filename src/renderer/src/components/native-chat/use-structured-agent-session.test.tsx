@@ -2,13 +2,16 @@
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentSessionHandoffStatus } from '../../../../shared/agent-session-wire'
 
 const mocks = vi.hoisted(() => ({
   call: vi.fn(),
+  outboxSend: vi.fn(() => true),
   operationId: vi.fn(),
   enqueueSettingsWrite: vi.fn()
 }))
 let fence = 3
+let sessionHandoff: AgentSessionHandoffStatus | null = null
 let sessionCommands: { name: string; kind: 'command' | 'skill' }[] | undefined
 
 vi.mock('@/runtime/structured-agent-session-client', () => ({
@@ -29,7 +32,7 @@ vi.mock('./use-structured-agent-session-read', () => ({
       status: 'ready',
       error: null,
       hasOlder: false,
-      handoff: null
+      handoff: sessionHandoff
     },
     loadingOlder: false,
     loadOlder: vi.fn()
@@ -42,7 +45,7 @@ vi.mock('./use-structured-agent-session-outbox', () => ({
     outbox: [],
     blockedClientMessageId: null,
     error: null,
-    send: vi.fn(),
+    send: mocks.outboxSend,
     retry: vi.fn()
   })
 }))
@@ -99,6 +102,7 @@ describe('useStructuredAgentSession options', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fence = 3
+    sessionHandoff = null
     mocks.operationId
       .mockReset()
       .mockReturnValueOnce('operation-1')
@@ -106,6 +110,34 @@ describe('useStructuredAgentSession options', () => {
     mocks.call.mockImplementation((_target, method) =>
       method === 'agentSession.options' ? Promise.resolve(OPTIONS) : Promise.resolve(null)
     )
+  })
+
+  it('guards sends until the handoff stream reports the native owner idle', async () => {
+    sessionHandoff = {
+      owner: 'tui',
+      phase: 'idle',
+      direction: null,
+      operationId: null,
+      stage: null
+    }
+    const { result, rerender } = renderHook(() =>
+      useStructuredAgentSession({
+        sessionId: 'session-handoff',
+        target: LOCAL_TARGET,
+        agent: 'codex',
+        isVisible: true
+      })
+    )
+    await waitFor(() => expect(result.current.optionSnapshot).toHaveLength(2))
+    expect(result.current.send('unsent draft')).toBe(false)
+    expect(mocks.outboxSend).not.toHaveBeenCalled()
+    sessionHandoff = { ...sessionHandoff, owner: 'native', phase: 'switching' }
+    rerender()
+    expect(result.current.send('still unsent')).toBe(false)
+    sessionHandoff = { ...sessionHandoff, phase: 'idle' }
+    rerender()
+    expect(result.current.send('ready')).toBe(true)
+    expect(mocks.outboxSend).toHaveBeenCalledWith('ready')
   })
 
   it('applies provider-reconciled values after a model change', async () => {

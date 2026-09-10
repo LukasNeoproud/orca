@@ -144,6 +144,10 @@ export function closeTerminalTab(
     state.unifiedTabsByWorktree?.[owningWorktreeId],
     terminalTabId
   )
+  // The adopted provider can outlive its original PTY after handing ownership to chat.
+  if (structuredSessionId && options?.reason === 'pty-exit') {
+    return
+  }
   if (
     structuredSessionId &&
     options?.reason !== 'pty-exit' &&

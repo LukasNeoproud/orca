@@ -94,6 +94,7 @@ describe('structured session disposal from terminal close', () => {
     closeTerminalTab('terminal-1', { reason: 'pty-exit' })
 
     expect(mocks.closeStructuredAgentSession).not.toHaveBeenCalled()
+    expect(mocks.closeTab).not.toHaveBeenCalled()
   })
 
   it('retries a transient structured-owner close after the tab is removed', async () => {

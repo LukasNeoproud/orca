@@ -7,12 +7,15 @@ const STRUCTURED_SESSION_CLOSE_RETRY_DELAYS_MS = [0, 250, 1_000, 3_000] as const
 
 export function structuredTerminalSessionId(
   unifiedTabs: readonly Tab[] | undefined,
-  terminalTabId: string
+  terminalTabId: string,
+  paneKey?: string
 ): string | null {
   return (
     unifiedTabs?.find(
       (tab) =>
-        tab.contentType === 'terminal' && tab.entityId === terminalTabId && tab.viewMode === 'chat'
+        tab.contentType === 'terminal' &&
+        tab.entityId === terminalTabId &&
+        (!paneKey || !tab.structuredSessionPaneKey || tab.structuredSessionPaneKey === paneKey)
     )?.structuredSessionId ?? null
   )
 }
@@ -26,8 +29,7 @@ export async function closeStructuredTerminalSessionWithRetry(
       await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
     try {
-      await closeStructuredAgentSession(target, sessionId)
-      return true
+      return (await closeStructuredAgentSession(target, sessionId)) === 'closed'
     } catch (error) {
       if (attempt === STRUCTURED_SESSION_CLOSE_RETRY_DELAYS_MS.length - 1) {
         console.warn('[structured-agent-session] terminal close disposal failed', {

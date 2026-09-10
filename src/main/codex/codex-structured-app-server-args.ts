@@ -59,9 +59,13 @@ export function resolveCodexStructuredAppServerArgs(
   if (divergent) {
     throw configuredArgsError(configuredArgs.slice(divergent.start, divergent.end))
   }
+  return resolveCodexStructuredAppServerArgv(parsed.tokens)
+}
+
+export function resolveCodexStructuredAppServerArgv(tokens: readonly string[]): string[] {
   const result: string[] = []
-  for (let index = 0; index < parsed.tokens.length; index += 1) {
-    const token = parsed.tokens[index]
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]
     const { flag, inlineValue } = splitOption(token)
     if (BOOLEAN_FLAGS.has(flag) && inlineValue === undefined) {
       result.push(flag)
@@ -70,7 +74,7 @@ export function resolveCodexStructuredAppServerArgs(
     if (!VALUE_FLAGS.has(flag)) {
       throw configuredArgsError(token || 'an empty positional argument')
     }
-    const value = inlineValue ?? parsed.tokens[++index]
+    const value = inlineValue ?? tokens[++index]
     if (value === undefined || value.length === 0) {
       throw configuredArgsError(`${flag} requires a value`)
     }

@@ -1,4 +1,5 @@
 import { rewindRefusal } from './structured-rewind-refusal'
+import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 // Everything a client can ask an ALREADY-ATTACHED session to do: send a turn, cancel one, answer a
 // prompt, change an option, read the options back.
 //
@@ -40,6 +41,20 @@ export type StructuredAgentSessionMutationContext = {
   requireSession: (sessionId: string) => StructuredAgentSessionHostSession
   serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   now: () => number
+}
+
+export function createStructuredSessionMutationContext(
+  context: StructuredAgentSessionAttachContext,
+  requireSession: StructuredAgentSessionMutationContext['requireSession']
+): StructuredAgentSessionMutationContext {
+  return {
+    deps: context.deps,
+    sessions: context.sessions,
+    publish: (sessionId, journal) => context.subscribers.publish(sessionId, journal),
+    requireSession,
+    serialize: context.serialize,
+    now: context.now
+  }
 }
 
 function mutate<TValue>(

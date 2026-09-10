@@ -282,6 +282,9 @@ async function startRecoveredTuiCatchup(
   input: RestartAccess,
   record: AgentSessionRecord
 ): Promise<void> {
+  if (record.provider === 'codex' && record.adoptedTerminal) {
+    return
+  }
   await input.deps.recoverTuiHistoryCatchup?.(record.sessionId, record.lease.runtimeFence)
   await input.deps.activateTuiHistoryCatchup?.(record.sessionId)
 }

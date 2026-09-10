@@ -17,7 +17,7 @@ export type NativeChatBridgeViewProps = {
   /** Launch-time agent hint from the TerminalTab, when Orca started one. */
   launchAgent?: TuiAgent | null
   /** Trusted title/foreground fallback for manually-started agents. */
-  resolvedAgent?: TuiAgent | null
+  resolvedAgent?: AgentType | null
   /** Whether this pane owns the tab's launch draft; false for split siblings. */
   ownsTabWideLaunchDraft: boolean
   /** Return this pane to the hosted terminal surface. */
@@ -25,6 +25,11 @@ export type NativeChatBridgeViewProps = {
   /** Current xterm screen reader used to recover agent-reported session state. */
   readTerminalScreen?: () => string | null
   contextMenuActions?: Omit<NativeChatContextMenuActions, 'onPaste'>
+  terminalContext?: {
+    worktreeId: string
+    unifiedTabId: string
+    singlePane: boolean
+  }
 }
 
 export type NativeChatStructuredViewProps = {
@@ -35,6 +40,9 @@ export type NativeChatStructuredViewProps = {
   target: RuntimeClientTarget
   agent: AgentType
   isVisible: boolean
+  /** Keep an adopted terminal's unsent text and attachments in their original scope. */
+  composerPaneKey?: string
+  onSwitchToTerminal?: () => void
   contextMenuActions?: Omit<NativeChatContextMenuActions, 'onPaste'>
 }
 

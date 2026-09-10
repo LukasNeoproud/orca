@@ -11,6 +11,11 @@ import type { StructuredTuiOwner } from '../native-chat/agent-session-wire/struc
 import { resolvePinnedCodexRolloutProof } from '../codex/codex-tui-rollout-proof'
 import { randomUUID } from 'node:crypto'
 import { waitForStructuredTuiExitProof } from './structured-tui-exit-proof'
+import {
+  stopStructuredTerminalChild,
+  waitForStructuredTerminalChildExit,
+  structuredTerminalChildExited
+} from './structured-terminal-child-stop'
 
 export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRuntimeWithGetWorktreePs {
   protected async proveRecoveredStructuredTuiPtyProcess(
@@ -85,6 +90,10 @@ export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRu
   protected async closeStructuredTuiOwner(
     owner: StructuredTuiOwner
   ): Promise<{ transcriptPath?: string }> {
+    if (owner.adoptedTerminal) {
+      await stopStructuredTerminalChild(owner.process)
+      return owner.transcriptPath ? { transcriptPath: owner.transcriptPath } : {}
+    }
     if (this.ptysById.get(owner.terminal.ptyId)?.connected) {
       const current = this.refreshStructuredTuiOwnerBinding(owner)
       try {
@@ -130,6 +139,14 @@ export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRu
     if (!pty?.connected) {
       throw new Error('The owning agent terminal lost its launch identity.')
     }
+    if (
+      owner.adoptedTerminal &&
+      (pty.incarnationId !== owner.terminal.incarnationId ||
+        pty.paneKey !== owner.terminal.paneKey ||
+        pty.tabId !== owner.terminal.tabId)
+    ) {
+      throw new Error('The adopted terminal lost its original pane identity.')
+    }
     const handle = this.issueStructuredTuiPtyHandle(pty)
     if (handle === owner.terminal.handle) {
       return owner
@@ -171,6 +188,10 @@ export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRu
   }
 
   protected async waitForStructuredTuiOwnerExit(owner: StructuredTuiOwner): Promise<void> {
+    if (owner.adoptedTerminal) {
+      await waitForStructuredTerminalChildExit(owner.process)
+      return
+    }
     await waitForStructuredTuiExitProof({
       identity: owner.process,
       waitForExit: () => this.waitForStructuredTuiPtyExit(owner.terminal.ptyId)
@@ -183,6 +204,15 @@ export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRu
   ): Promise<'idle' | 'exited' | null> {
     const deadline = Date.now() + 250
     while (!signal.aborted && Date.now() < deadline) {
+      if (owner.adoptedTerminal) {
+        const proof = await probeAgentSessionProcessIdentity({ identity: owner.process })
+        if (structuredTerminalChildExited(proof)) {
+          return 'exited'
+        }
+        if (proof.outcome !== 'identity-matched') {
+          return null
+        }
+      }
       if (!this.ptysById.get(owner.terminal.ptyId)?.connected) {
         await this.waitForStructuredTuiOwnerExit(owner)
         return 'exited'

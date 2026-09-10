@@ -3,6 +3,7 @@ import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 import { NativeChatResolvedView } from './NativeChatResolvedView'
 import { useNativeChatStatusEntry } from './use-native-chat-status-entry'
 import type { NativeChatViewProps } from './native-chat-view-types'
+import { NativeChatStructuredAdoption } from './NativeChatStructuredAdoption'
 
 export type { NativeChatViewProps } from './native-chat-view-types'
 
@@ -24,35 +25,43 @@ function NativeChatBridgeView({
   ownsTabWideLaunchDraft,
   onSwitchToTerminal,
   readTerminalScreen,
-  contextMenuActions
+  contextMenuActions,
+  terminalContext
 }: Exclude<NativeChatViewProps, { mode: 'structured' }>): React.JSX.Element {
-  const { entry: agentStatusEntry, paneKey } = useNativeChatStatusEntry(
-    terminalTabId,
-    preferredPaneKey
-  )
+  const {
+    entry: agentStatusEntry,
+    paneKey,
+    detectedAgent
+  } = useNativeChatStatusEntry(terminalTabId, preferredPaneKey)
   return (
     <NativeChatSessionGate
       paneKey={paneKey}
       launchAgent={launchAgent}
       resolvedAgent={resolvedAgent}
       agentStatusEntry={agentStatusEntry}
+      detectedAgent={detectedAgent}
       ptyId={targetPtyId}
     >
-      {(resolution) => (
-        <NativeChatResolvedView
-          paneKey={resolution.paneKey}
-          agent={resolution.agent}
-          sessionId={resolution.sessionId}
-          transcriptPath={resolution.transcriptPath}
-          isVisible={isVisible}
-          targetPtyId={targetPtyId}
-          terminalTabId={terminalTabId}
-          ownsTabWideLaunchDraft={ownsTabWideLaunchDraft}
-          onSwitchToTerminal={onSwitchToTerminal}
-          readTerminalScreen={readTerminalScreen}
-          contextMenuActions={contextMenuActions}
-        />
-      )}
+      {(resolution) => {
+        const resolvedProps = {
+          paneKey: resolution.paneKey,
+          agent: resolution.agent,
+          sessionId: resolution.sessionId,
+          transcriptPath: resolution.transcriptPath,
+          isVisible,
+          targetPtyId,
+          terminalTabId,
+          ownsTabWideLaunchDraft,
+          onSwitchToTerminal,
+          readTerminalScreen,
+          contextMenuActions
+        }
+        return terminalContext ? (
+          <NativeChatStructuredAdoption {...resolvedProps} terminalContext={terminalContext} />
+        ) : (
+          <NativeChatResolvedView {...resolvedProps} />
+        )
+      }}
     </NativeChatSessionGate>
   )
 }
