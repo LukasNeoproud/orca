@@ -13,6 +13,21 @@ function connectionFor(
 }
 
 describe('openCodexThread', () => {
+  it('captures effective speed and permissions for both new and resumed threads', async () => {
+    for (const resumeThreadId of [null, 'thread-1']) {
+      const request = vi.fn(async () => ({
+        thread: { id: 'thread-1' },
+        serviceTier: null,
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+        sandbox: { type: 'workspaceWrite', writableRoots: ['/workspace'], networkAccess: false }
+      }))
+      await expect(
+        openCodexThread(connectionFor(request), { cwd: '/workspace', resumeThreadId }, 1000)
+      ).resolves.toMatchObject({ serviceTier: null, permissions: 'workspace-write' })
+    }
+  })
+
   it('requests metadata-only state when resuming an existing thread', async () => {
     const request = vi.fn(async () => ({
       thread: { id: 'thread-1', path: '/history/thread-1.jsonl' },

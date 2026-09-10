@@ -332,6 +332,14 @@ export type AgentSessionModelOption = {
   efforts: AgentSessionOptionChoice[]
 }
 
+export type AgentSessionConfigOption = {
+  id: string
+  label: string
+  category?: 'thought_level' | 'model_config' | 'mode'
+  choices: AgentSessionOptionChoice[]
+  currentValue?: string
+}
+
 /** One entry of the `/` menu the running provider reports for itself. `skill`
  *  marks a name the session loaded as a skill rather than a built-in command;
  *  commands the provider reserves for a terminal UI are already removed. */
@@ -352,6 +360,8 @@ export type AgentSessionCommandsResult = {
 /** Provider-reported choices and effective next-turn values. Additive read-only
  *  surface so older hosts can reject it without changing structured v1 writes. */
 export type AgentSessionOptionsResult = {
+  /** Optional provider-owned controls; older hosts expose model and effort only. */
+  options?: AgentSessionConfigOption[]
   rewind?: AgentSessionRewindSupport
   conversationCommands?: readonly AgentSessionConversationCommand[]
   models: AgentSessionModelOption[]

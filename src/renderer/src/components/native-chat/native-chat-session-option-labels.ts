@@ -12,7 +12,10 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
     case 'effort':
       return translate('components.native-chat.composer.effort', descriptor.label)
     case 'fastMode':
+    case 'serviceTier':
       return translate('components.native-chat.composer.fastMode', 'Fast mode')
+    case 'permissions':
+      return translate('components.native-chat.composer.permissions', 'Permissions')
     case 'thinking':
       return translate('components.native-chat.composer.thinking', 'Thinking')
     default:
@@ -20,7 +23,28 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
   }
 }
 
-export function nativeChatSessionChoiceLabel(choice: SessionOptionSelectChoice): string {
+export function nativeChatSessionChoiceLabel(
+  choice: SessionOptionSelectChoice,
+  optionId?: string
+): string {
+  if (optionId === 'serviceTier') {
+    if (choice.value === 'priority') {
+      return translate('components.native-chat.composer.optionValue.fast', 'Fast')
+    }
+    if (choice.value === 'default') {
+      return translate('components.native-chat.composer.optionValue.off', 'Off')
+    }
+  }
+  if (optionId === 'permissions') {
+    switch (choice.value) {
+      case 'read-only':
+        return translate('components.native-chat.composer.optionValue.readOnly', 'Read only')
+      case 'workspace-write':
+        return translate('components.native-chat.composer.optionValue.workspace', 'Workspace')
+      case 'full-access':
+        return translate('components.native-chat.composer.optionValue.fullAccess', 'Full access')
+    }
+  }
   switch (choice.value) {
     case 'minimal':
       return translate('components.native-chat.composer.optionValue.minimal', 'Minimal')
@@ -87,7 +111,10 @@ export function nativeChatOptionsPillTitle(
 ): string {
   const effort = descriptors.find((descriptor) => descriptor.id === 'effort')
   // Why: an effort-backed group is primarily the effort picker, even when it also reports modes.
-  return effort
+  return effort &&
+    !descriptors.some(
+      (descriptor) => descriptor.id === 'permissions' || descriptor.id === 'serviceTier'
+    )
     ? nativeChatSessionOptionLabel(effort)
     : translate('components.native-chat.composer.sessionOptions', 'Session options')
 }
@@ -110,7 +137,8 @@ export function nativeChatOptionsPillLabel(
           choice ?? {
             value: descriptor.kind.currentValue,
             label: descriptor.kind.currentValue
-          }
+          },
+          descriptor.id
         )
       )
     } else if (descriptor.kind.type === 'boolean' && descriptor.kind.currentValue === true) {

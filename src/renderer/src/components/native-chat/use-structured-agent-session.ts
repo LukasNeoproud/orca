@@ -12,10 +12,12 @@ import type {
   AgentSessionPromptResult
 } from '../../../../shared/agent-session-wire'
 import { getAgentSessionOptionCatalog } from '../../../../shared/agent-session-option-catalog'
-import type { SessionOptionsSurface } from '../../../../shared/native-chat-session-options'
 import { agentSessionRefusalOperationState } from '../../../../shared/agent-session-refusal-retry'
 import { structuredAgentSessionPayloadFingerprint } from '../../../../shared/structured-agent-session-mutation'
 import {
+  createStructuredAgentSessionOptionsSurface,
+  structuredAgentSessionOptionReadGuard,
+  refreshStructuredAgentSessionOptions,
   applyStructuredAgentSessionOptions,
   canSetStructuredAgentSessionOption,
   commitStructuredAgentSessionOptionValues,
@@ -166,14 +168,15 @@ export function useStructuredAgentSession(args: {
       return
     }
     let stale = false
+    const isCurrent = structuredAgentSessionOptionReadGuard(activeOptionRecordRef.current)
     void callStructuredAgentSession<AgentSessionOptionsResult>(target, 'agentSession.options', {
       sessionId
     })
       .then((result) => {
-        if (!stale) {
+        if (!stale && isCurrent()) {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
           setOptionState((current) =>
-            current.record === activeOptionRecordRef.current
+            current.record === activeOptionRecordRef.current && isCurrent()
               ? applyStructuredAgentSessionOptions(current, optionCatalog, result)
               : current
           )
@@ -198,6 +201,7 @@ export function useStructuredAgentSession(args: {
         return false
       }
       const targetRecord = optionState.record
+      const isCurrent = structuredAgentSessionOptionReadGuard(targetRecord, true)
       setOptionState((current) => ({ ...current, pendingId: id }))
       try {
         const result = await mutate<AgentSessionOptionResult>(
@@ -205,10 +209,10 @@ export function useStructuredAgentSession(args: {
           'agentSession.setOption',
           { key: id, value }
         )
-        if (result && activeOptionRecordRef.current === targetRecord) {
+        if (result && activeOptionRecordRef.current === targetRecord && isCurrent()) {
           const committed = result.options ?? { [id]: value }
           setOptionState((current) =>
-            current.record === targetRecord
+            current.record === targetRecord && isCurrent()
               ? commitStructuredAgentSessionOptionValues(current, committed)
               : current
           )
@@ -220,33 +224,28 @@ export function useStructuredAgentSession(args: {
               picks
             })
           }
+          await refreshStructuredAgentSessionOptions(
+            () => callStructuredAgentSession(target, 'agentSession.options', { sessionId }),
+            setOptionState,
+            optionCatalog,
+            targetRecord,
+            isCurrent
+          )
         }
         return Boolean(result)
       } finally {
         setOptionState((current) =>
-          current.record === targetRecord && current.pendingId === id
+          current.record === targetRecord && current.pendingId === id && isCurrent()
             ? { ...current, pendingId: null }
             : current
         )
       }
     },
-    [agent, mutate, optionState, target]
+    [agent, mutate, optionCatalog, optionState, sessionId, target]
   )
-  const setOption = useCallback(
-    async (id: string, value: string | boolean) => {
-      await setStructuredOption(id, value)
-      return { snapshot: optionSnapshot }
-    },
+  const optionSurface = useMemo(
+    () => createStructuredAgentSessionOptionsSurface(optionSnapshot, setStructuredOption),
     [optionSnapshot, setStructuredOption]
-  )
-  const optionSurface = useMemo<SessionOptionsSurface>(
-    () => ({
-      getSnapshot: () => optionSnapshot,
-      setOption,
-      invokeAction: async () => ({ snapshot: optionSnapshot }),
-      subscribe: () => () => {}
-    }),
-    [optionSnapshot, setOption]
   )
 
   const prompts = pendingStructuredSessionPrompts(state.items)

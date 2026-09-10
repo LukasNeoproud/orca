@@ -562,8 +562,13 @@ describe('structured TUI launch tab binding', () => {
         sessionId: 'session-1',
         location: { workspaceId: WORKTREE_ID, executionHostId: 'local' },
         accountHome: { variable: 'CODEX_HOME', path: '/tmp/codex-home' },
-        launchArgs: ['--search'],
-        options: { model: 'gpt-5.6-terra', effort: 'medium' },
+        launchArgs: ['--search', '--yolo', '--add-dir', '/other'],
+        options: {
+          model: 'gpt-5.6-terra',
+          effort: 'medium',
+          serviceTier: 'priority',
+          permissions: 'workspace-write'
+        },
         providerHandleChain: [
           { handle: { provider: 'codex', threadId: 'thread-1' }, observedAt: 1 }
         ]
@@ -603,6 +608,11 @@ describe('structured TUI launch tab binding', () => {
     expect(launchCommand).toContain("'-m' 'gpt-5.6-terra'")
     expect(launchCommand).toContain("'-c' 'model_reasoning_effort=medium'")
     expect(launchCommand).toContain("'--search'")
+    expect(launchCommand).toContain('service_tier="priority"')
+    expect(launchCommand).toContain("'--sandbox' 'workspace-write'")
+    expect(launchCommand).toContain("'--ask-for-approval' 'on-request'")
+    expect(launchCommand).not.toContain('--yolo')
+    expect(launchCommand).not.toContain('--add-dir')
     expect(launchCommand).not.toContain('gpt-5.6-sol')
     expect(launchCommand).not.toContain('model_reasoning_effort=high')
 

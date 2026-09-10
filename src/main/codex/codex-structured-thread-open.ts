@@ -10,6 +10,7 @@ import {
   type CodexAppServerConnection
 } from './codex-app-server-connection'
 import { readCodexThreadId, readCodexThreadPath } from './codex-structured-thread-facts'
+import { readCodexPermissionsMode } from './codex-structured-permissions'
 
 export type CodexOpenedThread = {
   threadId: string
@@ -19,6 +20,8 @@ export type CodexOpenedThread = {
   historyMode?: 'legacy' | 'paginated'
   model?: string
   effort?: string
+  serviceTier?: string | null
+  permissions?: string
 }
 
 function nonEmptyString(value: unknown): string | null {
@@ -89,6 +92,7 @@ export async function openCodexThread(
       : {}
   const model = nonEmptyString(result.model)
   const effort = nonEmptyString(result.reasoningEffort)
+  const permissions = readCodexPermissionsMode(result, launch.cwd)
   return {
     threadId,
     thread,
@@ -97,6 +101,10 @@ export async function openCodexThread(
       ? { historyMode: thread.historyMode }
       : {}),
     ...(model ? { model } : {}),
-    ...(effort ? { effort } : {})
+    ...(effort ? { effort } : {}),
+    ...(result.serviceTier === null || typeof result.serviceTier === 'string'
+      ? { serviceTier: result.serviceTier }
+      : {}),
+    ...(permissions ? { permissions } : {})
   }
 }

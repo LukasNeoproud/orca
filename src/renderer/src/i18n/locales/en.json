@@ -7028,7 +7028,7 @@
             "defaultViewTerminal": "Terminal chat",
             "defaultViewNative": "Chat UI",
             "structuredTitle": "Use updated structured native chat",
-            "structuredCopy": "Opt in to the host-owned structured chat runtime for Codex and Claude. Off keeps the existing terminal-backed chat path.",
+            "structuredCopy": "Use the structured chat runtime for supported Codex and Claude sessions. This setting is independent of the default view for new tabs.",
             "structuredScope": "Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.",
             "structuredToggleLabel": "Toggle updated structured native chat"
           },
@@ -17035,6 +17035,7 @@
         "model": "Model",
         "effort": "Effort",
         "fastMode": "Fast mode",
+        "permissions": "Permissions",
         "thinking": "Thinking",
         "options": "Options",
         "sessionOptions": "Session options",
@@ -17048,6 +17049,9 @@
         "optionUpdateFailed": "Could not update option",
         "optionValue": {
           "fast": "Fast",
+          "readOnly": "Read only",
+          "workspace": "Workspace",
+          "fullAccess": "Full access",
           "minimal": "Minimal",
           "low": "Low",
           "medium": "Medium",

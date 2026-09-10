@@ -7,6 +7,7 @@ import {
 } from './codex-app-server-connection'
 import { isCodexAppServerUnsupportedError } from './codex-app-server-session'
 import { readCodexTurnId } from './codex-structured-thread-facts'
+import { codexPermissionOverrides } from './codex-structured-permissions'
 
 // Starting a Codex turn and learning its id, which are not the same event:
 // `turn/start` returns the id on newer builds and acks before it exists on
@@ -28,7 +29,8 @@ const CODEX_TURN_OPTION_KEYS = new Set([
   'approvalPolicy',
   'approvalsReviewer',
   'personality',
-  'serviceTier'
+  'serviceTier',
+  'permissions'
 ])
 
 export function isCodexTurnOptionKey(key: string): boolean {
@@ -41,6 +43,8 @@ export function isCodexTurnOptionKey(key: string): boolean {
 export type CodexTurnHost = {
   connection: Pick<CodexAppServerConnection, 'request'>
   threadId: string
+  cwd?: string
+  supportsDefaultServiceTier?: boolean
   options: Map<string, string>
   turnIdWaiters: ((turnId: string) => void)[]
 }
@@ -82,7 +86,7 @@ export async function startCodexTurn(
         threadId: host.threadId,
         clientUserMessageId: input.clientMessageId,
         input: turnInputFor(input.body),
-        ...Object.fromEntries(host.options)
+        ...codexTurnOptions(host)
       },
       { timeoutMs: input.timeoutMs }
     )
@@ -92,6 +96,21 @@ export async function startCodexTurn(
     if (index !== -1) {
       host.turnIdWaiters.splice(index, 1)
     }
+  }
+}
+
+function codexTurnOptions(host: CodexTurnHost): Record<string, unknown> {
+  const { permissions, serviceTier, ...rest } = Object.fromEntries(host.options)
+  return {
+    ...rest,
+    // Older catalogs predate model-default tiers; only those use null to turn Fast off.
+    ...(serviceTier !== undefined
+      ? {
+          serviceTier:
+            serviceTier === 'default' && !host.supportsDefaultServiceTier ? null : serviceTier
+        }
+      : {}),
+    ...(permissions !== undefined ? codexPermissionOverrides(permissions, host.cwd) : {})
   }
 }
 

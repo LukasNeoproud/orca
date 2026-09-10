@@ -14,8 +14,60 @@ import {
   type NativeChatSessionOptionRecord
 } from './native-chat-session-option-state'
 import { STRUCTURED_LAUNCH_SEED_OPTION_IDS } from './native-chat-session-option-defaults'
-import type { SessionOptionDescriptor, SessionOptionValue } from './native-chat-session-options'
+import type {
+  SessionOptionDescriptor,
+  SessionOptionsSurface,
+  SessionOptionValue
+} from './native-chat-session-options'
 import type { AgentSessionOptionsResult } from './agent-session-wire'
+
+const optionReadGenerations = new WeakMap<NativeChatSessionOptionRecord, object>()
+
+export function structuredAgentSessionOptionReadGuard(
+  record: NativeChatSessionOptionRecord,
+  invalidate = false
+): () => boolean {
+  const generation = (!invalidate && optionReadGenerations.get(record)) || {}
+  optionReadGenerations.set(record, generation)
+  return () => optionReadGenerations.get(record) === generation
+}
+
+export function createStructuredAgentSessionOptionsSurface(
+  snapshot: SessionOptionDescriptor[],
+  set: (id: string, value: SessionOptionValue) => Promise<boolean>
+): SessionOptionsSurface {
+  return {
+    getSnapshot: () => snapshot,
+    setOption: async (id, value) => {
+      await set(id, value)
+      return { snapshot }
+    },
+    invokeAction: async () => ({ snapshot }),
+    subscribe: () => () => {}
+  }
+}
+
+export async function refreshStructuredAgentSessionOptions(
+  read: () => Promise<AgentSessionOptionsResult>,
+  update: (
+    apply: (state: StructuredAgentSessionOptionState) => StructuredAgentSessionOptionState
+  ) => void,
+  catalog: AgentSessionOptionCatalog | null,
+  record: NativeChatSessionOptionRecord,
+  isCurrent: () => boolean
+): Promise<void> {
+  if (!catalog) {
+    return
+  }
+  const result = await read().catch(() => null)
+  if (result?.options && isCurrent()) {
+    update((state) =>
+      state.record === record && isCurrent()
+        ? applyStructuredAgentSessionOptions(state, catalog, result)
+        : state
+    )
+  }
+}
 
 function effortOption(model: AgentSessionOptionsResult['models'][number]): CatalogOption | null {
   if (model.efforts.length <= 1) {
@@ -64,12 +116,18 @@ export type StructuredAgentSessionOptionState = {
   catalog: AgentSessionOptionCatalog | null
   record: NativeChatSessionOptionRecord
   pendingId: string | null
+  sessionOptions: SessionOptionDescriptor[]
 }
 
 export function createStructuredAgentSessionOptionState(
   agent = 'codex'
 ): StructuredAgentSessionOptionState {
-  return { catalog: null, record: createNativeChatSessionOptionRecord(agent), pendingId: null }
+  return {
+    catalog: null,
+    record: createNativeChatSessionOptionRecord(agent),
+    pendingId: null,
+    sessionOptions: []
+  }
 }
 
 export function applyStructuredAgentSessionOptions(
@@ -85,7 +143,27 @@ export function applyStructuredAgentSessionOptions(
     },
     result.current.confirmed ?? []
   )
-  return { ...state, catalog: structuredAgentSessionOptionCatalog(seed, result) }
+  const sessionOptions: SessionOptionDescriptor[] = (result.options ?? [])
+    .filter((option) => option.id !== 'model' && option.id !== 'effort')
+    .map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(option.category ? { category: option.category } : {}),
+      kind: {
+        type: 'select',
+        choices: option.choices,
+        ...(option.currentValue === undefined ? {} : { currentValue: option.currentValue })
+      },
+      valueSource:
+        option.currentValue === undefined
+          ? 'unknown'
+          : result.current.confirmed?.includes(option.id)
+            ? 'reported'
+            : 'dispatched',
+      transport: 'agent-session',
+      settable: true
+    }))
+  return { ...state, catalog: structuredAgentSessionOptionCatalog(seed, result), sessionOptions }
 }
 
 export function structuredAgentSessionOptionSnapshot(
@@ -94,14 +172,17 @@ export function structuredAgentSessionOptionSnapshot(
   if (!state.catalog) {
     return []
   }
-  return buildNativeChatSessionOptionSnapshot({
-    catalog: state.catalog,
-    models: state.catalog.models,
-    record: state.record,
-    mode: 'live',
-    modelLabel: 'Model',
-    liveTransport: 'agent-session'
-  })
+  return [
+    ...buildNativeChatSessionOptionSnapshot({
+      catalog: state.catalog,
+      models: state.catalog.models,
+      record: state.record,
+      mode: 'live',
+      modelLabel: 'Model',
+      liveTransport: 'agent-session'
+    }),
+    ...state.sessionOptions
+  ]
 }
 
 export function canSetStructuredAgentSessionOption(
@@ -127,13 +208,23 @@ export function commitStructuredAgentSessionOption(
   if (!state.catalog) {
     return state
   }
+  if (state.sessionOptions.some((option) => option.id === id)) {
+    return {
+      ...state,
+      sessionOptions: state.sessionOptions.map((option) =>
+        option.id === id && option.kind.type === 'select'
+          ? { ...option, kind: { ...option.kind, currentValue: value }, valueSource: 'dispatched' }
+          : option
+      )
+    }
+  }
   const effectiveModel = resolveEffectiveNativeChatModelId(
     state.catalog,
     state.catalog.models,
     state.record
   )
   setTrackedSessionOption(state.record, id, value, 'dispatched', effectiveModel)
-  return { ...state, pendingId: null }
+  return { ...state }
 }
 
 export function commitStructuredAgentSessionOptionValues(
@@ -141,7 +232,7 @@ export function commitStructuredAgentSessionOptionValues(
   values: Readonly<Record<string, string>>
 ): StructuredAgentSessionOptionState {
   let next = state
-  for (const id of ['model', 'effort']) {
+  for (const id of ['model', 'effort', ...state.sessionOptions.map((option) => option.id)]) {
     const value = values[id]
     if (value) {
       next = commitStructuredAgentSessionOption(next, id, value)

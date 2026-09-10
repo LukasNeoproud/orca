@@ -11,6 +11,8 @@ import type {
   SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
 import {
+  structuredAgentSessionOptionReadGuard,
+  refreshStructuredAgentSessionOptions,
   applyStructuredAgentSessionOptions,
   canSetStructuredAgentSessionOption,
   commitStructuredAgentSessionOption,
@@ -73,12 +75,13 @@ export function useMobileStructuredAgentOptions(args: {
       return
     }
     let stale = false
+    const isCurrent = structuredAgentSessionOptionReadGuard(activeOptionRecordRef.current)
     void callAgentSession<AgentSessionOptionsResult>(client, 'agentSession.options', { sessionId })
       .then((result) => {
-        if (!stale) {
+        if (!stale && isCurrent()) {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
           setOptionState((current) =>
-            current.record === activeOptionRecordRef.current
+            current.record === activeOptionRecordRef.current && isCurrent()
               ? applyStructuredAgentSessionOptions(current, optionCatalog, result)
               : current
           )
@@ -104,6 +107,7 @@ export function useMobileStructuredAgentOptions(args: {
         return false
       }
       const targetRecord = optionState.record
+      const isCurrent = structuredAgentSessionOptionReadGuard(targetRecord, true)
       setOptionState((current) => ({ ...current, pendingId: id }))
       try {
         const result = await mutate<AgentSessionOptionResult>(
@@ -111,13 +115,13 @@ export function useMobileStructuredAgentOptions(args: {
           'agentSession.setOption',
           { key: id, value }
         )
-        if (activeOptionRecordRef.current !== targetRecord) {
+        if (activeOptionRecordRef.current !== targetRecord || !isCurrent()) {
           return result.status !== 'rejected'
         }
         if (result.status === 'accepted') {
           const committed = result.value.options ?? { [id]: value }
           setOptionState((current) =>
-            current.record === targetRecord && result.sameFence
+            current.record === targetRecord && result.sameFence && isCurrent()
               ? commitStructuredAgentSessionOptionValues(current, committed)
               : current
           )
@@ -131,11 +135,20 @@ export function useMobileStructuredAgentOptions(args: {
               picks: structuredAgentSessionOptionPicks(optionState, committed)
             })
           }
+          if (client && sessionId) {
+            await refreshStructuredAgentSessionOptions(
+              () => callAgentSession(client, 'agentSession.options', { sessionId }),
+              setOptionState,
+              optionCatalog,
+              targetRecord,
+              isCurrent
+            )
+          }
           return true
         }
         if (result.status === 'unknown') {
           setOptionState((current) =>
-            current.record === targetRecord
+            current.record === targetRecord && isCurrent()
               ? commitStructuredAgentSessionOption(current, id, value)
               : current
           )
@@ -144,13 +157,13 @@ export function useMobileStructuredAgentOptions(args: {
         return false
       } finally {
         setOptionState((current) =>
-          current.record === targetRecord && current.pendingId === id
+          current.record === targetRecord && current.pendingId === id && isCurrent()
             ? { ...current, pendingId: null }
             : current
         )
       }
     },
-    [agent, client, mutate, optionState]
+    [agent, client, mutate, optionCatalog, optionState, sessionId]
   )
 
   const invokeStructuredOption = useCallback(

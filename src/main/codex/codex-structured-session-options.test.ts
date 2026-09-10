@@ -5,7 +5,8 @@ import {
   applyCodexStructuredSessionOption,
   readCodexStructuredSessionOptions,
   reportedCodexThreadOptions,
-  restoredCodexSessionOptions
+  restoredCodexSessionOptions,
+  readLiveCodexSessionOptions
 } from './codex-structured-session-options'
 import type { CodexSession } from './codex-structured-session-state'
 
@@ -35,6 +36,163 @@ function optionSession(request: CodexAppServerConnection['request']): CodexSessi
 }
 
 describe('structured Codex session options', () => {
+  function configurableSession(): CodexSession {
+    const session = optionSession(
+      vi.fn(async (method: string) =>
+        method === 'configRequirements/read'
+          ? { requirements: null }
+          : {
+              data: [
+                {
+                  model: 'gpt-live',
+                  supportedReasoningEfforts: [{ reasoningEffort: 'high' }],
+                  serviceTiers: [{ id: 'priority' }]
+                },
+                {
+                  model: 'gpt-standard',
+                  supportedReasoningEfforts: [{ reasoningEffort: 'low' }],
+                  serviceTiers: []
+                }
+              ]
+            }
+      )
+    )
+    session.cwd = '/workspace'
+    session.reportedOptions.serviceTier = null
+    session.reportedOptions.permissions = 'workspace-write'
+    return session
+  }
+
+  it('reads effective Fast and permissions independently of model/effort', async () => {
+    const result = await readLiveCodexSessionOptions(configurableSession(), undefined)
+    expect(result.options).toEqual([
+      expect.objectContaining({ id: 'serviceTier', currentValue: 'default' }),
+      expect.objectContaining({ id: 'permissions', currentValue: 'workspace-write' })
+    ])
+  })
+
+  it('keeps other advertised tiers available to existing session API callers', async () => {
+    const session = configurableSession()
+    session.connection.request = vi.fn(async () => ({
+      data: [{ model: 'gpt-live', serviceTiers: [{ id: 'priority' }, { id: 'flex' }] }]
+    }))
+    await expect(
+      applyCodexStructuredSessionOption(session, 'serviceTier', 'fast', undefined)
+    ).resolves.toEqual({ serviceTier: 'priority' })
+    await expect(
+      applyCodexStructuredSessionOption(session, 'serviceTier', 'flex', undefined)
+    ).resolves.toEqual({ serviceTier: 'flex' })
+  })
+
+  it('queues changes for the next turn and preserves global selections across models', async () => {
+    const session = configurableSession()
+    session.options.set('approvalPolicy', 'on-request')
+    session.options.set('approvalsReviewer', 'auto_review')
+    await expect(
+      applyCodexStructuredSessionOption(session, 'permissions', 'read-only', undefined)
+    ).resolves.toEqual({ permissions: 'read-only' })
+    await expect(
+      applyCodexStructuredSessionOption(session, 'serviceTier', 'priority', undefined)
+    ).resolves.toEqual({ permissions: 'read-only', serviceTier: 'priority' })
+    await expect(
+      applyCodexStructuredSessionOption(session, 'model', 'gpt-live', undefined)
+    ).resolves.toMatchObject({
+      model: 'gpt-live',
+      permissions: 'read-only',
+      serviceTier: 'priority'
+    })
+    expect(
+      vi
+        .mocked(session.connection.request)
+        .mock.calls.every(
+          ([method]) => method === 'model/list' || method === 'configRequirements/read'
+        )
+    ).toBe(true)
+  })
+
+  it.each(['priority', 'fast'])(
+    'clears %s when the selected model cannot run Fast',
+    async (tier) => {
+      const session = configurableSession()
+      session.reportedOptions.serviceTier = tier
+      await expect(
+        applyCodexStructuredSessionOption(session, 'model', 'gpt-standard', undefined)
+      ).resolves.toEqual({ model: 'gpt-standard', effort: 'low', serviceTier: 'default' })
+      expect(
+        (await readLiveCodexSessionOptions(session, undefined)).options?.map((option) => option.id)
+      ).toEqual(['permissions'])
+    }
+  )
+
+  it('rejects invalid and managed-disallowed selections without changing session state', async () => {
+    const session = configurableSession()
+    await expect(
+      applyCodexStructuredSessionOption(session, 'serviceTier', 'turbo', undefined)
+    ).rejects.toThrow('does not offer')
+    await expect(
+      applyCodexStructuredSessionOption(session, 'permissions', 'arbitrary', undefined)
+    ).rejects.toThrow('does not offer')
+    const request = session.connection.request
+    session.connection.request = vi.fn(async (method, ...args) =>
+      method === 'configRequirements/read'
+        ? { requirements: { allowedSandboxModes: ['read-only'] } }
+        : request(method, ...args)
+    )
+    await expect(
+      applyCodexStructuredSessionOption(session, 'permissions', 'full-access', undefined)
+    ).rejects.toThrow('does not offer')
+    expect(session.options.size).toBe(0)
+  })
+
+  it('retains model/effort and fast discovery when requirements cannot be read', async () => {
+    const session = configurableSession()
+    const request = session.connection.request
+    session.connection.request = vi.fn(async (method, ...args) => {
+      if (method === 'configRequirements/read') {
+        throw new Error('unavailable')
+      }
+      return request(method, ...args)
+    })
+    const result = await readLiveCodexSessionOptions(session, undefined)
+    expect(result.models).toHaveLength(2)
+    expect(result.options?.map((option) => option.id)).toEqual(['serviceTier'])
+  })
+
+  it.each([
+    [{ additionalSpeedTiers: ['fast'] }, true],
+    [{ serviceTiers: [], additionalSpeedTiers: ['fast'] }, false],
+    [{}, false]
+  ])('uses advertised speed capabilities %j', async (capabilities, available) => {
+    const result = await readCodexStructuredSessionOptions({
+      connection: { request: async () => ({ data: [{ model: 'gpt-live', ...capabilities }] }) },
+      current: { model: 'gpt-live', serviceTier: 'fast' }
+    })
+    expect(result.options?.some((option) => option.id === 'serviceTier') ?? false).toBe(available)
+    if (available) {
+      expect(result.options?.[0].currentValue).toBe('priority')
+    }
+  })
+
+  it('distinguishes model-default Fast from explicitly selected standard speed', async () => {
+    const session = configurableSession()
+    const request = session.connection.request
+    session.connection.request = vi.fn(async (method, ...args) => {
+      const response = (await request(method, ...args)) as { data?: Record<string, unknown>[] }
+      if (response.data) {
+        response.data[0].defaultServiceTier = 'priority'
+      }
+      return response
+    })
+    expect((await readLiveCodexSessionOptions(session, undefined)).options?.[0].currentValue).toBe(
+      'priority'
+    )
+    expect(session.supportsDefaultServiceTier).toBe(true)
+    await applyCodexStructuredSessionOption(session, 'serviceTier', 'default', undefined)
+    expect((await readLiveCodexSessionOptions(session, undefined)).options?.[0].currentValue).toBe(
+      'default'
+    )
+  })
+
   it('filters restored records to recognized turn options', () => {
     expect(
       Object.fromEntries(

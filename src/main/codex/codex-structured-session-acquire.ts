@@ -192,6 +192,7 @@ export async function acquireCodexStructuredSession(input: {
       ...codexSessionLifecycle(acquireInput.fence, acquired.acquisitionGeneration as string),
       threadId: opened.threadId,
       historyPath: opened.historyPath,
+      cwd: launch.cwd,
       historyMode: opened.historyMode,
       activeTurnIds: new Set(),
       prompts: acquisition.prompts,

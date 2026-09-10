@@ -147,6 +147,169 @@ describe('useStructuredAgentSession options', () => {
     })
   })
 
+  it('refreshes provider controls after changing models', async () => {
+    let changed = false
+    mocks.call.mockImplementation((_target, method) => {
+      if (method === 'agentSession.options') {
+        return Promise.resolve({
+          ...OPTIONS,
+          current: changed ? { model: 'gpt-fast', effort: 'low' } : OPTIONS.current,
+          options: changed
+            ? [
+                {
+                  id: 'serviceTier',
+                  label: 'Fast mode',
+                  category: 'mode',
+                  currentValue: 'default',
+                  choices: [
+                    { value: 'default', label: 'Off' },
+                    { value: 'priority', label: 'On' }
+                  ]
+                }
+              ]
+            : []
+        })
+      }
+      if (method !== 'agentSession.setOption') {
+        return Promise.resolve(null)
+      }
+      changed = true
+      return Promise.resolve({
+        ok: true,
+        value: {
+          key: 'model',
+          value: 'gpt-fast',
+          options: { model: 'gpt-fast', effort: 'low' }
+        }
+      })
+    })
+    const { result } = renderHook(() =>
+      useStructuredAgentSession({
+        sessionId: 'session-1',
+        target: LOCAL_TARGET,
+        agent: 'codex',
+        isVisible: true
+      })
+    )
+    await waitFor(() => expect(result.current.optionSnapshot).toHaveLength(2))
+    await act(async () => {
+      expect(await result.current.setStructuredOption('model', 'gpt-fast')).toBe(true)
+    })
+    expect(result.current.optionSnapshot.find((entry) => entry.id === 'serviceTier')).toMatchObject(
+      {
+        kind: { currentValue: 'default' },
+        settable: true
+      }
+    )
+  })
+
+  it('ignores an earlier effect read after a successful option mutation', async () => {
+    let readCount = 0
+    let resolveEarlier!: (value: typeof OPTIONS) => void
+    const earlier = new Promise<typeof OPTIONS>((resolve) => {
+      resolveEarlier = resolve
+    })
+    mocks.call.mockImplementation((_target, method) => {
+      if (method === 'agentSession.options') {
+        readCount += 1
+        return readCount === 2
+          ? earlier
+          : Promise.resolve(
+              readCount > 2
+                ? { ...OPTIONS, current: { model: 'gpt-fast', effort: 'low' }, options: [] }
+                : OPTIONS
+            )
+      }
+      return Promise.resolve(
+        method === 'agentSession.setOption'
+          ? {
+              ok: true,
+              value: {
+                key: 'model',
+                value: 'gpt-fast',
+                options: { model: 'gpt-fast', effort: 'low' }
+              }
+            }
+          : null
+      )
+    })
+    const { result, rerender } = renderHook(
+      ({ visible }) =>
+        useStructuredAgentSession({
+          sessionId: 'session-1',
+          target: LOCAL_TARGET,
+          agent: 'codex',
+          isVisible: visible
+        }),
+      { initialProps: { visible: true } }
+    )
+    await waitFor(() => expect(result.current.optionSnapshot).toHaveLength(2))
+    rerender({ visible: false })
+    rerender({ visible: true })
+    await waitFor(() => expect(readCount).toBe(2))
+    await act(async () => {
+      await result.current.setStructuredOption('model', 'gpt-fast')
+    })
+    await act(async () => {
+      resolveEarlier(OPTIONS)
+    })
+    expect(result.current.optionSnapshot[0].kind).toMatchObject({ currentValue: 'gpt-fast' })
+  })
+
+  it('keeps an option pending through readback and ignores that read after changing sessions', async () => {
+    let readCount = 0
+    let resolveReadback!: (value: typeof OPTIONS & { options: [] }) => void
+    const readback = new Promise<typeof OPTIONS & { options: [] }>((resolve) => {
+      resolveReadback = resolve
+    })
+    mocks.call.mockImplementation((_target, method) => {
+      if (method === 'agentSession.options') {
+        readCount += 1
+        return readCount === 2 ? readback : Promise.resolve(OPTIONS)
+      }
+      return Promise.resolve(
+        method === 'agentSession.setOption'
+          ? {
+              ok: true,
+              value: {
+                key: 'model',
+                value: 'gpt-fast',
+                options: { model: 'gpt-fast', effort: 'low' }
+              }
+            }
+          : null
+      )
+    })
+    const { result, rerender } = renderHook(
+      ({ sessionId }) =>
+        useStructuredAgentSession({
+          sessionId,
+          target: LOCAL_TARGET,
+          agent: 'codex',
+          isVisible: true
+        }),
+      { initialProps: { sessionId: 'session-1' } }
+    )
+    await waitFor(() => expect(result.current.optionSnapshot).toHaveLength(2))
+    let mutation!: Promise<boolean>
+    act(() => {
+      mutation = result.current.setStructuredOption('model', 'gpt-fast')
+    })
+    await waitFor(() => expect(readCount).toBe(2))
+    await act(async () => {
+      expect(await result.current.setStructuredOption('model', 'gpt-live')).toBe(false)
+    })
+    rerender({ sessionId: 'session-2' })
+    await waitFor(() =>
+      expect(result.current.optionSnapshot[0]?.kind).toMatchObject({ currentValue: 'gpt-live' })
+    )
+    await act(async () => {
+      resolveReadback({ ...OPTIONS, current: { model: 'gpt-fast', effort: 'low' }, options: [] })
+      await mutation
+    })
+    expect(result.current.optionSnapshot[0].kind).toMatchObject({ currentValue: 'gpt-live' })
+  })
+
   it('surfaces a rejected option transport call and clears pending state', async () => {
     mocks.call.mockImplementation((_target, method) =>
       method === 'agentSession.options'
