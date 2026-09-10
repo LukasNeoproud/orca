@@ -269,3 +269,34 @@ export const WORKTREE_METHODS: RpcMethod[] = [
     }
   })
 ]
+
+// A distinct method refuses old hosts before they can strip explicit path semantics.
+const legacyCreateMethod = WORKTREE_METHODS.find((method) => method.name === 'worktree.create')!
+WORKTREE_METHODS.push({ ...legacyCreateMethod, name: 'worktree.createExplicit' })
+WORKTREE_METHODS.push(
+  defineMethod({
+    name: 'worktree.previewCreation',
+    params: WorktreeCreate,
+    handler: (params, { runtime }) =>
+      runtime.previewManagedWorktreeCreation({
+        repoSelector: params.repo,
+        name: params.name || '',
+        baseBranch: params.baseBranch,
+        explicitCreation: params.explicitCreation
+      })
+  })
+)
+
+WORKTREE_METHODS.push(
+  defineMethod({
+    name: 'worktree.ignoreCreationLocally',
+    params: WorktreeCreate,
+    handler: (params, { runtime }) =>
+      runtime.ignoreManagedWorktreeCreationLocally({
+        repoSelector: params.repo,
+        name: params.name || '',
+        baseBranch: params.baseBranch,
+        explicitCreation: params.explicitCreation
+      })
+  })
+)

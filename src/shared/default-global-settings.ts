@@ -231,6 +231,7 @@ export function buildDefaultSettings(args: {
     experimentalAgentHibernation: false,
     agentHibernationIdleMs: 30 * 60 * 1000,
     experimentalNewWorktreeCardStyle: false,
+    experimentalSimplifiedCreateWorktree: false,
     experimentalEphemeralVms: false,
     compactWorktreeCards: false,
     // Why: local desktop stays the default until the user picks a saved runtime environment.

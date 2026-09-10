@@ -1,3 +1,4 @@
+import { handleEmptyDirectoryReservation } from './fs-empty-directory-reservation'
 import { tmpdir } from 'node:os'
 import type { RelayDispatcher, RequestContext } from './dispatcher'
 import type { RelayContext } from './context'
@@ -94,6 +95,7 @@ export class FsHandler {
     this.dispatcher.onRequest('fs.deletePath', (p) => deleteRelayPath(p, this.watchRegistry))
     this.dispatcher.onRequest('fs.createFile', (p) => createRelayFile(p))
     this.dispatcher.onRequest('fs.createDir', (p) => createRelayDir(p))
+    this.dispatcher.onRequest('fs.emptyDirectoryReservation', handleEmptyDirectoryReservation)
     this.dispatcher.onRequest('fs.createDirNoClobber', (p) => createRelayDirNoClobber(p))
     this.dispatcher.onRequest('fs.rename', (p) => renameRelayPath(p))
     this.dispatcher.onRequest('fs.renameNoClobber', (p) => renameRelayPathNoClobber(p))

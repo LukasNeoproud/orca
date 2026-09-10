@@ -1,6 +1,12 @@
 /* eslint-disable max-lines */
 // Why: worktree create helpers (local + remote) split out of worktrees.ts; the cohesive create flow runs this file just over the per-file line limit.
 
+import { reserveWorktreeCreationDestination } from '../worktree-creation-destination'
+import { previewWorktreeCreation } from './worktrees/create/explicit-creation-preview'
+import {
+  assertExplicitCreationAvailable,
+  explicitCreationTrackingTarget
+} from '../worktree-explicit-creation'
 import { getRepoHostedReviewExecutionHostId } from '../source-control/hosted-review-execution-host'
 import type { BrowserWindow } from 'electron'
 import { posix, win32 } from 'node:path'
@@ -1843,6 +1849,22 @@ export async function createRemoteWorktree(
   store: Store,
   mainWindow: BrowserWindow
 ): Promise<CreateWorktreeResult> {
+  const explicitPreview = args.explicitCreation
+    ? await previewWorktreeCreation(args, repo, store, true)
+    : undefined
+  if (explicitPreview) {
+    assertExplicitCreationAvailable(explicitPreview)
+    args = {
+      ...args,
+      baseBranch: explicitPreview.baseBranch,
+      branchNameOverride: explicitPreview.branch.name,
+      pushTarget: args.pushTarget ?? explicitCreationTrackingTarget(explicitPreview),
+      displayName: args.displayName || args.name,
+      displayNameKind: 'user',
+      nameWasGenerated: false,
+      pendingFirstAgentMessageRename: false
+    }
+  }
   const timing = createWorktreeCreateTimingRecorder()
   const provider = requireSshGitProvider(repo.connectionId!)
   const fsProvider = getSshFilesystemProvider(repo.connectionId!)
@@ -1918,7 +1940,18 @@ export async function createRemoteWorktree(
     : null
   const isRetiredName = retiredNameRegistry ? createRetiredNameLookup(retiredNameRegistry) : null
   // Why: duplicate PR/MR checkouts still need a workspace; suffix branch/path while preserving review metadata and push target.
-  for (let suffix = 1, attempts = 0; attempts < WORKTREE_CREATE_MAX_SUFFIX_ATTEMPTS; suffix += 1) {
+  if (explicitPreview) {
+    remotePath = explicitPreview.path
+    branchName = explicitPreview.branch.name
+    checkoutExistingBranch = explicitPreview.branch.kind === 'local'
+    effectiveSanitizedName = args.name
+    remotePathResolved = true
+  }
+  for (
+    let suffix = 1, attempts = 0;
+    !remotePathResolved && attempts < WORKTREE_CREATE_MAX_SUFFIX_ATTEMPTS;
+    suffix += 1
+  ) {
     effectiveSanitizedName = shouldRetireGeneratedName
       ? getGeneratedWorktreeCreateCandidate(
           sanitizedName,
@@ -2075,18 +2108,24 @@ export async function createRemoteWorktree(
   // (#17828) instead of paying it at create time for a read-only review.
   const preparedPushTarget: GitPushTarget | undefined = args.pushTarget
 
+  const releaseDestination = args.explicitCreation
+    ? await reserveWorktreeCreationDestination(remotePath, fsProvider)
+    : undefined
+  let checkoutWarning: CreateWorktreeResult['checkoutWarning']
   try {
-    await timing.time('git_worktree_add', async () =>
-      provider.addWorktree(
-        repo.path,
-        branchName,
-        remotePath,
-        checkoutExistingBranch
+    const result = await timing.time('git_worktree_add', async () =>
+      provider.addWorktree(repo.path, branchName, remotePath, {
+        ...(checkoutExistingBranch
           ? { checkoutExistingBranch }
-          : { base: baseBranch, ...(sparseDirectories.length > 0 ? { noCheckout: true } : {}) }
-      )
+          : { base: baseBranch, ...(sparseDirectories.length > 0 ? { noCheckout: true } : {}) }),
+        ...(args.recoverCompletedCheckoutFailure && sparseDirectories.length === 0
+          ? { recoverCompletedCheckoutFailure: true }
+          : {})
+      })
     )
+    checkoutWarning = result?.checkoutWarning
   } catch (err) {
+    await releaseDestination?.()
     if (
       err instanceof Error &&
       (err.message.includes('No workspace roots registered yet') ||
@@ -2238,7 +2277,7 @@ export async function createRemoteWorktree(
 
   let setup: CreateWorktreeResult['setup']
   let defaultTabs: CreateWorktreeResult['defaultTabs']
-  if (fsProvider) {
+  if (fsProvider && !checkoutWarning) {
     await timing.time('prepare_setup', async () => {
       const yamlHooks = await readRemoteOrcaYaml(fsProvider, created.path)
       const hooks = getEffectiveHooksFromConfig(repo, yamlHooks)
@@ -2294,6 +2333,7 @@ export async function createRemoteWorktree(
     ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
     ...(localBaseRefUpdateSuggestion ? { localBaseRefUpdateSuggestion } : {}),
     ...(baseFallback ? { baseFallback } : {}),
+    ...(checkoutWarning ? { checkoutWarning } : {}),
     timing: timing.finish()
   }
 }
@@ -2305,6 +2345,22 @@ export async function createLocalWorktree(
   mainWindow: BrowserWindow,
   runtime?: OrcaRuntimeService
 ): Promise<CreateWorktreeResult> {
+  const explicitPreview = args.explicitCreation
+    ? await previewWorktreeCreation(args, repo, store, true)
+    : undefined
+  if (explicitPreview) {
+    assertExplicitCreationAvailable(explicitPreview)
+    args = {
+      ...args,
+      baseBranch: explicitPreview.baseBranch,
+      branchNameOverride: explicitPreview.branch.name,
+      pushTarget: args.pushTarget ?? explicitCreationTrackingTarget(explicitPreview),
+      displayName: args.displayName || args.name,
+      displayNameKind: 'user',
+      nameWasGenerated: false,
+      pendingFirstAgentMessageRename: false
+    }
+  }
   const timing = createWorktreeCreateTimingRecorder()
   const settings = store.getSettings()
   const worktreePathSettings = getWorktreePathSettings(
@@ -2319,6 +2375,9 @@ export async function createLocalWorktree(
     ? [localWorktreeGitOptions]
     : []
   const addProjectGitOptions = (options?: AddWorktreeOptions): AddWorktreeOptions | undefined => {
+    if (args.recoverCompletedCheckoutFailure) {
+      options = { ...options, recoverCompletedCheckoutFailure: true }
+    }
     if (!hasLocalWorktreeGitOptions) {
       return options
     }
@@ -2492,6 +2551,15 @@ export async function createLocalWorktree(
   const shouldRetireGeneratedName =
     args.nameWasGenerated === true && isGeneratedWorktreeCreateName(sanitizedName)
   await timing.time('resolve_name', async () => {
+    if (explicitPreview) {
+      worktreePath = explicitPreview.path
+      branchName = explicitPreview.branch.name
+      checkoutExistingBranch = explicitPreview.branch.kind === 'local'
+      effectiveSanitizedName = args.name
+      resolved = true
+      return
+    }
+
     const retiredNameRegistry = shouldRetireGeneratedName
       ? await getRetiredNameRegistryForRepo(store, repo, store.getRepos(), settings)
       : null
@@ -2702,11 +2770,14 @@ export async function createLocalWorktree(
   const preparedWorktreeOptions = suggestLocalBaseRefUpdate
     ? addProjectGitOptions({ ...remoteTrackingBaseOption, suggestLocalBaseRefUpdate })
     : addProjectGitOptions(remoteTrackingBaseOption)
+  const releaseDestination = args.explicitCreation
+    ? await reserveWorktreeCreationDestination(worktreePath)
+    : undefined
   let addResult: AddWorktreeResult
   try {
     addResult =
       (await timing.time('git_worktree_add', async () => {
-        if (sparseDirectories.length === 0 && !checkoutExistingBranch) {
+        if (!args.explicitCreation && sparseDirectories.length === 0 && !checkoutExistingBranch) {
           const prepared = await consumePreparedWorktreeCreate({
             repoPath: repo.path,
             workspaceRoot,
@@ -2816,6 +2887,7 @@ export async function createLocalWorktree(
             )
       })) ?? {}
   } catch (error) {
+    await releaseDestination?.()
     if (shouldRetireGeneratedName && failedWorktreeCreationNeedsRetirement(error)) {
       await retireGeneratedWorktreeName(store, repo, settings, effectiveSanitizedName)
     }
@@ -2985,6 +3057,9 @@ export async function createLocalWorktree(
   let setup: CreateWorktreeResult['setup']
   let defaultTabs: CreateWorktreeResult['defaultTabs']
   await timing.time('prepare_setup', async () => {
+    if (addResult.checkoutWarning) {
+      return
+    }
     const createdYamlHooks = loadHooks(worktreePath)
     const createdEffectiveHooks = getEffectiveHooksFromConfig(repo, createdYamlHooks)
     try {
@@ -3026,17 +3101,19 @@ export async function createLocalWorktree(
 
   // Startup resolves the new id before lifecycle notifications invalidate runtime caches.
   runtime?.invalidateWorktreeCatalog?.(repo.id)
-  const stagedStartup = await timing.time('spawn_startup_terminal', () =>
-    spawnLocalStartupAndSetupTerminals({
-      runtime,
-      worktree,
-      startup: args.startup,
-      setup,
-      defaultTabs,
-      settings,
-      createdWithAgent: args.createdWithAgent
-    })
-  )
+  const stagedStartup = addResult.checkoutWarning
+    ? { didSpawnSetup: false }
+    : await timing.time('spawn_startup_terminal', () =>
+        spawnLocalStartupAndSetupTerminals({
+          runtime,
+          worktree,
+          startup: args.startup,
+          setup,
+          defaultTabs,
+          settings,
+          createdWithAgent: args.createdWithAgent
+        })
+      )
 
   notifyWorktreesChanged(mainWindow, repo.id)
   return {
@@ -3063,6 +3140,7 @@ export async function createLocalWorktree(
       : {}),
     ...(stagedStartup.startupTerminal ? { startupTerminal: stagedStartup.startupTerminal } : {}),
     ...(baseFallback ? { baseFallback } : {}),
+    ...(addResult.checkoutWarning ? { checkoutWarning: addResult.checkoutWarning } : {}),
     ...(stagedStartup.warning
       ? { warning: appendWorktreeCreateWarning(includeCopyWarning, stagedStartup.warning) }
       : includeCopyWarning

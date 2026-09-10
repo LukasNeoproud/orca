@@ -1,3 +1,4 @@
+import { SimplifiedCreateWorktreeSetting } from './SimplifiedCreateWorktreeSetting'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { Label } from '../ui/label'
 import { Switch } from '../ui/switch'
@@ -61,6 +62,7 @@ export function ExperimentalPane({
 
   return (
     <div className="space-y-4">
+      <SimplifiedCreateWorktreeSetting settings={settings} updateSettings={updateSettings} />
       {showAgentDashboard ? (
         <AgentDashboardExperimentalSetting settings={settings} updateSettings={updateSettings} />
       ) : null}

@@ -57,6 +57,28 @@ describe('SshGitProvider', () => {
     })
   })
 
+  it('forwards recovery opt-in and returns the checkout warning from the execution host', async () => {
+    const checkoutWarning = {
+      kind: 'post-checkout-hook-failed',
+      message: 'hook failed',
+      path: '/home/user/feat'
+    }
+    mux.request.mockResolvedValue({ checkoutWarning })
+    await expect(
+      provider.addWorktree('/home/user/repo', 'feature', '/home/user/feat', {
+        checkoutExistingBranch: true,
+        recoverCompletedCheckoutFailure: true
+      })
+    ).resolves.toEqual({ checkoutWarning })
+    expect(mux.request).toHaveBeenCalledWith('git.addWorktree', {
+      repoPath: '/home/user/repo',
+      branchName: 'feature',
+      targetDir: '/home/user/feat',
+      checkoutExistingBranch: true,
+      recoverCompletedCheckoutFailure: true
+    })
+  })
+
   it('removeWorktree sends git.removeWorktree request', async () => {
     await provider.removeWorktree('/home/user/feat', true)
     expect(mux.request).toHaveBeenCalledWith('git.removeWorktree', {

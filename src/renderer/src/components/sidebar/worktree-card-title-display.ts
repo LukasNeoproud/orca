@@ -1,4 +1,5 @@
 type WorktreeCardTitleDisplayInput = {
+  displayNameMode?: 'fixed' | 'automatic'
   storedDisplayName: string | null | undefined
   branchName: string | null | undefined
   linearIssueTitle?: string | null
@@ -38,6 +39,7 @@ export function coerceWorktreeCardVisibleTitle(value: string | null | undefined)
 
 export function getWorktreeCardTitleDisplay({
   storedDisplayName,
+  displayNameMode,
   branchName,
   linearIssueTitle,
   jiraIssueTitle,
@@ -47,6 +49,10 @@ export function getWorktreeCardTitleDisplay({
   const normalizedStoredDisplayName = normalizeComparableTitle(storedDisplayName)
   const normalizedBranchName = normalizeComparableTitle(branchName)
   const visibleStoredDisplayName = coerceWorktreeCardVisibleTitle(storedDisplayName)
+
+  if (displayNameMode === 'fixed' && normalizedStoredDisplayName) {
+    return visibleStoredDisplayName
+  }
 
   if (!normalizedBranchName) {
     return normalizedStoredDisplayName ? visibleStoredDisplayName : ''

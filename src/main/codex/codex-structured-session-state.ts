@@ -64,13 +64,20 @@ export type CodexSession = {
   fence: number
   acquisitionGeneration: string
   threadId: string
+  cwd?: string
   historyPath: string | null
   historyMode?: 'legacy' | 'paginated'
   activeTurnIds?: Set<string>
   dispatchPending?: boolean
   prompts: CodexAcquisitionWindow['prompts']
   options: Map<string, string>
-  reportedOptions: { model?: string; effort?: string }
+  reportedOptions: {
+    model?: string
+    effort?: string
+    serviceTier?: string | null
+    permissions?: string
+  }
+  supportsDefaultServiceTier?: boolean
   turnIdWaiters: ((turnId: string) => void)[]
   translator: CodexJournalTranslator | null
   unbindReadingControl?: () => void

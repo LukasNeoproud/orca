@@ -20,6 +20,7 @@ import {
 import type { AgentSessionLaunchArgs } from '../../shared/agent-session-record'
 import { resolveStartupShell } from '../../shared/tui-agent-startup-shell'
 import { resolveAgentSessionResumeArgs } from './agent-session-resume-args'
+import { resolveCodexStructuredTuiLaunchArgs } from '../codex/codex-structured-tui-options'
 
 export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntimeWithResolveWorktreeRemovalTarget {
   protected getAgentSessionExecutionNamespace(
@@ -96,6 +97,7 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
       providerRoot: string
       sessionId: string
       launchArgs?: AgentSessionLaunchArgs
+      options?: Readonly<Record<string, string>>
     }
   ): Promise<RuntimeEnsureAgentSessionResult> {
     if (request.kind === 'automatic') {
@@ -138,13 +140,23 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
       isRemote,
       terminalWindowsShell: settings.terminalWindowsShell
     })
+    const handoffArgs =
+      handoffAuthority && request.agent === 'codex'
+        ? resolveCodexStructuredTuiLaunchArgs({
+            launchArgs: handoffAuthority.launchArgs,
+            options: handoffAuthority.options,
+            cwd: workspace.path,
+            commandOverride: settings.agentCmdOverrides?.codex,
+            shell: resolveStartupShell(platform, shell)
+          })
+        : handoffAuthority?.launchArgs
     const startup = buildAgentResumeStartupPlan({
       agent: request.agent,
       providerSession: identity.providerSession,
       cmdOverrides: settings.agentCmdOverrides ?? {},
       agentArgs: resolveAgentSessionResumeArgs({
         requestArgs: request.agentArgs,
-        persistedArgs: handoffAuthority?.launchArgs,
+        persistedArgs: handoffArgs,
         defaultArgs: resolveTuiAgentLaunchArgs(request.agent, settings.agentDefaultArgs),
         shell: resolveStartupShell(platform, shell)
       }),

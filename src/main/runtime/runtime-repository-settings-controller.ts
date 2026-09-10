@@ -24,6 +24,8 @@ type RepositoryUpdates = Partial<
     | 'hookSettings'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
+    | 'simplifiedWorktreeLayout'
+    | 'simplifiedWorktreeLocation'
     | 'kind'
     | 'symlinkPaths'
     | 'issueSourcePreference'

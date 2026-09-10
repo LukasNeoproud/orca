@@ -1,3 +1,8 @@
+import {
+  prepareCompletedCheckoutRecovery,
+  recoverCompletedCheckout
+} from '../shared/worktree/completed-checkout-recovery'
+import type { WorktreeCheckoutWarning } from '../shared/worktree/checkout-warning'
 import * as path from 'node:path'
 import { resolveWorktreeAddBaseRef } from '../shared/worktree/base-ref'
 import { windowsLongPathGitArgs } from '../shared/windows-long-path-git-args'
@@ -34,7 +39,7 @@ export async function addWorktreeOp(
   params: Record<string, unknown>,
   // Why: only the execution host's OS matters here — the client may be macOS while the SSH host is Windows.
   platform: NodeJS.Platform = process.platform
-): Promise<void> {
+): Promise<{ checkoutWarning: WorktreeCheckoutWarning } | void> {
   const repoPath = params.repoPath as string
   const branchName = params.branchName as string
   const targetDir = params.targetDir as string
@@ -81,10 +86,38 @@ export async function addWorktreeOp(
     args.push(effectiveBase)
   }
 
-  await git(args, repoPath)
+  const probe = (probeArgs: string[], cwd: string, deadline?: { timeout: number }) =>
+    git(probeArgs, cwd, { timeout: deadline?.timeout ?? 30_000 })
+  const recovery =
+    params.recoverCompletedCheckoutFailure === true && !noCheckout
+      ? await prepareCompletedCheckoutRecovery(
+          probe,
+          repoPath,
+          targetDir,
+          checkoutExistingBranch
+            ? `refs/heads/${branchName.replace(/^refs\/heads\//, '')}`
+            : (effectiveBase ?? 'HEAD')
+        )
+      : undefined
+  let checkoutWarning: WorktreeCheckoutWarning | undefined
+  try {
+    await git(args, repoPath)
+  } catch (error) {
+    checkoutWarning = await recoverCompletedCheckout(
+      probe,
+      recovery,
+      repoPath,
+      targetDir,
+      branchName,
+      error
+    )
+    if (!checkoutWarning) {
+      throw error
+    }
+  }
 
   if (checkoutExistingBranch) {
-    return
+    return checkoutWarning ? { checkoutWarning } : undefined
   }
 
   if (effectiveBase) {
@@ -118,6 +151,7 @@ export async function addWorktreeOp(
   } catch (error) {
     console.warn(`relay addWorktree: failed to set push.autoSetupRemote for ${targetDir}`, error)
   }
+  return checkoutWarning ? { checkoutWarning } : undefined
 }
 
 function isPosixAbsolutePath(value: string): boolean {

@@ -57,6 +57,20 @@ export async function handoffStructuredSessionToNative(
         ? await deps.transport!.closeTuiOwner(owner)
         : await deps.transport!.waitForTuiExit(owner)
       transcriptPath = exited.transcriptPath ?? owner.transcriptPath
+      if (
+        record.provider === 'codex' &&
+        record.options &&
+        ('serviceTier' in record.options || 'permissions' in record.options)
+      ) {
+        const { serviceTier: _tier, permissions: _permissions, ...options } = record.options
+        // The exited TUI may have changed these; native resume will report its effective policy.
+        record = await deps.store.replaceSessionOptions({
+          sessionId,
+          fence: record.lease.runtimeFence,
+          options,
+          now: deps.now()
+        })
+      }
     } catch (error) {
       const current = context.requireRecord(sessionId)
       if (

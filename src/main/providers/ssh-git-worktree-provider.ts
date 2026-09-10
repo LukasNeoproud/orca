@@ -1,3 +1,4 @@
+import type { WorktreeCheckoutWarning } from '../../shared/worktree/checkout-warning'
 import type { GitStatusResult } from '../../shared/git-status-types'
 import type { RemoveWorktreeResult } from '../../shared/worktree/create-types'
 import type { GitWorktreeInfo } from '../../shared/worktree/types'
@@ -68,15 +69,20 @@ export class SshGitWorktreeProvider extends SshGitReviewHeadProvider {
     repoPath: string,
     branchName: string,
     targetDir: string,
-    options?: { base?: string; checkoutExistingBranch?: boolean; noCheckout?: boolean }
-  ): Promise<void> {
-    await this.runWithGitReadInvalidation(async () => {
-      await this.mux.request('git.addWorktree', {
+    options?: {
+      base?: string
+      checkoutExistingBranch?: boolean
+      noCheckout?: boolean
+      recoverCompletedCheckoutFailure?: boolean
+    }
+  ): Promise<{ checkoutWarning?: WorktreeCheckoutWarning } | void> {
+    return this.runWithGitReadInvalidation(async () => {
+      return (await this.mux.request('git.addWorktree', {
         repoPath,
         branchName,
         targetDir,
         ...options
-      })
+      })) as { checkoutWarning?: WorktreeCheckoutWarning } | undefined
     })
   }
 

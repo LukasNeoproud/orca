@@ -1,3 +1,4 @@
+import type { WorktreeCheckoutWarning } from '../../shared/worktree/checkout-warning'
 import type {
   GitBranchCompareResult,
   GitCommitCompareResult,
@@ -82,8 +83,13 @@ export type IGitProvider = {
     repoPath: string,
     branchName: string,
     targetDir: string,
-    options?: { base?: string; checkoutExistingBranch?: boolean; noCheckout?: boolean }
-  ): Promise<void>
+    options?: {
+      base?: string
+      checkoutExistingBranch?: boolean
+      noCheckout?: boolean
+      recoverCompletedCheckoutFailure?: boolean
+    }
+  ): Promise<{ checkoutWarning?: WorktreeCheckoutWarning } | void>
   removeWorktree(
     worktreePath: string,
     force?: boolean,

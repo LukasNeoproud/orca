@@ -20,6 +20,7 @@ export function useSmartWorkspaceGitlabSearch({
   shouldQueryGitlab: boolean
 }): void {
   const {
+    onLookupError,
     debouncedQuery,
     disabled,
     onGitLabItemSelect,
@@ -64,7 +65,12 @@ export function useSmartWorkspaceGitlabSearch({
           path: parsedGlLink.slug.path,
           iid: parsedGlLink.number,
           type: parsedGlLink.type
-        }).catch(() => null)
+        }).catch((error: unknown) => {
+          if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
+          }
+          return null
+        })
       )
     )
       .then((items) => {
@@ -73,8 +79,9 @@ export function useSmartWorkspaceGitlabSearch({
         }
         setGitlabItems(items.filter((item): item is GitLabWorkItem => item !== null))
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!stale) {
+          onLookupError?.(error instanceof Error ? error.message : String(error))
           setGitlabItems([])
         }
       })
@@ -94,7 +101,8 @@ export function useSmartWorkspaceGitlabSearch({
     repoBackedSearchTargets,
     setGitlabItems,
     setGitlabLoading,
-    shouldQueryGitlab
+    shouldQueryGitlab,
+    onLookupError
   ])
 
   // Why: state chips mirror GitLab's default opened-MR list when no URL is pasted.
@@ -131,7 +139,12 @@ export function useSmartWorkspaceGitlabSearch({
           page: 1,
           perPage: RESULT_LIMIT,
           query: trimmedQuery
-        }).catch(() => ({ items: [], hasMore: false }))
+        }).catch((error: unknown) => {
+          if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
+          }
+          return { items: [], hasMore: false }
+        })
       )
     )
       .then((results) => {
@@ -145,8 +158,9 @@ export function useSmartWorkspaceGitlabSearch({
             .slice(0, RESULT_LIMIT)
         )
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!stale) {
+          onLookupError?.(error instanceof Error ? error.message : String(error))
           setGitlabItems([])
         }
       })
@@ -168,6 +182,7 @@ export function useSmartWorkspaceGitlabSearch({
     repoBackedSearchTargets,
     setGitlabItems,
     setGitlabLoading,
-    shouldQueryGitlab
+    shouldQueryGitlab,
+    onLookupError
   ])
 }

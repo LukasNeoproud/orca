@@ -15,6 +15,8 @@ import type { WorktreeStartupDraftPaste } from './runtime-worktree-agent-startup
 import type { RuntimeNavigationTarget } from '../../shared/runtime-navigation'
 
 export type RuntimeManagedWorktreeCreateArgs = {
+  recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: CreateWorktreeArgs['explicitCreation']
   repoSelector: string
   name: string
   nameWasGenerated?: boolean

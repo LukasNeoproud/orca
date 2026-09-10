@@ -1,3 +1,5 @@
+import { getLinkedWorkItemBranchSuggestion } from '@/lib/linked-work-item-branch-suggestion'
+import type { SimplifiedWorktreeSubmission } from '@/lib/simplified-worktree-submission'
 import type { RefObject } from 'react'
 import {
   getLinkedWorkItemSuggestedName,
@@ -59,8 +61,10 @@ export type UseComposerStateResult = {
   promptTextareaRef: RefObject<HTMLTextAreaElement | null>
   nameInputRef: RefObject<HTMLInputElement | null>
   submit: () => Promise<void>
-  submitQuick: (agent: TuiAgent | null) => Promise<void>
+  submitQuick: (agent: TuiAgent | null, explicit?: SimplifiedWorktreeSubmission) => Promise<void>
   createDisabled: boolean
+  suggestedBranchName?: string
+  selectedBaseBranch?: string
   selectAddedProjectRepo: (repoId: string) => void
 }
 
@@ -224,6 +228,11 @@ export function useComposerState(options: UseComposerStateOptions): UseComposerS
     submit: model.submit,
     submitQuick: model.submitQuick,
     createDisabled,
+    suggestedBranchName: getLinkedWorkItemBranchSuggestion(
+      model.linkedWorkItem,
+      model.branchNameOverride
+    ),
+    selectedBaseBranch: model.baseBranch,
     selectAddedProjectRepo: model.selectAddedProjectRepo
   }
 }

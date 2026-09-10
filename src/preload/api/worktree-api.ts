@@ -1,3 +1,4 @@
+import type { WorktreeCreationPreview } from '../../shared/worktree/explicit-creation'
 import type {
   ForgetRemovedWorktreesForExecutionHostArgs,
   ForgetRemovedWorktreesForExecutionHostResult,
@@ -62,6 +63,12 @@ export type WorktreeApi = {
   ) => Promise<ForgetRemovedWorktreesForExecutionHostResult>
   cancelListDetected?: (args: { providerRequestId: ProviderRequestId }) => Promise<void>
   listAll: () => Promise<Worktree[]>
+  ignoreCreationLocally: (
+    args: Pick<CreateWorktreeArgs, 'repoId' | 'executionHostId' | 'explicitCreation' | 'baseBranch'>
+  ) => Promise<void>
+  previewCreation: (
+    args: Pick<CreateWorktreeArgs, 'repoId' | 'executionHostId' | 'explicitCreation' | 'baseBranch'>
+  ) => Promise<WorktreeCreationPreview>
   create: (args: CreateWorktreeArgs) => Promise<CreateWorktreeResult>
   adoptProvisionedRoot: (args: AdoptProvisionedRootArgs) => Promise<CreateWorktreeResult>
   /** Two-phase progress for a background `create`, correlated by `creationId`. The remote/runtime

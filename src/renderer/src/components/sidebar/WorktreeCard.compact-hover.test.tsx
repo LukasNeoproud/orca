@@ -242,7 +242,7 @@ describe('WorktreeCard compact hover details', () => {
     expect(markup).toContain('Fix stale GH PR')
     expect(markup).toContain('Live Ports')
     expect(markup).toContain('58941')
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expect(markup).toContain('aria-label="1 live port"')
   }, 30_000)
 
@@ -294,7 +294,7 @@ describe('WorktreeCard compact hover details', () => {
     expect(markup).toContain('Reviewer handoff note')
     expect(markup).toContain('Live Ports')
     expect(markup).toContain('58941')
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
   }, 30_000)
 
   it('reads linked issue details from the local repo-owner cache while a runtime is focused', async () => {
@@ -346,7 +346,7 @@ describe('WorktreeCard compact hover details', () => {
       />
     )
 
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expect(markup).toContain('Linked issue #123')
     expect(markup).toContain('Linked Linear ENG-123')
     expect(markup).toContain('Workspace notes')
@@ -416,13 +416,13 @@ describe('WorktreeCard compact hover details', () => {
     )
 
     expect(markup).toContain('Workspace metadata')
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expectIdentityBodyIsHoverTrigger(markup)
     expect(markup.match(/data-hover-open-delay="100"/g)).toHaveLength(1)
     expect(markup).toContain('Reviewer handoff note')
   })
 
-  it('keeps long workspace and branch identity in hover details when the branch row is hidden', async () => {
+  it('keeps full long identity in hover details alongside the branch row', async () => {
     settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: true }
     worktreeCardProperties = ['status', 'comment']
     const { default: WorktreeCard } = await import('./WorktreeCard')
@@ -439,7 +439,7 @@ describe('WorktreeCard compact hover details', () => {
       />
     )
 
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expectIdentityBodyIsHoverTrigger(markup)
     expect(markup).toContain('[Bug]: Hold-to-talk speech-to-text option no longer works')
     expect(markup).toContain('bug-hold-to-talk-speech-to-text-option-no-longer-works')
@@ -503,7 +503,7 @@ describe('WorktreeCard compact hover details', () => {
     )
 
     expectIdentityBodyIsHoverTrigger(markup)
-    expect(markup.match(/feature\/local-branch/g)).toHaveLength(3)
+    expect(markup.match(/feature\/local-branch/g)).toHaveLength(2)
   })
 
   it('keeps detailed metadata hover scoped to metadata icons by default', async () => {
@@ -572,7 +572,7 @@ describe('WorktreeCard compact hover details', () => {
     cacheTimerMocks.usePromptCacheCountdownStartedAt.mockImplementation(
       (_worktreeId: string, active = true) => (active ? 10_000 : null)
     )
-    const worktree = makeWorktree()
+    const worktree = makeWorktree({ displayName: 'feature/local-branch' })
     const { default: WorktreeCard } = await import('./WorktreeCard')
 
     const markup = renderToStaticMarkup(
@@ -702,7 +702,12 @@ describe('WorktreeCard compact hover details', () => {
     const { default: WorktreeCard } = await import('./WorktreeCard')
 
     const markup = renderToStaticMarkup(
-      <WorktreeCard worktree={makeWorktree()} repo={makeRepo()} isActive={false} hideRepoBadge />
+      <WorktreeCard
+        worktree={makeWorktree({ displayName: 'feature/local-branch' })}
+        repo={makeRepo()}
+        isActive={false}
+        hideRepoBadge
+      />
     )
 
     expect(markup).not.toContain('data-worktree-card-meta-row=""')
@@ -801,7 +806,7 @@ describe('WorktreeCard compact hover details', () => {
     expect(markup).toContain('feature/local-branch')
   })
 
-  it('keeps compact card branch hidden in the row but available from title hover by default', async () => {
+  it('shows a differing branch in the compact row and full title hover', async () => {
     settings = { compactWorktreeCards: true }
     worktreeCardProperties = ['status', 'branch']
     const { default: WorktreeCard } = await import('./WorktreeCard')
@@ -814,7 +819,7 @@ describe('WorktreeCard compact hover details', () => {
       />
     )
 
-    expect(markup).not.toContain('data-worktree-card-meta-row=""')
+    expect(markup).toContain('data-worktree-card-meta-row=""')
     expect(markup).toContain('data-hover-open-delay="100"')
     expect(markup).toContain('feature/local-branch')
   })

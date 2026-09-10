@@ -12,6 +12,18 @@ const build = (params: Record<string, unknown>) =>
   buildManagedWorktreeCreateArgs(WorktreeCreate.parse(params), PROVENANCE)
 
 describe('buildManagedWorktreeCreateArgs', () => {
+  it('requires explicit recovery opt-in and forwards it to the host pipeline', () => {
+    expect(build({ repo: 'id:repo-1' }).recoverCompletedCheckoutFailure).toBeUndefined()
+    expect(
+      build({ repo: 'id:repo-1', recoverCompletedCheckoutFailure: true })
+        .recoverCompletedCheckoutFailure
+    ).toBe(true)
+    expect(
+      build({ repo: 'id:repo-1', recoverCompletedCheckoutFailure: false })
+        .recoverCompletedCheckoutFailure
+    ).toBe(false)
+  })
+
   it('omits name provenance when the client did not claim a generated name', () => {
     // Why: absent must mean user-typed. A truthy default would let the host permanently retire
     // names people chose on purpose — the pool contains ordinary words like "orca" and "molly".

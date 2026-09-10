@@ -37,6 +37,8 @@ type NewWorkspaceComposerNameSectionProps = Pick<
   | 'onReuseSelectedBranchChange'
 > & {
   onNamePlainEnter: () => void
+  issueOnly?: boolean
+  onLookupError?: (message: string) => void
 }
 
 export function NewWorkspaceComposerNameSection({
@@ -65,6 +67,8 @@ export function NewWorkspaceComposerNameSection({
   smartNameRepoSwitchTarget = 'project',
   onSmartNameModeChange,
   onNamePlainEnter,
+  onLookupError,
+  issueOnly = false,
   forkPushWarning,
   canReuseSelectedBranch,
   reuseSelectedBranch,
@@ -73,12 +77,17 @@ export function NewWorkspaceComposerNameSection({
   return (
     <div className="min-w-0 space-y-1" data-contextual-tour-target="workspace-creation-name">
       <label className="block min-w-0 truncate text-xs font-medium text-muted-foreground">
-        {selectedRepoIsGit
-          ? translate(
-              'auto.components.NewWorkspaceComposerCard.ac3748dcda',
-              "Name or 'Create From'"
-            )
-          : translate('auto.components.NewWorkspaceComposerCard.0ee17638fe', 'Workspace name')}{' '}
+        {issueOnly
+          ? translate('simplifiedWorktree.issueField', 'Issue')
+          : selectedRepoIsGit
+            ? translate(
+                'auto.components.NewWorkspaceComposerCard.ac3748dcda',
+                "Name or 'Create From'"
+              )
+            : translate(
+                'auto.components.NewWorkspaceComposerCard.0ee17638fe',
+                'Workspace name'
+              )}{' '}
         <span className="text-muted-foreground/70">
           {translate('auto.components.NewWorkspaceComposerCard.0c5d6a479c', '[Optional]')}
         </span>
@@ -113,6 +122,8 @@ export function NewWorkspaceComposerNameSection({
         crossRepoSwitchTarget={smartNameRepoSwitchTarget}
         onActiveSourceModeChange={onSmartNameModeChange}
         onPlainEnter={onNamePlainEnter}
+        onLookupError={onLookupError}
+        compactSourcePicker={issueOnly}
       />
       {forkPushWarning ? (
         <p className="flex items-start gap-1.5 text-[11px] text-yellow-600 dark:text-yellow-500">

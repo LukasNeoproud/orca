@@ -37,6 +37,8 @@ export type RuntimeGitTarget = {
 
 export type RuntimeGitCommandHost = {
   resolveRuntimeGitTarget(selector: string): Promise<RuntimeGitTarget>
+  pinManagedBranchSidebarLabel?(target: RuntimeGitTarget): Promise<void>
+  getBranchManagementSessions?(target: RuntimeGitTarget): Promise<string[] | null>
   getRuntimeSettings(): GlobalSettings
   getCommitMessageAgentEnvironment?(): CommitMessageAgentEnvironmentResolvers | undefined
   /** `undefined` keeps cached metadata; `null` is the authoritative unlinked answer. */

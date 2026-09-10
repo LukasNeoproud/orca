@@ -1,4 +1,7 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { recoveredRuntimeWorktreeResult } from './runtime-recovered-worktree-result'
+import { ignoreCreationLocally } from '../ipc/worktrees/create/ignore-creation-locally'
+import { previewWorktreeCreation } from '../ipc/worktrees/create/explicit-creation-preview'
 import { OrcaRuntimeWithGetWorktreeTerminalProvisioningHost } from './orca-runtime-get-worktree-terminal-provisioning-host'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
@@ -13,6 +16,22 @@ import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { startRuntimeLocalWorktreeTerminals } from './runtime-local-worktree-terminal-startup'
 
 export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWorktreeTerminalProvisioningHost {
+  async ignoreManagedWorktreeCreationLocally(args: RuntimeManagedWorktreeCreateArgs) {
+    if (!this.store) {
+      throw new Error('runtime_unavailable')
+    }
+    const repo = await this.resolveRepoSelector(args.repoSelector)
+    return ignoreCreationLocally(args, repo, this.store)
+  }
+
+  async previewManagedWorktreeCreation(args: RuntimeManagedWorktreeCreateArgs) {
+    if (!this.store) {
+      throw new Error('runtime_unavailable')
+    }
+    const repo = await this.resolveRepoSelector(args.repoSelector)
+    return previewWorktreeCreation(args, repo, this.store)
+  }
+
   async createManagedWorktree(
     args: RuntimeManagedWorktreeCreateArgs
   ): Promise<CreateWorktreeResult> {
@@ -142,26 +161,36 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
           : {})
       }
     }
+    const localResult = await createRuntimeLocalManagedWorktree({
+      request: args,
+      repo,
+      store: this.requireStore(),
+      createdWithAgent: effectiveCreatedWithAgent,
+      hostedReviewExecutionContext: this.getHostedReviewExecutionOptions(repo),
+      resolveRemoteTrackingBase: (path, base, ...options) =>
+        this.resolveRemoteTrackingBase(path, base, ...options),
+      hasRemoteTrackingRef: (path, base, ...options) =>
+        this.hasRemoteTrackingRef(path, base, ...options),
+      refreshRemoteTrackingBase: (path, base, ...options) =>
+        this.getOrStartRemoteTrackingBaseRefresh(path, base, ...options),
+      fetchRemote: (path, remote, ...options) =>
+        this.fetchRemoteWithCache(path, remote, ...options),
+      onWorktreeMetadataPersisted: (persistedWorktree) =>
+        this.recordCreatedWorktreeLineage(persistedWorktree, lineageResolution)
+    })
     const { worktree, worktreePath, includeCopyWarning, created, addResult, metadataResult } =
-      await createRuntimeLocalManagedWorktree({
-        request: args,
-        repo,
-        store: this.requireStore(),
-        createdWithAgent: effectiveCreatedWithAgent,
-        hostedReviewExecutionContext: this.getHostedReviewExecutionOptions(repo),
-        resolveRemoteTrackingBase: (path, base, ...options) =>
-          this.resolveRemoteTrackingBase(path, base, ...options),
-        hasRemoteTrackingRef: (path, base, ...options) =>
-          this.hasRemoteTrackingRef(path, base, ...options),
-        refreshRemoteTrackingBase: (path, base, ...options) =>
-          this.getOrStartRemoteTrackingBaseRefresh(path, base, ...options),
-        fetchRemote: (path, remote, ...options) =>
-          this.fetchRemoteWithCache(path, remote, ...options),
-        onWorktreeMetadataPersisted: (persistedWorktree) =>
-          this.recordCreatedWorktreeLineage(persistedWorktree, lineageResolution)
-      })
-    const settings = createSettings
+      localResult
     const { lineage, workspaceLineage, warnings: lineageWarnings } = metadataResult
+
+    if (addResult.checkoutWarning) {
+      return recoveredRuntimeWorktreeResult({
+        runtime: this,
+        repoId: repo.id,
+        ...localResult,
+        includeLineage: Boolean(lineageInput),
+        request: args
+      })
+    }
 
     let {
       setup,
@@ -175,7 +204,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
       request: args,
       repo,
       worktreePath,
-      settings,
+      settings: createSettings,
       runtimeTarget: this.getLocalGitExecutionOptionArgs(repo)[0],
       shouldUseSetupRunner:
         this.authoritativeWindowId !== null ||
@@ -186,11 +215,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
 
     this.invalidateResolvedWorktreeCache()
     this.invalidateWorktreeScanCacheForRepo(repo.id)
-    // Why: the filesystem-auth layer maintains a separate cache of registered
-    // worktree roots used by git IPC handlers (branchCompare, diff, status, etc.)
-    // to authorize paths. Without invalidating it here, CLI-created worktrees
-    // are not recognized and all git operations fail with "Access denied:
-    // unknown repository or worktree path".
+    // Authorize the new checkout before subsequent filesystem/Git IPC requests.
     invalidateAuthorizedRootsCache()
 
     this.notifyWorktreesChanged(repo.id)

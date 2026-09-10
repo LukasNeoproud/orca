@@ -8,6 +8,8 @@ import type { CodexOpenedThread } from './codex-structured-thread-open'
 import type { CodexSession } from './codex-structured-session-state'
 import { isCodexTurnOptionKey } from './codex-structured-turn-start'
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
+import { readCodexPermissionChoices } from './codex-structured-permissions'
+import { codexFastModeOption, readCodexModelServiceTiers } from './codex-structured-service-tier'
 
 const MODEL_PAGE_LIMIT = 100
 const MAX_MODEL_PAGES = 20
@@ -48,7 +50,12 @@ function effortChoice(value: unknown): AgentSessionOptionChoice | null {
   }
 }
 
-function modelOption(value: unknown): AgentSessionModelOption | null {
+type CodexModelOption = AgentSessionModelOption & {
+  serviceTiers?: string[]
+  defaultServiceTier?: string | null
+}
+
+function modelOption(value: unknown): CodexModelOption | null {
   const row = record(value)
   if (!row) {
     return null
@@ -60,6 +67,7 @@ function modelOption(value: unknown): AgentSessionModelOption | null {
   }
   const description = text(row.description)
   const defaultEffort = text(row.defaultReasoningEffort)
+  const serviceTiers = readCodexModelServiceTiers(row)
   const efforts = Array.isArray(row.supportedReasoningEfforts)
     ? row.supportedReasoningEfforts
         .map(effortChoice)
@@ -71,16 +79,20 @@ function modelOption(value: unknown): AgentSessionModelOption | null {
     ...(description ? { description } : {}),
     isDefault: row.isDefault === true,
     ...(defaultEffort ? { defaultEffort } : {}),
+    ...(serviceTiers ? { serviceTiers } : {}),
+    ...(row.defaultServiceTier === null || typeof row.defaultServiceTier === 'string'
+      ? { defaultServiceTier: row.defaultServiceTier }
+      : {}),
     efforts
   }
 }
 
 export async function readCodexStructuredSessionOptions(input: {
   connection: Pick<CodexAppServerConnection, 'request'>
-  current: { model?: string; effort?: string }
+  current: { model?: string; effort?: string; serviceTier?: string | null }
   timeoutMs?: number
-}): Promise<AgentSessionOptionsResult> {
-  const models: AgentSessionModelOption[] = []
+}): Promise<Omit<AgentSessionOptionsResult, 'models'> & { models: CodexModelOption[] }> {
+  const models: CodexModelOption[] = []
   let cursor: string | null = null
   for (let page = 0; page < MAX_MODEL_PAGES; page += 1) {
     const response = record(
@@ -114,8 +126,15 @@ export async function readCodexStructuredSessionOptions(input: {
   if (!model) {
     throw new Error('codex app-server returned no available models')
   }
+  const currentModel = models.find((entry) => entry.id === model)
+  const fastMode = codexFastModeOption(
+    currentModel?.serviceTiers,
+    input.current.serviceTier,
+    currentModel?.defaultServiceTier
+  )
   return {
     models,
+    ...(fastMode ? { options: [fastMode] } : {}),
     current: { model, ...(input.current.effort ? { effort: input.current.effort } : {}) }
   }
 }
@@ -125,21 +144,51 @@ export function reportedCodexThreadOptions(
 ): CodexSession['reportedOptions'] {
   return {
     ...(opened.model ? { model: opened.model } : {}),
-    ...(opened.effort ? { effort: opened.effort } : {})
+    ...(opened.effort ? { effort: opened.effort } : {}),
+    ...(opened.serviceTier !== undefined ? { serviceTier: opened.serviceTier } : {}),
+    ...(opened.permissions ? { permissions: opened.permissions } : {})
   }
 }
 
-export function readLiveCodexSessionOptions(
+export async function readLiveCodexSessionOptions(
   session: CodexSession,
   timeoutMs: number | undefined
 ): Promise<AgentSessionOptionsResult> {
   const model = session.options.get('model') ?? session.reportedOptions.model
   const effort = session.options.get('effort') ?? session.reportedOptions.effort
-  return readCodexStructuredSessionOptions({
-    connection: session.connection,
-    current: { ...(model ? { model } : {}), ...(effort ? { effort } : {}) },
-    timeoutMs
-  })
+  const serviceTier = session.options.get('serviceTier') ?? session.reportedOptions.serviceTier
+  const [result, permissionChoices] = await Promise.all([
+    readCodexStructuredSessionOptions({
+      connection: session.connection,
+      current: { model, effort, serviceTier },
+      timeoutMs
+    }),
+    session.cwd ? readCodexPermissionChoices(session.connection, timeoutMs) : Promise.resolve([])
+  ])
+  const permissions = session.options.get('permissions') ?? session.reportedOptions.permissions
+  session.supportsDefaultServiceTier = result.models.some(
+    (entry) => entry.defaultServiceTier !== undefined
+  )
+  return {
+    ...result,
+    models: result.models.map(
+      ({ serviceTiers: _tiers, defaultServiceTier: _default, ...entry }) => entry
+    ),
+    options: [
+      ...(result.options ?? []),
+      ...(permissionChoices.length
+        ? [
+            {
+              id: 'permissions',
+              label: 'Permissions',
+              category: 'mode' as const,
+              choices: permissionChoices,
+              ...(permissions ? { currentValue: permissions } : {})
+            }
+          ]
+        : [])
+    ]
+  }
 }
 
 export async function applyCodexStructuredSessionOption(
@@ -161,7 +210,39 @@ async function applyValidatedCodexStructuredSessionOption(
   value: string,
   timeoutMs: number | undefined
 ): Promise<Readonly<Record<string, string>>> {
+  if (key === 'serviceTier') {
+    const catalog = await readCodexStructuredSessionOptions({
+      connection: session.connection,
+      current: { model: session.options.get('model') ?? session.reportedOptions.model },
+      timeoutMs
+    })
+    const tiers = catalog.models.find((entry) => entry.id === catalog.current.model)?.serviceTiers
+    const tier = value === 'fast' ? 'priority' : value
+    if (!tiers || (tier !== 'default' && !tiers.includes(tier))) {
+      throw new Error(`Codex does not offer serviceTier = ${value} for this session`)
+    }
+    session.supportsDefaultServiceTier = catalog.models.some(
+      (entry) => entry.defaultServiceTier !== undefined
+    )
+    session.options.set(key, tier)
+    return Object.fromEntries(session.options)
+  }
+  if (key === 'permissions') {
+    const options = await readLiveCodexSessionOptions(session, timeoutMs)
+    const option = options.options?.find((entry) => entry.id === key)
+    if (!option?.choices.some((choice) => choice.value === value)) {
+      throw new Error(`Codex does not offer ${key} = ${value} for this session`)
+    }
+    session.options.delete('approvalPolicy')
+    session.options.delete('approvalsReviewer')
+    session.options.set(key, value)
+    return Object.fromEntries(session.options)
+  }
   if (key !== 'model' && key !== 'effort') {
+    if (key === 'approvalPolicy' || key === 'approvalsReviewer') {
+      session.options.delete('permissions')
+      delete session.reportedOptions.permissions
+    }
     session.options.set(key, value)
     return Object.fromEntries(session.options)
   }
@@ -194,6 +275,16 @@ async function applyValidatedCodexStructuredSessionOption(
         model?.defaultEffort ??
         model?.efforts[0]?.value)
   session.options.set('model', modelId)
+  if (
+    key === 'model' &&
+    model?.serviceTiers &&
+    !model.serviceTiers.includes('priority') &&
+    ['priority', 'fast'].includes(
+      session.options.get('serviceTier') ?? session.reportedOptions.serviceTier ?? ''
+    )
+  ) {
+    session.options.set('serviceTier', 'default')
+  }
   if (effort) {
     session.options.set('effort', effort)
   } else {

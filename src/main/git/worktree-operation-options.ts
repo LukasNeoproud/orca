@@ -1,3 +1,4 @@
+import type { WorktreeCheckoutWarning } from '../../shared/worktree/checkout-warning'
 import type {
   LocalBaseRefRefreshResult,
   LocalBaseRefUpdateSuggestion
@@ -7,6 +8,7 @@ import type { RemoveWorktreeResult } from '../../shared/worktree/create-types'
 import type { GitWorktreeInfo } from '../../shared/worktree/types'
 
 export type AddWorktreeResult = {
+  checkoutWarning?: WorktreeCheckoutWarning
   localBaseRefRefresh?: LocalBaseRefRefreshResult
   localBaseRefUpdateSuggestion?: LocalBaseRefUpdateSuggestion
 }
@@ -28,6 +30,7 @@ export type WorktreeRemovalPreflightOptions = GitWorktreeExecOptions & {
 
 export type AddWorktreeOptions = GitWorktreeExecOptions & {
   checkoutExistingBranch?: boolean
+  recoverCompletedCheckoutFailure?: boolean
   suggestLocalBaseRefUpdate?: boolean
   remoteTrackingBase?: {
     base: string

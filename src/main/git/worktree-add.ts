@@ -1,3 +1,9 @@
+import {
+  prepareCompletedCheckoutRecovery,
+  recoverCompletedCheckout
+} from '../../shared/worktree/completed-checkout-recovery'
+import { toLinuxPath, toWslExecutionSpace } from '../../shared/wsl-paths'
+import type { WorktreeCheckoutWarning } from '../../shared/worktree/checkout-warning'
 import { resolveWorktreeAddBaseRef } from '../../shared/worktree/base-ref'
 import type {
   LocalBaseRefRefreshResult,
@@ -211,12 +217,42 @@ async function performAddWorktree(
       args.push(effectiveBase)
     }
   }
+  const hostPath = (value: string): string =>
+    options.wslDistro ? toLinuxPath(value) : toWslExecutionSpace(value)
+  const hostRepo = hostPath(repoPath)
+  const hostTarget = hostPath(worktreePath)
+  const probe = (probeArgs: string[], cwd: string, deadline?: { timeout: number }) =>
+    gitExecFileAsync(probeArgs, {
+      ...gitExecOptions(cwd === hostRepo ? repoPath : worktreePath, options),
+      timeout: deadline?.timeout ?? 30_000
+    })
+  const recovery =
+    options.recoverCompletedCheckoutFailure && !noCheckout
+      ? await prepareCompletedCheckoutRecovery(
+          probe,
+          hostRepo,
+          hostTarget,
+          options.checkoutExistingBranch
+            ? `refs/heads/${branch.replace(/^refs\/heads\//, '')}`
+            : (effectiveBase ?? 'HEAD')
+        )
+      : undefined
+  let checkoutWarning: WorktreeCheckoutWarning | undefined
   try {
     await gitExecFileAsync(args, {
       ...gitExecOptions(repoPath, options),
       // Why: resolve per call — hoisting this to a module const would freeze the override at import.
       timeout: resolveWorktreeAddTimeoutMs()
     })
+  } catch (error) {
+    invalidateWslLinkedWorktreeGitRouting(worktreePath)
+    checkoutWarning = options.signal?.aborted
+      ? undefined
+      : await recoverCompletedCheckout(probe, recovery, hostRepo, hostTarget, branch, error)
+    if (!checkoutWarning || options.signal?.aborted) {
+      throw error
+    }
+    checkoutWarning.path = worktreePath
   } finally {
     // Git may have written the target's `.git` marker even when it reports a late
     // failure, so drop any pre-create route before the follow-up commands route.
@@ -224,7 +260,10 @@ async function performAddWorktree(
   }
 
   if (options.checkoutExistingBranch) {
-    return localBaseRefRefresh ? { localBaseRefRefresh } : {}
+    return {
+      ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
+      ...(checkoutWarning ? { checkoutWarning } : {})
+    }
   }
 
   if (effectiveBase) {
@@ -238,6 +277,7 @@ async function performAddWorktree(
   // so it's warn-only and not rolled back on failure.
   await configurePushAutoSetupRemote(worktreePath, options)
   return {
+    ...(checkoutWarning ? { checkoutWarning } : {}),
     ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
     ...(localBaseRefUpdateSuggestion ? { localBaseRefUpdateSuggestion } : {})
   }

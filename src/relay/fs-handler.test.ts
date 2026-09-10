@@ -453,6 +453,18 @@ describe('FsHandler', () => {
     expect(stats.isDirectory()).toBe(true)
   })
 
+  it('emptyDirectoryReservation releases only empty directories', async () => {
+    const dirPath = path.join(tmpDir, 'reserved')
+    await dispatcher.callRequest('fs.emptyDirectoryReservation', { dirPath, action: 'reserve' })
+    await dispatcher.callRequest('fs.emptyDirectoryReservation', { dirPath, action: 'release' })
+    await dispatcher.callRequest('fs.emptyDirectoryReservation', { dirPath, action: 'reserve' })
+    await fs.writeFile(path.join(dirPath, 'keep'), 'data')
+    await expect(
+      dispatcher.callRequest('fs.emptyDirectoryReservation', { dirPath, action: 'release' })
+    ).rejects.toThrow()
+    expect(await fs.readFile(path.join(dirPath, 'keep'), 'utf8')).toBe('data')
+  })
+
   it('createDirNoClobber fails when the directory already exists', async () => {
     const dirPath = path.join(tmpDir, 'existing')
     mkdirSync(dirPath)

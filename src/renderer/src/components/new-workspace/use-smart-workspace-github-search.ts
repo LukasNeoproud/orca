@@ -22,6 +22,7 @@ export function useSmartWorkspaceGithubSearch({
   shouldQueryGithub: boolean
 }): void {
   const {
+    onLookupError,
     debouncedQuery,
     disabled,
     handledCrossRepoUrlRef,
@@ -84,8 +85,9 @@ export function useSmartWorkspaceGithubSearch({
             setCrossRepoPrompt(result.prompt)
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
             setGithubItems([])
           }
         })
@@ -120,7 +122,12 @@ export function useSmartWorkspaceGithubSearch({
             intent,
             workItem: lookupGitHubWorkItemForSource,
             workItemByOwnerRepo: lookupGitHubWorkItemByOwnerRepoForSource
-          }).catch(() => null)
+          }).catch((error: unknown) => {
+            if (!stale) {
+              onLookupError?.(error instanceof Error ? error.message : String(error))
+            }
+            return null
+          })
         )
       ).then((items) =>
         items
@@ -134,8 +141,9 @@ export function useSmartWorkspaceGithubSearch({
             setGithubItems(items)
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
             setGithubItems([])
           }
         })
@@ -174,8 +182,9 @@ export function useSmartWorkspaceGithubSearch({
             setGithubItems(items.slice(0, RESULT_LIMIT))
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
             setGithubItems([])
           }
         })
@@ -202,8 +211,9 @@ export function useSmartWorkspaceGithubSearch({
             setGithubItems(result.items)
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!stale) {
+            onLookupError?.(error instanceof Error ? error.message : String(error))
             setGithubItems([])
           }
         })
@@ -235,6 +245,7 @@ export function useSmartWorkspaceGithubSearch({
     setCrossRepoPrompt,
     setGithubItems,
     setGithubLoading,
-    setOpen
+    setOpen,
+    onLookupError
   ])
 }

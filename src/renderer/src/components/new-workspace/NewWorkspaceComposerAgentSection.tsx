@@ -17,6 +17,7 @@ type NewWorkspaceComposerAgentSectionProps = Pick<
   | 'advancedOpen'
   | 'onToggleAdvanced'
 > & {
+  simplified?: boolean
   visibleQuickAgents: React.ComponentProps<typeof AgentCombobox>['agents']
   defaultTuiAgent: React.ComponentProps<typeof AgentCombobox>['defaultAgent']
   handleSetDefaultAgent: (
@@ -25,6 +26,7 @@ type NewWorkspaceComposerAgentSectionProps = Pick<
 }
 
 export function NewWorkspaceComposerAgentSection({
+  simplified = false,
   quickAgent,
   onQuickAgentChange,
   onOpenAgentSettings,
@@ -86,7 +88,9 @@ export function NewWorkspaceComposerAgentSection({
           onClick={onToggleAdvanced}
           className="-ml-2 text-xs focus-visible:ring-inset"
         >
-          {translate('auto.components.NewWorkspaceComposerCard.f0470c7383', 'Advanced')}
+          {simplified
+            ? translate('simplifiedWorktree.moreOptions', 'More options')
+            : translate('auto.components.NewWorkspaceComposerCard.f0470c7383', 'Advanced')}
           <ChevronDown
             className={cn('size-4 transition-transform', advancedOpen && 'rotate-180')}
           />

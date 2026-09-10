@@ -29,7 +29,7 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
     branch,
     identityDisplay,
     folderMetaRowContent,
-    showIdentityInNewCard,
+    showIdentityInNewCard: configuredIdentityInNewCard,
     conflictOperation,
     cardProps,
     cacheStartedAt,
@@ -78,12 +78,13 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
   const showRepoBadgeInMetaRow =
     !showRepoIdentityInTitle && !!repo && !hideRepoBadge && !showPinnedRepoIcon
   const showHostContextBadge = !compactCards && !!hostContextLabel
-  const showDetachedHeadInMetaRow = !compactCards && !isFolder && detachedHeadDisplay !== null
-  const showBranch =
-    !isFolder &&
-    branch.length > 0 &&
-    !newCardStyle &&
-    (!compactCards || branch !== worktree.displayName)
+  const showDetachedHeadInMetaRow = !isFolder && detachedHeadDisplay !== null
+  const branchDiffersFromTitle =
+    !isFolder && branch.length > 0 && branch !== visibleCardTitle.trim()
+  const showIdentityInNewCard = isFolder
+    ? configuredIdentityInNewCard
+    : newCardStyle && branchDiffersFromTitle
+  const showBranch = !newCardStyle && branchDiffersFromTitle
   // Why: rebases already surface in source control, so dense cards skip the persistent rebase chip.
   const showConflictOperationBadge =
     !!conflictOperation && conflictOperation !== 'unknown' && conflictOperation !== 'rebase'
@@ -107,7 +108,11 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
     showMetaRowDetails
   )
   const hasMetaRow = compactCards
-    ? hasMetadataBadge || cacheStartedAt != null
+    ? hasMetadataBadge ||
+      cacheStartedAt != null ||
+      showBranch ||
+      showIdentityInNewCard ||
+      showDetachedHeadInMetaRow
     : hasDetailedMetaRowContent
   const showHeaderActions = showTitleRowPrimary || showDeleteQuickAction
   // Why: normalize the title once so title/branch de-dupe and identity-only hover eligibility stay in sync.

@@ -50,6 +50,8 @@ export function createRepoUpdateSchema<T extends z.ZodRawShape>(
       hookSettings: z.unknown().optional(),
       worktreeBaseRef: OptionalString,
       worktreeBasePath: OptionalString,
+      simplifiedWorktreeLayout: z.enum(['nested', 'flat']).optional(),
+      simplifiedWorktreeLocation: z.enum(['inside', 'orca-default', 'custom']).optional(),
       kind: z.enum(['git', 'folder']).optional(),
       symlinkPaths: z.array(z.string()).optional(),
       issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional(),

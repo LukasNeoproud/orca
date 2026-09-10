@@ -119,6 +119,19 @@ describe('Store', () => {
     ])
   })
 
+  it('persists explicit creation layout without changing existing locations', async () => {
+    const store = await createStore()
+    store.addRepo(makeRepo({ worktreeBasePath: '../existing-trees' }))
+    store.updateRepo('r1', { simplifiedWorktreeLayout: 'flat' })
+    store.flush()
+    const reopened = await createStore()
+    expect(reopened.getRepo('r1')).toMatchObject({
+      path: '/repo',
+      worktreeBasePath: '../existing-trees',
+      simplifiedWorktreeLayout: 'flat'
+    })
+  })
+
   it('updateRepo keeps project host setup compatibility records in sync', async () => {
     const store = await createStore()
     store.addRepo(makeRepo({ worktreeBasePath: '../worktrees' }))

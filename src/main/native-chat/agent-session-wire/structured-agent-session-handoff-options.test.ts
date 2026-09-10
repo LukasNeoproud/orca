@@ -37,6 +37,8 @@ let host: StructuredAgentSessionHost
 let acquire: Mock<StructuredAgentSessionAdapter['acquire']>
 let activeModel: string
 let activeEffort: string | null
+let activeControls: Record<string, string>
+let tuiControls: Record<string, string>
 let transcriptPath: string
 let optionFailure: Error | null
 const dispatchedModels: string[] = []
@@ -109,6 +111,11 @@ function adapter(): StructuredAgentSessionAdapter {
   acquire = vi.fn(async ({ fence, spawnToken, options }) => {
     activeModel = options?.model ?? DEFAULT_MODEL
     activeEffort = options?.effort ?? null
+    activeControls = Object.fromEntries(
+      Object.entries({ ...(acquire.mock.calls.length > 1 ? tuiControls : {}), ...options }).filter(
+        ([key]) => key === 'serviceTier' || key === 'permissions'
+      )
+    )
     return {
       process: {
         hostId: 'local',
@@ -146,15 +153,24 @@ function adapter(): StructuredAgentSessionAdapter {
         activeModel = value
       } else if (key === 'effort') {
         activeEffort = value
+      } else {
+        activeControls[key] = value
       }
       return {
         model: activeModel,
-        ...(activeEffort ? { effort: activeEffort } : {})
+        ...(activeEffort ? { effort: activeEffort } : {}),
+        ...activeControls
       }
     }),
     readOptions: vi.fn(async () => ({
       current: { model: activeModel, ...(activeEffort ? { effort: activeEffort } : {}) },
-      models: []
+      models: [],
+      options: Object.entries(activeControls).map(([id, currentValue]) => ({
+        id,
+        label: id,
+        currentValue,
+        choices: [{ value: currentValue, label: currentValue }]
+      }))
     })),
     closeSession: vi.fn(async () => {
       activeModel = DEFAULT_MODEL
@@ -168,6 +184,8 @@ beforeEach(async () => {
   resetHostTestOperationIds()
   activeModel = DEFAULT_MODEL
   activeEffort = null
+  activeControls = {}
+  tuiControls = {}
   optionFailure = null
   dispatchedModels.length = 0
   launchedOptions.length = 0
@@ -233,7 +251,7 @@ describe('structured session handoff options', () => {
     expect(store.getRecord(SESSION)?.options).toEqual({ model: PICKED_MODEL })
   })
 
-  it('keeps a picked model through a native to TUI to native round trip', async () => {
+  it('preserves model and effort while refreshing TUI-owned controls on the return trip', async () => {
     const optionFields = { key: 'model', value: PICKED_MODEL }
     expect(
       await host.setOption(CALLER, {
@@ -254,17 +272,37 @@ describe('structured session handoff options', () => {
       model: PICKED_MODEL,
       effort: PICKED_EFFORT
     })
+    for (const [key, value] of Object.entries({
+      serviceTier: 'priority',
+      permissions: 'workspace-write'
+    })) {
+      const fields = { key, value }
+      expect(
+        await host.setOption(CALLER, {
+          envelope: envelope('agentSession.setOption', fields),
+          ...fields
+        })
+      ).toMatchObject({ ok: true })
+    }
 
     expect(await host.requestHandoff(CALLER, handoff('to-tui'))).toMatchObject({ ok: true })
     await vi.waitFor(async () =>
       expect(await host.handoffStatus(SESSION)).toMatchObject({ owner: 'tui' })
     )
+    tuiControls = { serviceTier: 'default', permissions: 'read-only' }
     expect(await host.requestHandoff(CALLER, handoff('to-native'))).toMatchObject({ ok: true })
     await vi.waitFor(async () =>
       expect(await host.handoffStatus(SESSION)).toMatchObject({ owner: 'native' })
     )
 
-    expect(launchedOptions).toEqual([{ model: PICKED_MODEL, effort: PICKED_EFFORT }])
+    expect(launchedOptions).toEqual([
+      {
+        model: PICKED_MODEL,
+        effort: PICKED_EFFORT,
+        serviceTier: 'priority',
+        permissions: 'workspace-write'
+      }
+    ])
     expect(closedTuiOwners).toHaveLength(1)
     expect(acquire.mock.calls[1]?.[0].options).toEqual({
       model: PICKED_MODEL,
@@ -272,7 +310,8 @@ describe('structured session handoff options', () => {
     })
     expect(store.getRecord(SESSION)?.options).toEqual({
       model: PICKED_MODEL,
-      effort: PICKED_EFFORT
+      effort: PICKED_EFFORT,
+      ...tuiControls
     })
     const body = hostTestMessage('use the selected model')
     expect(

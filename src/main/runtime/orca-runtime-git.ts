@@ -1,3 +1,4 @@
+import { RuntimeBranchManagementCommands } from './runtime-branch-management-commands'
 import { RuntimeGitDiffCommands } from './runtime-git-diff-commands'
 import { RuntimeGitGenerationCommands } from './runtime-git-generation-commands'
 import { RuntimeGitStagingCommands } from './runtime-git-staging-commands'
@@ -11,6 +12,8 @@ export type {
 } from './runtime-git-command-target'
 
 export class RuntimeGitCommands {
+  readonly inspectRuntimeBranchManagement: RuntimeBranchManagementCommands['inspectRuntimeBranchManagement']
+  readonly manageRuntimeBranch: RuntimeBranchManagementCommands['manageRuntimeBranch']
   readonly getRuntimeGitStatus: RuntimeGitStatusCommands['getRuntimeGitStatus']
   readonly getRuntimeGitSubmoduleStatus: RuntimeGitStatusCommands['getRuntimeGitSubmoduleStatus']
   readonly checkRuntimeGitIgnoredPaths: RuntimeGitStatusCommands['checkRuntimeGitIgnoredPaths']
@@ -48,6 +51,9 @@ export class RuntimeGitCommands {
   readonly discardRuntimeGitPath: RuntimeGitStagingCommands['discardRuntimeGitPath']
 
   constructor(host: RuntimeGitCommandHost) {
+    const management = new RuntimeBranchManagementCommands(host)
+    this.inspectRuntimeBranchManagement = management.inspectRuntimeBranchManagement.bind(management)
+    this.manageRuntimeBranch = management.manageRuntimeBranch.bind(management)
     const status = new RuntimeGitStatusCommands(host)
     const diff = new RuntimeGitDiffCommands(host)
     const sync = new RuntimeGitSyncCommands(host)

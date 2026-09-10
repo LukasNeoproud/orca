@@ -222,7 +222,7 @@ describe('ExperimentalPane', () => {
     expect(markup).toContain('aria-checked="true"')
   })
 
-  it('shows the structured-native-chat child setting only when Chat UI is the default view', async () => {
+  it('shows the structured-native-chat child setting with either default view', async () => {
     const updateSettings = vi.fn()
     const disabledSettings = getDefaultSettings('/tmp')
     const disabledMarkup = renderToStaticMarkup(
@@ -248,8 +248,7 @@ describe('ExperimentalPane', () => {
     expect(
       terminalRender.container.querySelector('[data-slot="native-chat-default-view-select"]')
     ).not.toBeNull()
-    // Structured chat has no entry path under Terminal chat, so its opt-in is not offered.
-    expect(terminalRender.container.textContent).not.toContain('Use updated structured native chat')
+    expect(terminalRender.container.textContent).toContain('Use updated structured native chat')
     terminalRender.root.unmount()
 
     const { root, container } = await renderExperimentalPane({
@@ -260,7 +259,7 @@ describe('ExperimentalPane', () => {
     expect(container.textContent).toContain('Use updated structured native chat')
     // The one opt-in gates both providers, so its copy must not name only Codex.
     expect(container.textContent).toContain(
-      'Opt in to the host-owned structured chat runtime for Codex and Claude.'
+      'Use the structured chat runtime for supported Codex and Claude sessions.'
     )
     expect(container.textContent).toContain(
       'Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.'
@@ -269,7 +268,7 @@ describe('ExperimentalPane', () => {
     root.unmount()
   })
 
-  it('hides a stale structured opt-in under Terminal chat without clearing it', async () => {
+  it('keeps the structured opt-in available when switching the default to Terminal chat', async () => {
     const updateSettings = vi.fn()
     const settings = {
       ...getDefaultSettings('/tmp'),
@@ -292,18 +291,23 @@ describe('ExperimentalPane', () => {
       terminalChatOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
 
-    // Switching the default view must not clobber the persisted opt-in — only hide its control.
+    // The two settings remain independent.
     expect(updateSettings).toHaveBeenCalledWith({ openAgentTabsInChatByDefault: false })
     expect(updateSettings).toHaveBeenCalledTimes(1)
     root.unmount()
 
-    const hidden = await renderExperimentalPane({
+    const terminalDefault = await renderExperimentalPane({
       updateSettings,
       settings: { ...settings, openAgentTabsInChatByDefault: false }
     })
 
-    expect(hidden.container.textContent).not.toContain('Use updated structured native chat')
-    hidden.root.unmount()
+    expect(terminalDefault.container.textContent).toContain('Use updated structured native chat')
+    expect(
+      terminalDefault.container
+        .querySelector('[aria-label="Toggle updated structured native chat"]')
+        ?.getAttribute('aria-checked')
+    ).toBe('true')
+    terminalDefault.root.unmount()
 
     // Returning to Chat UI restores the control still switched on.
     const restored = await renderExperimentalPane({ updateSettings, settings })
@@ -386,44 +390,47 @@ describe('ExperimentalPane', () => {
   })
 
   // The two controls are nested, but each still writes only its own key.
-  it('never writes one Chat UI child setting while changing the other', async () => {
-    const updateSettings = vi.fn()
-    const settings = {
-      ...getDefaultSettings('/tmp'),
-      experimentalNativeChat: true,
-      experimentalStructuredNativeChat: false,
-      openAgentTabsInChatByDefault: true
+  it.each([false, true])(
+    'changing structured chat leaves the default view (%s) unchanged',
+    async (defaultToChat) => {
+      const updateSettings = vi.fn()
+      const settings = {
+        ...getDefaultSettings('/tmp'),
+        experimentalNativeChat: true,
+        experimentalStructuredNativeChat: false,
+        openAgentTabsInChatByDefault: defaultToChat
+      }
+      const { root, container } = await renderExperimentalPane({ updateSettings, settings })
+
+      const structuredSwitch = container.querySelector<HTMLButtonElement>(
+        '#experimental-native-chat button[role="switch"][aria-label="Toggle updated structured native chat"]'
+      )
+      if (!structuredSwitch) {
+        throw new Error('Structured native chat switch was not rendered')
+      }
+
+      await act(async () => {
+        structuredSwitch.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+
+      expect(updateSettings).toHaveBeenCalledWith({ experimentalStructuredNativeChat: true })
+
+      const terminalChatOption = Array.from(
+        container.querySelectorAll<HTMLButtonElement>('[data-slot="select-item"]')
+      ).find((button) => button.getAttribute('data-value') === 'terminal-chat')
+      if (!terminalChatOption) {
+        throw new Error('Terminal chat default-view option was not rendered')
+      }
+
+      await act(async () => {
+        terminalChatOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+
+      expect(updateSettings).toHaveBeenCalledWith({ openAgentTabsInChatByDefault: false })
+      expect(updateSettings).toHaveBeenCalledTimes(2)
+      root.unmount()
     }
-    const { root, container } = await renderExperimentalPane({ updateSettings, settings })
-
-    const structuredSwitch = container.querySelector<HTMLButtonElement>(
-      '#experimental-native-chat button[role="switch"][aria-label="Toggle updated structured native chat"]'
-    )
-    if (!structuredSwitch) {
-      throw new Error('Structured native chat switch was not rendered')
-    }
-
-    await act(async () => {
-      structuredSwitch.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
-
-    expect(updateSettings).toHaveBeenCalledWith({ experimentalStructuredNativeChat: true })
-
-    const terminalChatOption = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[data-slot="select-item"]')
-    ).find((button) => button.getAttribute('data-value') === 'terminal-chat')
-    if (!terminalChatOption) {
-      throw new Error('Terminal chat default-view option was not rendered')
-    }
-
-    await act(async () => {
-      terminalChatOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
-
-    expect(updateSettings).toHaveBeenCalledWith({ openAgentTabsInChatByDefault: false })
-    expect(updateSettings).toHaveBeenCalledTimes(2)
-    root.unmount()
-  })
+  )
 
   it('renders the agent sleep idle duration as configurable minutes', async () => {
     const updateSettings = vi.fn()

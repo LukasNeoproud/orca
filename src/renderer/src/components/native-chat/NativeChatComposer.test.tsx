@@ -271,7 +271,7 @@ describe('NativeChatComposer', () => {
     }))
     const optionsSurface = {
       getSnapshot: () => [],
-      setOption: vi.fn(),
+      setOption: vi.fn().mockResolvedValue({ snapshot: [] }),
       invokeAction: vi.fn(),
       subscribe: () => () => {}
     } satisfies SessionOptionsSurface
@@ -298,6 +298,16 @@ describe('NativeChatComposer', () => {
     expect(mocks.fieldProps?.sessionOptionsSurface).toBe(optionsSurface)
     expect(mocks.fieldProps?.sessionOptionsSnapshot).toBe(optionSnapshot)
     expect(mocks.fieldProps?.attachDisabled).toBe(false)
+    mocks.setDraft.mockClear()
+    await act(async () => {
+      await mocks.fieldProps!.sessionOptionsSurface!.setOption('serviceTier', 'priority')
+      optionsSurface.setOption.mockRejectedValueOnce(new Error('Option refused'))
+      await expect(
+        mocks.fieldProps!.sessionOptionsSurface!.setOption('permissions', 'read-only')
+      ).rejects.toThrow('Option refused')
+    })
+    expect(mocks.setDraft).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
     await act(async () => mocks.fieldProps?.onSend?.())
 
     expect(dispatchCommand).toHaveBeenCalledWith('hello')

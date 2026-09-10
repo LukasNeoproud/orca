@@ -60,7 +60,7 @@ async function runCreateAttempt(
           )
         : await callRuntimeRpc<CreateWorktreeResult>(
             target,
-            'worktree.create',
+            request.options?.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
             buildRuntimeWorktreeCreateParams(request, { ...attempt, parentWorkspace }),
             { timeoutMs: 10 * 60_000 }
           )
@@ -169,7 +169,9 @@ export function createCreateWorktree(
       }
       // Why: manual sort is user-authored order; stamp new workspaces at the top rather than relying on sortOrder fallback.
       const manualOrder = get().sortBy === 'manual' ? Date.now() : undefined
-      const target = getActiveRuntimeTarget(settingsForRepoOwner(get(), repoId))
+      const target = getActiveRuntimeTarget(
+        settingsForRepoOwner(get(), repoId, options?.executionHostId)
+      )
       if (
         target.kind === 'environment' &&
         (options?.linkedWorkItem?.provider === 'jira' ||
@@ -220,7 +222,11 @@ export function createCreateWorktree(
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           const shouldRetry = isRetryableWorktreeCreateConflict(message)
-          if (!shouldRetry || attempt === CLIENT_WORKTREE_CREATE_MAX_ATTEMPTS - 1) {
+          if (
+            options?.explicitCreation ||
+            !shouldRetry ||
+            attempt === CLIENT_WORKTREE_CREATE_MAX_ATTEMPTS - 1
+          ) {
             throw error
           }
         }

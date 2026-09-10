@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
 import { getAgentCatalog } from '@/lib/agent-catalog'
-import { getScreenSubmitModifierLabel } from '@/lib/screen-submit-shortcut'
+import { getScreenSubmitModifierLabel, isScreenSubmitShortcut } from '@/lib/screen-submit-shortcut'
 import { resolveProjectCloneUrlPrefill } from '@/lib/project-clone-url-prefill'
 import { useContextualTour } from '@/components/contextual-tours/use-contextual-tour'
 import {
@@ -293,6 +293,20 @@ export default function NewWorkspaceComposerCard(
       ref={setComposerNode}
       data-workspace-composer-root="true"
       data-native-file-drop-target="composer"
+      onKeyDown={(event) => {
+        if (
+          props.simplifiedFields &&
+          event.key === 'Enter' &&
+          !event.defaultPrevented &&
+          !event.nativeEvent.isComposing &&
+          !isScreenSubmitShortcut(event) &&
+          event.target instanceof HTMLInputElement &&
+          !props.createDisabled
+        ) {
+          event.preventDefault()
+          props.onCreate()
+        }
+      }}
       onDragEnter={dragHandlers.onDragEnter}
       onDragLeave={dragHandlers.onDragLeave}
       className={cn(
@@ -320,15 +334,23 @@ export default function NewWorkspaceComposerCard(
           connectButtonLabel={connectButtonLabel}
           selectedProjectName={selectedProjectName}
         />
-        <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
+        {props.simplifiedFields ?? (
+          <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
+        )}
         <NewWorkspaceComposerAgentSection
           {...props}
+          simplified={Boolean(props.simplifiedFields)}
           visibleQuickAgents={visibleQuickAgents}
           defaultTuiAgent={defaultTuiAgent}
           handleSetDefaultAgent={handleSetDefaultAgent}
         />
         <NewWorkspaceComposerAdvancedSection
           {...props}
+          advancedOpen={
+            props.advancedOpen ||
+            Boolean(props.simplifiedFields && props.requiresExplicitSetupChoice)
+          }
+          hideNaming={Boolean(props.simplifiedFields)}
           branchNameInputId={branchNameInputId}
           setupConfigLabel={setupConfigLabel}
           setupRunLabel={setupRunLabel}

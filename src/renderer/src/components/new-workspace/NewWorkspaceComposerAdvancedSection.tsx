@@ -61,6 +61,7 @@ type NewWorkspaceComposerAdvancedSectionProps = Pick<
   | 'onSparseSelectPreset'
   | 'canUseSparseCheckout'
 > & {
+  hideNaming?: boolean
   branchNameInputId: string
   setupConfigLabel: string
   setupRunLabel: string
@@ -72,6 +73,7 @@ type NewWorkspaceComposerAdvancedSectionProps = Pick<
 
 export function NewWorkspaceComposerAdvancedSection({
   advancedOpen,
+  hideNaming = false,
   smartNameSelection,
   name,
   onNameValueChange,
@@ -160,7 +162,7 @@ export function NewWorkspaceComposerAdvancedSection({
               : '-translate-y-1 opacity-0 delay-0'
           )}
         >
-          {smartNameSelection ? (
+          {smartNameSelection && !hideNaming ? (
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
                 {translate('auto.components.NewWorkspaceComposerCard.2688050e4b', 'Name')}
@@ -178,7 +180,8 @@ export function NewWorkspaceComposerAdvancedSection({
             </div>
           ) : null}
 
-          {selectedRepoIsGit &&
+          {!hideNaming &&
+          selectedRepoIsGit &&
           branchesEnabled &&
           (!smartNameSelection || smartNameSelection.kind === 'branch') ? (
             <div className="space-y-1">

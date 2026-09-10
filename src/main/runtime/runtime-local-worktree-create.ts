@@ -1,3 +1,8 @@
+import { previewWorktreeCreation } from '../ipc/worktrees/create/explicit-creation-preview'
+import {
+  assertExplicitCreationAvailable,
+  explicitCreationTrackingTarget
+} from '../worktree-explicit-creation'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import type { Store } from '../persistence'
@@ -46,7 +51,24 @@ export async function createRuntimeLocalManagedWorktree<T>(args: {
   fetchRemote: (path: string, remote: string, ...options: LocalGitArgs) => Promise<void>
   onWorktreeMetadataPersisted: (worktree: Worktree) => T
 }) {
-  const { request, repo, store } = args
+  const { repo, store } = args
+  let { request } = args
+  const explicitPreview = request.explicitCreation
+    ? await previewWorktreeCreation(request, repo, store, true)
+    : undefined
+  if (explicitPreview) {
+    assertExplicitCreationAvailable(explicitPreview)
+    request = {
+      ...request,
+      baseBranch: explicitPreview.baseBranch,
+      branchNameOverride: explicitPreview.branch.name,
+      pushTarget: request.pushTarget ?? explicitCreationTrackingTarget(explicitPreview),
+      displayName: request.displayName || request.name,
+      displayNameKind: 'user',
+      nameWasGenerated: false,
+      pendingFirstAgentMessageRename: false
+    }
+  }
   const settings = store.getSettings()
   const pathSettings = getWorktreePathSettings(repo, settings, getWorktreeMirrorDistro(store, repo))
   const gitExecOptions = getLocalProjectGitExecOptions(store, repo)
@@ -91,19 +113,29 @@ export async function createRuntimeLocalManagedWorktree<T>(args: {
       'Could not resolve a default base ref for this repo. Pass an explicit --base and try again.'
     )
   }
-  const candidate = await resolveRuntimeLocalWorktreeCreateCandidate({
-    request,
-    repo,
-    settings,
-    worktreePathSettings: pathSettings,
-    workspaceRoot: computeWorkspaceRoot(repo.path, pathSettings),
-    username,
-    store,
-    baseBranch,
-    localWorktreeGitOptions: worktreeGitOptions,
-    localWorktreeGitOptionArgs: worktreeGitArgs,
-    hostedReviewExecutionContext: args.hostedReviewExecutionContext
-  })
+  const candidate = explicitPreview
+    ? {
+        effectiveRequestedName: request.name,
+        requestedDisplayName: request.displayName,
+        displayNameKind: 'user' as const,
+        effectiveSanitizedName: request.name,
+        branchName: explicitPreview.branch.name,
+        checkoutExistingBranch: explicitPreview.branch.kind === 'local',
+        worktreePath: explicitPreview.path
+      }
+    : await resolveRuntimeLocalWorktreeCreateCandidate({
+        request,
+        repo,
+        settings,
+        worktreePathSettings: pathSettings,
+        workspaceRoot: computeWorkspaceRoot(repo.path, pathSettings),
+        username,
+        store,
+        baseBranch,
+        localWorktreeGitOptions: worktreeGitOptions,
+        localWorktreeGitOptionArgs: worktreeGitArgs,
+        hostedReviewExecutionContext: args.hostedReviewExecutionContext
+      })
   const git = await createRuntimeLocalGitWorktree({
     request,
     repo,

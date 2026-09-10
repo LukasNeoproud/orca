@@ -18,6 +18,15 @@ export async function readNativeSessionOptions(input: {
   for (const key of skipped) {
     delete restored[key]
   }
+  for (const option of reported.options ?? []) {
+    if (
+      option.currentValue !== undefined &&
+      option.choices.some((choice) => choice.value === option.currentValue) &&
+      !skipped.has(option.id)
+    ) {
+      restored[option.id] = option.currentValue
+    }
+  }
   return {
     ...restored,
     model: reported.current.model,

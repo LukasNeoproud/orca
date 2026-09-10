@@ -178,9 +178,7 @@ describe('runBackgroundWorktreeCreation', () => {
       expect.objectContaining({
         creationId: 'creation-1',
         indeterminate: true,
-        request: expect.objectContaining({
-          worktreeCreateProgressMode: 'indeterminate'
-        })
+        request: expect.objectContaining({ worktreeCreateProgressMode: 'indeterminate' })
       })
     )
   })
@@ -194,9 +192,7 @@ describe('runBackgroundWorktreeCreation', () => {
     expect(store.beginPendingWorktreeCreation).toHaveBeenCalledWith(
       expect.objectContaining({
         indeterminate: true,
-        request: expect.not.objectContaining({
-          worktreeCreateProgressMode: expect.any(String)
-        })
+        request: expect.not.objectContaining({ worktreeCreateProgressMode: expect.any(String) })
       })
     )
   })
@@ -430,10 +426,7 @@ describe('staged background worktree creation', () => {
     expect(started).toBe(true)
     expect(store.updatePendingWorktreeCreation).toHaveBeenCalledWith(
       'creation-1',
-      expect.objectContaining({
-        phase: 'fetching',
-        request
-      })
+      expect.objectContaining({ phase: 'fetching', request })
     )
     await Promise.resolve()
     expect(store.createWorktree).toHaveBeenCalledTimes(1)
@@ -472,7 +465,11 @@ describe('staged background worktree creation', () => {
       accountLabel: 'dev@company.test'
     }
     const request = makeRequest({ linkedWorkItem, linkedTaskSourceContext })
-    const expectedOptions = { linkedWorkItem, linkedTaskSourceContext }
+    const expectedOptions = {
+      recoverCompletedCheckoutFailure: true,
+      linkedWorkItem,
+      linkedTaskSourceContext
+    }
 
     expect(continueBackgroundWorktreeCreation('creation-1', request)).toBe(true)
     await vi.waitFor(() => expect(store.createWorktree).toHaveBeenCalledTimes(1))
@@ -742,6 +739,7 @@ describe('staged background worktree creation', () => {
     )
     const createCall = store.createWorktree.mock.calls[0] as unknown[] | undefined
     expect(createCall?.[25]).toEqual({
+      recoverCompletedCheckoutFailure: true,
       startupDraft: 'https://github.com/o/r/issues/12'
     })
   })

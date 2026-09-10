@@ -1,3 +1,5 @@
+import type { WorktreeCheckoutWarning } from './checkout-warning'
+import type { ExplicitWorktreeCreation } from './explicit-creation'
 import type { ExecutionHostId } from '../execution-host'
 import type { WorkspaceSource } from '../workspace-source'
 import type { TaskSourceContext } from '../task-source-context'
@@ -88,6 +90,9 @@ export type SparsePreset = {
 }
 
 export type CreateWorktreeArgs = {
+  executionHostId?: ExecutionHostId
+  recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: ExplicitWorktreeCreation
   repoId: string
   name: string
   /** True only when `name` came from Orca's creature-name generator rather than the user. Gates
@@ -160,6 +165,7 @@ export type AdoptProvisionedRootArgs = CreateWorktreeArgs & {
 }
 
 export type CreateWorktreeResult = {
+  checkoutWarning?: WorktreeCheckoutWarning
   worktree: Worktree & {
     parentWorktreeId?: string | null
     childWorktreeIds?: string[]

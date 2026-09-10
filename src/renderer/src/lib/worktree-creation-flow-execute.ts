@@ -21,6 +21,7 @@ import { resolveBackendDraftStartup } from '@/lib/worktree-draft-startup-view-mo
 import { buildWorktreeCreationStartupOpt } from '@/lib/worktree-creation-flow-startup'
 import { launchStructuredWorktreeSession } from '@/lib/worktree-creation-structured-session'
 import { completeWorktreeCreation } from '@/lib/worktree-creation-completion'
+import { completeRecoveredWorktreeCreation } from '@/lib/worktree-creation-checkout-warning'
 import { markStructuredWorktreeLaunchUnconfirmed } from '@/lib/worktree-creation-structured-recovery'
 
 // Why: activePendingCreationId can outlive the terminal route when the user
@@ -86,6 +87,14 @@ export async function executeWorktreeCreation(
         preparedRequest.linkedGiteaPR,
         preparedRequest.compareBaseRef,
         {
+          // Only this flow handles a recovered checkout without launching fallback work.
+          recoverCompletedCheckoutFailure: true,
+          ...(preparedRequest.executionHostId
+            ? { executionHostId: preparedRequest.executionHostId }
+            : {}),
+          ...(preparedRequest.explicitCreation
+            ? { explicitCreation: preparedRequest.explicitCreation }
+            : {}),
           ...(preparedRequest.nameWasGenerated ? { nameWasGenerated: true } : {}),
           ...(preparedRequest.displayNameKind
             ? { displayNameKind: preparedRequest.displayNameKind }
@@ -144,6 +153,20 @@ export async function executeWorktreeCreation(
     return
   }
   await attachEphemeralVmRuntimeToWorkspace(preparedRequest, worktree.id)
+
+  if (result.checkoutWarning) {
+    const state = useAppStore.getState()
+    const activate =
+      isPendingCreationSurfaceVisible(creationId) ||
+      (state.activeView === 'terminal' && state.activePendingCreationId === null)
+    await completeRecoveredWorktreeCreation({
+      creationId,
+      request: preparedRequest,
+      result,
+      activate
+    })
+    return
+  }
 
   const backendSpawned = result.startupTerminal?.spawned === true
   if (preparedRequest.startupPlan && !backendSpawned && !preparedRequest.startupPlan.launchToken) {
