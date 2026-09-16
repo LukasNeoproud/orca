@@ -42,6 +42,9 @@ export class StructuredAgentSessionHandoffQueue {
     while (this.controllers.get(sessionId) === controller && !controller.signal.aborted) {
       try {
         if (await isIdle(controller.signal)) {
+          if (this.controllers.get(sessionId) !== controller || controller.signal.aborted) {
+            return false
+          }
           this.controllers.delete(sessionId)
           return true
         }

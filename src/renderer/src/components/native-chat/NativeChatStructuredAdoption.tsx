@@ -31,25 +31,18 @@ export function NativeChatStructuredAdoption(props: Props): React.JSX.Element {
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null)
   const key = JSON.stringify([paneKey, targetPtyId, sessionId, agent, attempt])
   const supportedAgent = isAgentSessionHandleProvider(agent)
-  const canAdopt =
-    enabled && local && singlePane && supportedAgent && Boolean(targetPtyId && sessionId)
+  const canAdopt = enabled && local && singlePane && supportedAgent && Boolean(targetPtyId)
   const error = failure?.key === key ? failure.message : null
 
   useEffect(() => {
-    if (
-      !canAdopt ||
-      !isVisible ||
-      !targetPtyId ||
-      !sessionId ||
-      !isAgentSessionHandleProvider(agent)
-    ) {
+    if (!canAdopt || !isVisible || !targetPtyId || !isAgentSessionHandleProvider(agent)) {
       return
     }
     let disposed = false
     const input = {
       worktreeId,
       agent,
-      providerSessionId: sessionId,
+      ...(sessionId ? { providerSessionId: sessionId } : {}),
       terminal: { tabId: terminalTabId, paneKey, ptyId: targetPtyId }
     }
     void adoptStructuredAgentTerminal(input)
@@ -112,7 +105,7 @@ export function NativeChatStructuredAdoption(props: Props): React.JSX.Element {
   if (!enabled || !supportedAgent) {
     return <NativeChatResolvedView {...props} />
   }
-  if (canAdopt && !error) {
+  if (local && singlePane && !error) {
     return <NativeChatEmptyState kind="loading" />
   }
   if (error) {
@@ -138,15 +131,10 @@ export function NativeChatStructuredAdoption(props: Props): React.JSX.Element {
         'components.native-chat.adoption.localOnly',
         'Structured chat cannot take over this remote terminal yet.'
       )
-    : !singlePane
-      ? translate(
-          'components.native-chat.adoption.singlePane',
-          'Structured chat currently requires a terminal with one pane.'
-        )
-      : translate(
-          'components.native-chat.adoption.awaitingSession',
-          'Send the first message to the agent before switching this terminal to structured chat.'
-        )
+    : translate(
+        'components.native-chat.adoption.singlePane',
+        'Structured chat currently requires a terminal with one pane.'
+      )
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div

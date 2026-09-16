@@ -43,7 +43,7 @@ export function getStructuredAgentSessionTabs(
 }
 
 /** The host's projected status for one session, live while the caller is mounted. */
-function useStructuredAgentSessionStatusSummary(
+export function useStructuredAgentSessionStatusSummary(
   sessionId: string,
   target: RuntimeClientTarget
 ): AgentSessionStatusSummary | null {

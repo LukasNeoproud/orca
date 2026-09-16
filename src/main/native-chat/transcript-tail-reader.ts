@@ -3,6 +3,7 @@ import type {
   NativeChatMessage,
   NativeChatTurnLifecycle
 } from '../../shared/native-chat-types'
+import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from './session-file-resolver'
 import {
@@ -28,6 +29,11 @@ import {
   wslGatedStat
 } from './wsl-transcript-fs-access'
 import { wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
+import {
+  CodexTranscriptUsageStatusAccumulator,
+  enrichCodexTranscriptUsageStatus,
+  isCodexTranscriptUsageStatusLine
+} from './codex-transcript-usage-status'
 
 export const MAX_NATIVE_CHAT_TRANSCRIPT_RECORD_BYTES = 2 * 1024 * 1024
 
@@ -57,10 +63,12 @@ export async function readNativeChatTranscriptTailFile(
   includeTrailingLine = false,
   endOffset?: number,
   decodeLifecycle?: NativeChatTurnLifecycleDecoder | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  usage?: CodexTranscriptUsageStatusAccumulator
 ): Promise<{
   messages: NativeChatMessage[]
   lifecycle?: NativeChatTurnLifecycle
+  usageStatus?: NativeChatUsageStatus
   consumedTo: number
   hasMore: boolean
   beforeOffset: number
@@ -84,6 +92,7 @@ export async function readNativeChatTranscriptTailFile(
   let malformedRecordCount = 0
   let oversizedRecordCount = 0
   let ignoreNextMalformedRecord = false
+  const usageLines: string[] = []
   try {
     signal?.throwIfAborted()
     const consumedTo = includeTrailingLine
@@ -144,9 +153,13 @@ export async function readNativeChatTranscriptTailFile(
     // Why: slice(-0) returns the whole array, so a non-positive limit must
     // window to nothing explicitly rather than leak every buffered record.
     const selected = limit > 0 ? chronological.slice(Math.max(0, chronological.length - limit)) : []
+    for (const line of usageLines.toReversed()) {
+      usage?.observe(line)
+    }
     return {
       messages: selected.map((entry) => entry.message),
       ...(lifecycle ? { lifecycle } : {}),
+      ...(usage ? { usageStatus: usage.snapshot() } : {}),
       consumedTo,
       hasMore: limit > 0 && chronological.length > limit,
       beforeOffset: selected[0]?.offset ?? end,
@@ -199,6 +212,9 @@ export async function readNativeChatTranscriptTailFile(
       return
     }
     ignoreNextMalformedRecord = false
+    if (usage && isCodexTranscriptUsageStatusLine(line)) {
+      usageLines.push(line)
+    }
     const fallbackId = transcriptFallbackId(filePath, lineOffset)
     // Why: scan the same bounded JSONL window for provider-authored lifecycle
     // records so reconnect snapshots can replay completion without guessing
@@ -225,6 +241,7 @@ export async function readNativeChatTranscriptTail(
   | {
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
+      usageStatus?: NativeChatUsageStatus
       hasMore: boolean
       beforeOffset: number
     }
@@ -232,6 +249,10 @@ export async function readNativeChatTranscriptTail(
 > {
   const decode = nativeChatLineDecoderForAgent(args.agent)
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
+  const usage =
+    resolveNativeChatTranscriptAgent(args.agent) === 'codex'
+      ? new CodexTranscriptUsageStatusAccumulator()
+      : undefined
   if (!decode) {
     return { error: 'Transcript unavailable' }
   }
@@ -259,8 +280,12 @@ export async function readNativeChatTranscriptTail(
       true,
       args.beforeOffset,
       decodeLifecycle,
-      signal
+      signal,
+      usage
     )
+    if (usage) {
+      await enrichCodexTranscriptUsageStatus(filePath, usage, signal)
+    }
     signal?.throwIfAborted()
     return {
       messages: result.messages,
@@ -269,6 +294,7 @@ export async function readNativeChatTranscriptTail(
       ...(args.beforeOffset === undefined && result.lifecycle
         ? { lifecycle: result.lifecycle }
         : {}),
+      ...(args.beforeOffset === undefined && usage ? { usageStatus: usage.snapshot() } : {}),
       hasMore: result.hasMore,
       beforeOffset: result.beforeOffset
     }

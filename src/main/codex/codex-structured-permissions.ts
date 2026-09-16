@@ -10,7 +10,8 @@ const PRESETS = [
     label: 'Read only',
     description: 'Read files. Commands need approval for edits or network access.',
     sandboxMode: 'read-only',
-    approvalPolicy: 'on-request'
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user'
   },
   {
     value: 'workspace-write',
@@ -18,7 +19,17 @@ const PRESETS = [
     description:
       'Edit workspace files. Commands need approval for access outside it or to the network.',
     sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request'
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'user'
+  },
+  {
+    value: 'auto-review',
+    label: 'Auto review',
+    description:
+      'Edit workspace files. Codex automatically reviews requests for access outside the sandbox.',
+    sandboxMode: 'workspace-write',
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'auto_review'
   },
   {
     value: 'full-access',
@@ -26,7 +37,8 @@ const PRESETS = [
     description:
       'Run commands with unrestricted file and network access, without asking for approval.',
     sandboxMode: 'danger-full-access',
-    approvalPolicy: 'never'
+    approvalPolicy: 'never',
+    approvalsReviewer: 'user'
   }
 ] as const
 
@@ -71,7 +83,7 @@ export async function readCodexPermissionChoices(
     (preset) =>
       allowed(requirements, 'allowedSandboxModes', preset.sandboxMode) &&
       allowed(requirements, 'allowedApprovalPolicies', preset.approvalPolicy) &&
-      allowed(requirements, 'allowedApprovalsReviewers', 'user')
+      allowed(requirements, 'allowedApprovalsReviewers', preset.approvalsReviewer)
   ).map(({ value, label, description }) => ({ value, label, description }))
 }
 
@@ -80,12 +92,12 @@ export function codexPermissionOverrides(value: string, cwd: string | undefined)
   if (!preset) {
     throw new Error(`Unknown Codex permissions mode: ${value}`)
   }
-  if (value === 'workspace-write' && !cwd) {
+  if (preset.sandboxMode === 'workspace-write' && !cwd) {
     throw new Error('Codex workspace permissions require the execution workspace path')
   }
   return {
     approvalPolicy: preset.approvalPolicy,
-    approvalsReviewer: 'user',
+    approvalsReviewer: preset.approvalsReviewer,
     sandboxPolicy:
       value === 'full-access'
         ? { type: 'dangerFullAccess' }
@@ -112,17 +124,26 @@ export function readCodexPermissionsMode(
     !sandbox ||
     (profile &&
       ![':read-only', ':workspace', ':danger-full-access'].includes(String(profile.id))) ||
-    (response.approvalsReviewer != null && response.approvalsReviewer !== 'user')
+    (response.approvalsReviewer != null &&
+      !['user', 'auto_review'].includes(String(response.approvalsReviewer)))
   ) {
     return undefined
   }
-  if (sandbox.type === 'dangerFullAccess' && response.approvalPolicy === 'never') {
+  if (
+    sandbox.type === 'dangerFullAccess' &&
+    response.approvalPolicy === 'never' &&
+    response.approvalsReviewer !== 'auto_review'
+  ) {
     return 'full-access'
   }
   if (response.approvalPolicy !== 'on-request' || sandbox.networkAccess === true) {
     return undefined
   }
-  if (sandbox.type === 'readOnly' && sandbox.access == null) {
+  if (
+    sandbox.type === 'readOnly' &&
+    sandbox.access == null &&
+    response.approvalsReviewer !== 'auto_review'
+  ) {
     return 'read-only'
   }
   if (
@@ -133,7 +154,42 @@ export function readCodexPermissionsMode(
     Array.isArray(sandbox.writableRoots) &&
     sandbox.writableRoots.every((root) => root === cwd)
   ) {
-    return 'workspace-write'
+    return response.approvalsReviewer === 'auto_review' ? 'auto-review' : 'workspace-write'
   }
   return undefined
+}
+
+/** Summarize an authoritative policy that does not exactly match a settable preset. */
+export function readCodexCustomPermissionsDescription(
+  response: Record<string, unknown>,
+  cwd: string | undefined
+): string | undefined {
+  if (readCodexPermissionsMode(response, cwd)) {
+    return undefined
+  }
+  const sandbox = record(response.sandbox)
+  if (!sandbox || response.approvalPolicy == null) {
+    return undefined
+  }
+  const sandboxLabel =
+    sandbox.type === 'readOnly'
+      ? 'Read-only sandbox'
+      : sandbox.type === 'workspaceWrite'
+        ? 'Workspace sandbox'
+        : sandbox.type === 'dangerFullAccess'
+          ? 'Full access'
+          : sandbox.type === 'externalSandbox'
+            ? 'External sandbox'
+            : 'Custom sandbox'
+  const reviewLabel =
+    response.approvalPolicy === 'never'
+      ? 'No approvals'
+      : typeof response.approvalPolicy === 'object'
+        ? 'Granular approvals'
+        : response.approvalsReviewer === 'auto_review'
+          ? 'Auto review'
+          : response.approvalsReviewer === 'user'
+            ? 'User approval'
+            : 'Custom approvals'
+  return `${sandboxLabel} · ${reviewLabel}`
 }

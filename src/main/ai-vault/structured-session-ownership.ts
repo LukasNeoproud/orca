@@ -18,7 +18,11 @@ export function projectStructuredAiVaultSessions(
   const sessions = result.sessions.flatMap((session) => {
     const ownership = findSessionOwnership(session)
     if (!ownership) {
-      return [session]
+      return [withoutStructuredSession(session)]
+    }
+    const ownerState = structuredOwnershipState(ownership)
+    if (ownerState === 'exited') {
+      return [withoutStructuredSession(session)]
     }
     if (!structuredSupported) {
       return []
@@ -28,7 +32,8 @@ export function projectStructuredAiVaultSessions(
         ...session,
         structuredSession: {
           sessionId: ownership.sessionId,
-          workspaceId: ownership.workspaceId
+          workspaceId: ownership.workspaceId,
+          ownerState
         }
       }
     ]
@@ -37,6 +42,14 @@ export function projectStructuredAiVaultSessions(
     sessions.every((row, index) => row === result.sessions[index])
     ? result
     : { ...result, sessions }
+}
+
+function withoutStructuredSession(session: AiVaultSession): AiVaultSession {
+  if (!session.structuredSession) {
+    return session
+  }
+  const { structuredSession: _structuredSession, ...historical } = session
+  return historical
 }
 
 export function assertLegacyAiVaultResumeAllowed(args: AiVaultPrepareSessionResumeArgs): void {
@@ -58,10 +71,11 @@ export async function assertLegacyAiVaultResumeCommandAllowed(
   if (!host) {
     return
   }
-  for (const ownership of listOwnership()) {
-    if (isResumeCommandFor(command, ownership)) {
-      refuseLegacyWriter(ownership)
-    }
+  const ownership = findBlockingOwnership(
+    listOwnership().filter((candidate) => isResumeCommandFor(command, candidate))
+  )
+  if (ownership) {
+    refuseLegacyWriter(ownership)
   }
 }
 
@@ -73,7 +87,16 @@ function findSessionOwnership(session: AiVaultSession): StructuredProviderSessio
   if (session.agent !== 'codex' && session.agent !== 'claude') {
     return null
   }
-  return findOwnership(session.agent, session.sessionId)
+  const matching = listOwnership().filter(
+    (ownership) =>
+      ownership.provider === session.agent && ownership.providerSessionId === session.sessionId
+  )
+  return (
+    matching.find((ownership) => structuredOwnershipState(ownership) === 'live') ??
+    matching.find((ownership) => structuredOwnershipState(ownership) === 'unverifiable') ??
+    matching.find((ownership) => structuredOwnershipState(ownership) === 'exited') ??
+    null
+  )
 }
 
 function findResumeOwnership(
@@ -91,24 +114,52 @@ function findResumeOwnership(
     return exact
   }
   const fileName = args.filePath.split(/[\\/]/).at(-1) ?? ''
-  return (
-    listOwnership().find(
-      (ownership) =>
-        ownership.provider === args.agent && fileName.includes(ownership.providerSessionId)
-    ) ?? null
+  const matching = listOwnership().filter(
+    (ownership) =>
+      ownership.provider === args.agent && fileName.includes(ownership.providerSessionId)
   )
+  return findBlockingOwnership(matching)
 }
 
 function findOwnership(
   provider: 'claude' | 'codex',
   providerSessionId: string
 ): StructuredProviderSessionOwnership | null {
-  return (
-    listOwnership().find(
-      (ownership) =>
-        ownership.provider === provider && ownership.providerSessionId === providerSessionId
-    ) ?? null
+  const matching = listOwnership().filter(
+    (ownership) =>
+      ownership.provider === provider && ownership.providerSessionId === providerSessionId
   )
+  return findBlockingOwnership(matching)
+}
+
+function findBlockingOwnership(
+  ownerships: readonly StructuredProviderSessionOwnership[]
+): StructuredProviderSessionOwnership | null {
+  return (
+    ownerships.find((ownership) => structuredOwnershipState(ownership) === 'live') ??
+    ownerships.find((ownership) => structuredOwnershipState(ownership) === 'unverifiable') ??
+    null
+  )
+}
+
+function structuredOwnershipState(
+  ownership: StructuredProviderSessionOwnership
+): 'live' | 'unverifiable' | 'exited' {
+  const { lease } = ownership
+  if (agentSessionLeaseAdmitsWriter(lease)) {
+    return 'live'
+  }
+  if (
+    !lease.unreconciled &&
+    lease.handoffStage === null &&
+    lease.claimStatus === 'released' &&
+    lease.ownerProcess === null &&
+    lease.reservedSpawnToken === null &&
+    lease.settlementRetryRequired !== true
+  ) {
+    return 'exited'
+  }
+  return 'unverifiable'
 }
 
 function listOwnership(): StructuredProviderSessionOwnership[] {

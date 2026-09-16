@@ -46,7 +46,6 @@ describe('terminal provider identity evidence', () => {
     { restoredUnconfirmed: true },
     { connectionId: 'remote' },
     { paneKey: 'different-pane' },
-    { providerSessionOnly: true },
     {
       observation: {
         origin: 'title',
@@ -62,6 +61,10 @@ describe('terminal provider identity evidence', () => {
       expect(() => select([row(patch)])).toThrow('has not proved this conversation')
     }
   )
+
+  it('accepts a fresh identity-only hook before a resumed turn finishes', () => {
+    expect(select([row({ providerSessionOnly: true })]).id).toBe(THREAD)
+  })
 
   it('uses the latest actual provider identity instead of selecting a convenient older match', () => {
     expect(() =>

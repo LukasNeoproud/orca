@@ -132,3 +132,29 @@ export async function closeAllCodexSessions(
     failureMessage: 'codex structured session shutdown could not prove every child stopped'
   })
 }
+
+export function forceCloseUnexpectedCodexSession(
+  sessions: Map<string, CodexSession>,
+  onEvent: ((event: CodexStructuredSessionEvent) => void) | undefined,
+  sessionId: string,
+  fence: number,
+  acquisitionGeneration: string,
+  reason: Error
+): Promise<boolean> {
+  const session = sessions.get(sessionId)
+  if (
+    !session ||
+    session.ended ||
+    session.fence !== fence ||
+    session.acquisitionGeneration !== acquisitionGeneration
+  ) {
+    return Promise.resolve(false)
+  }
+  return closeCodexPublishedSession(sessions, sessionId, onEvent, {
+    allowFailedSettlement: true,
+    requestedClose: false,
+    expectedFence: fence,
+    expectedAcquisitionGeneration: acquisitionGeneration,
+    unexpectedReason: reason
+  })
+}

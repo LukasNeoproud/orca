@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
+import type { NativeChatUsageStatus } from '../../../../shared/native-chat-usage-status'
 import type { RpcContext } from '../core'
 
 // Stub the bounded tail reader so the handler returns a deterministic transcript with
@@ -11,7 +12,8 @@ const cachedResult = vi.hoisted(() => ({
     // Optional so truncation-gating fixtures can omit it; lifecycle tests set it explicitly.
     lifecycle: undefined as
       | { state: 'working' | 'completed' | 'interrupted'; turnId: string; timestamp: number | null }
-      | undefined
+      | undefined,
+    usageStatus: undefined as NativeChatUsageStatus | undefined
   } as {
     messages: NativeChatMessage[]
     lifecycle?: {
@@ -19,6 +21,7 @@ const cachedResult = vi.hoisted(() => ({
       turnId: string
       timestamp: number | null
     }
+    usageStatus?: NativeChatUsageStatus
   }
 }))
 const tailRead = vi.hoisted(() => ({ signal: undefined as AbortSignal | undefined }))
@@ -33,7 +36,8 @@ const watcher = vi.hoisted(() => ({
         state: 'working' | 'completed' | 'interrupted'
         turnId: string
         timestamp: number | null
-      }
+      },
+      usageStatus?: NativeChatUsageStatus
     ) => void
     onReplace?: (
       messages: NativeChatMessage[],
@@ -43,7 +47,8 @@ const watcher = vi.hoisted(() => ({
         state: 'working' | 'completed' | 'interrupted'
         turnId: string
         timestamp: number | null
-      }
+      },
+      usageStatus?: NativeChatUsageStatus
     ) => void
     onAppend: (
       messages: NativeChatMessage[],
@@ -51,7 +56,8 @@ const watcher = vi.hoisted(() => ({
         state: 'working' | 'completed' | 'interrupted'
         turnId: string
         timestamp: number | null
-      }
+      },
+      usageStatus?: NativeChatUsageStatus
     ) => void
     onTranscriptPending?: () => void
   },
@@ -71,7 +77,8 @@ vi.mock('../../../native-chat/transcript-watch', () => ({
       messages: messages.slice(-limit),
       hasMore: messages.length > limit,
       beforeOffset: 123,
-      ...(cachedResult.value.lifecycle ? { lifecycle: cachedResult.value.lifecycle } : {})
+      ...(cachedResult.value.lifecycle ? { lifecycle: cachedResult.value.lifecycle } : {}),
+      ...(cachedResult.value.usageStatus ? { usageStatus: cachedResult.value.usageStatus } : {})
     })
   },
   subscribeNativeChatTranscript: (
@@ -450,6 +457,32 @@ describe('nativeChat.readSession clientKind truncation gating', () => {
 })
 
 describe('nativeChat.subscribe initial snapshot', () => {
+  it('forwards usage status on every existing stream frame type', async () => {
+    watcher.watching = true
+    watcher.args = null
+    const emitted: unknown[] = []
+    const usageStatus: NativeChatUsageStatus = {
+      contextUsage: { usedTokens: 20, maxTokens: 100 },
+      codexWeeklyUsage: { usedPercent: 35 }
+    }
+    await subscribeHandler()(
+      { agent: 'codex', sessionId: 's' },
+      streamingContext('runtime'),
+      (value) => emitted.push(value)
+    )
+
+    const callbacks = activeWatcherArgs()
+    callbacks.onInitialSnapshot?.([], false, 123, undefined, undefined, usageStatus)
+    callbacks.onReplace?.([], false, 123, undefined, usageStatus)
+    callbacks.onAppend([], undefined, usageStatus)
+
+    expect(emitted).toEqual([
+      { type: 'snapshot', messages: [], hasMore: false, beforeOffset: 123, usageStatus },
+      { type: 'replacement', messages: [], hasMore: false, beforeOffset: 123, usageStatus },
+      { type: 'appended', messages: [], usageStatus }
+    ])
+  })
+
   it('preserves long assistant text across mobile stream frame types', async () => {
     watcher.watching = true
     watcher.args = null
@@ -765,5 +798,17 @@ describe('nativeChat.readSession lifecycle payload', () => {
       lifecycle
     })
     expect((result as { messages: NativeChatMessage[] }).messages).toHaveLength(1)
+  })
+
+  it('forwards usage status from the host tail reader', async () => {
+    const usageStatus: NativeChatUsageStatus = {
+      contextUsage: { usedTokens: 40, maxTokens: 200 },
+      codexWeeklyUsage: { usedPercent: 70 }
+    }
+    cachedResult.value = { messages: [], usageStatus }
+
+    await expect(
+      readSessionHandler()({ agent: 'codex', sessionId: 's' }, ctxWith('runtime'))
+    ).resolves.toMatchObject({ usageStatus })
   })
 })

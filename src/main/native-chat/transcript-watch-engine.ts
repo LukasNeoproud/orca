@@ -27,6 +27,8 @@ import {
 } from './wsl-transcript-watcher-running-guard'
 import { observeWslTranscriptRunningState } from './wsl-transcript-running-observer'
 import { trackActiveNativeChatWatcher } from './transcript-watcher-count'
+import { TranscriptWatchUsageStatus } from './transcript-watch-usage-status'
+import { createTranscriptAppendDrain } from './transcript-append-drain'
 
 /** Install a live tail, or return null when the resolved file is not readable yet. */
 export async function installTranscriptWatcher(
@@ -41,7 +43,6 @@ export async function installTranscriptWatcher(
   }
   const { onAppend, onInitialSnapshot, onReplace, initialLimit } = args
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
-
   const state = createIncrementalTranscriptState()
   let watchedVersion: TranscriptFileVersion | null = null
   let watchedBoundary = ''
@@ -53,6 +54,7 @@ export async function installTranscriptWatcher(
   // aborted signal also makes the gate refuse admission for anything the
   // in-flight drain would start after teardown.
   const gateAbort = new AbortController()
+  const usage = new TranscriptWatchUsageStatus(args.agent, filePath, onAppend, gateAbort.signal)
   let reading = false
   let pendingReadRequested = false
   let rotationRetryCount = 0
@@ -67,27 +69,15 @@ export async function installTranscriptWatcher(
     }
   }
 
-  async function readAndEmitAppends(): Promise<void> {
-    let lifecycle: NativeChatTurnLifecycle | undefined
-    const remaining = await readIncrementalTranscriptMessages(
-      filePath,
-      state,
-      decode,
-      (messages) => {
-        if (!closed) {
-          onAppend(messages)
-        }
-      },
-      decodeLifecycle ?? undefined,
-      (nextLifecycle) => {
-        lifecycle = nextLifecycle
-      },
-      gateAbort.signal
-    )
-    if (!closed && (remaining.length > 0 || lifecycle)) {
-      onAppend(remaining, lifecycle)
-    }
-  }
+  const readAndEmitAppends = createTranscriptAppendDrain({
+    filePath,
+    state,
+    decode,
+    decodeLifecycle,
+    signal: gateAbort.signal,
+    usage,
+    isClosed: () => closed
+  })
 
   async function finishSuccessfulDrain(startVersion: TranscriptFileVersion): Promise<void> {
     watchedBoundary = await boundaryFingerprint(filePath, state.offset, gateAbort.signal)
@@ -134,6 +124,7 @@ export async function installTranscriptWatcher(
     }
     if (contentReplaced) {
       resetIncrementalTranscriptState(state)
+      usage.reset()
     }
     // Why: subscriber callbacks may replace the path before the drain can finish.
     watchedVersion ??= current
@@ -149,9 +140,11 @@ export async function installTranscriptWatcher(
             false,
             undefined,
             decodeLifecycle,
-            gateAbort.signal
+            gateAbort.signal,
+            usage.accumulator
           )
         : null
+    await usage.enrich()
     if (closed) {
       return
     }
@@ -162,7 +155,8 @@ export async function installTranscriptWatcher(
         replacementSnapshot.messages,
         replacementSnapshot.hasMore,
         replacementSnapshot.beforeOffset,
-        replacementSnapshot.lifecycle
+        replacementSnapshot.lifecycle,
+        usage.publishedSnapshot()
       )
       await readAndEmitAppends()
       await finishSuccessfulDrain(current)
@@ -178,9 +172,11 @@ export async function installTranscriptWatcher(
             false,
             undefined,
             decodeLifecycle,
-            gateAbort.signal
+            gateAbort.signal,
+            usage.accumulator
           )
         : null
+    await usage.enrich()
     if (closed) {
       return
     }
@@ -194,7 +190,8 @@ export async function installTranscriptWatcher(
           initialSnapshot.hasMore,
           initialSnapshot.beforeOffset,
           undefined,
-          initialSnapshot.lifecycle
+          initialSnapshot.lifecycle,
+          usage.publishedSnapshot()
         )
         await readAndEmitAppends()
       } else {
@@ -208,12 +205,14 @@ export async function installTranscriptWatcher(
           (nextLifecycle) => {
             lifecycle = nextLifecycle
           },
-          gateAbort.signal
+          gateAbort.signal,
+          usage.observe
         )
+        await usage.enrich()
         if (closed) {
           return
         }
-        onInitialSnapshot(messages, false, 0, undefined, lifecycle)
+        onInitialSnapshot(messages, false, 0, undefined, lifecycle, usage.publishedSnapshot())
       }
     } else {
       initialDrain = false

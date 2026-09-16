@@ -62,6 +62,7 @@ function renderRow(
     worktreeInfo?: AiVaultSessionWorktreeInfo | null
     onToggleDetails?: () => void
     onRequestDelete?: () => void
+    onResume?: () => void
   } = {}
 ) {
   return render(
@@ -77,7 +78,7 @@ function renderRow(
         resumeDisabled={false}
         onToggleDetails={overrides.onToggleDetails ?? vi.fn()}
         showJumpToWorktree={false}
-        onResume={vi.fn()}
+        onResume={overrides.onResume ?? vi.fn()}
         resumeLabel="Resume in New Tab"
         resumeActions={{
           worktree: { worktreeId: null, disabled: true },
@@ -118,19 +119,33 @@ describe('VaultSessionRow details toggle', () => {
     expect(onToggleDetails).not.toHaveBeenCalled()
   })
 
-  it('still expands when the row itself is clicked', async () => {
+  it('opens the conversation when the row itself is clicked', async () => {
     const onToggleDetails = vi.fn()
-    const { container } = renderRow({ onToggleDetails })
+    const onResume = vi.fn()
+    const { container } = renderRow({ onToggleDetails, onResume })
     const user = userEvent.setup()
 
-    // The session title: inside the row body, so its click reaches the row's
-    // own handler — the path a user takes to expand a row. Queried first-match
-    // because Radix's asChild trigger repeats the subtree.
     const title = container.querySelector('[title="Drag to resume in a new tab"]')
     expect(title).not.toBeNull()
     await user.click(title as Element)
 
+    expect(onResume).toHaveBeenCalledTimes(1)
+    expect(onToggleDetails).not.toHaveBeenCalled()
+  })
+})
+
+describe('VaultSessionRow keyboard opening', () => {
+  it('opens once with Enter and keeps details on the details button', async () => {
+    const onResume = vi.fn()
+    const onToggleDetails = vi.fn()
+    renderRow({ onResume, onToggleDetails })
+    const user = userEvent.setup()
+    screen.getByRole('button', { name: 'A session: Resume in New Tab' }).focus()
+    await user.keyboard('{Enter}')
+    expect(onResume).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByTestId('ai-vault-session-toggle-details'))
     expect(onToggleDetails).toHaveBeenCalledTimes(1)
+    expect(onResume).toHaveBeenCalledTimes(1)
   })
 })
 

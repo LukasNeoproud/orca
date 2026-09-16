@@ -1,5 +1,6 @@
 import type { AgentStatusEntry, AgentType } from '../../../../shared/agent-status-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import type { AgentProviderSessionMetadata } from '../../../../shared/agent-session-resume'
 import { isNativeChatSupportedAgent } from './native-chat-availability'
 
 /** Inputs that resolve the active pane to the agent/session/pty triple the
@@ -17,6 +18,8 @@ export type NativeChatPaneResolutionInput = {
    *  captured `providerSession` (the agent's own session id) once the agent has
    *  reported it, plus the detected `agentType`. */
   agentStatusEntry?: AgentStatusEntry
+  /** Provider identity already proven by an explicit resume launch. */
+  knownProviderSession?: AgentProviderSessionMetadata
   /** Live hook or valid foreground identity, ahead of launch/title hints. */
   detectedAgent?: AgentType | null
   /** Runtime PTY id bound to this pane. ptyId is pane-manager runtime state, so
@@ -58,8 +61,12 @@ export function resolveNativeChatSession(
   }
   return {
     agent,
-    sessionId: input.agentStatusEntry?.providerSession?.id ?? null,
-    transcriptPath: input.agentStatusEntry?.providerSession?.transcriptPath ?? null,
+    sessionId:
+      input.agentStatusEntry?.providerSession?.id ?? input.knownProviderSession?.id ?? null,
+    transcriptPath:
+      input.agentStatusEntry?.providerSession?.transcriptPath ??
+      input.knownProviderSession?.transcriptPath ??
+      null,
     ptyId: input.ptyId,
     paneKey: input.paneKey
   }

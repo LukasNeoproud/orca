@@ -1,5 +1,3 @@
-import { canShowAdoptedTerminal } from './structured-agent-session-terminal-escape'
-import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHandoffChrome'
 import { useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { encodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
@@ -23,6 +21,7 @@ import { useNativeChatImageRuntimeContext } from './native-chat-image-runtime-co
 import { useStructuredNativeChatPaneCommands } from './use-structured-native-chat-pane-commands'
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import { NativeChatBackgroundTasksStatus } from './NativeChatBackgroundTasksStatus'
+import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHandoffChrome'
 
 type StoppingBackgroundTasks = {
   sessionId: string
@@ -186,11 +185,6 @@ export function NativeChatStructuredSession(
     >
       <StructuredAgentSessionHandoffChrome
         status={controller.handoff}
-        onShowTerminal={
-          canShowAdoptedTerminal(controller.handoff, props.composerPaneKey)
-            ? props.onSwitchToTerminal
-            : undefined
-        }
         isWorking={controller.isWorking}
         onRequest={(direction, mode, action) => {
           void controller.requestHandoff(direction, mode, action)

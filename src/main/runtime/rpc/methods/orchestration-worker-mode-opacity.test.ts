@@ -11,6 +11,7 @@
  *   missing rather than merely unadvertised.
  */
 
+import * as workerStartMode from './orchestration-worker-start-mode'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { OrcaRuntimeService } from '../../orca-runtime'
@@ -159,6 +160,15 @@ describe('a worker cannot tell which mode it is running in', () => {
     from: string
     coordinatorPaneKey: string
   }) {
+    // Exercise legacy structured workers independently of ordinary launch defaults.
+    if (args.settings === STRUCTURED_DEFAULT) {
+      vi.spyOn(workerStartMode, 'decideWorkerStartMode').mockReturnValueOnce({
+        mode: 'structured',
+        preferred: 'structured',
+        reason: 'user_default',
+        detail: 'Existing structured launch'
+      })
+    }
     vi.spyOn(runtime, 'getClientSettings').mockReturnValue(args.settings as never)
     const runId = db.createRun({
       objective: 'mode opacity',

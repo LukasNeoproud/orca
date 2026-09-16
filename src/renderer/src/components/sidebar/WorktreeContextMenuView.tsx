@@ -36,6 +36,7 @@ import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 import type { WorktreeContextMenuModel } from './use-worktree-context-menu-model'
 import { WorktreeStatusMenuItems } from './WorktreeStatusMenuItems'
 import { WorktreeContextMenuOverlays } from './WorktreeContextMenuOverlays'
+import { WorktreeStructuredChatMenuItems } from './WorktreeStructuredChatMenuItems'
 import {
   CLOSE_ALL_CONTEXT_MENUS_EVENT,
   WORKTREE_CONTEXT_MENU_SCOPE_ATTR,
@@ -170,6 +171,9 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               <Workflow className="size-3.5" />
               {translate('branchManagement.menu', 'Branch & worktree…')}
             </DropdownMenuItem>
+          ) : null}
+          {!isMultiContext ? (
+            <WorktreeStructuredChatMenuItems worktreeId={worktree.id} disabled={isDeleting} />
           ) : null}
           <WorktreeStatusMenuItems
             contextWorkspaceStatus={contextWorkspaceStatus}

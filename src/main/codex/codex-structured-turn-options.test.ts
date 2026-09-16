@@ -72,24 +72,28 @@ describe('Codex next-turn settings', () => {
   })
 
   it.each([
-    ['read-only', 'readOnly', 'on-request'],
-    ['workspace-write', 'workspaceWrite', 'on-request'],
-    ['full-access', 'dangerFullAccess', 'never']
-  ])('restores %s as sandbox and approval overrides', async (permissions, type, approvalPolicy) => {
-    const session = host({ permissions })
-    await startCodexTurn(session, { clientMessageId: 'message-1', body })
-    const params = vi.mocked(session.connection.request).mock.calls[0]![1]!
-    expect(params).toMatchObject({
-      approvalPolicy,
-      approvalsReviewer: 'user',
-      sandboxPolicy: { type }
-    })
-    expect(params).not.toHaveProperty('permissions')
-    if (permissions === 'workspace-write') {
-      expect(params.sandboxPolicy).toMatchObject({
-        writableRoots: ['/srv/folder'],
-        networkAccess: false
+    ['read-only', 'readOnly', 'on-request', 'user'],
+    ['workspace-write', 'workspaceWrite', 'on-request', 'user'],
+    ['auto-review', 'workspaceWrite', 'on-request', 'auto_review'],
+    ['full-access', 'dangerFullAccess', 'never', 'user']
+  ])(
+    'restores %s as sandbox and approval overrides',
+    async (permissions, type, approvalPolicy, approvalsReviewer) => {
+      const session = host({ permissions })
+      await startCodexTurn(session, { clientMessageId: 'message-1', body })
+      const params = vi.mocked(session.connection.request).mock.calls[0]![1]!
+      expect(params).toMatchObject({
+        approvalPolicy,
+        approvalsReviewer,
+        sandboxPolicy: { type }
       })
+      expect(params).not.toHaveProperty('permissions')
+      if (type === 'workspaceWrite') {
+        expect(params.sandboxPolicy).toMatchObject({
+          writableRoots: ['/srv/folder'],
+          networkAccess: false
+        })
+      }
     }
-  })
+  )
 })

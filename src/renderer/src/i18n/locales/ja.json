@@ -4588,6 +4588,24 @@
         "WorktreeCardAgents": {
           "1b0a156717": "Agent"
         },
+        "WorktreeConversationHistory": {
+          "structuredAgentUnsupported": "この Agent は Chat UI に対応していません。",
+          "structuredLocalOnly": "Chat UI はローカルセッションでのみ利用できます。",
+          "emptySessionUnsupported": "このセッションには開ける保存済み会話がありません。",
+          "alreadyOpen": "この会話はすでに開いています。",
+          "structuredWorkspaceUnsupported": "このワークスペースでは Chat UI を利用できません。",
+          "ownerUnverifiable": "Orca はこの会話がまだ実行中か確認できません。",
+          "workspaceUnavailable": "このワークスペースは利用できません。",
+          "openInTerminal": "ターミナルで開く",
+          "openInStructuredChat": "新しい {{value0}} チャット",
+          "moreActions": "その他の会話操作",
+          "disconnected": "会話履歴を読み込むには、このワークスペースのホストに接続してください。",
+          "loading": "会話を読み込み中…",
+          "retry": "再試行",
+          "empty": "このワークスペースに未表示の会話はありません。",
+          "showFullHistory": "履歴をすべて表示",
+          "label": "会話履歴"
+        },
         "WorktreeCardReviewDetailSection": {
           "reviewHeader": "{{value0}} #{{value1}}",
           "copyLink": "リンクをコピー"
@@ -5941,13 +5959,22 @@
           "nativeChat": {
             "title": "Chat UI",
             "description": "対応 Agent のターミナルセッション用デスクトップチャット画面をプレビューします。",
-            "copy": "対応 Agent のターミナルペインから切り替えられる Chat UI ビューを追加します。トランスクリプトの忠実度、ストリーミング、ターミナルとの同等性を調整しているため、試験運用中です。",
+            "copy": "対応する Codex と Claude のセッションで Chat UI を有効にします。新規タブとセッション履歴は個別に設定できます。",
             "toggleLabel": "Chat UI の切り替え",
             "defaultTitle": "デフォルトのビュー",
             "defaultCopy": "対応 Agent の新規ターミナルタブを開く方法を選択します。",
             "defaultViewLabel": "デフォルトの Chat UI ビュー",
             "defaultViewTerminal": "ターミナルチャット",
-            "defaultViewNative": "Chat UI"
+            "defaultViewNative": "Chat UI",
+            "structuredTitle": "Codex と Claude のチャットを有効にする",
+            "structuredCopy": "対応する Codex と Claude のセッションで専用チャットを使用します。",
+            "structuredScope": "ローカルセッションで利用できます。WSL、リモートホスト、未対応の Windows 環境では Chat UI を開けません。",
+            "structuredToggleLabel": "Codex と Claude のチャットを切り替え",
+            "historyDefaultTitle": "セッション履歴のデフォルト",
+            "historyDefaultCopy": "過去の Codex と Claude のセッションを開く方法を選択します。新規タブのデフォルトビューとは別の設定です。",
+            "historyDefaultLabel": "セッション履歴のデフォルトビュー",
+            "historyDefaultTerminal": "ターミナルチャット",
+            "historyDefaultStructured": "Chat UI"
           },
           "agentDashboard": {
             "title": "Agent ダッシュボード",
@@ -11365,7 +11392,9 @@
             "sessionHostMismatchUnsupported": "このセッションは別のホストに属しています。再開するには同じホスト上のワークスペースを開いてください。",
             "prepareSessionResumeFailed": "このセッションを再開用に準備できませんでした。",
             "sessionDeleted": "セッションを削除しました",
-            "sessionDeleteFailed": "セッションを削除できませんでした"
+            "sessionDeleteFailed": "セッションを削除できませんでした",
+            "sessionOwnershipUnverifiable": "Orca はこのセッションがまだ実行中か確認できないため、2 つ目の書き込みプロセスを開始しません。",
+            "structuredResumeLocalOnly": "Chat UI での再開はローカルセッションでのみ利用できます。"
           },
           "AiVaultPanelControls": {
             "scanningSessions": "セッションをスキャンしています",
@@ -11501,7 +11530,9 @@
             "delete": "削除",
             "deleteReasonNonLocalHost": "このデバイス上のセッションのみ削除できます。",
             "deleteReasonSyntheticPath": "このセッションは Orca では削除できません。",
-            "deleteReasonUnsupportedAgent": "{{value0}} のセッションは Orca では削除できません。"
+            "deleteReasonUnsupportedAgent": "{{value0}} のセッションは Orca では削除できません。",
+            "openInChat": "チャットで開く",
+            "openInAgentChat": "{{agent}} チャットで開く"
           },
           "AiVaultSessionDeleteDialog": {
             "title": "このセッションを削除しますか?",
@@ -14625,6 +14656,22 @@
       }
     },
     "native-chat": {
+      "codexStatus": {
+        "tokenUsage": "{{used}} / {{max}} トークン",
+        "trigger": "Codex のコンテキスト使用量",
+        "title": "コンテキスト",
+        "usedOfMax": "{{used}} / {{max}} トークン（{{percent}}）",
+        "stale": "コンテキスト使用量が古い可能性があります",
+        "afterPrefix": "コンパクションの増加上限: プレフィックス後 {{tokens}}（{{source}}）{{estimated}}",
+        "untilCompaction": "コンパクションまであと {{tokens}} トークン",
+        "compactsAt": "{{tokens}} でコンパクション（{{source}}）{{estimated}}",
+        "thresholdUnavailable": "コンパクションのしきい値は利用できません",
+        "weeklyUnknown": "週間 —",
+        "weeklyLeft": "週間残り {{percent}}%",
+        "configured": "設定済み",
+        "modelDefault": "モデルのデフォルト",
+        "estimated": "推定"
+      },
       "composer": {
         "imageUnsupported": "この Agent では画像の貼り付けはサポートされていません。",
         "send": "送信",
@@ -14657,6 +14704,8 @@
         "availableAfterSessionStarts": "セッション開始後に利用できます。",
         "optionUpdateFailed": "オプションを更新できませんでした",
         "optionValue": {
+          "custom": "カスタム",
+          "autoReview": "自動レビュー",
           "fast": "高速",
           "minimal": "最小",
           "low": "低",

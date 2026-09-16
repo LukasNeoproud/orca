@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import type * as ReactModule from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../../shared/native-chat-session-options'
@@ -142,6 +142,9 @@ vi.mock('@/components/ui/dropdown-menu', () => {
   }
 })
 
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+
+import { toast } from 'sonner'
 import { NativeChatSessionOptionPickers } from './NativeChatSessionOptionPickers'
 
 const surface = {
@@ -198,9 +201,207 @@ const fast: SessionOptionDescriptor = {
   settable: true
 }
 
+const permissions = {
+  id: 'permissions',
+  label: 'Permissions',
+  category: 'mode',
+  kind: {
+    type: 'select',
+    currentValue: 'workspace-write',
+    choices: [
+      { value: 'read-only', label: 'Read only' },
+      { value: 'workspace-write', label: 'Workspace' },
+      { value: 'auto-review', label: 'Auto review' },
+      { value: 'full-access', label: 'Full access' }
+    ]
+  },
+  valueSource: 'applied',
+  transport: 'catalog',
+  settable: true
+} satisfies SessionOptionDescriptor
+
 afterEach(() => cleanup())
 
 describe('NativeChatSessionOptionPickers', () => {
+  it('shows Auto review as a selected permission and sets it as a named choice', async () => {
+    const setOption = vi.fn(async () => ({ snapshot: [] }))
+    const { rerender } = render(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, setOption }}
+        snapshot={[
+          model(),
+          { ...permissions, kind: { ...permissions.kind, currentValue: 'auto-review' } }
+        ]}
+        isWorking={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Permissions Auto review' })).not.toBeNull()
+    expect(screen.getByRole('radio', { name: 'Auto review' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    expect(screen.queryByRole('radio', { name: /Custom/ })).toBeNull()
+
+    rerender(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, setOption }}
+        snapshot={[model(), permissions]}
+        isWorking={false}
+      />
+    )
+    await act(async () => screen.getByRole('radio', { name: 'Auto review' }).click())
+    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'auto-review')
+  })
+
+  it('separates permissions from effort and fast, including requested picker routing', () => {
+    const serviceTier: SessionOptionDescriptor = {
+      ...fast,
+      id: 'serviceTier',
+      kind: {
+        type: 'select',
+        currentValue: 'priority',
+        choices: [
+          { value: 'priority', label: 'Fast' },
+          { value: 'default', label: 'Off' }
+        ]
+      }
+    }
+    const snapshot = [model(), effort, serviceTier, permissions]
+    const { rerender } = render(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={snapshot}
+        isWorking={false}
+        pickerRequest={{ id: 'permissions', sequence: 1 }}
+      />
+    )
+    const menus = screen.getAllByTestId('session-option-menu')
+    expect(menus).toHaveLength(3)
+    expect(within(menus[1]).getByText('Effort')).not.toBeNull()
+    expect(within(menus[1]).getByText('Fast mode')).not.toBeNull()
+    expect(within(menus[1]).queryByText('Permissions')).toBeNull()
+    expect(
+      within(menus[2]).getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')
+    ).toBe('true')
+    expect(within(menus[2]).queryByText('Effort')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Session options High · Fast' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Permissions Workspace' })).not.toBeNull()
+    expect(
+      screen.getAllByTestId('dropdown-root').map((root) => root.getAttribute('data-open'))
+    ).toEqual(['false', 'false', 'true'])
+    rerender(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={snapshot}
+        isWorking={false}
+        pickerRequest={{ id: 'serviceTier', sequence: 2 }}
+      />
+    )
+    expect(
+      screen.getAllByTestId('dropdown-root').map((root) => root.getAttribute('data-open'))
+    ).toEqual(['false', 'true', 'false'])
+  })
+
+  it('keeps unknown permissions separate and respects unavailable and working states', () => {
+    const unknown: SessionOptionDescriptor = {
+      ...permissions,
+      valueSource: 'unknown',
+      settable: false,
+      disabledReason: 'available-after-session-start',
+      kind: { ...permissions.kind, currentValue: undefined }
+    }
+    const { rerender } = render(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={[model(), unknown]}
+        isWorking={false}
+      />
+    )
+    expect(screen.getAllByTestId('session-option-menu')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Permissions' })).not.toBeNull()
+    expect(screen.getAllByText('Available after the session starts.').length).toBeGreaterThan(0)
+    expect(screen.getByRole('radio', { name: 'Read only' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('radio', { name: 'Read only' }).getAttribute('aria-checked')).toBe(
+      'false'
+    )
+    rerender(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={[model(), effort, permissions]}
+        isWorking
+      />
+    )
+    for (const root of screen.getAllByTestId('dropdown-root')) {
+      expect(root.querySelector('[data-disabled="true"]')).not.toBeNull()
+    }
+  })
+
+  it('shows a reported custom permission policy without making it selectable', async () => {
+    const setOption = vi.fn(async () => ({ snapshot: [] }))
+    const custom: SessionOptionDescriptor = {
+      ...permissions,
+      kind: { ...permissions.kind, currentValue: undefined },
+      valueSource: 'reported',
+      currentValueLabel: 'Custom',
+      currentValueDescription: 'Workspace sandbox · Auto review'
+    }
+    render(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, setOption }}
+        snapshot={[model(), custom]}
+        isWorking={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Permissions Custom' }).textContent).toContain(
+      'Custom'
+    )
+    const current = screen.getByRole('radio', {
+      name: 'Custom Workspace sandbox · Auto review'
+    })
+    expect(current.getAttribute('aria-checked')).toBe('true')
+    expect(current.hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')).toBe(
+      'false'
+    )
+    current.click()
+    expect(setOption).not.toHaveBeenCalled()
+    await act(async () => screen.getByRole('radio', { name: 'Workspace' }).click())
+    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'workspace-write')
+  })
+
+  it('updates permissions through the surface, blocks all pickers while pending and reports failure', async () => {
+    let rejectUpdate!: (error: Error) => void
+    const setOption = vi.fn(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectUpdate = reject
+        })
+    )
+    render(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, setOption }}
+        snapshot={[model(), effort, fast, permissions]}
+        isWorking={false}
+      />
+    )
+    await act(async () => screen.getByRole('radio', { name: 'Auto review' }).click())
+    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'auto-review')
+    for (const root of screen.getAllByTestId('dropdown-root')) {
+      expect(root.querySelector('[data-disabled="true"]')).not.toBeNull()
+    }
+    expect(screen.getByRole('radio', { name: 'Low' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('radio', { name: 'Full access' }).hasAttribute('disabled')).toBe(true)
+    await act(async () => rejectUpdate(new Error('Permissions refused')))
+    expect(toast.error).toHaveBeenCalledWith('Could not update option', {
+      description: 'Permissions refused'
+    })
+    expect(screen.getByRole('button', { name: 'Permissions Workspace' })).not.toBeNull()
+    for (const root of screen.getAllByTestId('dropdown-root')) {
+      expect(root.querySelector('[data-disabled="true"]')).toBeNull()
+    }
+  })
+
   it('opens the native picker requested by a structured slash command', async () => {
     const { rerender } = render(
       <NativeChatSessionOptionPickers

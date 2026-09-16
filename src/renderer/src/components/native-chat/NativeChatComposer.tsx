@@ -60,6 +60,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       paneKey,
       targetPtyId,
       agent,
+      contextUsage,
+      codexWeeklyUsage,
       canSend = true,
       isWorking = false,
       onStop,
@@ -366,6 +368,11 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
 
     return (
       <NativeChatComposerField
+        codexStatus={
+          agent === 'codex'
+            ? { contextUsage, codexWeeklyUsage, transport: structuredTransport }
+            : undefined
+        }
         composerScopeKey={paneKey}
         textareaRef={textareaRef}
         draft={draft}

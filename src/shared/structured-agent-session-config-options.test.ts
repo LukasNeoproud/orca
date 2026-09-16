@@ -91,6 +91,33 @@ describe('structured session-wide options', () => {
     ).toBe(false)
   })
 
+  it('retains a reported custom current state outside the settable choices', () => {
+    const state = applyStructuredAgentSessionOptions(
+      createStructuredAgentSessionOptionState('codex'),
+      CODEX_SESSION_OPTION_CATALOG,
+      {
+        ...result,
+        options: result.options!.map((entry) =>
+          entry.id === 'permissions'
+            ? {
+                ...entry,
+                currentValueLabel: 'Custom',
+                currentValueDescription: 'Workspace sandbox · Auto review'
+              }
+            : entry
+        )
+      }
+    )
+    expect(option(state, 'permissions')).toMatchObject({
+      valueSource: 'reported',
+      currentValueLabel: 'Custom',
+      currentValueDescription: 'Workspace sandbox · Auto review'
+    })
+    expect(option(state, 'permissions')?.kind).not.toHaveProperty('currentValue')
+    expect(canSetStructuredAgentSessionOption(state, 'permissions', 'workspace-write')).toBe(true)
+    expect(canSetStructuredAgentSessionOption(state, 'permissions', 'Custom')).toBe(false)
+  })
+
   it('retains global picks across model mutations and refreshes from provider reads', () => {
     let state = commitStructuredAgentSessionOptionValues(initial(), { permissions: 'read-only' })
     state = commitStructuredAgentSessionOptionValues(state, { model: 'second' })

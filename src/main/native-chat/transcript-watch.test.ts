@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { NativeChatMessage, NativeChatTurnLifecycle } from '../../shared/native-chat-types'
+import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 import {
   getActiveNativeChatWatcherCount,
   readNativeChatTranscriptTail,
@@ -69,6 +70,10 @@ function codexLifecycleLine(
   })}\n`
 }
 
+function codexTokenLine(payload: Record<string, unknown>): string {
+  return `${JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', ...payload } })}\n`
+}
+
 async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
   const start = Date.now()
   while (!predicate()) {
@@ -121,6 +126,55 @@ describe('subscribeNativeChatTranscript', () => {
     await waitFor(() => snapshots.length === 1)
     sub.unsubscribe()
     expect(snapshots).toEqual([[]])
+  })
+
+  it('publishes Codex status-only records and retains independently omitted fields', async () => {
+    const filePath = await tempFile(
+      codexTokenLine({
+        info: {
+          last_token_usage: { total_tokens: 20 },
+          model_context_window: 100
+        }
+      })
+    )
+    const snapshots: NativeChatUsageStatus[] = []
+    const appends: NativeChatUsageStatus[] = []
+    const sub = await subscribeNativeChatTranscript({
+      agent: 'codex',
+      sessionId: 'ignored',
+      filePath,
+      onInitialSnapshot: (_messages, _hasMore, _beforeOffset, _error, _lifecycle, status) => {
+        if (status) {
+          snapshots.push(status)
+        }
+      },
+      onAppend: (_messages, _lifecycle, status) => {
+        if (status) {
+          appends.push(status)
+        }
+      },
+      debounceMs: 5
+    })
+
+    await waitFor(() => snapshots.length === 1)
+    expect(snapshots[0]).toMatchObject({
+      contextUsage: { usedTokens: 20, maxTokens: 100 }
+    })
+
+    await appendFile(
+      filePath,
+      codexTokenLine({
+        info: null,
+        rate_limits: { secondary: { used_percent: 45, window_minutes: 10_080 } }
+      })
+    )
+    await waitFor(() => appends.some((status) => status.codexWeeklyUsage?.usedPercent === 45))
+    sub.unsubscribe()
+
+    expect(appends.at(-1)).toMatchObject({
+      contextUsage: { usedTokens: 20, maxTokens: 100 },
+      codexWeeklyUsage: { usedPercent: 45 }
+    })
   })
 
   it('replays and appends provider-authored turn lifecycle markers', async () => {

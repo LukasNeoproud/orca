@@ -11,6 +11,7 @@
 // republishes them.
 
 import { agentProviderSessionsEqual } from '../../../shared/agent-session-resume'
+import { codexContextUsageEqual, codexWeeklyUsageEqual } from '../../../shared/codex-context-usage'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import { normalizeOptionalField } from '../../../shared/agent-status-field-normalization'
 import { AGENT_MODEL_MAX_LENGTH } from '../../../shared/agent-status-types'
@@ -36,6 +37,8 @@ export type StructuredAgentSessionStatusFeedDeps = {
   sessions: ReadonlyMap<string, StatusFeedSession>
   getRecord: (sessionId: string) => AgentSessionRecord | null
   now: () => number
+  getContextUsage?: (sessionId: string) => AgentSessionStatusSummary['contextUsage']
+  getCodexWeeklyUsage?: (sessionId: string) => AgentSessionStatusSummary['codexWeeklyUsage']
   /** Every projection change, whether or not anyone is subscribed. `replay` marks a re-projection
    *  of state the host already knew (restore, an arriving subscriber) rather than a journal edge. */
   onStatusChanged?: (summary: AgentSessionStatusSummary, options: { replay: boolean }) => void
@@ -54,6 +57,8 @@ function summariesEqual(a: AgentSessionStatusSummary, b: AgentSessionStatusSumma
     a.toolName === b.toolName &&
     a.toolInput === b.toolInput &&
     a.lastAssistantMessage === b.lastAssistantMessage &&
+    codexContextUsageEqual(a.contextUsage, b.contextUsage) &&
+    codexWeeklyUsageEqual(a.codexWeeklyUsage, b.codexWeeklyUsage) &&
     agentProviderSessionsEqual(undefined, a.providerSession, b.providerSession)
   )
 }
@@ -122,6 +127,8 @@ export class StructuredAgentSessionStatusFeed {
     // The journal has no model: the record's acknowledged options are where an owner
     // handoff or a mid-session switch lands, so the row follows whichever is in force.
     const model = normalizeOptionalField(record?.options?.model, AGENT_MODEL_MAX_LENGTH)
+    const contextUsage = this.deps.getContextUsage?.(sessionId)
+    const codexWeeklyUsage = this.deps.getCodexWeeklyUsage?.(sessionId)
     return {
       sessionId,
       workspaceId: session.params.location.workspaceId,
@@ -131,6 +138,8 @@ export class StructuredAgentSessionStatusFeed {
         ? { rewindBlockedReason: 'outcome-unknown' as const }
         : {}),
       ...(model ? { model } : {}),
+      ...(contextUsage ? { contextUsage } : {}),
+      ...(codexWeeklyUsage ? { codexWeeklyUsage } : {}),
       ...(providerSession ? { providerSession } : {}),
       updatedAt: journal.lastActivityAt() || this.deps.now()
     }

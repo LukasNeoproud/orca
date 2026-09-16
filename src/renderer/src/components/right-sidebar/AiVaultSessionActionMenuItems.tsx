@@ -18,6 +18,8 @@ export function SessionActionMenuItems({
   menuKind = 'dropdown',
   resumeDisabled,
   resumeLabel,
+  chatOpenLabel,
+  chatOpenBlockedReason,
   onResume,
   onContinueInNewSession,
   onResumeInNewChat,
@@ -36,6 +38,8 @@ export function SessionActionMenuItems({
   menuKind?: 'dropdown' | 'context'
   resumeDisabled: boolean
   resumeLabel: string
+  chatOpenLabel?: string
+  chatOpenBlockedReason?: string
   onResume: () => void
   onContinueInNewSession?: () => void
   onResumeInNewChat?: () => void
@@ -57,6 +61,26 @@ export function SessionActionMenuItems({
   const Item = menuKind === 'context' ? ContextMenuItem : DropdownMenuItem
   const Separator = menuKind === 'context' ? ContextMenuSeparator : DropdownMenuSeparator
   const hasLocalPathActions = Boolean(onOpenLog || onRevealLog || onOpenCwd)
+  const chatLabel =
+    chatOpenLabel ??
+    translate('auto.components.right.sidebar.AiVaultSessionRow.openInChat', 'Open in Chat')
+  const chatReason = onResumeInNewChat
+    ? undefined
+    : (chatOpenBlockedReason ??
+      translate(
+        'auto.components.sidebar.WorktreeConversationHistory.structuredWorkspaceUnsupported',
+        'Structured chat is unavailable in this workspace.'
+      ))
+  const chatItem = (
+    <Item
+      disabled={!onResumeInNewChat}
+      onSelect={onResumeInNewChat}
+      aria-label={chatReason ? `${chatLabel}. ${chatReason}` : chatLabel}
+    >
+      <MessagesSquare className="size-3.5" />
+      {chatLabel}
+    </Item>
+  )
   const deleteLabel = translate('auto.components.right.sidebar.AiVaultSessionRow.delete', 'Delete')
   const deleteItem = (
     <Item
@@ -96,15 +120,18 @@ export function SessionActionMenuItems({
         <Play className="size-3.5" />
         {resumeLabel}
       </Item>
-      {onResumeInNewChat ? (
-        <Item onSelect={onResumeInNewChat}>
-          <MessagesSquare className="size-3.5" />
-          {translate(
-            'auto.components.right.sidebar.AiVaultSessionRow.resumeInNewChat',
-            'Resume in New Chat'
-          )}
-        </Item>
-      ) : null}
+      {chatReason ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>{chatItem}</div>
+          </TooltipTrigger>
+          <TooltipContent side={menuKind === 'context' ? 'right' : 'left'} className="max-w-72">
+            {chatReason}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        chatItem
+      )}
       {onContinueInNewSession ? (
         <Item onSelect={onContinueInNewSession}>
           <MessageSquarePlus className="size-3.5" />

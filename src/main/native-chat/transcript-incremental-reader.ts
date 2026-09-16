@@ -41,7 +41,8 @@ export async function readIncrementalTranscriptMessages(
   onBatch?: (messages: NativeChatMessage[]) => void,
   decodeLifecycle?: (line: string, fallbackId: string) => NativeChatTurnLifecycle | null,
   onLifecycle?: (lifecycle: NativeChatTurnLifecycle) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onLine?: (line: string) => void
 ): Promise<NativeChatMessage[]> {
   const end = (await wslGatedStat(filePath, 'exact', signal)).size
   if (end <= state.offset) {
@@ -111,6 +112,7 @@ export async function readIncrementalTranscriptMessages(
       return
     }
     const fallbackId = transcriptFallbackId(filePath, state.pendingStart)
+    onLine?.(line)
     const lifecycle = decodeLifecycle?.(line, fallbackId)
     if (lifecycle) {
       onLifecycle?.(lifecycle)

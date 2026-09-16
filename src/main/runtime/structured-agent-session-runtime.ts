@@ -239,7 +239,8 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
             deps.onError?.({ scope: `structured-agent-session-exit:${event.sessionId}`, error })
           }
         })
-      }
+      },
+      onStatusMetadataChanged: (sessionId) => host?.publishStatus(sessionId)
     })
     const claude = createStructuredClaudeRuntimeAdapter({
       store,

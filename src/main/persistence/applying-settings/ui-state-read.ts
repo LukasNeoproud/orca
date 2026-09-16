@@ -67,6 +67,9 @@ export function getPersistedUI(
     manualRepoOrder: normalizeManualRepoOrder(state.ui?.manualRepoOrder),
     browserDefaultZoomLevel: normalizeBrowserPageZoomLevel(state.ui?.browserDefaultZoomLevel),
     showDotfilesByWorktree: normalizeShowDotfilesByWorktree(state.ui?.showDotfilesByWorktree),
+    conversationHistoryExpandedByWorkspace: normalizeShowDotfilesByWorktree(
+      state.ui?.conversationHistoryExpandedByWorkspace
+    ),
     featureTipsSeenIds: normalizeFeatureTipIds(state.ui?.featureTipsSeenIds),
     contextualToursSeenIds: normalizeContextualTourIds(state.ui?.contextualToursSeenIds),
     featureInteractions: normalizeFeatureInteractions(state.ui?.featureInteractions),

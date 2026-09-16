@@ -38,7 +38,7 @@ vi.mock('../ui/select', async () => {
       const contextValue = React.useMemo(() => ({ onValueChange }), [onValueChange])
       return (
         <SelectContext.Provider value={contextValue}>
-          <div data-slot="native-chat-default-view-select" data-value={value}>
+          <div data-testid="native-chat-default-view-select" data-value={value}>
             {children}
           </div>
         </SelectContext.Provider>
@@ -229,8 +229,9 @@ describe('ExperimentalPane', () => {
       <ExperimentalPane settings={disabledSettings} updateSettings={vi.fn()} />
     )
     expect(disabledMarkup).toContain('Chat UI')
-    expect(disabledMarkup).not.toContain('Use updated structured native chat')
+    expect(disabledMarkup).not.toContain('Enable Codex and Claude chats')
     expect(disabledMarkup).not.toContain('Default view')
+    expect(disabledMarkup).toContain('Session history default')
 
     const terminalDefault = {
       ...getDefaultSettings('/tmp'),
@@ -246,9 +247,9 @@ describe('ExperimentalPane', () => {
     // The default-view control is a sibling of the Chat UI toggle, never replaced by the opt-in.
     expect(terminalRender.container.textContent).toContain('Default view')
     expect(
-      terminalRender.container.querySelector('[data-slot="native-chat-default-view-select"]')
+      terminalRender.container.querySelector('[data-testid="native-chat-default-view-select"]')
     ).not.toBeNull()
-    expect(terminalRender.container.textContent).toContain('Use updated structured native chat')
+    expect(terminalRender.container.textContent).toContain('Enable Codex and Claude chats')
     terminalRender.root.unmount()
 
     const { root, container } = await renderExperimentalPane({
@@ -256,13 +257,13 @@ describe('ExperimentalPane', () => {
       settings: { ...terminalDefault, openAgentTabsInChatByDefault: true }
     })
 
-    expect(container.textContent).toContain('Use updated structured native chat')
+    expect(container.textContent).toContain('Enable Codex and Claude chats')
     // The one opt-in gates both providers, so its copy must not name only Codex.
     expect(container.textContent).toContain(
-      'Use the structured chat runtime for supported Codex and Claude sessions.'
+      'Use dedicated chats for supported Codex and Claude sessions.'
     )
     expect(container.textContent).toContain(
-      'Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.'
+      'Available for local sessions. WSL, remote hosts, and unsupported Windows environments cannot open Chat UI.'
     )
     expect(container.textContent).toContain('Default view')
     root.unmount()
@@ -278,7 +279,7 @@ describe('ExperimentalPane', () => {
     }
     const { root, container } = await renderExperimentalPane({ updateSettings, settings })
 
-    expect(container.textContent).toContain('Use updated structured native chat')
+    expect(container.textContent).toContain('Enable Codex and Claude chats')
 
     const terminalChatOption = Array.from(
       container.querySelectorAll<HTMLButtonElement>('[data-slot="select-item"]')
@@ -301,7 +302,7 @@ describe('ExperimentalPane', () => {
       settings: { ...settings, openAgentTabsInChatByDefault: false }
     })
 
-    expect(terminalDefault.container.textContent).toContain('Use updated structured native chat')
+    expect(terminalDefault.container.textContent).toContain('Enable Codex and Claude chats')
     expect(
       terminalDefault.container
         .querySelector('[aria-label="Toggle updated structured native chat"]')
@@ -326,6 +327,7 @@ describe('ExperimentalPane', () => {
     )
     expect(disabledMarkup).toContain('Chat UI')
     expect(disabledMarkup).not.toContain('Default view')
+    expect(disabledMarkup).toContain('Session history default')
 
     const settings = {
       ...getDefaultSettings('/tmp'),
@@ -339,7 +341,7 @@ describe('ExperimentalPane', () => {
     expect(container.textContent).toContain('Chat UI')
     expect(
       container
-        .querySelector('[data-slot="native-chat-default-view-select"]')
+        .querySelector('[data-testid="native-chat-default-view-select"]')
         ?.getAttribute('data-value')
     ).toBe('terminal-chat')
 
@@ -369,7 +371,7 @@ describe('ExperimentalPane', () => {
 
     expect(
       secondRender.container
-        .querySelector('[data-slot="native-chat-default-view-select"]')
+        .querySelector('[data-testid="native-chat-default-view-select"]')
         ?.getAttribute('data-value')
     ).toBe('native-chat')
 
@@ -389,7 +391,38 @@ describe('ExperimentalPane', () => {
     secondRender.root.unmount()
   })
 
-  // The two controls are nested, but each still writes only its own key.
+  it('keeps the session-history default independent from the new-tab default', async () => {
+    const updateSettings = vi.fn()
+    const settings = {
+      ...getDefaultSettings('/tmp'),
+      experimentalNativeChat: false,
+      openAgentTabsInChatByDefault: true,
+      agentSessionHistoryOpenMode: undefined
+    }
+    const { root, container } = await renderExperimentalPane({ updateSettings, settings })
+    const historySelect = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-history-default-view-select"]'
+    )
+
+    expect(historySelect?.getAttribute('data-value')).toBe('terminal')
+
+    const structuredOption = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[data-slot="select-item"]')
+    ).find((button) => button.getAttribute('data-value') === 'structured')
+    if (!structuredOption) {
+      throw new Error('Chat UI session-history option was not rendered')
+    }
+
+    await act(async () => {
+      structuredOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(updateSettings).toHaveBeenCalledWith({ agentSessionHistoryOpenMode: 'structured' })
+    expect(updateSettings).toHaveBeenCalledTimes(1)
+    root.unmount()
+  })
+
+  // Each control writes only its own preference.
   it.each([false, true])(
     'changing structured chat leaves the default view (%s) unchanged',
     async (defaultToChat) => {

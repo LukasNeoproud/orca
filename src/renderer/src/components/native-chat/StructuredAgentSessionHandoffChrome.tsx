@@ -63,6 +63,11 @@ export function StructuredAgentSessionHandoffChrome({
   }
   const owner = status?.owner ?? 'native'
   const phase = status?.phase ?? 'idle'
+  // Explicit structured chats have no terminal surface. Keep the chrome only
+  // for adopted legacy sessions that are returning or need recovery.
+  if (owner === 'native' && phase === 'idle') {
+    return null
+  }
   const switching = phase === 'switching' || phase === 'waiting-for-exit'
   return (
     <>

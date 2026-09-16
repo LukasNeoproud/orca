@@ -154,8 +154,13 @@ export function applyStructuredAgentSessionOptions(
         choices: option.choices,
         ...(option.currentValue === undefined ? {} : { currentValue: option.currentValue })
       },
-      valueSource:
-        option.currentValue === undefined
+      ...(option.currentValueLabel ? { currentValueLabel: option.currentValueLabel } : {}),
+      ...(option.currentValueDescription
+        ? { currentValueDescription: option.currentValueDescription }
+        : {}),
+      valueSource: option.currentValueLabel
+        ? 'reported'
+        : option.currentValue === undefined
           ? 'unknown'
           : result.current.confirmed?.includes(option.id)
             ? 'reported'

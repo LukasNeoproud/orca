@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { unhandledProviderFrameJournalItem } from '../native-chat/agent-session-wire/unhandled-provider-frame'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import type {
@@ -88,15 +89,35 @@ export class CodexJournalGenericFrames {
       }
     }
     this.fallbackSequence += 1
+    const startup =
+      kind === 'notification:mcpServer/startupStatus/updated' &&
+      isError &&
+      typeof payload === 'object' &&
+      payload !== null &&
+      !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : null
+    const server =
+      typeof startup?.name === 'string'
+        ? startup.name
+        : typeof startup?.server === 'string'
+          ? startup.server
+          : null
+    // Resuming restarts MCP; the same server failure belongs to the same timeline row.
+    const clientMessageId = server
+      ? `provider-frame:codex:mcp-startup:${createHash('sha256')
+          .update(
+            JSON.stringify([
+              server,
+              startup?.error ?? translated.body.text,
+              startup?.failureReason ?? startup?.failure_reason ?? null
+            ])
+          )
+          .digest('hex')}`
+      : `provider-frame:codex:${this.fallbackSequence}`
     const admission = this.deps.sink.tryAppendItem
-      ? this.deps.sink.tryAppendItem(
-          { provider: 'orca', clientMessageId: `provider-frame:codex:${this.fallbackSequence}` },
-          translated.body
-        )
-      : (this.deps.sink.appendItem(
-          { provider: 'orca', clientMessageId: `provider-frame:codex:${this.fallbackSequence}` },
-          translated.body
-        ),
+      ? this.deps.sink.tryAppendItem({ provider: 'orca', clientMessageId }, translated.body)
+      : (this.deps.sink.appendItem({ provider: 'orca', clientMessageId }, translated.body),
         CODEX_JOURNAL_ADMITTED)
     if (!admission.accepted) {
       this.fallbackSequence -= 1

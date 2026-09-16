@@ -55,6 +55,44 @@ function notifier(revealTerminalSession: ReturnType<typeof vi.fn>) {
 }
 
 describe('structured TUI launch tab binding', () => {
+  it('re-proves the native Codex child after a handoff instead of its npm wrapper', async () => {
+    const runtime = new OrcaRuntimeService()
+    const identity = {
+      hostId: 'local',
+      pid: 4243,
+      processStartTimeMs: 10,
+      spawnToken: 'spawn-token'
+    }
+    runtime.setPtyController({
+      listProcesses: vi.fn(async () => [
+        { id: 'pty', incarnationId: 'incarnation', rootProcessId: 4241 }
+      ]),
+      write: () => true,
+      kill: () => true,
+      getForegroundProcess: async () => null
+    } as never)
+    readStructuredTuiProcessIdentity.mockImplementationOnce(async (input) => ({
+      ...identity,
+      pid: input.unwrapCodexLauncher ? 4243 : 4242
+    }))
+    const internal = runtime as unknown as {
+      proveRecoveredStructuredTuiPtyProcess(
+        pty: unknown,
+        process: typeof identity
+      ): Promise<boolean>
+    }
+    await expect(
+      internal.proveRecoveredStructuredTuiPtyProcess(
+        {
+          ptyId: 'pty',
+          incarnationId: 'incarnation',
+          connectionId: null
+        },
+        identity
+      )
+    ).resolves.toBe(true)
+  })
+
   it('recovers a live TUI from durable owner inventory in a fresh runtime', async () => {
     const namespace = {
       machine: 'native:test',
@@ -592,6 +630,9 @@ describe('structured TUI launch tab binding', () => {
       expect.objectContaining({ condition: 'tui-idle' })
     )
     expect(waitForAdoptedStructuredTuiProof).toHaveBeenCalledOnce()
+    expect(readStructuredTuiProcessIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({ rootPid: 4242, agent: 'codex', unwrapCodexLauncher: true })
+    )
     expect(onSpawned).toHaveBeenCalledWith(
       expect.objectContaining({
         terminal: expect.objectContaining({ ptyId: 'pty-structured' }),

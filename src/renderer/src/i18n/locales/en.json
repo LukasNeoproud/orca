@@ -5506,6 +5506,24 @@
         "WorktreeCardAgents": {
           "1b0a156717": "Agents"
         },
+        "WorktreeConversationHistory": {
+          "structuredAgentUnsupported": "This agent does not support Chat UI.",
+          "structuredLocalOnly": "Chat UI is available for local sessions only.",
+          "emptySessionUnsupported": "This session has no saved conversation to open.",
+          "alreadyOpen": "This conversation is already open.",
+          "structuredWorkspaceUnsupported": "Chat UI is unavailable in this workspace.",
+          "ownerUnverifiable": "Orca cannot verify whether this conversation is still running.",
+          "workspaceUnavailable": "This workspace is unavailable.",
+          "openInTerminal": "Open in Terminal",
+          "openInStructuredChat": "New {{value0}} Chat",
+          "moreActions": "More conversation actions",
+          "disconnected": "Connect this workspace host to load conversation history.",
+          "loading": "Loading conversations…",
+          "retry": "Retry",
+          "empty": "No unopened conversations in this workspace.",
+          "showFullHistory": "Show full history",
+          "label": "Conversation History"
+        },
         "WorktreeCardReviewDetailSection": {
           "copyLink": "Copy link",
           "reviewHeader": "{{value0}} #{{value1}}"
@@ -7020,17 +7038,22 @@
           "nativeChat": {
             "title": "Chat UI",
             "description": "Preview the desktop chat surface for supported agent terminal sessions.",
-            "copy": "Enables the experimental Chat UI for newly created supported local sessions. Existing terminal sessions keep the terminal chat path while we tune transcript fidelity, streaming, and parity.",
+            "copy": "Enable the Chat UI for supported Codex and Claude sessions. Configure new tabs and session history separately.",
             "toggleLabel": "Toggle Chat UI",
             "defaultTitle": "Default view",
             "defaultCopy": "Choose how new supported agent terminal tabs open.",
             "defaultViewLabel": "Default Chat UI view",
             "defaultViewTerminal": "Terminal chat",
             "defaultViewNative": "Chat UI",
-            "structuredTitle": "Use updated structured native chat",
-            "structuredCopy": "Use the structured chat runtime for supported Codex and Claude sessions. This setting is independent of the default view for new tabs.",
-            "structuredScope": "Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.",
-            "structuredToggleLabel": "Toggle updated structured native chat"
+            "structuredTitle": "Enable Codex and Claude chats",
+            "structuredCopy": "Use dedicated chats for supported Codex and Claude sessions.",
+            "structuredScope": "Available for local sessions. WSL, remote hosts, and unsupported Windows environments cannot open Chat UI.",
+            "structuredToggleLabel": "Toggle updated structured native chat",
+            "historyDefaultTitle": "Session history default",
+            "historyDefaultCopy": "Choose how past Codex and Claude sessions open. This is independent of the default view for new tabs.",
+            "historyDefaultLabel": "Default session history view",
+            "historyDefaultTerminal": "Terminal chat",
+            "historyDefaultStructured": "Chat UI"
           },
           "agentDashboard": {
             "title": "Agent Dashboard",
@@ -13043,7 +13066,9 @@
             "sessionDeleteFailed": "Couldn't delete the session",
             "resumeInChatConflict": "Another chat is already holding this conversation.",
             "resumeInChatTranscriptMissing": "This conversation's history could not be loaded, so it cannot be resumed in chat.",
-            "resumeInChatFailed": "Could not resume this session in a new chat."
+            "resumeInChatFailed": "Could not resume this session in a new chat.",
+            "sessionOwnershipUnverifiable": "Orca cannot verify whether this session is still running, so it will not start a second writer.",
+            "structuredResumeLocalOnly": "Chat UI resume is available for local sessions only."
           },
           "AiVaultPanelControls": {
             "scanningSessions": "Scanning sessions",
@@ -13180,7 +13205,9 @@
             "deleteReasonNonLocalHost": "Only sessions on this device can be deleted.",
             "deleteReasonSyntheticPath": "This session can't be deleted from Orca.",
             "deleteReasonUnsupportedAgent": "{{value0}} sessions can't be deleted from Orca.",
-            "resumeInNewChat": "Resume in New Chat"
+            "resumeInNewChat": "Resume in New Chat",
+            "openInChat": "Open in Chat",
+            "openInAgentChat": "Open in {{agent}} Chat"
           },
           "AiVaultSessionDeleteDialog": {
             "title": "Delete this session?",
@@ -16999,6 +17026,22 @@
         "details": "Details",
         "plan": "Plan"
       },
+      "codexStatus": {
+        "tokenUsage": "{{used}} / {{max}} tokens",
+        "trigger": "Codex context usage",
+        "title": "Context",
+        "usedOfMax": "{{used}} of {{max}} tokens ({{percent}})",
+        "stale": "Context usage may be stale",
+        "afterPrefix": "Compaction growth limit: {{tokens}} after prefix ({{source}}){{estimated}}",
+        "untilCompaction": "{{tokens}} tokens until compaction",
+        "compactsAt": "Compacts at {{tokens}} ({{source}}){{estimated}}",
+        "thresholdUnavailable": "Compaction threshold unavailable",
+        "weeklyUnknown": "weekly —",
+        "weeklyLeft": "weekly {{percent}}% left",
+        "configured": "configured",
+        "modelDefault": "model default",
+        "estimated": "estimated"
+      },
       "composer": {
         "imageUnsupported": "Image paste is not supported for this agent.",
         "send": "Send",
@@ -17048,9 +17091,11 @@
         "availableAfterSessionStarts": "Available after the session starts.",
         "optionUpdateFailed": "Could not update option",
         "optionValue": {
+          "custom": "Custom",
           "fast": "Fast",
           "readOnly": "Read only",
           "workspace": "Workspace",
+          "autoReview": "Auto review",
           "fullAccess": "Full access",
           "minimal": "Minimal",
           "low": "Low",
@@ -17227,7 +17272,16 @@
       "conversationCommand": {
         "pendingWork": "Wait for pending work and messages to finish before using this command.",
         "unconfirmed": "Conversation operation was not confirmed."
-      }
+      },
+      "adoption": {
+        "changed": "The terminal changed before structured chat could open. Try again.",
+        "restart": "Restart Orca to enable structured chat for existing terminals.",
+        "retry": "Retry",
+        "showTerminal": "Show terminal",
+        "localOnly": "Structured chat cannot take over this remote terminal yet.",
+        "singlePane": "Structured chat currently requires a terminal with one pane."
+      },
+      "newStructuredChat": "New {{value0}} Chat"
     },
     "tab": {
       "bar": {

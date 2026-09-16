@@ -1,8 +1,3 @@
-/**
- * End of the seam: `orchestration.workerStart` reads the user's own setting and starts the worker
- * that setting describes. No flag reaches this decision, and no combination refuses the start.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from '../../orca-runtime'
 import { OrchestrationDb } from '../../orchestration/db'
@@ -44,7 +39,7 @@ const STRUCTURED_DEFAULT = {
   agentDefaultEnv: {}
 }
 
-describe('worker-start honours the settings default', () => {
+describe('worker-start keeps runtime independent of display settings', () => {
   const coordinatorPaneKey = 'tab_coord:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   let db: OrchestrationDb
   let runtime: OrcaRuntimeService
@@ -125,15 +120,15 @@ describe('worker-start honours the settings default', () => {
     }
   }
 
-  it('starts a structured chat worker when structured native chat is the default', async () => {
+  it('starts a terminal worker when Chat UI is the default', async () => {
     const result = await startWorker(STRUCTURED_DEFAULT)
 
     expect(result).toMatchObject({
       state: 'ready',
-      mode: { mode: 'structured', preferred: 'structured', reason: 'user_default' }
+      mode: { mode: 'terminal', preferred: 'terminal', reason: 'user_default' }
     })
-    expect(createStructuredWorkerSessionForWorktree).toHaveBeenCalledTimes(1)
-    expect(createExistingWorktreeWorkerTerminal).not.toHaveBeenCalled()
+    expect(createExistingWorktreeWorkerTerminal).toHaveBeenCalledTimes(1)
+    expect(createStructuredWorkerSessionForWorktree).not.toHaveBeenCalled()
   })
 
   it('starts a terminal agent worker when it is not', async () => {
@@ -150,7 +145,7 @@ describe('worker-start honours the settings default', () => {
     expect(createStructuredWorkerSessionForWorktree).not.toHaveBeenCalled()
   })
 
-  it('starts a terminal worker rather than failing when the host refuses a structured session', async () => {
+  it('does not probe structured support for an ordinary terminal start', async () => {
     vi.mocked(runtime.getStructuredAgentSessionCreateSupport).mockResolvedValue({
       supported: false,
       reason: 'wsl'
@@ -160,9 +155,10 @@ describe('worker-start honours the settings default', () => {
 
     expect(result).toMatchObject({
       state: 'ready',
-      mode: { mode: 'terminal', preferred: 'structured', reason: 'wsl_execution_runtime' }
+      mode: { mode: 'terminal', preferred: 'terminal', reason: 'user_default' }
     })
     expect(createExistingWorktreeWorkerTerminal).toHaveBeenCalledTimes(1)
+    expect(runtime.getStructuredAgentSessionCreateSupport).not.toHaveBeenCalled()
   })
 
   it('still starts a worker when the runtime has no settings to read', async () => {
@@ -172,18 +168,18 @@ describe('worker-start honours the settings default', () => {
     expect(createExistingWorktreeWorkerTerminal).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back instead of refusing a launch preference the structured default cannot apply', async () => {
+  it('preserves terminal model and effort preferences with Chat UI enabled', async () => {
     const result = await startWorker(STRUCTURED_DEFAULT, { model: 'opus', effort: 'high' })
 
     expect(result).toMatchObject({
       state: 'ready',
-      mode: { mode: 'terminal', preferred: 'structured', reason: 'launch_preferences' }
+      mode: { mode: 'terminal', preferred: 'terminal', reason: 'user_default' }
     })
     expect(createExistingWorktreeWorkerTerminal).toHaveBeenCalledTimes(1)
     expect(createStructuredWorkerSessionForWorktree).not.toHaveBeenCalled()
   })
 
-  it('tells a remote dispatch why its structured default did not apply', async () => {
+  it('keeps remote dispatch terminal-backed with Chat UI enabled', async () => {
     const result = await startWorker(STRUCTURED_DEFAULT, {
       on: 'server-1',
       worktree: 'repo::remote'
@@ -191,7 +187,7 @@ describe('worker-start honours the settings default', () => {
 
     expect(result).toMatchObject({
       state: 'ready',
-      mode: { mode: 'terminal', preferred: 'structured', reason: 'remote_execution_host' }
+      mode: { mode: 'terminal', preferred: 'terminal', reason: 'user_default' }
     })
     expect(createStructuredWorkerSessionForWorktree).not.toHaveBeenCalled()
   })

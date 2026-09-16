@@ -2,6 +2,7 @@ import type { AgentType } from '../../../../shared/agent-status-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import type { NativeChatSession } from '../../../../shared/native-chat-types'
+import type { AgentProviderSessionMetadata } from '../../../../shared/agent-session-resume'
 import type { NativeChatContextMenuActions } from './use-native-chat-context-menu'
 
 export type NativeChatBridgeViewProps = {
@@ -29,6 +30,10 @@ export type NativeChatBridgeViewProps = {
     worktreeId: string
     unifiedTabId: string
     singlePane: boolean
+    /** Prevent retained bridge state crossing a workspace or execution-host replacement. */
+    retentionIdentity?: string
+    /** A resume launch knows the provider id before its first hook publication. */
+    knownProviderSession?: AgentProviderSessionMetadata
   }
 }
 

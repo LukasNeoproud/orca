@@ -1,8 +1,5 @@
 import * as codexRewind from './codex-structured-rewind'
-import type {
-  AgentJournalMessageItem,
-  AgentSessionJournalIdentity
-} from '../../shared/agent-session-journal-types'
+import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
 import { StructuredSessionCompaction } from '../native-chat/agent-session-wire/structured-session-compaction'
 import { isCodexAppServerRequestError } from './codex-app-server-connection'
 import type {
@@ -16,11 +13,7 @@ import type { CodexJournalTranslationAdmission } from './codex-structured-journa
 import { answerCodexPrompt } from './codex-structured-prompt-replies'
 import { dispatchCodexTurn, isCodexTurnOptionKey } from './codex-structured-turn-start'
 import { supportsCodexStructuredLocation } from './codex-structured-location-support'
-import {
-  closeAllCodexSessions,
-  closeCodexPublishedSession,
-  closeCodexSession
-} from './codex-structured-session-close'
+import * as codexClose from './codex-structured-session-close'
 import {
   applyCodexStructuredSessionOption,
   readLiveCodexSessionOptions
@@ -41,6 +34,7 @@ import {
 import { CodexStructuredTurnCancellation } from './codex-structured-turn-cancellation'
 import { createCodexStructuredNotificationRetry } from './codex-structured-notification-retry'
 import { acquireCodexStructuredSession } from './codex-structured-session-acquire'
+import { CodexStructuredSessionStatusMetadata } from './codex-structured-session-status-metadata'
 
 export type {
   CodexStructuredLaunch,
@@ -54,8 +48,10 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
   private readonly acquisitions = new CodexAcquisitionRegistry()
   private readonly turnCancellation: CodexStructuredTurnCancellation
   private readonly notificationRetries: ReturnType<typeof createCodexStructuredNotificationRetry>
+  private readonly statusMetadata: CodexStructuredSessionStatusMetadata
 
   constructor(private readonly deps: CodexStructuredSessionAdapterDeps) {
+    this.statusMetadata = new CodexStructuredSessionStatusMetadata(this.sessions, deps)
     this.notificationRetries = createCodexStructuredNotificationRetry({
       sessionFor: (sessionId) => this.sessions.get(sessionId),
       translate: (sessionId, session, method, params) =>
@@ -78,8 +74,8 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
   supportsLocation = (location: Parameters<typeof supportsCodexStructuredLocation>[0]): boolean =>
     supportsCodexStructuredLocation(location, this.deps.isWindowsProcessStartTimeAvailable)
 
-  acquire = (input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition> =>
-    acquireCodexStructuredSession({
+  acquire = async (input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition> => {
+    const acquired = await acquireCodexStructuredSession({
       input,
       deps: this.deps,
       sessions: this.sessions,
@@ -92,8 +88,21 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
       handleUnhandledFrame: (sessionId, kind, payload) =>
         this.handleUnhandledFrame(sessionId, kind, payload),
       forceCloseUnexpected: (sessionId, fence, acquisitionGeneration, reason) =>
-        this.forceCloseUnexpected(sessionId, fence, acquisitionGeneration, reason)
+        codexClose.forceCloseUnexpectedCodexSession(
+          this.sessions,
+          this.deps.onEvent,
+          sessionId,
+          fence,
+          acquisitionGeneration,
+          reason
+        )
     })
+    const session = this.sessions.get(input.identity.sessionId)
+    if (session) {
+      void this.statusMetadata.refresh(input.identity.sessionId, session)
+    }
+    return acquired
+  }
 
   /** Buffers pre-publication events and drops events from superseded children. */
   private deliver(
@@ -120,6 +129,7 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     method: string,
     params: unknown
   ): CodexJournalTranslationAdmission {
+    this.statusMetadata.observe(sessionId, session, method, params)
     codexRewind.observeCodexRewindActivity(session, method, params)
     if (this.turnCancellation.handleNotification(sessionId, session, method, params)) {
       return { accepted: true }
@@ -252,23 +262,32 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     if (!isCodexTurnOptionKey(input.key)) {
       throw new Error(`codex app-server has no thread option named ${input.key}`)
     }
-    return applyCodexStructuredSessionOption(
-      this.session(input.sessionId),
+    const session = this.session(input.sessionId)
+    const previousModel = session.options.get('model') ?? session.reportedOptions.model
+    const options = await applyCodexStructuredSessionOption(
+      session,
       input.key,
       input.value,
       this.deps.requestTimeoutMs
     )
+    const nextModel = session.options.get('model') ?? session.reportedOptions.model
+    if (input.key === 'model' && nextModel && nextModel !== previousModel) {
+      this.statusMetadata.modelChanged(input.sessionId, session, nextModel)
+    }
+    return options
   }
+
+  contextUsage = (sessionId: string) => this.statusMetadata.contextUsage(sessionId)
+  codexWeeklyUsage = (sessionId: string) => this.statusMetadata.weeklyUsage(sessionId)
 
   readOptions = (input: { sessionId: string; fence: number }) =>
     readLiveCodexSessionOptions(this.session(input.sessionId), this.deps.requestTimeoutMs)
 
-  historyFilePath = async (input: {
-    identity: AgentSessionJournalIdentity
-  }): Promise<string | null> => this.sessions.get(input.identity.sessionId)?.historyPath ?? null
+  historyFilePath: NonNullable<StructuredAgentSessionAdapter['historyFilePath']> = async (input) =>
+    this.sessions.get(input.identity.sessionId)?.historyPath ?? null
 
   closeSession = async (sessionId: string): Promise<boolean> => {
-    const closed = await closeCodexSession(
+    const closed = await codexClose.closeCodexSession(
       sessionId,
       this.sessions,
       this.acquisitions,
@@ -280,42 +299,24 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     return closed
   }
   forceCloseSession = async (sessionId: string): Promise<boolean> => {
-    const closed = await closeCodexPublishedSession(this.sessions, sessionId, this.deps.onEvent, {
-      allowFailedSettlement: true,
-      requestedClose: false
-    })
+    const closed = await codexClose.closeCodexPublishedSession(
+      this.sessions,
+      sessionId,
+      this.deps.onEvent,
+      {
+        allowFailedSettlement: true,
+        requestedClose: false
+      }
+    )
     if (closed) {
       this.notificationRetries.clear(sessionId, null)
     }
     return closed
   }
 
-  private forceCloseUnexpected(
-    sessionId: string,
-    fence: number,
-    acquisitionGeneration: string,
-    reason: Error
-  ): Promise<boolean> {
-    const session = this.sessions.get(sessionId)
-    if (
-      !session ||
-      session.ended ||
-      session.fence !== fence ||
-      session.acquisitionGeneration !== acquisitionGeneration
-    ) {
-      return Promise.resolve(false)
-    }
-    return closeCodexPublishedSession(this.sessions, sessionId, this.deps.onEvent, {
-      allowFailedSettlement: true,
-      requestedClose: false,
-      expectedFence: fence,
-      expectedAcquisitionGeneration: acquisitionGeneration,
-      unexpectedReason: reason
-    })
-  }
   disposeSession = (sessionId: string): Promise<boolean> => this.closeSession(sessionId)
   closeAll = (): Promise<void> =>
-    closeAllCodexSessions(this.sessions, this.acquisitions, (sessionId) =>
+    codexClose.closeAllCodexSessions(this.sessions, this.acquisitions, (sessionId) =>
       this.disposeSession(sessionId)
     )
   releaseAcquisition = (input: { sessionId: string }): Promise<boolean> =>

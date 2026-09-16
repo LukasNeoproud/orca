@@ -7,7 +7,7 @@ export type StructuredAgentSessionTerminalAdoptionParams = {
   worktree: string
   terminal: { tabId: string; paneKey: string; ptyId: string }
   agent: 'claude' | 'codex'
-  providerSessionId: string
+  providerSessionId?: string
 }
 
 export type StructuredAgentSessionTerminalAdoptionResult = {
@@ -18,15 +18,19 @@ export type StructuredAgentSessionTerminalAdoptionResult = {
 
 /** The original shell survives the transfer; its incarnation fences later recovery. */
 export type AgentSessionAdoptedTerminal =
-  StructuredAgentSessionTerminalAdoptionParams['terminal'] & { incarnationId: string }
+  StructuredAgentSessionTerminalAdoptionParams['terminal'] & {
+    incarnationId: string
+    ownerFence?: number
+  }
 
 export function isOriginalAdoptedTerminalOwner(record: AgentSessionRecord): boolean {
   const root = record.providerHandleChain[0]
   return Boolean(
     record.adoptedTerminal &&
     record.lease.runtimeKind === 'tui' &&
-    root?.origin === 'adopted' &&
-    record.lease.runtimeFence === root.mintedAtFence
+    (record.adoptedTerminal.ownerFence !== undefined
+      ? record.lease.runtimeFence === record.adoptedTerminal.ownerFence
+      : root?.origin === 'adopted' && record.lease.runtimeFence === root.mintedAtFence)
   )
 }
 
@@ -47,6 +51,8 @@ export function isAgentSessionAdoptedTerminal(
     terminal.ptyId.length <= 4096 &&
     typeof terminal.incarnationId === 'string' &&
     terminal.incarnationId.length > 0 &&
-    terminal.incarnationId.length <= 512
+    terminal.incarnationId.length <= 512 &&
+    (terminal.ownerFence === undefined ||
+      (Number.isSafeInteger(terminal.ownerFence) && terminal.ownerFence > 0))
   )
 }

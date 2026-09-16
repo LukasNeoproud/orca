@@ -10,7 +10,8 @@ export async function decodeTranscriptStream(
   filePath: string,
   start: number,
   decode: TranscriptDecoder,
-  includeTrailingLine: boolean
+  includeTrailingLine: boolean,
+  onLine?: (line: string) => void
 ): Promise<{ messages: NativeChatMessage[]; consumedBytes: number }> {
   const messages: NativeChatMessage[] = []
   // Why: a Buffer chunk can end mid-codepoint, and decoding it standalone would
@@ -44,6 +45,7 @@ export async function decodeTranscriptStream(
     if (!line) {
       return
     }
+    onLine?.(line)
     const message = decode(line, transcriptFallbackId(filePath, start + relativeOffset))
     if (message) {
       messages.push(message)

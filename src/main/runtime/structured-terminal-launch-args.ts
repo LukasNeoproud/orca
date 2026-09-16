@@ -26,14 +26,20 @@ const CODEX_SUBCOMMANDS = new Set([
   'help'
 ])
 
-function codexConfigurationArgs(tokens: string[], providerSessionId: string): string[] {
+function codexConfigurationArgs(tokens: string[]): string[] {
   const result: string[] = []
   let resumed = false
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]!
-    if (token === 'resume' && !resumed && tokens[index + 1] === providerSessionId) {
+    if (token === 'resume' && !resumed) {
       resumed = true
-      index += 1
+      // The open rollout proves the current thread; /resume need not update the original argv.
+      if (tokens[index + 1] && !tokens[index + 1]!.startsWith('-')) {
+        index += 1
+      }
+      continue
+    }
+    if (resumed && (token === '--last' || token === '--all')) {
       continue
     }
     if (!token.startsWith('-')) {
@@ -93,7 +99,7 @@ export function structuredTerminalLaunchArgs(input: {
   }
   try {
     if (input.agent === 'codex') {
-      return codexConfigurationArgs(args, input.providerSessionId)
+      return codexConfigurationArgs(args)
     }
     claudeSdkOptionsForLaunchArgs(args)
     return args

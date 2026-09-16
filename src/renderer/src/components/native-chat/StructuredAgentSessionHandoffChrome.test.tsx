@@ -16,7 +16,7 @@ const IDLE_NATIVE: AgentSessionHandoffStatus = {
 afterEach(cleanup)
 
 describe('StructuredAgentSessionHandoffChrome', () => {
-  it('uses queued-safe admission when the native view still appears idle', () => {
+  it('does not offer terminal controls for an ordinary structured chat', () => {
     const onRequest = vi.fn()
     render(
       <StructuredAgentSessionHandoffChrome
@@ -26,9 +26,8 @@ describe('StructuredAgentSessionHandoffChrome', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open agent TUI' }))
-
-    expect(onRequest).toHaveBeenCalledWith('to-tui', 'after-turn')
+    expect(screen.queryByRole('button', { name: 'Open agent TUI' })).toBeNull()
+    expect(onRequest).not.toHaveBeenCalled()
   })
 
   it('offers one Retry action for a recoverable dead TUI owner', () => {

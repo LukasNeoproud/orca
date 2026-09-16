@@ -1,6 +1,7 @@
 import type { AgentSessionConversationCommand } from '../../../../shared/agent-session-conversation-command'
 import type { AgentSessionSlashCommand } from '../../../../shared/agent-session-wire'
 import type { AgentType } from '../../../../shared/agent-status-types'
+import type { CodexContextUsage, CodexWeeklyUsage } from '../../../../shared/codex-context-usage'
 import type { StructuredAgentSessionCommandOutcome } from '../../../../shared/structured-agent-session-composer'
 import type {
   SessionOptionDescriptor,
@@ -41,6 +42,8 @@ export type NativeChatComposerProps = {
   /** Specific split-pane PTY this chat view owns. */
   targetPtyId: string | null
   agent: AgentType
+  contextUsage?: CodexContextUsage
+  codexWeeklyUsage?: CodexWeeklyUsage
   /** Guard desktop sends while a mobile client owns the terminal input lease. */
   canSend?: boolean
   /** True while the hosted TUI reports an in-flight turn; swaps Send to Stop. */

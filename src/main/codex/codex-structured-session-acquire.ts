@@ -14,6 +14,10 @@ import { codexProcessIdentity, codexProviderHandleLink } from './codex-structure
 import { buildCodexStructuredChildEnvironment } from './codex-structured-child-environment'
 import { openCodexThread } from './codex-structured-thread-open'
 import {
+  CodexStructuredHistoryLimitError,
+  readCodexStructuredSessionHistory
+} from './codex-structured-session-history'
+import {
   closeCodexPublishedSession,
   handleCodexSessionExit
 } from './codex-structured-session-close'
@@ -160,7 +164,24 @@ export async function acquireCodexStructuredSession(input: {
     const opened = await openCodexThread(connection, launch, deps.requestTimeoutMs)
     acquisitions.assertCurrent(sessionId, attempt)
     primaryThreadId = opened.threadId
-    const restoreAdmission = translator?.restoreThread(opened.threadId, opened.thread ?? {})
+    const restoredThread = translator
+      ? await readCodexStructuredSessionHistory({
+          connection,
+          opened,
+          timeoutMs: deps.requestTimeoutMs
+        }).catch((error: unknown) => {
+          if (error instanceof CodexStructuredHistoryLimitError) {
+            throw new AgentSessionAcquisitionRefusal(
+              'Codex thread history exceeds the bounded restore queue; history was not partially imported.'
+            )
+          }
+          throw error
+        })
+      : null
+    acquisitions.assertCurrent(sessionId, attempt)
+    const restoreAdmission = restoredThread
+      ? translator?.restoreThread(opened.threadId, restoredThread)
+      : null
     if (restoreAdmission && !restoreAdmission.accepted) {
       throw new AgentSessionAcquisitionRefusal(
         'Codex thread history exceeds the bounded restore queue; history was not partially imported.'
@@ -200,6 +221,8 @@ export async function acquireCodexStructuredSession(input: {
       reportedOptions: reportedCodexThreadOptions(opened),
       turnIdWaiters: [],
       translator,
+      contextLaunch: { args: launch.args, cwd: launch.cwd, codexHome: launch.codexHome },
+      ...(opened.model ? { contextModel: opened.model } : {}),
       forceCloseUnexpected: (reason) =>
         input.forceCloseUnexpected(
           sessionId,

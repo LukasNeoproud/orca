@@ -1,7 +1,11 @@
 import React, { useCallback } from 'react'
 import { Loader2, Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut
+} from '@/components/ui/dropdown-menu'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useAppStore } from '@/store'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
@@ -16,7 +20,11 @@ import {
   filterEnabledTuiAgents
 } from '../../../../shared/tui-agent-selection'
 import { translate } from '@/i18n/i18n'
-import { useStructuredAgentLaunchStatus } from '@/lib/structured-agent-session-launch'
+import {
+  startStructuredAgentLaunch,
+  useStructuredAgentLaunchStatus
+} from '@/lib/structured-agent-session-launch'
+import { useStructuredAgentLaunchSupport } from '@/components/native-chat/use-structured-agent-launch-support'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -118,6 +126,7 @@ function QuickLaunchAgentMenuItemsInner({
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
+  const structuredChatSupported = useStructuredAgentLaunchSupport(worktreeId)
   // One hook per structured provider: the launch registry is keyed by agent, and hooks cannot run
   // inside the agent list's render loop.
   const structuredLaunchStatusByAgent = {
@@ -184,8 +193,30 @@ function QuickLaunchAgentMenuItemsInner({
     [worktreeId, groupId, onFocusTerminal, prompt, promptDelivery, launchSource, onPromptDelivered]
   )
 
+  const runStructuredLaunch = useCallback(
+    (agent: 'claude' | 'codex') => {
+      if (prompt === undefined) {
+        startStructuredAgentLaunch(worktreeId, agent)
+        return
+      }
+      startStructuredAgentLaunch(worktreeId, agent, {
+        prompt,
+        ...(promptDelivery !== undefined && promptDelivery !== 'draft' ? { promptDelivery } : {}),
+        ...(onPromptDelivered ? { onPromptDelivered } : {})
+      })
+    },
+    [onPromptDelivered, prompt, promptDelivery, worktreeId]
+  )
+
   const enabledDetectedIds = detectedIds ? filterEnabledTuiAgents(detectedIds, disabledAgents) : []
   const agents = detectedIds ? orderAgents(defaultAgent, enabledDetectedIds) : []
+  const structuredChatAgents =
+    prompt !== undefined && promptDelivery === 'draft'
+      ? []
+      : agents.filter(
+          (agent): agent is 'claude' | 'codex' =>
+            isAgentSessionHandleProvider(agent) && structuredChatSupported[agent]
+        )
 
   return (
     <>
@@ -205,44 +236,58 @@ function QuickLaunchAgentMenuItemsInner({
       {agents.map((agent) => {
         const entry = getCatalogEntry(agent)
         const label = entry?.label ?? agent
-        const isStructuredLaunchPending =
-          isAgentSessionHandleProvider(agent) && structuredLaunchStatusByAgent[agent] === 'pending'
-        const pendingLabel = translate(
-          'components.native-chat.structuredSessionLaunchPending',
-          'Starting {{value0}} chat…',
-          { value0: label }
-        )
-        const menuLabel = isStructuredLaunchPending ? pendingLabel : label
         const showsDefaultAgentShortcut =
           newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
         return (
           <DropdownMenuItem
             key={agent}
-            disabled={isStructuredLaunchPending}
             onSelect={() => runLaunch(agent)}
             className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
-            title={
-              isStructuredLaunchPending
-                ? pendingLabel
-                : translate(
-                    'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',
-                    'Launch {{value0}} in a new terminal',
-                    { value0: label }
-                  )
-            }
-          >
-            {isStructuredLaunchPending ? (
-              <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
-            ) : (
-              <AgentIcon agent={agent} size={14} />
+            title={translate(
+              'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',
+              'Launch {{value0}} in a new terminal',
+              { value0: label }
             )}
-            <span className="flex-1">{menuLabel}</span>
+          >
+            <AgentIcon agent={agent} size={14} />
+            <span className="flex-1">{label}</span>
             {showsDefaultAgentShortcut ? (
               <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
             ) : null}
           </DropdownMenuItem>
         )
       })}
+      {structuredChatAgents.length > 0 ? <DropdownMenuSeparator /> : null}
+      {structuredChatAgents.map((agent) => {
+        const label = getCatalogEntry(agent)?.label ?? agent
+        const isPending = structuredLaunchStatusByAgent[agent] === 'pending'
+        const actionLabel = isPending
+          ? translate(
+              'components.native-chat.structuredSessionLaunchPending',
+              'Starting {{value0}} chat…',
+              { value0: label }
+            )
+          : translate('components.native-chat.newStructuredChat', 'New {{value0}} Chat', {
+              value0: label
+            })
+        return (
+          <DropdownMenuItem
+            key={`structured-chat:${agent}`}
+            disabled={isPending}
+            onSelect={() => runStructuredLaunch(agent)}
+            className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
+            title={actionLabel}
+          >
+            {isPending ? (
+              <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+            ) : (
+              <AgentIcon agent={agent} size={14} />
+            )}
+            <span className="flex-1">{actionLabel}</span>
+          </DropdownMenuItem>
+        )
+      })}
+      {structuredChatAgents.length > 0 ? <DropdownMenuSeparator /> : null}
       <DropdownMenuItem
         onSelect={openAgentSettings}
         className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium text-muted-foreground"

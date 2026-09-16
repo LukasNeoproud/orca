@@ -38,12 +38,11 @@ export class OrcaRuntimeWithStructuredAgentSessionLaunchTui extends OrcaRuntimeW
       )
       const terminal = launched.terminal
       let spawnedOwner: StructuredTuiOwner | null = null
-      let ptyId: string | undefined
+      const ptyId = terminal.ptyId
       try {
         if (!terminal.processId || !terminal.paneKey || !terminal.tabId || !terminal.ptyId) {
           throw new Error('The resumed terminal did not publish a process identity.')
         }
-        ptyId = terminal.ptyId
         spawnedOwner = this.refreshStructuredTuiOwnerBinding({
           terminal: {
             handle: terminal.handle,
@@ -57,7 +56,8 @@ export class OrcaRuntimeWithStructuredAgentSessionLaunchTui extends OrcaRuntimeW
                   hostId: record.location.executionHostId,
                   rootPid: terminal.processId,
                   spawnToken,
-                  threadId: head.handle.threadId
+                  threadId: head.handle.threadId,
+                  unwrapCodexLauncher: true
                 })
               : await readStructuredTuiProcessIdentity({
                   hostId: record.location.executionHostId,
@@ -123,11 +123,27 @@ export class OrcaRuntimeWithStructuredAgentSessionLaunchTui extends OrcaRuntimeW
           historySource: 'provider-resume'
         })
       } catch (error) {
+        const pty = ptyId ? this.ptysById.get(ptyId) : null
+        if (
+          launched.disposition !== 'created' ||
+          !ptyId ||
+          (pty &&
+            (pty.launchToken !== spawnToken ||
+              pty.paneKey !== terminal.paneKey ||
+              pty.tabId !== terminal.tabId))
+        ) {
+          throw new StructuredTuiLaunchCleanupError(
+            error,
+            new Error('The failed terminal could not be bound to this launch for cleanup.')
+          )
+        }
         let closeError: unknown = null
-        try {
-          await this.closeTerminal(terminal.handle)
-        } catch (cleanupFailure) {
-          closeError = cleanupFailure
+        if (pty) {
+          try {
+            await this.closeTerminal(terminal.handle)
+          } catch (cleanupFailure) {
+            closeError = cleanupFailure
+          }
         }
         try {
           if (spawnedOwner) {

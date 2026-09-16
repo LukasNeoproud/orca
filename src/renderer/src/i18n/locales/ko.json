@@ -4593,6 +4593,24 @@
         "WorktreeCardAgents": {
           "1b0a156717": "에이전트"
         },
+        "WorktreeConversationHistory": {
+          "structuredAgentUnsupported": "이 에이전트는 Chat UI를 지원하지 않습니다.",
+          "structuredLocalOnly": "Chat UI는 로컬 세션에서만 사용할 수 있습니다.",
+          "emptySessionUnsupported": "이 세션에는 열 수 있는 저장된 대화가 없습니다.",
+          "alreadyOpen": "이 대화는 이미 열려 있습니다.",
+          "structuredWorkspaceUnsupported": "이 워크스페이스에서는 Chat UI를 사용할 수 없습니다.",
+          "ownerUnverifiable": "Orca가 이 대화가 아직 실행 중인지 확인할 수 없습니다.",
+          "workspaceUnavailable": "이 워크스페이스를 사용할 수 없습니다.",
+          "openInTerminal": "터미널에서 열기",
+          "openInStructuredChat": "새 {{value0}} 채팅",
+          "moreActions": "추가 대화 작업",
+          "disconnected": "대화 기록을 불러오려면 이 워크스페이스 호스트에 연결하세요.",
+          "loading": "대화 불러오는 중…",
+          "retry": "다시 시도",
+          "empty": "이 워크스페이스에 열지 않은 대화가 없습니다.",
+          "showFullHistory": "전체 기록 보기",
+          "label": "대화 기록"
+        },
         "WorktreeCardReviewDetailSection": {
           "reviewHeader": "{{value0}} #{{value1}}",
           "copyLink": "링크 복사"
@@ -5946,13 +5964,22 @@
           "nativeChat": {
             "title": "Chat UI",
             "description": "지원되는 에이전트 터미널 세션의 데스크톱 채팅 화면을 미리 봅니다.",
-            "copy": "지원되는 에이전트 터미널 창에서 전환할 수 있는 Chat UI 보기를 추가합니다. 대화 기록 충실도, 스트리밍, 터미널 동작 일치를 조정하는 동안 실험적으로 제공됩니다.",
+            "copy": "지원되는 Codex 및 Claude 세션에 Chat UI를 사용합니다. 새 탭과 세션 기록은 별도로 설정합니다.",
             "toggleLabel": "Chat UI 전환",
             "defaultTitle": "기본 보기",
             "defaultCopy": "지원되는 에이전트의 새 터미널 탭을 여는 방식을 선택합니다.",
             "defaultViewLabel": "기본 Chat UI 보기",
             "defaultViewTerminal": "Terminal 채팅",
-            "defaultViewNative": "Chat UI"
+            "defaultViewNative": "Chat UI",
+            "structuredTitle": "Codex 및 Claude 채팅 사용",
+            "structuredCopy": "지원되는 Codex 및 Claude 세션에 전용 채팅을 사용합니다.",
+            "structuredScope": "로컬 세션에서 사용할 수 있습니다. WSL, 원격 호스트 및 지원되지 않는 Windows 환경에서는 Chat UI를 열 수 없습니다.",
+            "structuredToggleLabel": "Codex 및 Claude 채팅 전환",
+            "historyDefaultTitle": "세션 기록 기본값",
+            "historyDefaultCopy": "이전 Codex 및 Claude 세션을 여는 방식을 선택합니다. 새 탭의 기본 보기와 별개입니다.",
+            "historyDefaultLabel": "기본 세션 기록 보기",
+            "historyDefaultTerminal": "터미널 채팅",
+            "historyDefaultStructured": "Chat UI"
           },
           "agentDashboard": {
             "title": "에이전트 대시보드",
@@ -11408,7 +11435,9 @@
             "sessionHostMismatchUnsupported": "이 세션은 다른 호스트에 속합니다. 재개하려면 같은 호스트의 워크스페이스를 여세요.",
             "prepareSessionResumeFailed": "Could not prepare this session for resume.",
             "sessionDeleted": "세션이 삭제되었습니다",
-            "sessionDeleteFailed": "세션을 삭제하지 못했습니다"
+            "sessionDeleteFailed": "세션을 삭제하지 못했습니다",
+            "sessionOwnershipUnverifiable": "Orca가 이 세션이 아직 실행 중인지 확인할 수 없어 두 번째 쓰기 프로세스를 시작하지 않습니다.",
+            "structuredResumeLocalOnly": "Chat UI 재개는 로컬 세션에서만 사용할 수 있습니다."
           },
           "AiVaultPanelControls": {
             "scanningSessions": "세션 스캔 중",
@@ -11544,7 +11573,9 @@
             "delete": "삭제",
             "deleteReasonNonLocalHost": "이 기기에 있는 세션만 삭제할 수 있습니다.",
             "deleteReasonSyntheticPath": "이 세션은 Orca에서 삭제할 수 없습니다.",
-            "deleteReasonUnsupportedAgent": "{{value0}} 세션은 Orca에서 삭제할 수 없습니다."
+            "deleteReasonUnsupportedAgent": "{{value0}} 세션은 Orca에서 삭제할 수 없습니다.",
+            "openInChat": "채팅에서 열기",
+            "openInAgentChat": "{{agent}} 채팅에서 열기"
           },
           "AiVaultSessionDeleteDialog": {
             "title": "이 세션을 삭제할까요?",
@@ -14703,6 +14734,22 @@
       }
     },
     "native-chat": {
+      "codexStatus": {
+        "tokenUsage": "{{used}} / {{max}} 토큰",
+        "trigger": "Codex 컨텍스트 사용량",
+        "title": "컨텍스트",
+        "usedOfMax": "{{used}} / {{max}} 토큰 ({{percent}})",
+        "stale": "컨텍스트 사용량이 오래되었을 수 있습니다",
+        "afterPrefix": "컨텍스트 압축 증가 한도: 접두사 뒤 {{tokens}} ({{source}}){{estimated}}",
+        "untilCompaction": "압축까지 {{tokens}} 토큰 남음",
+        "compactsAt": "{{tokens}}에서 압축 ({{source}}){{estimated}}",
+        "thresholdUnavailable": "압축 임곗값을 사용할 수 없습니다",
+        "weeklyUnknown": "주간 —",
+        "weeklyLeft": "주간 {{percent}}% 남음",
+        "configured": "구성됨",
+        "modelDefault": "모델 기본값",
+        "estimated": "추정"
+      },
       "composer": {
         "imageUnsupported": "이 에이전트는 이미지 붙여넣기를 지원하지 않습니다.",
         "send": "보내기",
@@ -14735,6 +14782,8 @@
         "availableAfterSessionStarts": "세션이 시작된 후 사용할 수 있습니다.",
         "optionUpdateFailed": "옵션을 업데이트하지 못했습니다",
         "optionValue": {
+          "custom": "사용자 지정",
+          "autoReview": "자동 검토",
           "fast": "빠름",
           "minimal": "최소",
           "low": "낮음",

@@ -9,6 +9,7 @@ import { NATIVE_FILE_DROP_TARGET } from '../../../../shared/native-file-drop'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
 import { NativeChatMentionHint, NativeChatPickerMenu } from './NativeChatAutocompleteMenus'
 import { NativeChatComposerActions } from './NativeChatComposerActions'
+import { NativeChatCodexSessionStatus } from './NativeChatCodexSessionStatus'
 import { nativeChatComposerPlaceholder } from './native-chat-composer-target'
 import type {
   SessionOptionDescriptor,
@@ -18,6 +19,7 @@ import type { NativeChatOptionPickerRequest } from './native-chat-composer-types
 import { NativeChatImageAttachmentPreview } from './NativeChatImageAttachmentPreview'
 
 export type NativeChatComposerFieldProps = {
+  codexStatus?: React.ComponentProps<typeof NativeChatCodexSessionStatus>
   /** Pane identity published to the drop pipeline so a native file drop lands
    *  only in the composer it was dropped on. */
   composerScopeKey: string
@@ -92,6 +94,7 @@ function imeComposedSegment(base: string, settled: string): string {
 }
 
 export function NativeChatComposerField({
+  codexStatus,
   composerScopeKey,
   textareaRef,
   draft,
@@ -265,6 +268,9 @@ export function NativeChatComposerField({
             />
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
               <NativeChatComposerActions
+                sessionStatus={
+                  codexStatus ? <NativeChatCodexSessionStatus {...codexStatus} /> : undefined
+                }
                 attachDisabled={attachDisabled}
                 dictationDisabled={dictationDisabled}
                 sendDisabled={sendButtonDisabled}

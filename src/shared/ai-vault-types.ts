@@ -124,6 +124,8 @@ export type AiVaultSession = {
   structuredSession?: {
     sessionId: string
     workspaceId: string
+    /** Absent on older hosts. Unverifiable ownership must never admit a second writer. */
+    ownerState?: 'live' | 'unverifiable'
   }
 }
 

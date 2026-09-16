@@ -82,6 +82,18 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
     sessionId
   ) => this.owners.get(sessionId)?.backgroundTaskState?.(sessionId)
 
+  contextUsage: NonNullable<StructuredAgentSessionAdapter['contextUsage']> = (sessionId) =>
+    this.owners.get(sessionId)?.contextUsage?.(sessionId) ??
+    Object.values(this.adapters)
+      .find((adapter) => adapter.contextUsage?.(sessionId))
+      ?.contextUsage?.(sessionId)
+
+  codexWeeklyUsage: NonNullable<StructuredAgentSessionAdapter['codexWeeklyUsage']> = (sessionId) =>
+    this.owners.get(sessionId)?.codexWeeklyUsage?.(sessionId) ??
+    Object.values(this.adapters)
+      .find((adapter) => adapter.codexWeeklyUsage?.(sessionId))
+      ?.codexWeeklyUsage?.(sessionId)
+
   readCommands: NonNullable<StructuredAgentSessionAdapter['readCommands']> = (sessionId) =>
     this.owners.get(sessionId)?.readCommands?.(sessionId)
 

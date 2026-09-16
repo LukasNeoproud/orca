@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type React from 'react'
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import {
   AI_VAULT_SESSION_DRAG_END_EVENT,
@@ -33,6 +34,9 @@ export function VaultSessionRow({
   vaultScope,
   detailsExpanded,
   resumeDisabled,
+  preferredOpen,
+  chatOpenLabel,
+  chatOpenBlockedReason,
   onToggleDetails,
   onJumpToOriginalPane,
   showJumpToWorktree,
@@ -60,6 +64,9 @@ export function VaultSessionRow({
   vaultScope: AiVaultScope
   detailsExpanded: boolean
   resumeDisabled: boolean
+  preferredOpen?: { label: string; disabled: boolean; reason?: string; onOpen: () => void }
+  chatOpenLabel?: string
+  chatOpenBlockedReason?: string
   onToggleDetails: () => void
   onJumpToOriginalPane?: () => void
   showJumpToWorktree: boolean
@@ -79,6 +86,11 @@ export function VaultSessionRow({
   onOpenCwd?: () => void
   onRequestDelete: (session: AiVaultSession) => void
 }) {
+  const primaryOpen = preferredOpen ?? {
+    label: resumeLabel,
+    disabled: resumeDisabled,
+    onOpen: onResume
+  }
   const updatedAt = session.updatedAt ?? session.modifiedAt
   const detailsId = getSessionDetailsId(session.id)
   const latestTurn = latestSessionConversationTurn(session)
@@ -119,118 +131,152 @@ export function VaultSessionRow({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild className="block w-full min-w-0">
-        <div
-          className={cn(
-            'group/session-row flex w-full min-w-0 cursor-pointer flex-col border-b border-sidebar-border px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/55',
-            !detailsExpanded && 'min-h-[98px]'
-          )}
-          onClick={(event) => {
-            // Radix portals this row's menus out of its DOM, but React still
-            // bubbles their clicks here — without this, choosing Delete expands
-            // the row behind the dialog.
-            const target = event.target
-            if (target instanceof Node && !event.currentTarget.contains(target)) {
-              return
-            }
-            onToggleDetails()
-          }}
-        >
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ContextMenuTrigger asChild className="block w-full min-w-0">
             <div
+              role="button"
+              tabIndex={0}
+              aria-label={`${session.title}: ${primaryOpen.label}`}
+              aria-disabled={primaryOpen.disabled}
+              onKeyDown={(event) => {
+                if (event.target === event.currentTarget && event.key === 'Enter') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  if (!primaryOpen.disabled) {
+                    primaryOpen.onOpen()
+                  }
+                }
+              }}
               className={cn(
-                'min-w-0 text-[13px] font-medium leading-5 text-foreground',
-                // Why: only the title is the resume drag handle — expanded
-                // details/preview need text selection and a normal pointer.
-                !resumeDisabled && 'cursor-grab active:cursor-grabbing',
-                detailsExpanded ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'line-clamp-1'
+                'group/session-row flex w-full min-w-0 cursor-pointer flex-col border-b border-sidebar-border px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/55',
+                !detailsExpanded && 'min-h-[98px]'
               )}
-              draggable={!resumeDisabled}
-              title={
-                resumeDisabled
-                  ? undefined
-                  : translate(
-                      'auto.components.right.sidebar.AiVaultSessionRow.dragToResume',
-                      'Drag to resume in a new tab'
-                    )
-              }
-              onDragStart={startResumeDrag}
-              onDragEnd={() => {
-                window.dispatchEvent(new Event(AI_VAULT_SESSION_DRAG_END_EVENT))
+              onClick={(event) => {
+                // Portaled menu clicks must not open the conversation behind them.
+                const target = event.target
+                if (target instanceof Node && !event.currentTarget.contains(target)) {
+                  return
+                }
+                if (
+                  target instanceof Node &&
+                  document.getElementById(detailsId)?.contains(target)
+                ) {
+                  return
+                }
+                if (window.getSelection()?.isCollapsed === false) {
+                  return
+                }
+                if (!primaryOpen.disabled) {
+                  primaryOpen.onOpen()
+                }
               }}
             >
-              {session.title}
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
+                <div
+                  className={cn(
+                    'min-w-0 text-[13px] font-medium leading-5 text-foreground',
+                    // Why: only the title is the resume drag handle — expanded
+                    // details/preview need text selection and a normal pointer.
+                    !resumeDisabled && 'cursor-grab active:cursor-grabbing',
+                    detailsExpanded ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'line-clamp-1'
+                  )}
+                  draggable={!resumeDisabled}
+                  title={
+                    resumeDisabled
+                      ? undefined
+                      : translate(
+                          'auto.components.right.sidebar.AiVaultSessionRow.dragToResume',
+                          'Drag to resume in a new tab'
+                        )
+                  }
+                  onDragStart={startResumeDrag}
+                  onDragEnd={() => {
+                    window.dispatchEvent(new Event(AI_VAULT_SESSION_DRAG_END_EVENT))
+                  }}
+                >
+                  {session.title}
+                </div>
+                <SessionRowTrailingActions
+                  session={session}
+                  detailsExpanded={detailsExpanded}
+                  detailsId={detailsId}
+                  detailsTooltip={detailsTooltip}
+                  resumeDisabled={resumeDisabled}
+                  resumeLabel={resumeLabel}
+                  primaryOpen={primaryOpen}
+                  chatOpenLabel={chatOpenLabel}
+                  chatOpenBlockedReason={chatOpenBlockedReason}
+                  worktreeInfo={worktreeInfo}
+                  onToggleDetails={onToggleDetails}
+                  onJumpToOriginalPane={onJumpToOriginalPane}
+                  showJumpToWorktree={showJumpToWorktree}
+                  onJumpToWorktree={onJumpToWorktree}
+                  onResume={onResume}
+                  onContinueInNewSession={onContinueInNewSession}
+                  onResumeInNewChat={onResumeInNewChat}
+                  onCopyResume={onCopyResume}
+                  onCopyId={onCopyId}
+                  onCopyPath={onCopyPath}
+                  onOpenLog={onOpenLog}
+                  onRevealLog={onRevealLog}
+                  onOpenCwd={onOpenCwd}
+                  deleteBlockedReason={deleteBlockedReason}
+                  onRequestDelete={requestDelete}
+                />
+              </div>
+              {!detailsExpanded ? (
+                <div className="mt-0.5 min-w-0 line-clamp-2 text-[12px] leading-4 text-muted-foreground">
+                  {latestTurn ? (
+                    <>
+                      <span className="font-medium text-foreground/80">
+                        {conversationRoleLabel(latestTurn.role)}
+                      </span>
+                      <span>: {latestTurn.text}</span>
+                    </>
+                  ) : (
+                    translate(
+                      'auto.components.right.sidebar.AiVaultSessionRow.noPreviewAvailable',
+                      'No conversation preview available'
+                    )
+                  )}
+                </div>
+              ) : null}
+              <SessionMetadata
+                session={session}
+                liveState={liveState}
+                updatedAt={updatedAt}
+                worktreeInfo={worktreeInfo}
+                vaultScope={vaultScope}
+              />
+              {detailsExpanded ? (
+                <SessionInlineDetails
+                  id={detailsId}
+                  session={session}
+                  worktreeInfo={worktreeInfo}
+                  vaultScope={vaultScope}
+                  resumeActions={resumeActions}
+                  onResumeInWorktree={onResumeInWorktree}
+                  onResumeInNewTab={onResumeInNewTab}
+                  onContinueInNewSession={onContinueInNewSession}
+                  onResumeInNewChat={onResumeInNewChat}
+                  onOpenLog={onOpenLog}
+                />
+              ) : null}
             </div>
-            <SessionRowTrailingActions
-              session={session}
-              detailsExpanded={detailsExpanded}
-              detailsId={detailsId}
-              detailsTooltip={detailsTooltip}
-              resumeDisabled={resumeDisabled}
-              resumeLabel={resumeLabel}
-              worktreeInfo={worktreeInfo}
-              onToggleDetails={onToggleDetails}
-              onJumpToOriginalPane={onJumpToOriginalPane}
-              showJumpToWorktree={showJumpToWorktree}
-              onJumpToWorktree={onJumpToWorktree}
-              onResume={onResume}
-              onContinueInNewSession={onContinueInNewSession}
-              onResumeInNewChat={onResumeInNewChat}
-              onCopyResume={onCopyResume}
-              onCopyId={onCopyId}
-              onCopyPath={onCopyPath}
-              onOpenLog={onOpenLog}
-              onRevealLog={onRevealLog}
-              onOpenCwd={onOpenCwd}
-              deleteBlockedReason={deleteBlockedReason}
-              onRequestDelete={requestDelete}
-            />
-          </div>
-          {!detailsExpanded ? (
-            <div className="mt-0.5 min-w-0 line-clamp-2 text-[12px] leading-4 text-muted-foreground">
-              {latestTurn ? (
-                <>
-                  <span className="font-medium text-foreground/80">
-                    {conversationRoleLabel(latestTurn.role)}
-                  </span>
-                  <span>: {latestTurn.text}</span>
-                </>
-              ) : (
-                translate(
-                  'auto.components.right.sidebar.AiVaultSessionRow.noPreviewAvailable',
-                  'No conversation preview available'
-                )
-              )}
-            </div>
-          ) : null}
-          <SessionMetadata
-            session={session}
-            liveState={liveState}
-            updatedAt={updatedAt}
-            worktreeInfo={worktreeInfo}
-            vaultScope={vaultScope}
-          />
-          {detailsExpanded ? (
-            <SessionInlineDetails
-              id={detailsId}
-              session={session}
-              worktreeInfo={worktreeInfo}
-              vaultScope={vaultScope}
-              resumeActions={resumeActions}
-              onResumeInWorktree={onResumeInWorktree}
-              onResumeInNewTab={onResumeInNewTab}
-              onContinueInNewSession={onContinueInNewSession}
-              onResumeInNewChat={onResumeInNewChat}
-              onOpenLog={onOpenLog}
-            />
-          ) : null}
-        </div>
-      </ContextMenuTrigger>
+          </ContextMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          {primaryOpen.disabled ? (primaryOpen.reason ?? primaryOpen.label) : primaryOpen.label}
+        </TooltipContent>
+      </Tooltip>
       <ContextMenuContent>
         <SessionActionMenuItems
           menuKind="context"
           resumeDisabled={resumeDisabled}
           resumeLabel={resumeLabel}
+          chatOpenLabel={chatOpenLabel}
+          chatOpenBlockedReason={chatOpenBlockedReason}
           onJumpToOriginalPane={onJumpToOriginalPane}
           showJumpToWorktree={showJumpToWorktree}
           onJumpToWorktree={onJumpToWorktree}

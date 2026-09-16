@@ -46,6 +46,9 @@ export function SessionRowTrailingActions({
   detailsTooltip,
   resumeDisabled,
   resumeLabel,
+  primaryOpen,
+  chatOpenLabel,
+  chatOpenBlockedReason,
   worktreeInfo,
   onToggleDetails,
   onJumpToOriginalPane,
@@ -69,6 +72,9 @@ export function SessionRowTrailingActions({
   detailsTooltip: string
   resumeDisabled: boolean
   resumeLabel: string
+  primaryOpen?: { label: string; disabled: boolean; reason?: string; onOpen: () => void }
+  chatOpenLabel?: string
+  chatOpenBlockedReason?: string
   worktreeInfo: AiVaultSessionWorktreeInfo | null
   onToggleDetails: () => void
   onJumpToOriginalPane?: () => void
@@ -88,6 +94,7 @@ export function SessionRowTrailingActions({
   deleteBlockedReason: string | null
   onRequestDelete: () => void
 }) {
+  const primary = primaryOpen ?? { label: resumeLabel, disabled: resumeDisabled, onOpen: onResume }
   const jumpToWorktreeTooltip = aiVaultWorktreeJumpTooltip(worktreeInfo)
 
   return (
@@ -146,12 +153,12 @@ export function SessionRowTrailingActions({
               type="button"
               variant="ghost"
               size="icon-xs"
-              aria-label={resumeLabel}
-              disabled={resumeDisabled}
+              aria-label={primary.label}
+              disabled={primary.disabled}
               draggable={false}
               onClick={(event) => {
                 event.stopPropagation()
-                onResume()
+                primary.onOpen()
               }}
               data-testid="ai-vault-session-resume"
               // Why: on touch (no hover) these controls stay visible and
@@ -163,7 +170,7 @@ export function SessionRowTrailingActions({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={4}>
-            {resumeLabel}
+            {primary.label}
           </TooltipContent>
         </Tooltip>
         {onContinueInNewSession ? (
@@ -257,6 +264,8 @@ export function SessionRowTrailingActions({
           <SessionActionMenuItems
             resumeDisabled={resumeDisabled}
             resumeLabel={resumeLabel}
+            chatOpenLabel={chatOpenLabel}
+            chatOpenBlockedReason={chatOpenBlockedReason}
             onResume={onResume}
             onContinueInNewSession={onContinueInNewSession}
             onResumeInNewChat={onResumeInNewChat}

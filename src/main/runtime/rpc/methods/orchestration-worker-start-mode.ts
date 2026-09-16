@@ -1,28 +1,8 @@
-/**
- * Which kind of worker `orchestration.workerStart` starts, decided from the user's own settings.
- *
- * There is no `--structured` flag: if the user's default is that a new agent tab opens as a
- * structured native chat, an orchestration worker is one too. That default is a preference, not a
- * demand, so a dispatch it cannot apply to falls back to an ordinary PTY terminal worker and the
- * receipt says which mode ran and why — a routine `worker-start` must never fail because the user
- * happens to have a chat preference on.
- *
- * The settings default and the per-launch feasibility both come from
- * `shared/structured-native-chat-launch-route`, the same module the renderer's
- * `resolveAgentLaunchRoute` uses; only the placement options that exist solely on this command are
- * decided here.
- */
+/** Ordinary worker starts remain terminal-backed; Chat UI defaults affect presentation only. */
 
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import { RUNTIME_CAPABILITIES } from '../../../../shared/protocol-version'
-import {
-  prefersStructuredNativeChatByDefault,
-  resolveStructuredNativeChatSupport,
-  type NativeChatDefaultSettings,
-  type StructuredNativeChatBlocker
-} from '../../../../shared/structured-native-chat-launch-route'
+import type { NativeChatDefaultSettings } from '../../../../shared/structured-native-chat-launch-route'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import { hasExplicitTuiLaunchCustomization } from '../../../../shared/tui-agent-launch-customization'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 
 export type WorkerStartMode = 'structured' | 'terminal'
@@ -78,22 +58,6 @@ const DOWNGRADE_DETAIL: Record<Exclude<WorkerStartModeReason, 'user_default'>, s
   structured_unsupported_on_host: 'the execution host cannot create one here'
 }
 
-const BLOCKER_REASON: Record<
-  StructuredNativeChatBlocker,
-  Exclude<WorkerStartModeReason, 'user_default'>
-> = {
-  'agent-without-structured-session': 'agent_without_structured_session',
-  'draft-prompt': 'structured_unsupported_on_host',
-  'floating-workspace': 'structured_unsupported_on_host',
-  'tui-launch-customization': 'tui_launch_customization',
-  'remote-execution-host': 'remote_execution_host',
-  'project-runtime': 'wsl_execution_runtime',
-  'runtime-capability': 'structured_sessions_unavailable',
-  // Orchestration passes its own host's list, so this is unreachable there; the map is
-  // exhaustive by type and must still name it.
-  'runtime-capability-unknown': 'structured_sessions_unavailable'
-}
-
 /** The host's own create-support verdict (`agentSession.createSupport`) in this vocabulary. */
 const HOST_SUPPORT_REASON: Record<
   'agent' | 'remote' | 'wsl',
@@ -104,43 +68,15 @@ const HOST_SUPPORT_REASON: Record<
   wsl: 'wsl_execution_runtime'
 }
 
-export function decideWorkerStartMode(args: {
+export function decideWorkerStartMode(_args: {
   params: WorkerStartModePlacement
   settings: WorkerStartModeSettings | null | undefined
 }): WorkerStartModeReceipt {
-  const { params, settings } = args
-  if (!prefersStructuredNativeChatByDefault(settings)) {
-    return {
-      mode: 'terminal',
-      preferred: 'terminal',
-      reason: 'user_default',
-      detail: 'Started a terminal agent worker, the default for new agent tabs in your settings.'
-    }
-  }
-  const placementReason = resolvePlacementReason(params)
-  if (placementReason) {
-    return downgraded(placementReason)
-  }
-  const agent = params.agent as TuiAgent
-  const support = resolveStructuredNativeChatSupport({
-    agent,
-    // Set only by --on, which the placement check above already turned into a fallback.
-    executionHostId: 'local',
-    hostCapabilities: RUNTIME_CAPABILITIES,
-    // Orchestration resolves a managed worktree or folder workspace; a floating terminal is never
-    // a worker placement. WSL is left to the executing host's own create-support probe, which
-    // reads the resolved workspace rather than guessing from a client-side project runtime.
-    requiresTuiLaunchCustomization: hasExplicitTuiLaunchCustomization(settings, agent)
-  })
-  if (!support.supported) {
-    return downgraded(BLOCKER_REASON[support.blocker])
-  }
   return {
-    mode: 'structured',
-    preferred: 'structured',
+    mode: 'terminal',
+    preferred: 'terminal',
     reason: 'user_default',
-    detail:
-      'Started a structured chat session worker, the default for new agent tabs in your settings.'
+    detail: 'Started a terminal agent worker. The Chat UI default changes only its display.'
   }
 }
 
@@ -194,24 +130,6 @@ export function downgradeWorkerStartModeForHost(
   return downgraded(
     support.reason ? HOST_SUPPORT_REASON[support.reason] : 'structured_unsupported_on_host'
   )
-}
-
-function resolvePlacementReason(
-  params: WorkerStartModePlacement
-): Exclude<WorkerStartModeReason, 'user_default'> | null {
-  if (params.on) {
-    return 'remote_execution_host'
-  }
-  if (params.terminal) {
-    return 'reused_terminal'
-  }
-  if (params.worktree === 'new-child' || params.worktree === 'new-top-level') {
-    return 'worktree_creation'
-  }
-  if (params.model || params.effort) {
-    return 'launch_preferences'
-  }
-  return null
 }
 
 function downgraded(

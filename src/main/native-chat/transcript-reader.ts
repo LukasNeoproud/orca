@@ -3,6 +3,7 @@ import type {
   NativeChatMessage,
   NativeChatTurnLifecycle
 } from '../../shared/native-chat-types'
+import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { errorMessage } from '../ai-vault/session-scanner-values'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from './session-file-resolver'
@@ -15,11 +16,16 @@ import {
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { decodeTranscriptStream } from './transcript-stream-lines'
+import {
+  CodexTranscriptUsageStatusAccumulator,
+  enrichCodexTranscriptUsageStatus
+} from './codex-transcript-usage-status'
 
 export type ReadTranscriptResult =
   | {
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
+      usageStatus?: NativeChatUsageStatus
     }
   // notFound marks a retry-worthy miss (transcript not flushed to disk yet,
   // #8401) as opposed to a real parse/IO error callers surface immediately.
@@ -59,7 +65,15 @@ export async function readNativeChatTranscript(
       return { messages: await readTranscript(filePath, decodeClaudeTranscriptLine) }
     }
     if (transcriptAgent === 'codex') {
-      return { messages: await readTranscript(filePath, decodeCodexTranscriptLine) }
+      const usage = new CodexTranscriptUsageStatusAccumulator()
+      const messages = await readTranscript(filePath, decodeCodexTranscriptLine, (line) =>
+        usage.observe(line)
+      )
+      await enrichCodexTranscriptUsageStatus(filePath, usage)
+      return {
+        messages,
+        usageStatus: usage.snapshot()
+      }
     }
     if (transcriptAgent === 'grok') {
       return { messages: await readTranscript(filePath, decodeGrokTranscriptLine) }
@@ -80,9 +94,10 @@ export async function readNativeChatTranscript(
 
 async function readTranscript(
   filePath: string,
-  decode: (line: string, fallbackId: string) => NativeChatMessage | null
+  decode: (line: string, fallbackId: string) => NativeChatMessage | null,
+  onLine?: (line: string) => void
 ): Promise<NativeChatMessage[]> {
   const stream = openTranscriptReadStream(filePath, { encoding: 'utf-8' }, 'exact')
-  const { messages } = await decodeTranscriptStream(stream, filePath, 0, decode, true)
+  const { messages } = await decodeTranscriptStream(stream, filePath, 0, decode, true, onLine)
   return messages
 }

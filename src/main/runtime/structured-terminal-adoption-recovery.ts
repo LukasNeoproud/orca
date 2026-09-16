@@ -1,7 +1,4 @@
-import type {
-  AgentSessionRecord,
-  AgentSessionProcessIdentity
-} from '../../shared/agent-session-record'
+import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
 import type { StructuredTuiOwner } from '../native-chat/agent-session-wire/structured-agent-session-handoff-types'
 import type { RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
@@ -10,57 +7,13 @@ import { PROCESS_START_TIME_TOLERANCE_MS } from './agent-session-process-identit
 import { readStructuredTuiProcessIdentity } from './structured-tui-process-identity'
 import {
   assertStructuredTerminalWorkingDirectory,
-  selectStructuredTerminalProviderSession,
+  resolveStructuredTerminalProviderSession,
   resolveStructuredTerminalTranscript
 } from './structured-terminal-provider-proof'
 import { claudeProviderHandleLink } from '../claude/claude-structured-owner-identity'
 import { agentSessionPtyWriteGate } from './agent-session-pty-write-gate'
-import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
-import type { StructuredAgentSessionTerminalAdoptionResult } from '../../shared/structured-agent-session-terminal-adoption'
 import { isOriginalAdoptedTerminalOwner } from '../../shared/structured-agent-session-terminal-adoption'
 import { StructuredTerminalAdoptionError } from '../native-chat/agent-session-wire/structured-agent-session-terminal-adoption'
-
-export async function replayStructuredTerminalAdoption(input: {
-  host: StructuredAgentSessionHost
-  prior: AgentSessionRecord
-  identity: AgentSessionProcessIdentity
-  revalidate: () => Promise<void>
-  ptyId: string
-}): Promise<StructuredAgentSessionTerminalAdoptionResult> {
-  const assertOriginalWriter = () => {
-    const record = input.host.deps.store.getRecord(input.prior.sessionId)!
-    const recorded = record.lease.ownerProcess
-    if (
-      !isOriginalAdoptedTerminalOwner(record) ||
-      record.lease.claimStatus !== 'live' ||
-      record.lease.handoffStage !== null ||
-      recorded?.pid !== input.identity.pid ||
-      recorded.processStartTimeMs === null ||
-      input.identity.processStartTimeMs === null ||
-      Math.abs(recorded.processStartTimeMs - input.identity.processStartTimeMs) >
-        PROCESS_START_TIME_TOLERANCE_MS
-    ) {
-      throw new StructuredTerminalAdoptionError(
-        'agent_session_conflict',
-        'This pane now runs a different agent owner. Its previous structured conversation cannot take over this terminal.'
-      )
-    }
-    return record
-  }
-  assertOriginalWriter()
-  await input.host.revealSession(input.prior.sessionId)
-  await input.revalidate()
-  const record = assertOriginalWriter()
-  const bound = agentSessionPtyWriteGate.boundSessionId(input.ptyId)
-  if (bound && bound !== record.sessionId) {
-    throw new StructuredTerminalAdoptionError(
-      'agent_session_conflict',
-      'The terminal changed ownership.'
-    )
-  }
-  agentSessionPtyWriteGate.bindPty(input.ptyId, record.sessionId)
-  return { sessionId: record.sessionId, fence: record.lease.runtimeFence, agent: record.provider }
-}
 
 export async function recoverStructuredTerminalAdoption(input: {
   record: AgentSessionRecord
@@ -122,7 +75,8 @@ export async function recoverStructuredTerminalAdoption(input: {
     throw new Error('The adopted terminal now runs a different agent process.')
   }
   await assertStructuredTerminalWorkingDirectory(identity.pid, input.workspacePath)
-  const providerSession = selectStructuredTerminalProviderSession({
+  const providerSession = await resolveStructuredTerminalProviderSession({
+    pid: identity.pid,
     paneKey: terminal.paneKey,
     incarnationId: terminal.incarnationId,
     agent: record.provider,
@@ -132,6 +86,13 @@ export async function recoverStructuredTerminalAdoption(input: {
     processStartTimeMs: identity.processStartTimeMs,
     rows: input.providerRows()
   })
+  const expectedId = head.handle.provider === 'codex' ? head.handle.threadId : head.handle.sessionId
+  if (providerSession.id !== expectedId) {
+    throw new StructuredTerminalAdoptionError(
+      'agent_session_identity_required',
+      'The terminal now owns another conversation. Switch this current terminal to chat again.'
+    )
+  }
   const transcript = await resolveStructuredTerminalTranscript({
     agent: record.provider,
     providerSession,

@@ -6,6 +6,10 @@ import { NativeChatSupportedAgents } from './NativeChatSupportedAgents'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSwitch } from './SettingsFormControls'
 import { getExperimentalSearchEntry } from './experimental-search'
+import {
+  resolveAgentSessionHistoryOpenMode,
+  type AgentSessionHistoryOpenMode
+} from '../../../../shared/agent-session-history-open-mode'
 
 type NativeChatDefaultView = 'terminal-chat' | 'native-chat'
 
@@ -22,6 +26,7 @@ export function NativeChatExperimentalSetting({
   const structuredNativeChatEnabled = settings.experimentalStructuredNativeChat === true
   const defaultView: NativeChatDefaultView =
     settings.openAgentTabsInChatByDefault === true ? 'native-chat' : 'terminal-chat'
+  const historyOpenMode = resolveAgentSessionHistoryOpenMode(settings)
 
   return (
     <SearchableSetting
@@ -42,7 +47,7 @@ export function NativeChatExperimentalSetting({
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.ExperimentalPane.nativeChat.copy',
-              'Enables the experimental Chat UI for newly created supported local sessions. Existing terminal sessions keep the terminal chat path while we tune transcript fidelity, streaming, and parity.'
+              'Enable the Chat UI for supported Codex and Claude sessions. Configure new tabs and session history separately.'
             )}
           </p>
           <NativeChatSupportedAgents />
@@ -86,6 +91,7 @@ export function NativeChatExperimentalSetting({
               }}
             >
               <SelectTrigger
+                data-testid="native-chat-default-view-select"
                 aria-label={translate(
                   'auto.components.settings.ExperimentalPane.nativeChat.defaultViewLabel',
                   'Default Chat UI view'
@@ -117,19 +123,19 @@ export function NativeChatExperimentalSetting({
               <Label>
                 {translate(
                   'auto.components.settings.ExperimentalPane.nativeChat.structuredTitle',
-                  'Use updated structured native chat'
+                  'Enable Codex and Claude chats'
                 )}
               </Label>
               <p className="text-xs text-muted-foreground">
                 {translate(
                   'auto.components.settings.ExperimentalPane.nativeChat.structuredCopy',
-                  'Use the structured chat runtime for supported Codex and Claude sessions. This setting is independent of the default view for new tabs.'
+                  'Use dedicated chats for supported Codex and Claude sessions.'
                 )}
               </p>
               <p className="text-xs text-muted-foreground">
                 {translate(
                   'auto.components.settings.ExperimentalPane.nativeChat.structuredScope',
-                  'Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.'
+                  'Available for local sessions. WSL, remote hosts, and unsupported Windows environments cannot open Chat UI.'
                 )}
               </p>
             </div>
@@ -148,6 +154,72 @@ export function NativeChatExperimentalSetting({
           </div>
         </div>
       ) : null}
+      <div className="ml-4 border-l border-border pl-4">
+        <SessionHistoryDefaultSetting
+          historyOpenMode={historyOpenMode}
+          updateSettings={updateSettings}
+        />
+      </div>
     </SearchableSetting>
+  )
+}
+
+function SessionHistoryDefaultSetting({
+  historyOpenMode,
+  updateSettings
+}: {
+  historyOpenMode: AgentSessionHistoryOpenMode
+  updateSettings: (updates: Partial<GlobalSettings>) => void
+}): React.JSX.Element {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0 shrink space-y-0.5">
+        <Label>
+          {translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.historyDefaultTitle',
+            'Session history default'
+          )}
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.historyDefaultCopy',
+            'Choose how past Codex and Claude sessions open. This is independent of the default view for new tabs.'
+          )}
+        </p>
+      </div>
+      <Select
+        value={historyOpenMode}
+        onValueChange={(value: AgentSessionHistoryOpenMode) => {
+          updateSettings({ agentSessionHistoryOpenMode: value })
+        }}
+      >
+        <SelectTrigger
+          data-testid="session-history-default-view-select"
+          data-value={historyOpenMode}
+          aria-label={translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.historyDefaultLabel',
+            'Default session history view'
+          )}
+          className="w-36"
+          size="sm"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" sideOffset={4} avoidCollisions={false}>
+          <SelectItem value="terminal">
+            {translate(
+              'auto.components.settings.ExperimentalPane.nativeChat.historyDefaultTerminal',
+              'Terminal chat'
+            )}
+          </SelectItem>
+          <SelectItem value="structured">
+            {translate(
+              'auto.components.settings.ExperimentalPane.nativeChat.historyDefaultStructured',
+              'Chat UI'
+            )}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

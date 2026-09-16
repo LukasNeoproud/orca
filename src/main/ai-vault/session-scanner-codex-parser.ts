@@ -315,7 +315,7 @@ async function parseCodexSessionLines(args: {
   })
 }
 
-function isCodexWorkerSession(payload: Record<string, unknown>): boolean {
+export function isCodexWorkerSession(payload: Record<string, unknown>): boolean {
   const threadSource = extractString(payload.thread_source) ?? extractString(payload.threadSource)
   if (threadSource) {
     return threadSource.toLowerCase() !== 'user'

@@ -13,6 +13,14 @@ export async function readCodexRolloutSessionMetaId(
   signal?: AbortSignal,
   priority: WslTranscriptFsTaskPriority = 'exact'
 ): Promise<string | null> {
+  return (await readCodexRolloutSessionMeta(filePath, signal, priority))?.id ?? null
+}
+
+export async function readCodexRolloutSessionMeta(
+  filePath: string,
+  signal?: AbortSignal,
+  priority: WslTranscriptFsTaskPriority = 'exact'
+): Promise<{ id: string; payload: Record<string, unknown> } | null> {
   let head: Buffer
   try {
     // Gated, not raw fs: AI Vault hands this every scan candidate, including
@@ -39,7 +47,7 @@ export async function readCodexRolloutSessionMetaId(
       id?: unknown
       session_id?: unknown
       thread_id?: unknown
-      payload?: { id?: unknown; session_id?: unknown; thread_id?: unknown }
+      payload?: Record<string, unknown>
     }
     if (record.type !== 'session_meta') {
       return null
@@ -51,7 +59,7 @@ export async function readCodexRolloutSessionMetaId(
       record.id ??
       record.session_id ??
       record.thread_id
-    return typeof id === 'string' && id.length > 0 ? id : null
+    return typeof id === 'string' && id.length > 0 ? { id, payload: record.payload ?? {} } : null
   } catch {
     return null
   }

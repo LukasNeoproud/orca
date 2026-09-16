@@ -137,4 +137,25 @@ describe('structured agent session status feed', () => {
     await vi.advanceTimersByTimeAsync(10_000)
     expect(mocks.subscribeStatus).toHaveBeenCalledOnce()
   })
+
+  it('invalidates usage on disconnect and accepts a fresh or older-host snapshot', async () => {
+    const feed = getStructuredAgentSessionStatusFeed(REMOTE)
+    feed.activate()
+    await vi.advanceTimersByTimeAsync(0)
+    const session = {
+      ...summary('session-1', 'working'),
+      contextUsage: { usedTokens: 84000, maxTokens: 258400 },
+      codexWeeklyUsage: { usedPercent: 59 }
+    }
+    hostEmit()({ type: 'snapshot', sessions: [session] })
+    hostEmit()({ type: 'end' })
+    expect(feed.getSnapshot().get('session-1')?.contextUsage?.stale).toBe(true)
+    expect(feed.getSnapshot().get('session-1')?.codexWeeklyUsage).toBeUndefined()
+    expect(feed.getSnapshot().get('session-1')?.status).toBe('working')
+    await vi.advanceTimersByTimeAsync(300)
+    hostEmit(1)({ type: 'snapshot', sessions: [session] })
+    expect(feed.getSnapshot().get('session-1')?.contextUsage).toEqual(session.contextUsage)
+    hostEmit(1)({ type: 'snapshot', sessions: [summary('session-1')] })
+    expect(feed.getSnapshot().get('session-1')?.contextUsage).toBeUndefined()
+  })
 })

@@ -5,24 +5,33 @@ description: Optional chat surface over supported agent terminals — skills, mo
 
 import { Callout } from '@/components/docs/prose'
 
-Chat UI is an experimental conversation view for supported agents. Terminal-backed chat reads the agent's transcript and sends input to its terminal. With **Use updated structured native chat** enabled, supported **Codex** and **Claude** conversations use the provider's structured runtime. Transcript decoding for terminal-backed chat also covers **Grok** and **OMP**.
+Chat UI is an experimental conversation view for supported agents. Terminal-backed chat reads the agent's transcript and sends input to its terminal. With **Codex and Claude chats** enabled, explicit **New Codex Chat** and **New Claude Chat** actions start the provider's structured runtime. Transcript decoding for terminal-backed chat also covers **Grok** and **OMP**.
 
 ## Enable
 
 1. Open **Settings → Experimental → Chat UI**.
 1. Turn **Chat UI** on.
 1. Optionally set **Default view** to **Chat UI** so new supported agent tabs open in chat; keep **Terminal** to open the TUI first.
-1. Enable **Use updated structured native chat** for structured Codex and Claude sessions. This works with either default view.
+1. Enable **Codex and Claude chats** for dedicated structured sessions. This works with either default view.
+1. Set **Session history default** to choose whether a saved Codex or Claude conversation opens in its terminal or in Chat UI.
+
+The session-history preference applies when you reopen saved conversations. New agent tabs use their own launch actions. Ordinary orchestration workers start terminal-backed unless a structured worker workflow explicitly selects Chat UI.
 
 Toggle Chat UI ↔ terminal from the agent pane once enabled.
 
 ## Structured chat
 
-Structured Codex chat offers provider-reported **Model**, **Effort**, **Fast mode**, and **Permissions** controls without clearing the message you are writing. Available choices follow the running provider and its account or managed configuration.
+Structured Codex chat offers provider-reported **Model**, **Effort**, **Fast mode**, and **Permissions** controls without clearing the message you are writing. **Permissions** has its own dropdown, separate from effort and fast mode. Available choices follow the running provider and its account or managed configuration. **Auto review** is a selectable mode that keeps the workspace sandbox and routes approval requests to Codex's reviewer. A provider-reported combination outside the supported presets still appears as **Custom**, with its active policy shown in the menu.
 
-When you switch an existing Codex or Claude terminal to Chat UI, Orca transfers that conversation to the structured runtime after the current turn finishes. Its history and the unsent draft and attachments in Chat UI stay with the pane. **Show terminal** remains available while the original agent is waiting to finish, including when it needs an approval.
+Switching an existing Codex or Claude terminal to Chat UI changes its view while keeping the same terminal process, conversation, draft, and attachments. Use **Show terminal** to switch back. Dedicated structured chats have their own launch actions and do not offer this terminal-view toggle.
 
-Existing-terminal transfer currently requires one local pane on macOS or Linux, the workspace's working directory, and a readable conversation from a completed or running turn. Before the first message, or for split and remote terminals, Chat UI explains why it remains terminal-backed. Transfer of existing Windows and WSL terminals is not yet supported; new structured sessions are unaffected. If Orca cannot verify the running conversation, it shows an error with **Retry** and **Show terminal**; it does not start another copy of the agent.
+Structured launch availability follows the workspace's execution host. Unsupported hosts show an explanation rather than launching a different runtime or a local replacement. Previously started transfer operations retain their recovery controls.
+
+Each workspace card has a collapsed **Conversation History** section. The first expansion loads that execution host's complete session catalog, shared across its workspace cards. Expand it to see the workspace's five newest unopened primary sessions as compact rows with an agent icon, title, and relative time. Select a row to use the session-history preference. The row menu always shows explicit **Open in Terminal** and **New Codex Chat** or **New Claude Chat** actions. Orca disables an unavailable action and explains why. The **Show full history** icon in the section header opens Agent Session History with that workspace and execution host selected, even while the section is collapsed.
+
+## Context usage
+
+The Codex context ring shows how much of the context window is in use. The colored arc, with the same width as the rest of the ring, marks the range from the automatic compaction threshold to 100%. Hover or focus the ring for the token counts, remaining tokens until compaction, and the source of the threshold; click to keep the details open. Stale usage is labeled, and thresholds measured only after the prompt prefix are shown as text rather than as a percentage of the whole window.
 
 ## Composer
 

@@ -140,20 +140,56 @@ describe('structured terminal adoption surface', () => {
     expect(mocks.state.settings!.openAgentTabsInChatByDefault).toBe(false)
   })
 
-  it.each(['split', 'remote', 'no-provider-session'])(
+  it('asks the host to resolve a resumed conversation before any new hook reports its ID', async () => {
+    render(<NativeChatStructuredAdoption {...props} sessionId={null} />)
+    expect(screen.queryByTestId('legacy')).toBeNull()
+    await waitFor(() => expect(mocks.handoff).toHaveBeenCalledWith(adopted))
+    expect(mocks.adopt).toHaveBeenCalledWith({
+      worktreeId: 'wt',
+      agent: 'codex',
+      terminal: {
+        tabId: 'terminal',
+        paneKey: props.paneKey,
+        ptyId: 'pty'
+      }
+    })
+  })
+
+  it('waits for a reconnected terminal without displaying the legacy model picker', async () => {
+    const view = render(<NativeChatStructuredAdoption {...props} targetPtyId={null} />)
+    expect(screen.getByText('loading')).toBeTruthy()
+    expect(screen.queryByTestId('legacy')).toBeNull()
+    expect(mocks.adopt).not.toHaveBeenCalled()
+    view.rerender(<NativeChatStructuredAdoption {...props} />)
+    await waitFor(() => expect(mocks.handoff).toHaveBeenCalledWith(adopted))
+  })
+
+  it('binds only the current attempt when the resumed session ID arrives during adoption', async () => {
+    const first = deferred()
+    const current = deferred()
+    mocks.adopt.mockReturnValueOnce(first.promise).mockReturnValueOnce(current.promise)
+    const view = render(<NativeChatStructuredAdoption {...props} sessionId={null} />)
+    view.rerender(<NativeChatStructuredAdoption {...props} />)
+    expect(mocks.adopt).toHaveBeenCalledTimes(2)
+    await act(async () => first.resolve(adopted))
+    expect(mocks.state.unifiedTabsByWorktree.wt[0].structuredSessionId).toBeUndefined()
+    expect(mocks.handoff).not.toHaveBeenCalled()
+    await act(async () => current.resolve(adopted))
+    expect(mocks.state.unifiedTabsByWorktree.wt[0].structuredSessionId).toBe(adopted.sessionId)
+    expect(mocks.handoff).toHaveBeenCalledOnce()
+  })
+
+  it.each(['split', 'remote'])(
     'explains %s fallback without claiming structured ownership',
     (reason) => {
       mocks.owner = reason === 'remote' ? 'ssh:remote' : 'local'
       render(
         <NativeChatStructuredAdoption
           {...props}
-          sessionId={reason === 'no-provider-session' ? null : props.sessionId}
           terminalContext={{ ...props.terminalContext, singlePane: reason !== 'split' }}
         />
       )
-      expect(screen.getByRole('status').textContent).toMatch(
-        /one pane|remote terminal|first message/
-      )
+      expect(screen.getByRole('status').textContent).toMatch(/one pane|remote terminal/)
       expect(screen.getByTestId('legacy')).toBeTruthy()
       expect(mocks.adopt).not.toHaveBeenCalled()
     }

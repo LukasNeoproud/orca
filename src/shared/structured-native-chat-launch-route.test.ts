@@ -1,13 +1,11 @@
 /**
- * The shared half of the launch route: the renderer's `resolveAgentLaunchRoute` and orchestration's
- * worker-mode decision both answer from these, so a change here moves both surfaces at once.
+ * The shared display default and explicit structured-chat support gate.
  */
 
 import { describe, expect, it } from 'vitest'
 import { STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY } from './protocol-version'
 import {
   agentTabsDefaultToNativeChat,
-  prefersStructuredNativeChatByDefault,
   resolveStructuredNativeChatSupport,
   type StructuredNativeChatSupportInput
 } from './structured-native-chat-launch-route'
@@ -29,24 +27,15 @@ function support(overrides: Partial<StructuredNativeChatSupportInput> = {}) {
 }
 
 describe('the settings default', () => {
-  it('needs all three toggles for structured, and the first two for native chat', () => {
-    expect(prefersStructuredNativeChatByDefault(ON)).toBe(true)
-    expect(prefersStructuredNativeChatByDefault({ ...ON, experimentalNativeChat: false })).toBe(
-      false
-    )
-    expect(
-      prefersStructuredNativeChatByDefault({ ...ON, openAgentTabsInChatByDefault: false })
-    ).toBe(false)
-    expect(
-      prefersStructuredNativeChatByDefault({ ...ON, experimentalStructuredNativeChat: false })
-    ).toBe(false)
+  it('uses only Chat UI availability and presentation preference', () => {
     expect(agentTabsDefaultToNativeChat({ ...ON, experimentalStructuredNativeChat: false })).toBe(
       true
     )
+    expect(agentTabsDefaultToNativeChat({ ...ON, experimentalNativeChat: false })).toBe(false)
+    expect(agentTabsDefaultToNativeChat({ ...ON, openAgentTabsInChatByDefault: false })).toBe(false)
   })
 
   it.each([null, undefined, {}])('reads %s as no preference', (settings) => {
-    expect(prefersStructuredNativeChatByDefault(settings)).toBe(false)
     expect(agentTabsDefaultToNativeChat(settings)).toBe(false)
   })
 })

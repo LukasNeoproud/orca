@@ -4607,6 +4607,24 @@
         "WorktreeCardAgents": {
           "1b0a156717": "Agents"
         },
+        "WorktreeConversationHistory": {
+          "structuredAgentUnsupported": "Este agente no es compatible con Chat UI.",
+          "structuredLocalOnly": "Chat UI solo está disponible para sesiones locales.",
+          "emptySessionUnsupported": "Esta sesión no tiene ninguna conversación guardada para abrir.",
+          "alreadyOpen": "Esta conversación ya está abierta.",
+          "structuredWorkspaceUnsupported": "Chat UI no está disponible en este espacio de trabajo.",
+          "ownerUnverifiable": "Orca no puede verificar si esta conversación sigue en ejecución.",
+          "workspaceUnavailable": "Este espacio de trabajo no está disponible.",
+          "openInTerminal": "Abrir en Terminal",
+          "openInStructuredChat": "Nuevo chat de {{value0}}",
+          "moreActions": "Más acciones de conversación",
+          "disconnected": "Conecta el host de este espacio de trabajo para cargar el historial de conversaciones.",
+          "loading": "Cargando conversaciones…",
+          "retry": "Reintentar",
+          "empty": "No hay conversaciones sin abrir en este espacio de trabajo.",
+          "showFullHistory": "Mostrar historial completo",
+          "label": "Historial de conversaciones"
+        },
         "WorktreeCardReviewDetailSection": {
           "reviewHeader": "{{value0}} #{{value1}}",
           "copyLink": "Copiar enlace"
@@ -5956,13 +5974,22 @@
           "nativeChat": {
             "title": "Chat UI",
             "description": "Previsualiza la interfaz de chat de escritorio para sesiones de terminal de agentes compatibles.",
-            "copy": "Añade una vista de Chat UI a la que puedes cambiar desde paneles de terminal de agentes compatibles. Es experimental mientras ajustamos la fidelidad de las transcripciones, la transmisión y la paridad con el terminal.",
+            "copy": "Activa Chat UI para las sesiones compatibles de Codex y Claude. Configura por separado las pestañas nuevas y el historial de sesiones.",
             "toggleLabel": "Alternar Chat UI",
             "defaultTitle": "Vista predeterminada",
             "defaultCopy": "Elige cómo se abren las nuevas pestañas de terminal de agentes compatibles.",
             "defaultViewLabel": "Vista predeterminada de Chat UI",
             "defaultViewTerminal": "Chat en terminal",
-            "defaultViewNative": "Chat UI"
+            "defaultViewNative": "Chat UI",
+            "structuredTitle": "Activar chats de Codex y Claude",
+            "structuredCopy": "Usa chats dedicados para las sesiones compatibles de Codex y Claude.",
+            "structuredScope": "Disponible para sesiones locales. WSL, los hosts remotos y los entornos de Windows no compatibles no pueden abrir Chat UI.",
+            "structuredToggleLabel": "Alternar chats de Codex y Claude",
+            "historyDefaultTitle": "Valor predeterminado del historial de sesiones",
+            "historyDefaultCopy": "Elige cómo se abren las sesiones anteriores de Codex y Claude. Es independiente de la vista predeterminada de las pestañas nuevas.",
+            "historyDefaultLabel": "Vista predeterminada del historial de sesiones",
+            "historyDefaultTerminal": "Chat en terminal",
+            "historyDefaultStructured": "Chat UI"
           },
           "agentDashboard": {
             "title": "Panel de agentes",
@@ -11365,7 +11392,9 @@
             "sessionHostMismatchUnsupported": "Esta sesión pertenece a un host diferente. Abre un espacio de trabajo en el mismo host para reanudarla.",
             "prepareSessionResumeFailed": "Could not prepare this session for resume.",
             "sessionDeleted": "Sesión eliminada",
-            "sessionDeleteFailed": "No se pudo eliminar la sesión"
+            "sessionDeleteFailed": "No se pudo eliminar la sesión",
+            "sessionOwnershipUnverifiable": "Orca no puede verificar si esta sesión sigue en ejecución, por lo que no iniciará un segundo proceso de escritura.",
+            "structuredResumeLocalOnly": "La reanudación en Chat UI solo está disponible para sesiones locales."
           },
           "AiVaultPanelControls": {
             "scanningSessions": "Buscando sesiones",
@@ -11501,7 +11530,9 @@
             "delete": "Eliminar",
             "deleteReasonNonLocalHost": "Solo se pueden eliminar las sesiones de este dispositivo.",
             "deleteReasonSyntheticPath": "Esta sesión no se puede eliminar desde Orca.",
-            "deleteReasonUnsupportedAgent": "Las sesiones de {{value0}} no se pueden eliminar desde Orca."
+            "deleteReasonUnsupportedAgent": "Las sesiones de {{value0}} no se pueden eliminar desde Orca.",
+            "openInChat": "Abrir en el chat",
+            "openInAgentChat": "Abrir en el chat de {{agent}}"
           },
           "AiVaultSessionDeleteDialog": {
             "title": "¿Eliminar esta sesión?",
@@ -14590,6 +14621,22 @@
   },
   "components": {
     "native-chat": {
+      "codexStatus": {
+        "tokenUsage": "{{used}} / {{max}} tokens",
+        "trigger": "Uso de contexto de Codex",
+        "title": "Contexto",
+        "usedOfMax": "{{used}} de {{max}} tokens ({{percent}})",
+        "stale": "Es posible que el uso de contexto no esté actualizado",
+        "afterPrefix": "Límite de crecimiento de la compactación: {{tokens}} después del prefijo ({{source}}){{estimated}}",
+        "untilCompaction": "{{tokens}} tokens hasta la compactación",
+        "compactsAt": "Se compacta en {{tokens}} ({{source}}){{estimated}}",
+        "thresholdUnavailable": "El umbral de compactación no está disponible",
+        "weeklyUnknown": "semanal —",
+        "weeklyLeft": "queda un {{percent}}% semanal",
+        "configured": "configurado",
+        "modelDefault": "predeterminado del modelo",
+        "estimated": "estimado"
+      },
       "composer": {
         "imageUnsupported": "Este agente no admite pegar imágenes.",
         "send": "Enviar",
@@ -14622,6 +14669,8 @@
         "availableAfterSessionStarts": "Disponible después de iniciar la sesión.",
         "optionUpdateFailed": "No se pudo actualizar la opción",
         "optionValue": {
+          "custom": "Personalizado",
+          "autoReview": "Revisión automática",
           "fast": "Rápido",
           "minimal": "Mínimo",
           "low": "Bajo",

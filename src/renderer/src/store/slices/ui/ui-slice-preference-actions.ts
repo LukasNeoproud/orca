@@ -150,6 +150,22 @@ export function createUiPreferenceActions(set: UISliceSet, get: UISliceGet): Par
         return { showDotfilesByWorktree: next }
       }),
 
+    conversationHistoryExpandedByWorkspace: {},
+    setConversationHistoryExpanded: (workspaceIdentity, expanded) =>
+      set((s) => {
+        if (!workspaceIdentity) {
+          return s
+        }
+        const next = { ...s.conversationHistoryExpandedByWorkspace }
+        if (expanded) {
+          next[workspaceIdentity] = true
+        } else {
+          delete next[workspaceIdentity]
+        }
+        window.api.ui.set({ conversationHistoryExpandedByWorkspace: next }).catch(console.error)
+        return { conversationHistoryExpandedByWorkspace: next }
+      }),
+
     filterRepoIds: [],
     setFilterRepoIds: (ids) => set({ filterRepoIds: ids }),
 

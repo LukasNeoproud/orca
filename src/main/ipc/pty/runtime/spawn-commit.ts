@@ -103,6 +103,7 @@ export async function commitRuntimePtySpawn(ctx: RuntimePtySpawnState) {
     )
     return {
       id: ctx.result.id,
+      ...(typeof ctx.result.pid === 'number' && ctx.result.pid > 0 ? { pid: ctx.result.pid } : {}),
       ...(ctx.result.incarnationId ? { incarnationId: ctx.result.incarnationId } : {}),
       agentSessionEnsure: ctx.result.agentSessionEnsure
     }
@@ -286,6 +287,7 @@ export async function commitRuntimePtySpawn(ctx: RuntimePtySpawnState) {
   }
   const response = {
     id: ctx.result.id,
+    ...(typeof ctx.result.pid === 'number' && ctx.result.pid > 0 ? { pid: ctx.result.pid } : {}),
     ...(ctx.result.incarnationId ? { incarnationId: ctx.result.incarnationId } : {}),
     ...(ctx.stablePaneOwner && (ctx.stablePaneOwner.handle || args.preAllocatedHandle)
       ? {

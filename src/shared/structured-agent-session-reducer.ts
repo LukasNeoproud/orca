@@ -113,8 +113,12 @@ function mergeItems(
   )
   for (const item of incoming) {
     const prior = byId.get(item.itemId)
-    if (!prior || item.revision >= prior.revision) {
-      byId.set(item.itemId, item)
+    if (!prior || item.revision > prior.revision) {
+      // A provider replay revises content, not the original position in the conversation.
+      byId.set(
+        item.itemId,
+        prior ? { ...item, sequence: prior.sequence, observedAt: prior.observedAt } : item
+      )
     }
   }
   return [...byId.values()].sort((left, right) => left.sequence - right.sequence)

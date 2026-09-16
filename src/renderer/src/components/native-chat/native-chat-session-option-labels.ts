@@ -41,6 +41,8 @@ export function nativeChatSessionChoiceLabel(
         return translate('components.native-chat.composer.optionValue.readOnly', 'Read only')
       case 'workspace-write':
         return translate('components.native-chat.composer.optionValue.workspace', 'Workspace')
+      case 'auto-review':
+        return translate('components.native-chat.composer.optionValue.autoReview', 'Auto review')
       case 'full-access':
         return translate('components.native-chat.composer.optionValue.fullAccess', 'Full access')
     }

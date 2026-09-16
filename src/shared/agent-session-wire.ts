@@ -1,5 +1,6 @@
 import type { AgentSessionRewindReason, AgentSessionRewindSupport } from './agent-session-rewind'
 import type { AgentSessionConversationCommand } from './agent-session-conversation-command'
+import type { CodexContextUsage, CodexWeeklyUsage } from './codex-context-usage'
 // ─── Structured agent-session wire contract ─────────────────────────────────
 // The shapes `agentSession.*` accepts and publishes. Phase 2 builds provider
 // adapters and clients against exactly these types, so everything here must be
@@ -199,6 +200,10 @@ export type AgentSessionStatusSummary = {
   latestPrompt: string
   /** Provider model in force for the next turn; absent until the host has read the options. */
   model?: string
+  /** Live provider-owned usage. Optional so mixed-version hosts remain compatible. */
+  contextUsage?: CodexContextUsage
+  /** Weekly quota for the account backing this exact Codex session. */
+  codexWeeklyUsage?: CodexWeeklyUsage
   /** The tool the running turn is inside. Absent unless `status` is 'working'. */
   toolName?: string
   toolInput?: string
@@ -338,6 +343,9 @@ export type AgentSessionConfigOption = {
   category?: 'thought_level' | 'model_config' | 'mode'
   choices: AgentSessionOptionChoice[]
   currentValue?: string
+  /** Provider-reported current state when it cannot be represented by a settable choice. */
+  currentValueLabel?: string
+  currentValueDescription?: string
 }
 
 /** One entry of the `/` menu the running provider reports for itself. `skill`

@@ -1,8 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type {
-  AgentSessionExecutionLocation,
-  AgentSessionRecord
-} from '../../shared/agent-session-record'
+import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
 import type {
   StructuredAgentSessionTerminalAdoptionParams,
@@ -22,10 +19,10 @@ import { agentSessionPtyWriteGate } from './agent-session-pty-write-gate'
 import {
   assertStructuredTerminalWorkingDirectory,
   resolveStructuredTerminalTranscript,
-  selectStructuredTerminalProviderSession
+  resolveStructuredTerminalProviderSession
 } from './structured-terminal-provider-proof'
 import { structuredTerminalLaunchArgs } from './structured-terminal-launch-args'
-import { replayStructuredTerminalAdoption } from './structured-terminal-adoption-recovery'
+import { planStructuredTerminalAdoption } from './structured-terminal-adoption-admission'
 
 export type StructuredTerminalAdoptionContext = {
   runtime: object
@@ -54,7 +51,14 @@ export async function adoptStructuredTerminal(
     pending = new Map()
     inFlight.set(context.runtime, pending)
   }
-  const key = `${request.terminal.ptyId}\0${request.agent}\0${request.providerSessionId}`
+  const pty = context.readPty()
+  const key = [
+    context.location.workspaceId,
+    request.terminal.ptyId,
+    pty.incarnationId,
+    request.terminal.paneKey,
+    request.agent
+  ].join('\0')
   const existing = pending.get(key)
   if (existing) {
     return existing
@@ -70,27 +74,6 @@ export async function adoptStructuredTerminal(
   }
 }
 
-function matchingAdoption(
-  record: AgentSessionRecord,
-  context: StructuredTerminalAdoptionContext,
-  request: StructuredAgentSessionTerminalAdoptionParams,
-  pty: RuntimePtyWorktreeRecord
-): boolean {
-  const terminal = record.adoptedTerminal
-  const handle = record.providerHandleChain.at(-1)?.handle
-  return (
-    record.location.workspaceId === context.location.workspaceId &&
-    record.location.executionHostId === 'local' &&
-    record.location.wslDistro === null &&
-    terminal?.ptyId === pty.ptyId &&
-    terminal.incarnationId === pty.incarnationId &&
-    terminal.paneKey === request.terminal.paneKey &&
-    terminal.tabId === request.terminal.tabId &&
-    handle?.provider === request.agent &&
-    (handle.provider === 'codex' ? handle.threadId : handle.sessionId) === request.providerSessionId
-  )
-}
-
 async function adopt(
   context: StructuredTerminalAdoptionContext,
   request: StructuredAgentSessionTerminalAdoptionParams,
@@ -103,16 +86,6 @@ async function adopt(
     )
   }
   const pty = context.readPty()
-  const prior = context.host.deps.store
-    .listRecords()
-    .find((record) => matchingAdoption(record, context, request, pty))
-  const boundSessionId = agentSessionPtyWriteGate.boundSessionId(pty.ptyId)
-  if (boundSessionId && boundSessionId !== prior?.sessionId) {
-    throw new StructuredTerminalAdoptionError(
-      'agent_session_conflict',
-      'This terminal already belongs to another structured conversation.'
-    )
-  }
   const incarnationId = pty.incarnationId
   if (!incarnationId) {
     throw new StructuredTerminalAdoptionError(
@@ -159,7 +132,8 @@ async function adopt(
   // An adopted child may predate Orca's reservation token; its start time remains mandatory.
   identity.spawnToken = (await readEchoedAgentSessionSpawnToken(identity)) ?? identity.spawnToken
   const readProvider = () =>
-    selectStructuredTerminalProviderSession({
+    resolveStructuredTerminalProviderSession({
+      pid: identity.pid,
       paneKey: request.terminal.paneKey,
       incarnationId,
       agent: request.agent,
@@ -168,9 +142,18 @@ async function adopt(
       processStartTimeMs: identity.processStartTimeMs!,
       rows: context.providerRows()
     })
-  const providerSession = readProvider()
+  const providerSession = await readProvider()
   const revalidate = async () => {
-    readProvider()
+    const current = await readProvider()
+    if (
+      current.id !== providerSession.id ||
+      current.transcriptPath !== providerSession.transcriptPath
+    ) {
+      throw new StructuredTerminalAdoptionError(
+        'agent_session_identity_required',
+        'The terminal switched conversations during this request. Retry the current conversation.'
+      )
+    }
     await assertStructuredTerminalWorkingDirectory(identity.pid, context.workspacePath)
     const proof = await probeAgentSessionProcessIdentity({ identity })
     if (proof.outcome !== 'identity-matched' || proof.matchedOn.length === 0) {
@@ -182,24 +165,23 @@ async function adopt(
     assertBinding()
   }
   await revalidate()
-  if (prior) {
-    return replayStructuredTerminalAdoption({
-      host: context.host,
-      prior,
-      identity,
-      revalidate,
-      ptyId: pty.ptyId
-    })
-  }
   const transcript = await resolveStructuredTerminalTranscript({
     agent: request.agent,
     providerSession,
     candidateAccountHomes: context.accountHomes(pty)
   })
+  const plan = planStructuredTerminalAdoption({
+    context,
+    pty,
+    process: identity,
+    agent: request.agent,
+    providerSessionId: providerSession.id,
+    accountHomePath: transcript.accountHomePath
+  })
   const launchArgs = structuredTerminalLaunchArgs({
     agent: request.agent,
     command: processCommand,
-    providerSessionId: request.providerSessionId
+    providerSessionId: providerSession.id
   })
   const owner: StructuredTuiOwner = {
     terminal: { ...request.terminal, handle: context.issueHandle(pty), incarnationId },
@@ -208,27 +190,31 @@ async function adopt(
       request.agent === 'codex'
         ? codexProviderHandleLink({
             threadId: providerSession.id,
-            resumed: false,
-            origin: 'adopted',
-            fence: 1,
+            resumed: Boolean(plan.existing),
+            ...(plan.existing ? {} : { origin: 'adopted' as const }),
+            fence: plan.fence,
             observedAt: Date.now()
           })
         : claudeProviderHandleLink({
             sessionId: providerSession.id,
             leafUuid: transcript.leafUuid,
-            resumed: false,
-            origin: 'adopted',
-            fence: 1,
+            resumed: Boolean(plan.existing),
+            ...(plan.existing ? {} : { origin: 'adopted' as const }),
+            fence: plan.fence,
             observedAt: Date.now()
           }),
     transcriptPath: transcript.transcriptPath,
     adoptedTerminal: true,
     ...(request.agent === 'codex' ? { historySource: 'provider-resume' as const } : {})
   }
-  const sessionId = request.envelope.sessionId
+  const sessionId = plan.existing?.sessionId ?? request.envelope.sessionId
+  const boundBefore = agentSessionPtyWriteGate.boundSessionId(pty.ptyId)
   if (
-    agentSessionPtyWriteGate.boundSessionId(pty.ptyId) ||
-    !agentSessionPtyWriteGate.bindPtyForAttempt(pty.ptyId, sessionId, identity.spawnToken)
+    (boundBefore !== null &&
+      boundBefore !== sessionId &&
+      boundBefore !== plan.previous?.sessionId) ||
+    (boundBefore === null &&
+      !agentSessionPtyWriteGate.bindPtyForAttempt(pty.ptyId, sessionId, identity.spawnToken))
   ) {
     throw new StructuredTerminalAdoptionError(
       'agent_session_conflict',
@@ -239,7 +225,7 @@ async function adopt(
     const result = await context.host.registerTerminalOwner({
       callerKey,
       params: {
-        envelope: request.envelope,
+        envelope: { ...request.envelope, sessionId },
         location: context.location,
         provider: request.agent,
         agent: request.agent,
@@ -259,14 +245,19 @@ async function adopt(
       },
       owner,
       terminal: { ...request.terminal, incarnationId },
-      revalidate
+      revalidate,
+      existing: plan.existing,
+      previous: plan.previous
     })
-    agentSessionPtyWriteGate.settlePtyAttempt(pty.ptyId, identity.spawnToken)
+    agentSessionPtyWriteGate.bindPty(pty.ptyId, result.sessionId)
     return result
   } catch (error) {
-    if (context.host.deps.store.getRecord(sessionId)?.adoptedTerminal) {
-      agentSessionPtyWriteGate.settlePtyAttempt(pty.ptyId, identity.spawnToken)
-    } else {
+    if (
+      error instanceof StructuredTerminalAdoptionError &&
+      error.code === 'agent_session_adoption_unconfirmed'
+    ) {
+      agentSessionPtyWriteGate.bindPty(pty.ptyId, sessionId)
+    } else if (boundBefore === null) {
       agentSessionPtyWriteGate.releasePtyAttempt(pty.ptyId, identity.spawnToken)
     }
     throw error

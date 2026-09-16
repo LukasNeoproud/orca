@@ -103,4 +103,16 @@ describe('terminal adoption RPC intent', () => {
     )
     expect(mocks.publish).toHaveBeenCalledTimes(1)
   })
+
+  it('starts a fresh intent after a confirmed adoption in the same terminal without a session hint', async () => {
+    mocks.call.mockClear()
+    const { providerSessionId: _providerSessionId, ...withoutSessionHint } = input
+    mocks.call.mockResolvedValue(adopted)
+    await adoptStructuredAgentTerminal(withoutSessionHint)
+    await adoptStructuredAgentTerminal(withoutSessionHint)
+    const [first, second] = mocks.call.mock.calls.map((call) => call[2])
+    expect(first).not.toHaveProperty('providerSessionId')
+    expect(second.envelope.sessionId).not.toBe(first.envelope.sessionId)
+    expect(second.envelope.clientOperationId).not.toBe(first.envelope.clientOperationId)
+  })
 })

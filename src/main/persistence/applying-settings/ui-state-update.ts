@@ -171,6 +171,12 @@ export function updatePersistedUI(
       sanitizedUpdates.showDotfilesByWorktree !== undefined
         ? normalizeShowDotfilesByWorktree(sanitizedUpdates.showDotfilesByWorktree)
         : normalizeShowDotfilesByWorktree(operations.state.ui?.showDotfilesByWorktree),
+    conversationHistoryExpandedByWorkspace:
+      sanitizedUpdates.conversationHistoryExpandedByWorkspace !== undefined
+        ? normalizeShowDotfilesByWorktree(sanitizedUpdates.conversationHistoryExpandedByWorkspace)
+        : normalizeShowDotfilesByWorktree(
+            operations.state.ui?.conversationHistoryExpandedByWorkspace
+          ),
     featureTipsSeenIds:
       sanitizedUpdates.featureTipsSeenIds !== undefined
         ? normalizeFeatureTipIds(sanitizedUpdates.featureTipsSeenIds)

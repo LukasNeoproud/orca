@@ -22,7 +22,7 @@ export const StructuredTerminalAdoptionParams = z
     envelope: MutationEnvelope,
     worktree: z.string().min(1).max(32_768),
     agent: z.enum(['codex', 'claude']),
-    providerSessionId: Identifier,
+    providerSessionId: Identifier.optional(),
     terminal: z
       .object({ tabId: Identifier, paneKey: Identifier, ptyId: z.string().min(1).max(32_768) })
       .strict()

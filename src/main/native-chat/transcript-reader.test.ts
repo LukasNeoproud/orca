@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -258,6 +258,41 @@ describe('readNativeChatTranscript (codex)', () => {
     const reasoning = result.messages.find((m) => m.role === 'reasoning')
     expect(reasoning?.blocks[0]).toEqual({ type: 'text', text: 'I will run it' })
   })
+
+  it('returns current context and weekly status without emitting metadata as messages', async () => {
+    const filePath = await writeFixture('orca-native-chat-codex-status-', [
+      { type: 'turn_context', payload: { model: 'gpt-5.6' } },
+      {
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: {
+            last_token_usage: { total_tokens: 24_000 },
+            total_token_usage: { total_tokens: 900_000 },
+            model_context_window: 200_000
+          },
+          rate_limits: {
+            primary: { used_percent: 10, window_minutes: 300 },
+            secondary: {
+              used_percent: 40,
+              window_minutes: 10_080,
+              resets_at: 1_800_000_000
+            }
+          }
+        }
+      }
+    ])
+
+    const result = await readNativeChatTranscript('codex', 'codex-sess', { filePath })
+
+    expect(result).toEqual({
+      messages: [],
+      usageStatus: {
+        contextUsage: { usedTokens: 24_000, maxTokens: 200_000, stale: false },
+        codexWeeklyUsage: { usedPercent: 40, resetsAt: 1_800_000_000_000 }
+      }
+    })
+  })
 })
 
 describe('readNativeChatTranscript (errors)', () => {
@@ -331,5 +366,61 @@ describe('readNativeChatTranscriptTailFile', () => {
 
     expect(result.messages).toEqual([])
     expect(result.hasMore).toBe(false)
+  })
+
+  it('enriches a Codex tail from the rollout home model catalog', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'orca-native-chat-codex-limits-'))
+    tempRoots.push(root)
+    const sessions = join(root, 'sessions', '2026', '09', '11')
+    await mkdir(sessions, { recursive: true })
+    await writeFile(
+      join(root, 'models_cache.json'),
+      JSON.stringify({
+        models: [
+          {
+            slug: 'gpt-test',
+            context_window: 200_000,
+            effective_context_window_percent: 95
+          }
+        ]
+      })
+    )
+    const filePath = join(sessions, 'rollout-test.jsonl')
+    await writeFile(
+      filePath,
+      jsonLines([
+        { type: 'turn_context', payload: { model: 'gpt-test' } },
+        {
+          type: 'event_msg',
+          payload: {
+            type: 'token_count',
+            info: {
+              last_token_usage: { total_tokens: 42_000 },
+              model_context_window: 190_000
+            }
+          }
+        }
+      ])
+    )
+
+    await expect(
+      readNativeChatTranscriptTail({
+        agent: 'codex',
+        sessionId: 'test',
+        filePath,
+        limit: 40
+      })
+    ).resolves.toMatchObject({
+      messages: [],
+      usageStatus: {
+        contextUsage: {
+          usedTokens: 42_000,
+          maxTokens: 190_000,
+          autoCompactThresholdTokens: 180_000,
+          thresholdSource: 'model-default',
+          thresholdEstimated: true
+        }
+      }
+    })
   })
 })

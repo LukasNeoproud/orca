@@ -130,6 +130,21 @@ describe('structured handoff operation ownership', () => {
 })
 
 describe('queued handoff fence revalidation', () => {
+  it('does not start a cancelled waiter when its pending idle read resolves', async () => {
+    const queue = new StructuredAgentSessionHandoffQueue()
+    const ready = vi.fn()
+    let resolveIdle!: (idle: boolean) => void
+    const idle = new Promise<boolean>((resolve) => {
+      resolveIdle = resolve
+    })
+    queue.enqueue(SESSION, () => idle, ready)
+    expect(queue.cancel(SESSION)).toBe(true)
+    resolveIdle(true)
+    await idle
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(ready).not.toHaveBeenCalled()
+  })
+
   const params: AgentSessionHandoffRequest = {
     envelope: {
       sessionId: SESSION,

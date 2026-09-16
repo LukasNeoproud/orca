@@ -40,6 +40,7 @@ import type {
   StructuredTuiOwner
 } from './structured-agent-session-handoff-types'
 import { StructuredAgentSessionHandoffState } from './structured-agent-session-handoff-state'
+import { cancelQueuedStructuredHandoff } from './structured-agent-session-handoff-cancel'
 export class StructuredAgentSessionHandoffCoordinator {
   private readonly state: StructuredAgentSessionHandoffState
   private readonly queue = new StructuredAgentSessionHandoffQueue()
@@ -67,6 +68,15 @@ export class StructuredAgentSessionHandoffCoordinator {
     this.state.setStatus(sessionId, status)
   retainProvenTuiOwner = (sessionId: string, owner: StructuredTuiOwner): void =>
     this.state.retainProvenOwner(sessionId, owner)
+  releaseTransferredTuiOwner = (sessionId: string): void => {
+    const record = this.requireRecord(sessionId)
+    if (record.lease.claimStatus !== 'released' || record.lease.ownerProcess !== null) {
+      throw new Error('agent_session_ownership_unknown')
+    }
+    this.queue.cancel(sessionId)
+    this.state.releaseOwner(sessionId)
+    this.setStatus(sessionId, idleStructuredHandoffStatus(record))
+  }
   async request(
     callerKey: string,
     params: AgentSessionHandoffRequest
@@ -94,22 +104,16 @@ export class StructuredAgentSessionHandoffCoordinator {
     const { fingerprint } = admission
     const action = params.action ?? 'start'
     if (action === 'cancel-queued') {
-      if (currentStatus?.phase !== 'queued' || currentStatus?.direction !== params.direction) {
-        return this.refuseAdmitted(
-          callerKey,
-          params,
-          'agent_session_operation_conflict',
-          'No matching queued handoff exists.'
-        )
-      }
-      this.queue.cancel(record.sessionId)
-      this.setStatus(record.sessionId, idleStructuredHandoffStatus(record))
-      await this.deps.store.recordOperationOutcome({
+      return cancelQueuedStructuredHandoff({
+        deps: this.deps,
+        operationGuard: this.operationGuard,
+        queue: this.queue,
         callerKey,
-        operationId: params.envelope.clientOperationId,
-        outcome: { status: 'succeeded', sessionId: record.sessionId }
+        params,
+        record,
+        currentStatus,
+        setStatus: this.setStatus
       })
-      return this.success(record.sessionId, false)
     }
     if (!this.deps.transport) {
       return this.refuseAdmitted(
@@ -232,6 +236,7 @@ export class StructuredAgentSessionHandoffCoordinator {
   ): Promise<AgentSessionMutationResult<AgentSessionHandoffResult>> {
     return refuseAdmittedStructuredHandoff({
       deps: this.deps,
+      operationGuard: this.operationGuard,
       callerKey,
       params,
       refusal: refusal(code, message)

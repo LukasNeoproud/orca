@@ -49,6 +49,9 @@ function renderOverlay({
   onRenameSubmit = vi.fn(),
   canContinueAgentSessionInNewSession = false,
   onContinueAgentSessionInNewSession = vi.fn(),
+  canToggleNativeChat = false,
+  isChatViewMode = false,
+  onToggleNativeChat = vi.fn(),
   renameValue = '',
   renamingPaneId = null
 }: {
@@ -61,6 +64,9 @@ function renderOverlay({
   onRenameSubmit?: ReturnType<typeof vi.fn>
   canContinueAgentSessionInNewSession?: boolean
   onContinueAgentSessionInNewSession?: ReturnType<typeof vi.fn>
+  canToggleNativeChat?: boolean
+  isChatViewMode?: boolean
+  onToggleNativeChat?: ReturnType<typeof vi.fn>
   renameValue?: string
   renamingPaneId?: number | null
 }): {
@@ -69,7 +75,7 @@ function renderOverlay({
   onRemoveTitle: ReturnType<typeof vi.fn>
   onRenameSubmit: ReturnType<typeof vi.fn>
 } {
-  const panes = [makePane(1), makePane(2)]
+  const panes = [makePane(1), makePane(2)].slice(0, paneCount)
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -98,6 +104,9 @@ function renderOverlay({
         hiddenStartupStyle={{}}
         managerRef={{ current: null } as RefObject<PaneManager | null>}
         paneTransportsRef={{ current: new Map() } as RefObject<Map<number, PtyTransport>>}
+        canToggleNativeChat={canToggleNativeChat}
+        isChatViewMode={isChatViewMode}
+        onToggleNativeChat={onToggleNativeChat as () => void}
         canContinueAgentSessionInNewSession={canContinueAgentSessionInNewSession}
         onContinueAgentSessionInNewSession={
           onContinueAgentSessionInNewSession as (pane: ManagedPane) => void
@@ -223,5 +232,24 @@ describe('TerminalPaneHeaderOverlay', () => {
     expect(onContinueAgentSessionInNewSession).toHaveBeenCalledWith(
       expect.objectContaining({ id: 1 })
     )
+  })
+
+  it('keeps one single-pane header as the stable terminal/chat toggle', () => {
+    const onToggleNativeChat = vi.fn()
+    const { container } = renderOverlay({
+      paneTitles: { 1: '' },
+      paneCount: 1,
+      canToggleNativeChat: true,
+      isChatViewMode: true,
+      onToggleNativeChat
+    })
+
+    expect(container.querySelectorAll('.pane-title-bar')).toHaveLength(1)
+    const toggle = container.querySelector<HTMLButtonElement>('button[aria-label="Show terminal"]')
+    expect(toggle).not.toBeNull()
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true')
+
+    act(() => toggle?.click())
+    expect(onToggleNativeChat).toHaveBeenCalledOnce()
   })
 })

@@ -28,6 +28,24 @@ describe('openCodexThread', () => {
     }
   })
 
+  it('captures Auto review as the effective permissions preset', async () => {
+    const request = vi.fn(async () => ({
+      thread: { id: 'thread-1' },
+      approvalPolicy: 'on-request',
+      approvalsReviewer: 'auto_review',
+      sandbox: { type: 'workspaceWrite', writableRoots: ['/workspace'], networkAccess: false }
+    }))
+    const opened = await openCodexThread(
+      connectionFor(request),
+      { cwd: '/workspace', resumeThreadId: null },
+      1000
+    )
+    expect(opened).toMatchObject({
+      permissions: 'auto-review'
+    })
+    expect(opened).not.toHaveProperty('permissionsCustomDescription')
+  })
+
   it('requests metadata-only state when resuming an existing thread', async () => {
     const request = vi.fn(async () => ({
       thread: { id: 'thread-1', path: '/history/thread-1.jsonl' },
@@ -40,7 +58,11 @@ describe('openCodexThread', () => {
         { cwd: '/workspace', resumeThreadId: 'thread-1', resumePath: '/history/thread-1.jsonl' },
         2_000
       )
-    ).resolves.toMatchObject({ threadId: 'thread-1', model: 'gpt-live' })
+    ).resolves.toMatchObject({
+      threadId: 'thread-1',
+      model: 'gpt-live',
+      historyRequiresRead: true
+    })
 
     expect(request).toHaveBeenCalledWith(
       'thread/resume',
@@ -80,6 +102,8 @@ describe('openCodexThread', () => {
 
     expect(first.thread?.turns).toHaveLength(1)
     expect(second.thread?.turns).toHaveLength(1)
+    expect(first).not.toHaveProperty('historyRequiresRead')
+    expect(second).not.toHaveProperty('historyRequiresRead')
     expect(request.mock.calls.map(([, params]) => params)).toEqual([
       expect.objectContaining({ excludeTurns: true }),
       { threadId: 'thread-1', cwd: '/workspace' },

@@ -1,9 +1,6 @@
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import type { ProjectExecutionRuntimeResolution } from '../../../shared/project-execution-runtime'
-import {
-  prefersStructuredNativeChatByDefault,
-  resolveStructuredNativeChatSupport
-} from '../../../shared/structured-native-chat-launch-route'
+import { resolveStructuredNativeChatSupport } from '../../../shared/structured-native-chat-launch-route'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import {
   decideInitialAgentTabViewMode,
@@ -53,10 +50,9 @@ export function resolveAgentLaunchRoute(input: AgentLaunchRoutingInput): AgentLa
   if (initialViewMode !== 'chat') {
     return 'terminal-tui'
   }
-  if (!prefersStructuredNativeChatByDefault(input.settings)) {
-    return 'legacy-native-chat'
-  }
-  return structuredAgentLaunchSupported(input) ? 'structured-native-chat' : 'legacy-native-chat'
+  // The default controls how a terminal-backed tab is displayed. Structured
+  // sessions are created only by explicit chat actions.
+  return 'legacy-native-chat'
 }
 
 // Explicit chat requests do not depend on the default view mode for new tabs.

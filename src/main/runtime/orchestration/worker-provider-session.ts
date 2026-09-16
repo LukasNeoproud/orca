@@ -12,6 +12,7 @@ export function selectExactWorkerProviderSession(args: {
   wslDistro?: string | null
   launchToken: string | null | undefined
   observedAfter: number
+  includeIdentityOnly?: boolean
   statuses: readonly AgentStatusIpcPayload[]
 }): ExactWorkerProviderSession | null {
   const status = args.statuses
@@ -20,7 +21,7 @@ export function selectExactWorkerProviderSession(args: {
         entry.paneKey === args.paneKey &&
         connectionMatches(entry.connectionId, args.connectionId, args.wslDistro) &&
         (!args.launchToken || entry.launchToken === args.launchToken) &&
-        entry.providerSessionOnly !== true &&
+        (args.includeIdentityOnly || entry.providerSessionOnly !== true) &&
         entry.providerSession !== undefined &&
         entry.agentType !== undefined &&
         entry.receivedAt >= args.observedAfter

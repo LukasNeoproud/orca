@@ -61,9 +61,15 @@ export function adoptStructuredAgentTerminal(
     LOCAL_TARGET,
     'agentSession.adoptTerminal',
     retained.params
-  ).finally(() => {
-    retained.pending = null
-  })
+  )
+    .then((result) => {
+      // A later conversation in the same terminal must get a fresh adoption intent.
+      intents.delete(key)
+      return result
+    })
+    .finally(() => {
+      retained.pending = null
+    })
   return retained.pending
 }
 

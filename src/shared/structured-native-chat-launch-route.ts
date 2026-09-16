@@ -1,11 +1,8 @@
 /**
- * The one place that answers "should this launch be a structured native chat session?".
+ * The one place that answers whether an explicit structured-chat action can run.
  *
- * Both launch surfaces call it. The renderer asks when a user opens an agent tab
- * (`resolveAgentLaunchRoute`); orchestration asks when it dispatches a worker, because the mode is
- * the user's own default rather than a per-call flag. Keeping the two halves — the settings default
- * and the per-launch feasibility — here is what stops the second caller from growing a copy that
- * drifts.
+ * Ordinary agent and worker launches remain terminal-backed. The display default
+ * only decides whether those terminal tabs initially show xterm or Chat UI.
  */
 
 import { isAgentSessionHandleProvider } from './agent-session-provider-handle'
@@ -54,15 +51,6 @@ export function agentTabsDefaultToNativeChat(
 ): boolean {
   return (
     settings?.experimentalNativeChat === true && settings?.openAgentTabsInChatByDefault === true
-  )
-}
-
-/** ...and specifically a structured native chat session rather than a terminal rendered as chat. */
-export function prefersStructuredNativeChatByDefault(
-  settings: Partial<NativeChatDefaultSettings> | null | undefined
-): boolean {
-  return (
-    agentTabsDefaultToNativeChat(settings) && settings?.experimentalStructuredNativeChat === true
   )
 }
 

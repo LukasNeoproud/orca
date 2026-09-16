@@ -11,6 +11,7 @@ import {
 } from '../native-chat/session-file-resolver'
 import { StructuredTerminalAdoptionError } from '../native-chat/agent-session-wire/structured-agent-session-terminal-adoption'
 import { resolveProcessCwd } from '../providers/process-cwd'
+import { readStructuredTerminalCodexRollouts } from './structured-terminal-codex-rollout-proof'
 
 export async function assertStructuredTerminalWorkingDirectory(
   pid: number,
@@ -35,21 +36,44 @@ export async function assertStructuredTerminalWorkingDirectory(
   }
 }
 
-export function selectStructuredTerminalProviderSession(input: {
+type TerminalProviderProofInput = {
   paneKey: string
   incarnationId: string
   agent: 'codex' | 'claude'
-  providerSessionId: string
+  providerSessionId?: string
   launchToken: string | null
   processStartTimeMs: number
   rows: readonly AgentStatusIpcPayload[]
-}): AgentProviderSessionMetadata {
+}
+
+export async function resolveStructuredTerminalProviderSession(
+  input: TerminalProviderProofInput & { pid: number }
+): Promise<AgentProviderSessionMetadata> {
+  if (input.agent !== 'codex') {
+    return selectStructuredTerminalProviderSession({ ...input, providerSessionId: undefined })
+  }
+  const rollouts = await readStructuredTerminalCodexRollouts(input.pid)
+  if (rollouts?.length === 1) {
+    return rollouts[0]!
+  }
+  throw new StructuredTerminalAdoptionError(
+    'agent_session_identity_required',
+    rollouts && rollouts.length > 1
+      ? 'Codex has more than one active conversation in this terminal. Keep using terminal view until the current conversation can be identified.'
+      : 'Orca could not identify the current Codex conversation yet. Keep the terminal open and try again.'
+  )
+}
+
+export function selectStructuredTerminalProviderSession(
+  input: TerminalProviderProofInput
+): AgentProviderSessionMetadata {
   const selected = selectExactWorkerProviderSession({
     paneKey: input.paneKey,
     processIncarnation: input.incarnationId,
     connectionId: null,
     launchToken: input.launchToken,
     observedAfter: input.processStartTimeMs,
+    includeIdentityOnly: true,
     statuses: input.rows
       .filter(
         (row) =>
@@ -63,7 +87,8 @@ export function selectStructuredTerminalProviderSession(input: {
   if (
     !selected ||
     selected.agent !== input.agent ||
-    selected.providerSession.id !== input.providerSessionId
+    (input.providerSessionId !== undefined &&
+      selected.providerSession.id !== input.providerSessionId)
   ) {
     throw new StructuredTerminalAdoptionError(
       'agent_session_identity_required',

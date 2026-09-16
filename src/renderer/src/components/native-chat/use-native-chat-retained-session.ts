@@ -18,18 +18,18 @@ export function useNativeChatRetainedSession(
     args.paneKey,
     args.runtimeEnvironmentId ?? null,
     args.agent,
-    args.sessionId,
-    args.transcriptPath ?? null
+    args.sessionId
   ])
-  const activeIdentityRef = useRef(identity)
+  const sourceKey = encodeNativeChatTranscriptIdentity([identity, args.transcriptPath ?? null])
+  const activeIdentityRef = useRef(sourceKey)
   const retentionRef = useRef<ReturnType<typeof createNativeChatTranscriptRetention>>(undefined!)
   retentionRef.current ??= createNativeChatTranscriptRetention()
-  const sessionMatchesIdentity = activeIdentityRef.current === identity
+  const sessionMatchesIdentity = activeIdentityRef.current === sourceKey
   const readPhase = sessionMatchesIdentity ? session.readPhase : 'loading'
 
   useEffect(() => {
-    activeIdentityRef.current = identity
-  }, [identity])
+    activeIdentityRef.current = sourceKey
+  }, [sourceKey])
   useEffect(() => {
     if (sessionMatchesIdentity && args.sessionId !== null && session.readPhase === 'ready') {
       retentionRef.current.capture(identity, session.messages)
@@ -38,9 +38,13 @@ export function useNativeChatRetainedSession(
 
   const messages = retentionRef.current.visible({
     identity,
-    messages: session.messages,
-    settled: readPhase === 'ready'
+    messages: sessionMatchesIdentity ? session.messages : [],
+    settled: readPhase === 'ready',
+    includeUnsettledMessages: sessionMatchesIdentity
   })
+  if (messages.length === 0 && (readPhase === 'loading' || readPhase === 'awaiting')) {
+    return { ...session, messages, readPhase, status: 'loading', error: undefined }
+  }
   if (messages === session.messages && readPhase === session.readPhase) {
     return session
   }

@@ -10,6 +10,7 @@ import { NativeChatSessionOptionPickers } from './NativeChatSessionOptionPickers
 import type { NativeChatOptionPickerRequest } from './native-chat-composer-types'
 
 export type NativeChatComposerActionsProps = {
+  sessionStatus?: React.ReactNode
   attachDisabled: boolean
   dictationDisabled: boolean
   sendDisabled: boolean
@@ -28,6 +29,7 @@ export type NativeChatComposerActionsProps = {
 }
 
 export function NativeChatComposerActions({
+  sessionStatus,
   attachDisabled,
   dictationDisabled,
   sendDisabled,
@@ -60,8 +62,8 @@ export function NativeChatComposerActions({
     ? translate('components.native-chat.composer.stopDictation', 'Stop dictation')
     : translate('components.native-chat.composer.startDictation', 'Start dictation')
   return (
-    <div className="flex w-full items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-0.5">
+    <div className="flex w-full flex-wrap items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-0.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -81,7 +83,8 @@ export function NativeChatComposerActions({
           </TooltipContent>
         </Tooltip>
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
+      {sessionStatus}
+      <div className="ml-auto flex min-w-0 items-center gap-1.5">
         {/* Why: keep session controls beside the actions they affect; the
         model trigger is ordered last so it sits directly next to dictation. */}
         <NativeChatSessionOptionPickers

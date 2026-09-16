@@ -367,6 +367,64 @@ describe('ai vault resume command runtime', () => {
     })
   })
 
+  it('preserves Codex account, custom command, arguments, environment, and provider identity', () => {
+    const state = makeState({ worktreePath: '/home/alice/repo' })
+    state.settings = {
+      ...state.settings,
+      agentDefaultArgs: {
+        codex: '--dangerously-bypass-approvals-and-sandbox --model custom-codex'
+      },
+      agentDefaultEnv: { codex: { OPENAI_BASE_URL: 'https://codex.example.test' } }
+    } as never
+
+    expect(
+      buildAiVaultResumeStartupForWorktree({
+        state,
+        worktreeId: 'repo-1::worktree-1',
+        commandOverride: 'my-codex',
+        session: {
+          agent: 'codex',
+          sessionId: 'thread-1',
+          cwd: '/home/alice/repo',
+          codexHome: '/home/alice/.codex-work'
+        }
+      })
+    ).toEqual({
+      command:
+        "$env:CODEX_HOME='/home/alice/.codex-work'; my-codex '--dangerously-bypass-approvals-and-sandbox' '--model' 'custom-codex' 'resume' 'thread-1'",
+      cwd: '/home/alice/repo',
+      env: { OPENAI_BASE_URL: 'https://codex.example.test' },
+      launchConfig: {
+        agentCommand:
+          "my-codex '--dangerously-bypass-approvals-and-sandbox' '--model' 'custom-codex'",
+        agentArgs: '--dangerously-bypass-approvals-and-sandbox --model custom-codex',
+        agentEnv: { OPENAI_BASE_URL: 'https://codex.example.test' }
+      },
+      providerSession: { key: 'session_id', id: 'thread-1' }
+    })
+  })
+
+  it('preserves an explicit Codex YOLO opt-out while retaining provider identity', () => {
+    const state = makeState({ worktreePath: '/home/alice/repo' })
+
+    expect(
+      buildAiVaultResumeStartupForWorktree({
+        state,
+        worktreeId: 'repo-1::worktree-1',
+        session: {
+          agent: 'codex',
+          sessionId: 'thread-1',
+          cwd: '/home/alice/repo',
+          codexHome: null
+        }
+      })
+    ).toMatchObject({
+      command: "codex 'resume' 'thread-1'",
+      providerSession: { key: 'session_id', id: 'thread-1' },
+      launchConfig: { agentCommand: 'codex', agentArgs: '', agentEnv: {} }
+    })
+  })
+
   it('uses POSIX command wrapping for Windows-path projects forced to WSL', () => {
     const state = makeState({
       worktreePath: 'C:\\Users\\alice\\repo',

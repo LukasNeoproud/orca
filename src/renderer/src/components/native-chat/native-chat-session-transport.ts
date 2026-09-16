@@ -1,3 +1,4 @@
+import { parseNativeChatUsageStatus } from '../../../../shared/native-chat-usage-status'
 import type { NativeChatApi, NativeChatAppendedMessages } from '../../../../preload/api-types'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import {
@@ -89,6 +90,13 @@ function createRuntimeNativeChatTransport(environmentId: string): NativeChatSess
         if (cancelled || reconnectTimer) {
           return
         }
+        if (receivedInitial && agent === 'codex') {
+          onFrame({
+            type: 'appended',
+            messages: [],
+            usageStatus: { contextUsage: { stale: true }, codexWeeklyUsage: undefined }
+          })
+        }
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null
           reconnectPendingAttempt = null
@@ -141,9 +149,11 @@ function createRuntimeNativeChatTransport(environmentId: string): NativeChatSess
                   hasMore?: boolean
                   error?: string
                   lifecycle?: unknown
+                  usageStatus?: unknown
                   pending?: boolean
                 }
                 const lifecycle = parseRuntimeNativeChatTurnLifecycle(frame?.lifecycle)
+                const usageStatus = parseNativeChatUsageStatus(frame?.usageStatus)
                 // No transcript behind this window yet — forwarded so the view can
                 // stop spinning, but it is not the settled initial read.
                 const pending = frame?.pending === true
@@ -162,6 +172,7 @@ function createRuntimeNativeChatTransport(environmentId: string): NativeChatSess
                       messages: frame.messages,
                       hasMore: frame.hasMore ?? frame.messages.length >= (limit ?? 300),
                       ...(frame.error ? { error: frame.error } : {}),
+                      ...(usageStatus ? { usageStatus } : {}),
                       ...(lifecycle ? { lifecycle } : {}),
                       ...(pending ? { pending: true } : {})
                     })
@@ -171,6 +182,7 @@ function createRuntimeNativeChatTransport(environmentId: string): NativeChatSess
                       messages: frame.messages,
                       hasMore: frame.hasMore ?? false,
                       ...(frame.error ? { error: frame.error } : {}),
+                      ...(usageStatus ? { usageStatus } : {}),
                       ...(lifecycle ? { lifecycle } : {}),
                       ...(pending ? { pending: true } : {})
                     })
@@ -181,11 +193,13 @@ function createRuntimeNativeChatTransport(environmentId: string): NativeChatSess
                             type: 'replacement',
                             messages: frame.messages,
                             hasMore: frame.hasMore ?? false,
+                            ...(usageStatus ? { usageStatus } : {}),
                             ...(lifecycle ? { lifecycle } : {})
                           }
                         : {
                             type: 'appended',
                             messages: frame.messages,
+                            ...(usageStatus ? { usageStatus } : {}),
                             ...(lifecycle ? { lifecycle } : {})
                           }
                     )

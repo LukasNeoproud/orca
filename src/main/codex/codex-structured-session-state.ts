@@ -9,6 +9,7 @@ import { CodexAcquisitionWindow } from './codex-structured-acquisition-window'
 import type { CodexJournalTranslator } from './codex-structured-journal-translation'
 import type { CodexTurnProcessSnapshot } from './codex-structured-turn-processes'
 import type { StructuredAgentSessionLifecycleEvent } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type { CodexContextUsage, CodexWeeklyUsage } from '../../shared/codex-context-usage'
 
 export type CodexStructuredLaunch = {
   command: string
@@ -44,6 +45,7 @@ export type CodexStructuredSessionAdapterDeps = {
   /** Host capability seam; production uses the native Windows process table. */
   isWindowsProcessStartTimeAvailable?: () => boolean
   onEvent?: (event: CodexStructuredSessionEvent) => void
+  onStatusMetadataChanged?: (sessionId: string) => void
   openConnection?: typeof openCodexAppServerConnection
   readProcessStartTime?: (pid: number) => Promise<number | null>
   mintLinkId?: () => string
@@ -76,11 +78,19 @@ export type CodexSession = {
     effort?: string
     serviceTier?: string | null
     permissions?: string
+    permissionsCustomDescription?: string
   }
   supportsDefaultServiceTier?: boolean
   turnIdWaiters: ((turnId: string) => void)[]
   translator: CodexJournalTranslator | null
   unbindReadingControl?: () => void
+  contextUsage?: CodexContextUsage
+  contextLimits?: Omit<CodexContextUsage, 'usedTokens' | 'stale'>
+  contextModel?: string
+  contextResolutionGeneration?: number
+  weeklyUsageRevision?: number
+  codexWeeklyUsage?: CodexWeeklyUsage
+  contextLaunch?: Pick<CodexStructuredLaunch, 'args' | 'cwd' | 'codexHome'>
   /** Terminates this exact child as an unexpected death and enters host recovery. */
   forceCloseUnexpected?: (reason: Error) => Promise<boolean>
 }

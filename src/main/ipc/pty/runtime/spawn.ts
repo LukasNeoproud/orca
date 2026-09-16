@@ -18,6 +18,7 @@ import { commitRuntimePtySpawn } from './spawn-commit'
 import { createRuntimePtySpawnState, type RuntimePtySpawnArgs } from './spawn-state'
 
 function toRuntimeSpawnReply(result: {
+  pid?: number | null
   id: string
   incarnationId?: string
   wslDistro?: string | null
@@ -26,6 +27,7 @@ function toRuntimeSpawnReply(result: {
 }) {
   return {
     id: result.id,
+    ...(typeof result.pid === 'number' && result.pid > 0 ? { pid: result.pid } : {}),
     ...(result.incarnationId ? { incarnationId: result.incarnationId } : {}),
     ...(typeof result.wslDistro === 'string' ? { wslDistro: result.wslDistro } : {}),
     ...(result.stablePaneOwner ? { stablePaneOwner: result.stablePaneOwner } : {}),

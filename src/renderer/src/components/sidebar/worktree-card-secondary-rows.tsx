@@ -9,6 +9,7 @@ import { LinearAgentSkillSetupPrompt } from './LinearAgentSkillSetupPrompt'
 import WorktreeCardAgents from './WorktreeCardAgents'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import type { WorktreeCardController } from './use-worktree-card-controller'
+import { WorktreeConversationHistory } from './WorktreeConversationHistory'
 
 export function WorktreeCardSecondaryRows({
   card,
@@ -30,6 +31,8 @@ export function WorktreeCardSecondaryRows({
     showInlineAgentList,
     agentActivityDisplayMode,
     compactInlineAgentRows,
+    isSshDisconnected,
+    isRuntimeDisconnected,
     showLineageChildChip,
     lineageChildAriaLabel,
     childWorkspaceShortLabel
@@ -71,6 +74,13 @@ export function WorktreeCardSecondaryRows({
           className={hasMetaRow || remoteBranchConflict ? 'mt-0' : '-mt-1'}
         />
       )}
+
+      <WorktreeConversationHistory
+        worktree={worktree}
+        repo={repo}
+        isSshDisconnected={isSshDisconnected}
+        isRuntimeDisconnected={isRuntimeDisconnected}
+      />
 
       {showLineageChildChip && (
         <div

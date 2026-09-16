@@ -27,6 +27,7 @@ import type {
   AgentSessionSlashCommand,
   AgentSessionWireRefusalCode
 } from '../../../shared/agent-session-wire'
+import type { CodexContextUsage, CodexWeeklyUsage } from '../../../shared/codex-context-usage'
 import type { StructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
 
 export class AgentSessionAcquisitionRefusal extends Error {
@@ -190,6 +191,9 @@ export type StructuredAgentSessionAdapter = {
     taskId?: string
   }): Promise<{ cancelled: boolean }>
   backgroundTaskState?(sessionId: string): AgentSessionBackgroundTaskState | null | undefined
+  /** Ephemeral provider status. The host publishes it on the existing additive status channel. */
+  contextUsage?(sessionId: string): CodexContextUsage | undefined
+  codexWeeklyUsage?(sessionId: string): CodexWeeklyUsage | undefined
   /** The `/` surface the running provider reports for itself. Undefined when the
    *  provider never reports one, which is what keeps the client on its catalog. */
   readCommands?(sessionId: string): AgentSessionSlashCommand[] | undefined

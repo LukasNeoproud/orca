@@ -10,11 +10,16 @@ import {
   type CodexAppServerConnection
 } from './codex-app-server-connection'
 import { readCodexThreadId, readCodexThreadPath } from './codex-structured-thread-facts'
-import { readCodexPermissionsMode } from './codex-structured-permissions'
+import {
+  readCodexCustomPermissionsDescription,
+  readCodexPermissionsMode
+} from './codex-structured-permissions'
 
 export type CodexOpenedThread = {
   threadId: string
   thread?: Record<string, unknown>
+  /** Metadata-only resume needs a bounded canonical history read before publication. */
+  historyRequiresRead?: true
   /** Rollout file Codex named, when it named one. */
   historyPath: string | null
   historyMode?: 'legacy' | 'paginated'
@@ -22,6 +27,7 @@ export type CodexOpenedThread = {
   effort?: string
   serviceTier?: string | null
   permissions?: string
+  permissionsCustomDescription?: string
 }
 
 function nonEmptyString(value: unknown): string | null {
@@ -44,22 +50,31 @@ async function resumeCodexThread(
   connection: Pick<CodexAppServerConnection, 'request'>,
   params: Record<string, unknown>,
   timeoutMs: number | undefined
-): Promise<unknown> {
+): Promise<{ opened: unknown; historyRequiresRead: boolean }> {
   if (resumeMetadataUnsupported.has(connection)) {
-    return connection.request('thread/resume', params, { timeoutMs })
+    return {
+      opened: await connection.request('thread/resume', params, { timeoutMs }),
+      historyRequiresRead: false
+    }
   }
   try {
-    return await connection.request(
-      'thread/resume',
-      { ...params, excludeTurns: true },
-      { timeoutMs }
-    )
+    return {
+      opened: await connection.request(
+        'thread/resume',
+        { ...params, excludeTurns: true },
+        { timeoutMs }
+      ),
+      historyRequiresRead: true
+    }
   } catch (error) {
     if (!isExcludeTurnsUnsupported(error)) {
       throw error
     }
     resumeMetadataUnsupported.add(connection)
-    return connection.request('thread/resume', params, { timeoutMs })
+    return {
+      opened: await connection.request('thread/resume', params, { timeoutMs }),
+      historyRequiresRead: false
+    }
   }
 }
 
@@ -75,8 +90,9 @@ export async function openCodexThread(
         ...(launch.resumePath ? { path: launch.resumePath } : {})
       }
     : null
-  const opened = resumeParams
-    ? await resumeCodexThread(connection, resumeParams, timeoutMs)
+  const resumed = resumeParams ? await resumeCodexThread(connection, resumeParams, timeoutMs) : null
+  const opened = resumed
+    ? resumed.opened
     : await connection.request('thread/start', { cwd: launch.cwd }, { timeoutMs })
   const threadId = readCodexThreadId(opened)
   if (!threadId) {
@@ -93,9 +109,11 @@ export async function openCodexThread(
   const model = nonEmptyString(result.model)
   const effort = nonEmptyString(result.reasoningEffort)
   const permissions = readCodexPermissionsMode(result, launch.cwd)
+  const permissionsCustomDescription = readCodexCustomPermissionsDescription(result, launch.cwd)
   return {
     threadId,
     thread,
+    ...(resumed?.historyRequiresRead ? { historyRequiresRead: true as const } : {}),
     historyPath: readCodexThreadPath(opened),
     ...(thread.historyMode === 'legacy' || thread.historyMode === 'paginated'
       ? { historyMode: thread.historyMode }
@@ -105,6 +123,7 @@ export async function openCodexThread(
     ...(result.serviceTier === null || typeof result.serviceTier === 'string'
       ? { serviceTier: result.serviceTier }
       : {}),
-    ...(permissions ? { permissions } : {})
+    ...(permissions ? { permissions } : {}),
+    ...(permissionsCustomDescription ? { permissionsCustomDescription } : {})
   }
 }

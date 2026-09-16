@@ -18,11 +18,21 @@ import {
   commitAgentSessionProcessIdentity,
   proveAgentSessionOwner
 } from './agent-session-lease-transitions'
+import { agentSessionProviderHandleRoot } from '../../shared/agent-session-provider-handle'
+import {
+  detachPreviousTerminalConversation,
+  readoptTerminalReservation,
+  sameTerminalProcess,
+  type TerminalAdoptionExistingOwner,
+  type TerminalAdoptionPreviousOwner
+} from './agent-session-terminal-owner-readoption'
 
 export type AgentSessionTerminalOwnerAdoption = {
   request: AgentSessionReserveRequest
   process: AgentSessionProcessIdentity
   terminal: AgentSessionAdoptedTerminal
+  existing?: TerminalAdoptionExistingOwner
+  previous?: TerminalAdoptionPreviousOwner
 }
 
 /** One commit prevents a crash from leaving an adopted live child behind a processless reservation. */
@@ -44,27 +54,53 @@ export function adoptAgentSessionTerminalOwner(
     throw new Error(admission.code)
   }
   if (admission.decision === 'replay') {
-    return requireAgentSessionRecordForReplay(state, admission.row, request.sessionId)
+    const record = requireAgentSessionRecordForReplay(state, admission.row, request.sessionId)
+    const head = record.providerHandleChain.at(-1)
+    if (
+      record.sessionId !== request.sessionId ||
+      !head ||
+      agentSessionProviderHandleRoot(head.handle) !==
+        agentSessionProviderHandleRoot(request.adoptedHandleLink.handle) ||
+      !sameTerminalProcess(record.lease.ownerProcess, input.process) ||
+      record.lease.unreconciled ||
+      record.lease.settlementRetryRequired ||
+      record.lease.claimStatus !== 'live' ||
+      record.lease.runtimeKind !== 'tui' ||
+      record.lease.handoffStage !== null
+    ) {
+      throw new Error('agent_session_operation_conflict')
+    }
+    return record
   }
-  const reserved = applyAgentSessionReservation(state, request, leaseTtlMs)
-  if (reserved.disposition !== 'created') {
-    throw new Error('agent_session_conflict')
+  let reserved: AgentSessionRecord
+  if (input.existing) {
+    reserved = readoptTerminalReservation(state, input, leaseTtlMs)
+  } else {
+    const created = applyAgentSessionReservation(state, request, leaseTtlMs)
+    if (created.disposition !== 'created') {
+      throw new Error('agent_session_conflict')
+    }
+    // The provisional adopted root becomes proven in this same transaction, exactly once.
+    reserved = { ...created.record, providerHandleChain: [] }
   }
   const record = proveAgentSessionOwner({
     record: commitAgentSessionProcessIdentity({
-      // The provisional adopted root becomes proven in this same transaction, exactly once.
-      record: { ...reserved.record, providerHandleChain: [] },
+      record: reserved,
       sessionId: request.sessionId,
-      fence: reserved.record.lease.runtimeFence,
+      fence: reserved.lease.runtimeFence,
       process: input.process,
       now: request.now
     }),
-    fence: reserved.record.lease.runtimeFence,
+    fence: reserved.lease.runtimeFence,
     link: request.adoptedHandleLink,
     now: request.now,
     leaseTtlMs
   })
-  const adopted = { ...record, adoptedTerminal: input.terminal }
+  detachPreviousTerminalConversation(state, input)
+  const adopted = {
+    ...record,
+    adoptedTerminal: { ...input.terminal, ownerFence: record.lease.runtimeFence }
+  }
   state.records.set(record.sessionId, adopted)
   state.operations.set(
     agentSessionOperationKey(request.operation.callerKey, request.operation.operationId),

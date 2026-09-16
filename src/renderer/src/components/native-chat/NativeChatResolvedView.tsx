@@ -328,7 +328,7 @@ export function NativeChatResolvedView({
 
   // Chat-only font zoom via Cmd/Ctrl +/-/0, gated to the live conversation so
   // the chord is inert on the loading/empty/error states and elsewhere.
-  const fontScale = useNativeChatFontScale(isConversation)
+  const fontScale = useNativeChatFontScale(isVisible && isConversation)
 
   return (
     <div
@@ -424,6 +424,8 @@ export function NativeChatResolvedView({
           paneKey={paneKey}
           targetPtyId={targetPtyId}
           agent={agent}
+          contextUsage={session.usageStatus?.contextUsage}
+          codexWeeklyUsage={session.usageStatus?.codexWeeklyUsage}
           canSend={canSend}
           isWorking={isWorking}
           onStop={stopAgent}

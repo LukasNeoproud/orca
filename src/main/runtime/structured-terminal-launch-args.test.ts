@@ -30,6 +30,13 @@ describe('configuration of an adopted terminal agent', () => {
     expect(args(command)).toEqual(['--model', 'gpt-5.6'])
   })
 
+  it.each(['codex resume old-thread', 'codex resume', 'codex resume --last', 'codex resume --all'])(
+    'accepts the original selector after interactive /resume: %s',
+    (command) => {
+      expect(args(command)).toEqual([])
+    }
+  )
+
   it('does not mistake option values for resume commands or prompts', () => {
     expect(
       args(
@@ -53,7 +60,6 @@ describe('configuration of an adopted terminal agent', () => {
 
   it.each([
     'codex exec Fix it',
-    'codex resume other-thread',
     'codex --remote ws://remote',
     'codex --sandbox',
     'codex Fix it --sandbox danger-full-access',

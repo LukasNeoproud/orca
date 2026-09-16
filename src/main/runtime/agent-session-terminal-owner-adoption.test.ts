@@ -76,7 +76,7 @@ describe('durable terminal owner adoption', () => {
       claimStatus: 'live',
       ownerProcess: input.process
     })
-    expect(record.adoptedTerminal).toEqual(input.terminal)
+    expect(record.adoptedTerminal).toEqual({ ...input.terminal, ownerFence: 1 })
     expect(record.providerHandleChain.at(-1)?.handle).toEqual({
       provider: 'codex',
       threadId: 'existing-thread'

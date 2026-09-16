@@ -23,8 +23,74 @@ describe('structured AI Vault ownership', () => {
 
     expect(projectStructuredAiVaultSessions(result, false).sessions).toEqual([])
     expect(projectStructuredAiVaultSessions(result, true).sessions[0]).toMatchObject({
-      structuredSession: { sessionId: 'session-alpha', workspaceId: 'workspace-1' }
+      structuredSession: {
+        sessionId: 'session-alpha',
+        workspaceId: 'workspace-1',
+        ownerState: 'live'
+      }
     })
+  })
+
+  it('leaves a proven exited session available to both terminal and structured resume', async () => {
+    installOwnership({
+      lease: agentSessionLeaseFixture({
+        claimStatus: 'released',
+        ownerProcess: null,
+        reservedSpawnToken: null
+      })
+    })
+    const result = listResult()
+    result.sessions[0]!.structuredSession = {
+      sessionId: 'stale-owner',
+      workspaceId: 'workspace-1',
+      ownerState: 'live'
+    }
+
+    expect(projectStructuredAiVaultSessions(result, false).sessions[0]?.structuredSession).toBe(
+      undefined
+    )
+    expect(projectStructuredAiVaultSessions(result, true).sessions[0]?.structuredSession).toBe(
+      undefined
+    )
+    expect(() =>
+      assertLegacyAiVaultResumeAllowed({
+        agent: 'codex',
+        sessionId: PROVIDER_SESSION,
+        filePath: `/sessions/rollout-${PROVIDER_SESSION}.jsonl`,
+        codexHome: null,
+        executionHostId: 'local'
+      })
+    ).not.toThrow()
+    await expect(
+      assertLegacyAiVaultResumeCommandAllowed(
+        `codex resume '${PROVIDER_SESSION}'`,
+        async () => undefined
+      )
+    ).resolves.toBeUndefined()
+  })
+
+  it('keeps an unverifiable owner hidden from legacy clients and marked for capable clients', () => {
+    installOwnership({
+      lease: agentSessionLeaseFixture({
+        unreconciled: true,
+        handoffStage: 'recovering'
+      })
+    })
+    const result = listResult()
+
+    expect(projectStructuredAiVaultSessions(result, false).sessions).toEqual([])
+    expect(projectStructuredAiVaultSessions(result, true).sessions[0]).toMatchObject({
+      structuredSession: { ownerState: 'unverifiable' }
+    })
+    expect(() =>
+      assertLegacyAiVaultResumeAllowed({
+        agent: 'codex',
+        sessionId: PROVIDER_SESSION,
+        filePath: `/sessions/rollout-${PROVIDER_SESSION}.jsonl`,
+        codexHome: null,
+        executionHostId: 'local'
+      })
+    ).toThrow('agent_session_ownership_unknown')
   })
 
   it('derives typed refusals from the single writer predicate for live and proving leases', async () => {

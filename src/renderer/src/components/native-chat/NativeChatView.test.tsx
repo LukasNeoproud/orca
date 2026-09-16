@@ -89,6 +89,53 @@ describe('NativeChatSessionGate', () => {
     )
   })
 
+  it('uses a known resume provider id until the first hook publication', () => {
+    renderResolution({
+      paneKey: 'tab-1:leaf-1',
+      launchAgent: 'codex',
+      knownProviderSession: { key: 'session_id', id: 'known-codex-session' },
+      ptyId: 'pty-1'
+    })
+
+    expect(screen.getByTestId('native-chat-resolution')).toHaveTextContent(
+      'codex:known-codex-session:tab-1:leaf-1'
+    )
+  })
+
+  it('does not retain a provider session across an execution-owner change', () => {
+    const paneKey = 'tab-1:leaf-1'
+    const view = render(
+      <NativeChatSessionGate
+        paneKey={paneKey}
+        retentionIdentity="local:workspace-1"
+        launchAgent="codex"
+        agentStatusEntry={entry({
+          paneKey,
+          agentType: 'codex',
+          providerSession: { key: 'session_id', id: 'local-session' }
+        })}
+        ptyId="pty-1"
+      >
+        {(resolution) => <span>{resolution.sessionId ?? 'no-session'}</span>}
+      </NativeChatSessionGate>
+    )
+
+    expect(screen.getByText('local-session')).toBeInTheDocument()
+    view.rerender(
+      <NativeChatSessionGate
+        paneKey={paneKey}
+        retentionIdentity="runtime:env-1:workspace-1"
+        launchAgent="codex"
+        ptyId="pty-remote"
+      >
+        {(resolution) => <span>{resolution.sessionId ?? 'no-session'}</span>}
+      </NativeChatSessionGate>
+    )
+
+    expect(screen.getByText('no-session')).toBeInTheDocument()
+    expect(screen.queryByText('local-session')).toBeNull()
+  })
+
   it('preserves the open composer, session, and draft through disconnect and reconnect', () => {
     const paneKey = 'tab-1:leaf-1'
     const connectedEntry = entry({

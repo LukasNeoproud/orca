@@ -146,7 +146,10 @@ export function reportedCodexThreadOptions(
     ...(opened.model ? { model: opened.model } : {}),
     ...(opened.effort ? { effort: opened.effort } : {}),
     ...(opened.serviceTier !== undefined ? { serviceTier: opened.serviceTier } : {}),
-    ...(opened.permissions ? { permissions: opened.permissions } : {})
+    ...(opened.permissions ? { permissions: opened.permissions } : {}),
+    ...(opened.permissionsCustomDescription
+      ? { permissionsCustomDescription: opened.permissionsCustomDescription }
+      : {})
   }
 }
 
@@ -166,6 +169,7 @@ export async function readLiveCodexSessionOptions(
     session.cwd ? readCodexPermissionChoices(session.connection, timeoutMs) : Promise.resolve([])
   ])
   const permissions = session.options.get('permissions') ?? session.reportedOptions.permissions
+  const permissionsCustomDescription = session.reportedOptions.permissionsCustomDescription
   session.supportsDefaultServiceTier = result.models.some(
     (entry) => entry.defaultServiceTier !== undefined
   )
@@ -176,14 +180,21 @@ export async function readLiveCodexSessionOptions(
     ),
     options: [
       ...(result.options ?? []),
-      ...(permissionChoices.length
+      ...(permissionChoices.length || permissionsCustomDescription
         ? [
             {
               id: 'permissions',
               label: 'Permissions',
               category: 'mode' as const,
               choices: permissionChoices,
-              ...(permissions ? { currentValue: permissions } : {})
+              ...(permissions
+                ? { currentValue: permissions }
+                : permissionsCustomDescription
+                  ? {
+                      currentValueLabel: 'Custom',
+                      currentValueDescription: permissionsCustomDescription
+                    }
+                  : {})
             }
           ]
         : [])
@@ -242,6 +253,7 @@ async function applyValidatedCodexStructuredSessionOption(
     if (key === 'approvalPolicy' || key === 'approvalsReviewer') {
       session.options.delete('permissions')
       delete session.reportedOptions.permissions
+      delete session.reportedOptions.permissionsCustomDescription
     }
     session.options.set(key, value)
     return Object.fromEntries(session.options)

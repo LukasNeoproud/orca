@@ -71,6 +71,58 @@ describe('structured Codex session options', () => {
     ])
   })
 
+  it('reports a known custom permissions policy separately from settable presets', async () => {
+    const session = configurableSession()
+    delete session.reportedOptions.permissions
+    session.reportedOptions.permissionsCustomDescription = 'Workspace sandbox · Auto review'
+    session.connection.request = vi.fn(async (method: string) =>
+      method === 'configRequirements/read'
+        ? {
+            requirements: {
+              allowedApprovalsReviewers: ['auto_review'],
+              allowedSandboxModes: ['read-only']
+            }
+          }
+        : { data: [{ model: 'gpt-live' }] }
+    )
+    const option = (await readLiveCodexSessionOptions(session, undefined)).options?.find(
+      (entry) => entry.id === 'permissions'
+    )
+    expect(option).toMatchObject({
+      currentValueLabel: 'Custom',
+      currentValueDescription: 'Workspace sandbox · Auto review'
+    })
+    expect(option).not.toHaveProperty('currentValue')
+    expect(option?.choices).toEqual([])
+  })
+
+  it('selects Auto review, reports it as current, and switches back to user review', async () => {
+    const session = configurableSession()
+    await applyCodexStructuredSessionOption(session, 'permissions', 'auto-review', undefined)
+    expect(session.options.get('permissions')).toBe('auto-review')
+    const result = await readLiveCodexSessionOptions(session, undefined)
+    expect(result.options).toContainEqual(
+      expect.objectContaining({
+        id: 'permissions',
+        currentValue: 'auto-review',
+        choices: expect.arrayContaining([expect.objectContaining({ value: 'auto-review' })])
+      })
+    )
+    await applyCodexStructuredSessionOption(session, 'permissions', 'workspace-write', undefined)
+    expect(session.options.get('permissions')).toBe('workspace-write')
+  })
+
+  it('rejects Auto review when the host requires user review', async () => {
+    const session = configurableSession()
+    session.connection.request = vi.fn(async () => ({
+      requirements: { allowedApprovalsReviewers: ['user'] }
+    }))
+    await expect(
+      applyCodexStructuredSessionOption(session, 'permissions', 'auto-review', undefined)
+    ).rejects.toThrow('does not offer')
+    expect(session.options.size).toBe(0)
+  })
+
   it('keeps other advertised tiers available to existing session API callers', async () => {
     const session = configurableSession()
     session.connection.request = vi.fn(async () => ({

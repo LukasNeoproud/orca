@@ -48,11 +48,7 @@ import {
   structuredAgentSessionHostTeardownPhases,
   tearDownStructuredAgentSessionHost
 } from './structured-agent-session-host-teardown'
-import type {
-  StructuredAgentSessionCaller,
-  StructuredAgentSessionHostDeps,
-  StructuredAgentSessionHostSession
-} from './structured-agent-session-host-types'
+import type * as HostTypes from './structured-agent-session-host-types'
 import { StructuredAgentSessionStatusFeed } from './structured-agent-session-status-feed'
 import { StructuredAgentSessionEventRecovery } from './structured-agent-session-event-recovery'
 import { StructuredAgentSessionBackgroundTaskChannel } from './structured-agent-session-background-task-channel'
@@ -67,11 +63,13 @@ export class StructuredAgentSessionHost {
     () => this.mutationContext(),
     this
   )
-  private readonly sessions = new Map<string, StructuredAgentSessionHostSession>()
+  private readonly sessions = new Map<string, HostTypes.StructuredAgentSessionHostSession>()
   private readonly statusFeed = new StructuredAgentSessionStatusFeed({
     sessions: this.sessions,
     getRecord: (sessionId) => this.deps.store.getRecord(sessionId),
     now: () => this.now(),
+    getContextUsage: (sessionId) => this.deps.adapter.contextUsage?.(sessionId),
+    getCodexWeeklyUsage: (sessionId) => this.deps.adapter.codexWeeklyUsage?.(sessionId),
     onStatusChanged: (summary, options) => this.deps.onSessionStatusChanged?.(summary, options)
   })
   private readonly subscribers = new AgentSessionSubscribers({
@@ -89,7 +87,7 @@ export class StructuredAgentSessionHost {
   private readonly eventRecovery: StructuredAgentSessionEventRecovery
   private readonly backgroundTasks: StructuredAgentSessionBackgroundTaskChannel
 
-  constructor(readonly deps: StructuredAgentSessionHostDeps) {
+  constructor(readonly deps: HostTypes.StructuredAgentSessionHostDeps) {
     this.backgroundTasks = new StructuredAgentSessionBackgroundTaskChannel(
       deps,
       this.sessions,
@@ -182,6 +180,8 @@ export class StructuredAgentSessionHost {
   handleAdapterEvent = (event: Parameters<StructuredAgentSessionEventRecovery['handle']>[0]) =>
     this.eventRecovery.handle(event)
 
+  publishStatus = (sessionId: string): void => this.statusFeed.publish(sessionId)
+
   private lifetimeContext(): StructuredAgentSessionLifetimeContext {
     return {
       deps: this.deps,
@@ -248,7 +248,7 @@ export class StructuredAgentSessionHost {
   }
 
   attach(
-    caller: StructuredAgentSessionCaller,
+    caller: HostTypes.StructuredAgentSessionCaller,
     params: AgentSessionAttachParams
   ): Promise<SessionWire.AgentSessionMutationResult<SessionWire.AgentSessionAttachResult>> {
     return attachStructuredAgentSession(this.attachContext(), caller.callerKey, params)
@@ -279,25 +279,25 @@ export class StructuredAgentSessionHost {
     this.conversationCommands.send(...args)
 
   cancel = (
-    caller: StructuredAgentSessionCaller,
+    caller: HostTypes.StructuredAgentSessionCaller,
     params: Parameters<typeof cancelStructuredAgentSessionTurn>[2]
   ): ReturnType<typeof cancelStructuredAgentSessionTurn> =>
     cancelStructuredAgentSessionTurn(this.mutationContext(), caller, params)
 
   respondToPrompt = (
-    caller: StructuredAgentSessionCaller,
+    caller: HostTypes.StructuredAgentSessionCaller,
     params: Parameters<typeof respondToStructuredAgentSessionPrompt>[2]
   ): ReturnType<typeof respondToStructuredAgentSessionPrompt> =>
     respondToStructuredAgentSessionPrompt(this.mutationContext(), caller, params)
 
   setOption = (
-    caller: StructuredAgentSessionCaller,
+    caller: HostTypes.StructuredAgentSessionCaller,
     params: Parameters<typeof setStructuredAgentSessionOption>[2]
   ): ReturnType<typeof setStructuredAgentSessionOption> =>
     setStructuredAgentSessionOption(this.mutationContext(), caller, params)
 
   requestHandoff = (
-    caller: StructuredAgentSessionCaller,
+    caller: HostTypes.StructuredAgentSessionCaller,
     params: SessionWire.AgentSessionHandoffRequest
   ): Promise<SessionWire.AgentSessionMutationResult<SessionWire.AgentSessionHandoffResult>> =>
     this.handoffs.request(caller.callerKey, params)
@@ -305,7 +305,7 @@ export class StructuredAgentSessionHost {
   readOptions = (sessionId: string): Promise<SessionWire.AgentSessionOptionsResult> =>
     readStructuredAgentSessionOptions(this.mutationContext(), sessionId)
 
-  rewind = (caller: StructuredAgentSessionCaller, params: AgentSessionRewindParams) =>
+  rewind = (caller: HostTypes.StructuredAgentSessionCaller, params: AgentSessionRewindParams) =>
     rewindStructuredAgentSession(this.mutationContext(), this.attachContext(), caller, params)
 
   conversationCommand = (...args: Parameters<StructuredConversationCommandController['run']>) =>
@@ -345,7 +345,7 @@ export class StructuredAgentSessionHost {
   subscribeStatus: StructuredAgentSessionStatusFeed['subscribe'] = (subscriber) =>
     this.statusFeed.subscribe(subscriber)
 
-  private requireSession(sessionId: string): StructuredAgentSessionHostSession {
+  private requireSession(sessionId: string): HostTypes.StructuredAgentSessionHostSession {
     const session = this.sessions.get(sessionId)
     if (!session) {
       throw new Error(AGENT_SESSION_NOT_ATTACHED.code)

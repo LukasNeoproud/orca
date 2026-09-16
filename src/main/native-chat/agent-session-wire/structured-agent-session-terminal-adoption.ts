@@ -15,6 +15,11 @@ import type {
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionHandoffCoordinator } from './structured-agent-session-handoff'
 import type { StructuredAgentSessionStatusFeed } from './structured-agent-session-status-feed'
+import type {
+  TerminalAdoptionExistingOwner,
+  TerminalAdoptionPreviousOwner
+} from '../../runtime/agent-session-terminal-owner-readoption'
+import { readCodexRolloutSessionMetaId } from '../../codex/codex-rollout-session-meta'
 
 export type StructuredTerminalOwnerRegistration = {
   callerKey: string
@@ -22,6 +27,8 @@ export type StructuredTerminalOwnerRegistration = {
   owner: StructuredTuiOwner
   terminal: AgentSessionAdoptedTerminal
   revalidate: () => Promise<void>
+  existing?: TerminalAdoptionExistingOwner
+  previous?: TerminalAdoptionPreviousOwner
 }
 
 export class StructuredTerminalAdoptionError extends Error {
@@ -37,28 +44,44 @@ export class StructuredTerminalAdoptionError extends Error {
 
 export function registerStructuredTerminalOwner(
   context: Pick<StructuredAgentSessionAttachContext, 'deps' | 'sessions' | 'serialize'>,
-  handoffs: Pick<StructuredAgentSessionHandoffCoordinator, 'retainProvenTuiOwner'>,
+  handoffs: Pick<
+    StructuredAgentSessionHandoffCoordinator,
+    'retainProvenTuiOwner' | 'releaseTransferredTuiOwner'
+  >,
   statusFeed: Pick<StructuredAgentSessionStatusFeed, 'publish'>,
   input: StructuredTerminalOwnerRegistration
 ): Promise<StructuredAgentSessionTerminalAdoptionResult> {
-  return context.serialize(input.params.envelope.sessionId, () =>
+  const ids = [
+    ...new Set([
+      input.params.envelope.sessionId,
+      ...(input.previous ? [input.previous.sessionId] : [])
+    ])
+  ].sort()
+  const register = () =>
     registerTerminalOwner(
       {
         deps: context.deps,
+        existingSession: context.sessions.get(input.params.envelope.sessionId),
         registered: (sessionId, session, owner) => {
           context.sessions.set(sessionId, session)
+          if (input.previous) {
+            handoffs.releaseTransferredTuiOwner(input.previous.sessionId)
+          }
           handoffs.retainProvenTuiOwner(sessionId, owner)
           statusFeed.publish(sessionId, undefined, { replay: true })
         }
       },
       input
     )
-  )
+  const serialized = (index: number): Promise<StructuredAgentSessionTerminalAdoptionResult> =>
+    index === ids.length ? register() : context.serialize(ids[index]!, () => serialized(index + 1))
+  return serialized(0)
 }
 
 async function registerTerminalOwner(
   context: {
     deps: StructuredAgentSessionHostDeps
+    existingSession?: StructuredAgentSessionHostSession
     registered: (
       sessionId: string,
       session: StructuredAgentSessionHostSession,
@@ -70,26 +93,45 @@ async function registerTerminalOwner(
   const { params, owner } = input
   const { deps } = context
   const sessionId = params.envelope.sessionId
-  const prepared = await prepareAdoptedTranscript(params)
+  const prepared =
+    params.provider === 'codex' &&
+    params.adopt?.providerHandle.kind === 'codex' &&
+    params.adopt.transcriptPath
+      ? (await readCodexRolloutSessionMetaId(params.adopt.transcriptPath)) ===
+        params.adopt.providerHandle.threadId
+        ? { ok: true as const, items: null }
+        : {
+            ok: false as const,
+            refusal: { message: 'The Codex conversation identity changed while switching to chat.' }
+          }
+      : await prepareAdoptedTranscript(params)
   if (!prepared.ok || !params.adopt) {
     throw new StructuredTerminalAdoptionError(
       'agent_session_identity_required',
       prepared.ok ? 'The terminal conversation could not be identified.' : prepared.refusal.message
     )
   }
-  const journal = await openAgentSessionJournal({
-    identity: {
-      sessionId,
-      workspaceId: params.location.workspaceId,
-      hostId: params.location.executionHostId,
-      agent: params.agent,
-      providerHandle: params.adopt.providerHandle
-    },
-    journalDir: journalDirectoryFor(deps.journalRoot, {
-      workspaceId: params.location.workspaceId,
-      sessionId
-    })
-  })
+  if (context.existingSession?.hasProviderChild) {
+    throw new StructuredTerminalAdoptionError(
+      'agent_session_conflict',
+      'The structured provider process must exit before this terminal can attach.'
+    )
+  }
+  const journal =
+    context.existingSession?.journal ??
+    (await openAgentSessionJournal({
+      identity: {
+        sessionId,
+        workspaceId: params.location.workspaceId,
+        hostId: params.location.executionHostId,
+        agent: params.agent,
+        providerHandle: params.adopt.providerHandle
+      },
+      journalDir: journalDirectoryFor(deps.journalRoot, {
+        workspaceId: params.location.workspaceId,
+        sessionId
+      })
+    }))
   let committed = false
   try {
     // Codex restores native item identities through thread/resume; importing legacy ids duplicates them.
@@ -98,22 +140,27 @@ async function registerTerminalOwner(
     }
     await input.revalidate()
     const record = await deps.store.adoptTerminalOwner({
-      request: reserveRequestFor({
-        sessionId,
-        params,
-        authority: {
-          spawnToken: owner.process.spawnToken,
-          claimKeyId: deps.claimKeyId,
-          handoffOperationId: null,
-          probe: { outcome: 'identity-matched', matchedOn: ['process-start-time'] },
-          launchArgs: params.launchArgs
-        },
-        callerKey: input.callerKey,
-        fingerprint: params.envelope.payloadFingerprint,
-        now: deps.now?.() ?? Date.now()
-      }),
+      request: {
+        ...reserveRequestFor({
+          sessionId,
+          params,
+          authority: {
+            spawnToken: owner.process.spawnToken,
+            claimKeyId: deps.claimKeyId,
+            handoffOperationId: null,
+            probe: { outcome: 'identity-matched', matchedOn: ['process-start-time'] },
+            launchArgs: params.launchArgs
+          },
+          callerKey: input.callerKey,
+          fingerprint: params.envelope.payloadFingerprint,
+          now: deps.now?.() ?? Date.now()
+        }),
+        adoptedHandleLink: owner.link
+      },
       process: owner.process,
-      terminal: input.terminal
+      terminal: input.terminal,
+      existing: input.existing,
+      previous: input.previous
     })
     committed = true
     context.registered(
@@ -125,12 +172,14 @@ async function registerTerminalOwner(
         hasProviderChild: false,
         acquisitionGeneration: null
       },
-      owner
+      { ...owner, link: record.providerHandleChain.at(-1)! }
     )
     return { sessionId: record.sessionId, fence: record.lease.runtimeFence, agent: record.provider }
   } catch (error) {
     if (!committed) {
-      await agentSessionJournalCloseRetries.closeOrRetain(journal)
+      if (!context.existingSession) {
+        await agentSessionJournalCloseRetries.closeOrRetain(journal)
+      }
       throw error
     }
     throw new StructuredTerminalAdoptionError(

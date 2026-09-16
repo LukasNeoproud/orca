@@ -63,11 +63,16 @@ function indexed(session: { journal: Awaited<ReturnType<typeof openJournal>> }) 
 function feedFor(
   sessions: Map<string, { journal: Awaited<ReturnType<typeof openJournal>> }>,
   record: Partial<AgentSessionRecord> | null = null,
-  onStatusChanged?: StructuredAgentSessionStatusFeedDeps['onStatusChanged']
+  onStatusChanged?: StructuredAgentSessionStatusFeedDeps['onStatusChanged'],
+  metadata: Pick<
+    StructuredAgentSessionStatusFeedDeps,
+    'getContextUsage' | 'getCodexWeeklyUsage'
+  > = {}
 ) {
   let now = 1_000
   const feed = new StructuredAgentSessionStatusFeed({
     ...(onStatusChanged ? { onStatusChanged } : {}),
+    ...metadata,
     sessions: {
       get: (sessionId: string) => {
         const session = sessions.get(sessionId)
@@ -88,6 +93,42 @@ function feedFor(
 }
 
 describe('StructuredAgentSessionStatusFeed', () => {
+  it('publishes ephemeral context and account usage changes without a journal revision', async () => {
+    const journal = await openJournal()
+    let usedTokens = 10
+    let weeklyPercent = 20
+    const { feed, events } = feedFor(new Map([[SESSION, { journal }]]), null, undefined, {
+      getContextUsage: () => ({ usedTokens, maxTokens: 100, compactScope: 'total' }),
+      getCodexWeeklyUsage: () => ({ usedPercent: weeklyPercent })
+    })
+
+    expect(events[0]).toMatchObject({
+      type: 'snapshot',
+      sessions: [
+        {
+          contextUsage: { usedTokens: 10, maxTokens: 100, compactScope: 'total' },
+          codexWeeklyUsage: { usedPercent: 20 }
+        }
+      ]
+    })
+
+    usedTokens = 15
+    feed.publish(SESSION)
+    weeklyPercent = 25
+    feed.publish(SESSION)
+    feed.publish(SESSION)
+
+    expect(events).toHaveLength(3)
+    expect(events[1]).toMatchObject({
+      type: 'status',
+      session: { contextUsage: { usedTokens: 15 }, codexWeeklyUsage: { usedPercent: 20 } }
+    })
+    expect(events[2]).toMatchObject({
+      type: 'status',
+      session: { contextUsage: { usedTokens: 15 }, codexWeeklyUsage: { usedPercent: 25 } }
+    })
+  })
+
   it('opens with every readable session and reports no status before a persisted turn', async () => {
     const journal = await openJournal()
     const { events } = feedFor(new Map([[SESSION, { journal }]]))

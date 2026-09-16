@@ -28,33 +28,29 @@ function route(overrides: Partial<Parameters<typeof resolveAgentLaunchRoute>[0]>
 
 describe('resolveAgentLaunchRoute', () => {
   it.each(['claude', 'codex'] as const)(
-    'routes a supported local %s launch to structured native chat',
+    'keeps an ordinary local %s launch terminal-backed when chat is the default view',
     (agent) => {
-      expect(route({ agent })).toBe('structured-native-chat')
+      expect(route({ agent })).toBe('legacy-native-chat')
       expect(route({ agent, initialSessionOptions: { model: 'gpt-5.6-sol' } })).toBe(
-        'structured-native-chat'
+        'legacy-native-chat'
       )
       expect(
         route({ agent, launchText: 'explain this change', promptDelivery: 'auto-submit' })
-      ).toBe('structured-native-chat')
+      ).toBe('legacy-native-chat')
     }
   )
 
-  /** Windows eligibility is no client-side platform guess for either provider: the route lets the
-   *  launch through and the executing host settles it with agentSession.createSupport at create
-   *  time. A stale caller still passing the removed `platform` input must not flip Codex off the
-   *  structured route — the field is gone, not reinterpreted. */
   it.each(['claude', 'codex'] as const)(
-    'routes %s to structured even when the caller claims a win32 client platform',
+    'keeps %s terminal-backed when a stale caller supplies a client platform',
     (agent) => {
-      expect(route({ agent, ...({ platform: 'win32' } as object) })).toBe('structured-native-chat')
+      expect(route({ agent, ...({ platform: 'win32' } as object) })).toBe('legacy-native-chat')
     }
   )
 
-  it('routes a supported local Codex launch to structured native chat', () => {
-    expect(route()).toBe('structured-native-chat')
+  it('does not redirect supported local Codex launches into structured chat', () => {
+    expect(route()).toBe('legacy-native-chat')
     expect(route({ launchText: 'explain this change', promptDelivery: 'auto-submit' })).toBe(
-      'structured-native-chat'
+      'legacy-native-chat'
     )
   })
 
@@ -74,7 +70,7 @@ describe('resolveAgentLaunchRoute', () => {
     expect(route({ settings: { ...settings, experimentalNativeChat: false } })).toBe('terminal-tui')
   })
 
-  it('fails closed for missing capability, unsupported providers, and explicit TUI options', () => {
+  it('keeps the display route independent from structured-chat feasibility', () => {
     expect(route({ hostCapabilities: [] })).toBe('legacy-native-chat')
     expect(route({ hostCapabilities: null })).toBe('legacy-native-chat')
     // openclaude and grok render native chat but have no structured adapter.
@@ -91,9 +87,9 @@ describe('resolveAgentLaunchRoute', () => {
   })
 
   it.each(['git-worktree', 'folder'] as const)(
-    'supports a local %s without widening floating-terminal scope',
+    'keeps a local %s terminal-backed',
     (workspaceKind) => {
-      expect(route({ workspaceKind })).toBe('structured-native-chat')
+      expect(route({ workspaceKind })).toBe('legacy-native-chat')
     }
   )
 

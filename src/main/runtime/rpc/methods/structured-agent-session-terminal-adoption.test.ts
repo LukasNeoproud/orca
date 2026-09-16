@@ -62,6 +62,41 @@ describe('structured terminal adoption RPC', () => {
     expect(hostCalls.requestHandoff).not.toHaveBeenCalled()
   })
 
+  it('accepts an omitted provider-session hint while retaining fingerprint validation', async () => {
+    const { providerSessionId: _hint, ...withoutHint } = fields
+    const request = {
+      ...withoutHint,
+      envelope: envelope({
+        expectedRuntimeFence: null,
+        payloadFingerprint: computeAgentSessionPayloadFingerprint({
+          method: 'agentSession.adoptTerminal',
+          sessionId: SESSION,
+          fields: withoutHint
+        })
+      })
+    }
+    const adopt = vi.fn(async () => ({ sessionId: SESSION, fence: 1, agent: 'codex' }))
+    expect(
+      await call('agentSession.adoptTerminal', request, STRUCTURED_CLIENT, {
+        adoptStructuredAgentSessionTerminal: adopt
+      })
+    ).toMatchObject({ ok: true })
+    expect(adopt).toHaveBeenCalledWith(request, expect.any(String))
+    expect(
+      (
+        await call(
+          'agentSession.adoptTerminal',
+          { ...request, providerSessionId: '' },
+          STRUCTURED_CLIENT,
+          {
+            adoptStructuredAgentSessionTerminal: adopt
+          }
+        )
+      ).ok
+    ).toBe(false)
+    expect(adopt).toHaveBeenCalledOnce()
+  })
+
   it.each([
     { client: STRUCTURED_CLIENT, enabled: false },
     { client: { clientKind: 'runtime' as const, clientCapabilities: [] }, enabled: true }

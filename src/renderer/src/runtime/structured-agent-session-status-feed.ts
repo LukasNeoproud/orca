@@ -53,6 +53,25 @@ function createOwner(target: RuntimeClientTarget): OwnedStatusFeed {
     snapshot = next
     emit()
   }
+  const markUsageStale = (): void => {
+    const next = new Map(snapshot)
+    let changed = false
+    for (const [id, summary] of snapshot) {
+      if ((summary.contextUsage && !summary.contextUsage.stale) || summary.codexWeeklyUsage) {
+        const { codexWeeklyUsage: _weekly, ...retained } = summary
+        next.set(id, {
+          ...retained,
+          ...(summary.contextUsage
+            ? { contextUsage: { ...summary.contextUsage, stale: true } }
+            : {})
+        })
+        changed = true
+      }
+    }
+    if (changed) {
+      setSnapshot(next)
+    }
+  }
   const applyEvent = (event: AgentSessionStatusEvent): void => {
     if (event.type === 'snapshot') {
       reconnectAttempt = 0
@@ -87,6 +106,7 @@ function createOwner(target: RuntimeClientTarget): OwnedStatusFeed {
     if (!active(candidate) || reconnectTimer) {
       return
     }
+    markUsageStale()
     const delay = Math.min(250 * 2 ** reconnectAttempt, RECONNECT_MAX_DELAY_MS)
     reconnectAttempt += 1
     reconnectTimer = setTimeout(() => {
@@ -164,6 +184,7 @@ function createOwner(target: RuntimeClientTarget): OwnedStatusFeed {
     clearReconnect()
     dropHandle()
     reconnectAttempt = 0
+    markUsageStale()
   }
 
   return {

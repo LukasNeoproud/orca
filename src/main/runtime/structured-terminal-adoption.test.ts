@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
+import type { AgentProviderSessionMetadata } from '../../shared/agent-session-resume'
 import type { StructuredAgentSessionTerminalAdoptionParams } from '../../shared/structured-agent-session-terminal-adoption'
 import { isOriginalAdoptedTerminalOwner } from '../../shared/structured-agent-session-terminal-adoption'
 import {
@@ -27,6 +28,7 @@ import { recoverStructuredTerminalAdoption } from './structured-terminal-adoptio
 import { readStructuredTuiProcessIdentity } from './structured-tui-process-identity'
 import { probeAgentSessionProcessIdentity } from './agent-session-process-identity-probe'
 import { resolveProcessCwd } from '../providers/process-cwd'
+import { readStructuredTerminalCodexRollouts } from './structured-terminal-codex-rollout-proof'
 import { agentSessionPtyWriteGate } from './agent-session-pty-write-gate'
 import { OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess } from './orca-runtime-prove-recovered-structured-tui-pty-process'
 
@@ -39,6 +41,9 @@ vi.mock('./agent-session-spawn-token-readback', () => ({
   readEchoedAgentSessionSpawnToken: vi.fn(async () => null)
 }))
 vi.mock('./orca-runtime-get-worktree-ps', () => ({ OrcaRuntimeWithGetWorktreePs: class {} }))
+vi.mock('./structured-terminal-codex-rollout-proof', () => ({
+  readStructuredTerminalCodexRollouts: vi.fn()
+}))
 vi.mock('../providers/process-cwd', () => ({ resolveProcessCwd: vi.fn() }))
 
 const NOW = 1_800_000_000_000
@@ -50,6 +55,7 @@ let store: AgentSessionRecordStore
 let context: StructuredTerminalAdoptionContext
 let pty: RuntimePtyWorktreeRecord
 let rows: AgentStatusIpcPayload[]
+let rollouts: AgentProviderSessionMetadata[]
 let childExited: boolean
 let childPid: number
 let childStart: number
@@ -151,6 +157,8 @@ beforeEach(async () => {
       providerSession: { key: 'session_id', id: THREAD, transcriptPath: transcript }
     }
   ]
+  rollouts = [rows[0]!.providerSession!]
+  vi.mocked(readStructuredTerminalCodexRollouts).mockImplementation(async () => rollouts)
   store = await AgentSessionRecordStore.open({ directory: join(root, 'store'), hostId: 'local' })
   acquire.mockReset().mockImplementation(async ({ identity, fence, spawnToken, events }) => {
     expect(childExited).toBe(true)
@@ -387,7 +395,7 @@ describe('adopting a live terminal into structured ownership', () => {
       const reveal = vi.spyOn(host, 'revealSession')
       await expect(
         adoptStructuredTerminal(context, request('session-new'), 'renderer-new')
-      ).rejects.toThrow('different agent owner')
+      ).rejects.toThrow('another structured owner')
       expect(reveal).not.toHaveBeenCalled()
       expect(store.listRecords()).toHaveLength(1)
       expect(acquire).not.toHaveBeenCalled()
@@ -395,9 +403,9 @@ describe('adopting a live terminal into structured ownership', () => {
   )
 
   it('refuses stale provider evidence and unsupported launch arguments before reserving', async () => {
-    rows[0]!.receivedAt = childStart - 1
+    vi.mocked(readStructuredTerminalCodexRollouts).mockResolvedValueOnce(null)
     await expect(adoptStructuredTerminal(context, request(), 'renderer')).rejects.toThrow(
-      'has not proved'
+      'could not identify'
     )
     rows[0]!.receivedAt = NOW
     processCommand = 'codex --remote ws://another-server'
@@ -407,5 +415,169 @@ describe('adopting a live terminal into structured ownership', () => {
     expect(store.listRecords()).toEqual([])
     expect(agentSessionPtyWriteGate.boundSessionId(pty.ptyId)).toBeNull()
     expect(acquire).not.toHaveBeenCalled()
+  })
+
+  it('adopts the active rollout without a hook or provider-session hint', async () => {
+    rows = []
+    const input = request()
+    delete input.providerSessionId
+    await expect(adoptStructuredTerminal(context, input, 'renderer')).resolves.toMatchObject({
+      sessionId: input.envelope.sessionId,
+      fence: 1
+    })
+    expect(acquire).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates a hint that arrives while the same terminal proof is pending', async () => {
+    const proof = Promise.withResolvers<AgentProviderSessionMetadata[]>()
+    vi.mocked(readStructuredTerminalCodexRollouts).mockReturnValueOnce(proof.promise)
+    const first = request()
+    delete first.providerSessionId
+    const beforeHook = adoptStructuredTerminal(context, first, 'renderer')
+    const afterHook = adoptStructuredTerminal(context, request('hook-arrived'), 'renderer')
+    proof.resolve(rollouts)
+    expect(await afterHook).toEqual(await beforeHook)
+    expect(store.listRecords()).toHaveLength(1)
+    expect(store.listOperationRows()).toHaveLength(1)
+  })
+
+  it.each(['thread', 'transcript'] as const)(
+    'refuses a changed %s during proof before recording any owner',
+    async (changed) => {
+      vi.mocked(readStructuredTerminalCodexRollouts)
+        .mockResolvedValueOnce(rollouts)
+        .mockResolvedValueOnce([
+          {
+            ...rollouts[0]!,
+            ...(changed === 'thread'
+              ? { id: 'another-thread' }
+              : { transcriptPath: `${rollouts[0]!.transcriptPath}.another-account` })
+          }
+        ])
+      await expect(adoptStructuredTerminal(context, request(), 'renderer')).rejects.toThrow(
+        'switched conversations'
+      )
+      expect(store.listRecords()).toEqual([])
+      expect(process.kill).not.toHaveBeenCalled()
+    }
+  )
+
+  it('moves the same live process between conversations and rejoins its existing journal', async () => {
+    const first = await adoptStructuredTerminal(context, request(), 'renderer')
+    const originalEpoch = host.journalSnapshot(first.sessionId).cursor.epoch
+    expect(originalEpoch).toEqual(expect.any(String))
+    const oldRollout = rollouts[0]!
+    const nextThread = '019fd532-7c11-7a90-b6de-4e1a2c3d5f61'
+    const nextFile = oldRollout.transcriptPath!.replace(THREAD, nextThread)
+    await writeFile(
+      nextFile,
+      `${JSON.stringify({ type: 'session_meta', payload: { id: nextThread, source: 'cli' } })}\n`
+    )
+    rollouts = [{ key: 'session_id', id: nextThread, transcriptPath: nextFile }]
+    processCommand = `codex resume ${THREAD} --sandbox read-only`
+    // Both the hook and the old launch argv still name A after interactive /resume selected B.
+    const second = await adoptStructuredTerminal(context, request('session-second'), 'renderer')
+    expect(second.sessionId).toBe('session-second')
+    expect(store.getRecord(first.sessionId)?.lease).toMatchObject({
+      claimStatus: 'released',
+      ownerProcess: null,
+      deathEvidence: null
+    })
+    expect(store.getRecord(second.sessionId)?.providerHandleChain.at(-1)?.handle).toEqual({
+      provider: 'codex',
+      threadId: nextThread
+    })
+    expect(agentSessionPtyWriteGate.boundSessionId(pty.ptyId)).toBe(second.sessionId)
+    await host.close(first.sessionId)
+    expect(process.kill).not.toHaveBeenCalled()
+
+    rollouts = [oldRollout]
+    const rejoined = await adoptStructuredTerminal(context, request('unused-new-id'), 'renderer')
+    expect(rejoined.sessionId).toBe(first.sessionId)
+    expect(rejoined.fence).toBeGreaterThan(first.fence)
+    expect(host.journalSnapshot(first.sessionId).cursor.epoch).toBe(originalEpoch)
+    expect(store.listRecords()).toHaveLength(2)
+    expect(
+      store.getRecord(first.sessionId)?.providerHandleChain.map((link) => link.origin)
+    ).toEqual(['adopted', 'resumed'])
+    expect(isOriginalAdoptedTerminalOwner(store.getRecord(first.sessionId)!)).toBe(true)
+    expect(store.getRecord(second.sessionId)?.lease.claimStatus).toBe('released')
+    expect(acquire).not.toHaveBeenCalled()
+    expect(process.kill).not.toHaveBeenCalled()
+  })
+
+  it('rejoins the exact persisted live TUI owner after restart reconciliation', async () => {
+    const first = await adoptStructuredTerminal(context, request(), 'renderer')
+    const restored = await AgentSessionRecordStore.open({
+      directory: join(root, 'store'),
+      hostId: 'local'
+    })
+    host = new StructuredAgentSessionHost({ ...host.deps, store: restored })
+    store = restored
+    context.host = host
+    agentSessionPtyWriteGate.unbindPty(pty.ptyId)
+    await host.reconcileRestartLeases()
+    const rejoined = await adoptStructuredTerminal(
+      context,
+      request('restarted-intent'),
+      'restarted-renderer'
+    )
+    expect(rejoined).toEqual(first)
+    expect(store.listRecords()).toHaveLength(1)
+    expect(await host.handoffStatus(first.sessionId)).toMatchObject({ phase: 'idle', owner: 'tui' })
+    expect(acquire).not.toHaveBeenCalled()
+  })
+
+  it('preserves a failed earlier reservation when a different terminal cannot prove its launch token', async () => {
+    const first = await adoptStructuredTerminal(context, request(), 'renderer')
+    const operationId = `${NOW}-${'d'.repeat(32)}`
+    await setStoredAgentSessionHandoffStage(store, {
+      sessionId: first.sessionId,
+      fence: first.fence,
+      stage: 'preparing',
+      handoffOperationId: operationId,
+      now: NOW
+    })
+    const stoppedRecord = await stopStoredAgentSessionOwnerForHandoff(store, {
+      sessionId: first.sessionId,
+      expectedFence: first.fence,
+      operationId,
+      now: NOW
+    })
+    const reserved = await reserveStoredAgentSessionHandoffOwner(store, {
+      sessionId: first.sessionId,
+      expectedFence: stoppedRecord.lease.runtimeFence,
+      operationId,
+      now: NOW,
+      runtimeKind: 'tui',
+      spawnToken: 'failed-launch-token',
+      claimKeyId: 'key'
+    })
+    await setStoredAgentSessionHandoffStage(store, {
+      sessionId: first.sessionId,
+      fence: reserved.lease.runtimeFence,
+      stage: 'manual-recovery',
+      handoffOperationId: operationId,
+      now: NOW
+    })
+    const before = store.getRecord(first.sessionId)
+    expect(before?.lease).toMatchObject({
+      claimStatus: 'reserved',
+      ownerProcess: null,
+      processlessAt: null
+    })
+    childPid = 404
+    childStart += 10000
+    pty = { ...pty, ptyId: 'pty-after-failed-launch', incarnationId: 'replacement-incarnation' }
+    const input = request('new-intent')
+    input.terminal.ptyId = pty.ptyId
+    await expect(adoptStructuredTerminal(context, input, 'renderer')).rejects.toMatchObject({
+      code: 'agent_session_ownership_unknown',
+      sessionId: first.sessionId
+    })
+    expect(store.getRecord(first.sessionId)).toEqual(before)
+    expect(store.listRecords()).toHaveLength(1)
+    expect(acquire).not.toHaveBeenCalled()
+    expect(process.kill).not.toHaveBeenCalled()
   })
 })

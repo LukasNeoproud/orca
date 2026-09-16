@@ -70,7 +70,8 @@ const aiVaultSessionSchema = z.object({
   structuredSession: z
     .object({
       sessionId: z.string().min(1).max(512),
-      workspaceId: z.string().min(1).max(512)
+      workspaceId: z.string().min(1).max(512),
+      ownerState: z.enum(['live', 'unverifiable']).optional()
     })
     .optional(),
   subagent: z

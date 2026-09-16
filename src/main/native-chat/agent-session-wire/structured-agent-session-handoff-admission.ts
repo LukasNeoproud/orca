@@ -102,15 +102,23 @@ export function replayedStructuredHandoffRefusal(
 
 export async function refuseAdmittedStructuredHandoff(input: {
   deps: StructuredAgentSessionHandoffDeps
+  operationGuard: StructuredAgentSessionHandoffOperationGuard
   callerKey: string
   params: AgentSessionHandoffRequest
   refusal: AgentSessionWireRefusal
 }): Promise<AgentSessionMutationResult<AgentSessionHandoffResult>> {
-  await input.deps.store.recordOperationOutcome({
-    callerKey: input.callerKey,
-    operationId: input.params.envelope.clientOperationId,
-    outcome: { status: 'failed', code: input.refusal.code }
-  })
+  try {
+    await input.deps.store.recordOperationOutcome({
+      callerKey: input.callerKey,
+      operationId: input.params.envelope.clientOperationId,
+      outcome: { status: 'failed', code: input.refusal.code }
+    })
+  } finally {
+    input.operationGuard.finish(
+      input.params.envelope.sessionId,
+      input.params.envelope.clientOperationId
+    )
+  }
   return { ok: false, refusal: input.refusal }
 }
 

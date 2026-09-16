@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CodexAppServerRequestError } from './codex-app-server-connection'
 import {
   codexPermissionOverrides,
+  readCodexCustomPermissionsDescription,
   readCodexPermissionChoices,
   readCodexPermissionsMode
 } from './codex-structured-permissions'
@@ -13,6 +14,7 @@ describe('structured Codex permissions', () => {
     expect(choices.map((choice) => choice.value)).toEqual([
       'read-only',
       'workspace-write',
+      'auto-review',
       'full-access'
     ])
     expect(connection.request).toHaveBeenCalledWith(
@@ -23,9 +25,10 @@ describe('structured Codex permissions', () => {
   })
 
   it.each([
-    [{ allowedSandboxModes: ['workspace-write'] }, ['workspace-write']],
-    [{ allowedApprovalPolicies: ['on-request'] }, ['read-only', 'workspace-write']],
-    [{ allowedApprovalsReviewers: ['auto_review'] }, []],
+    [{ allowedSandboxModes: ['workspace-write'] }, ['workspace-write', 'auto-review']],
+    [{ allowedApprovalPolicies: ['on-request'] }, ['read-only', 'workspace-write', 'auto-review']],
+    [{ allowedApprovalsReviewers: ['auto_review'] }, ['auto-review']],
+    [{ allowedApprovalsReviewers: ['user'] }, ['read-only', 'workspace-write', 'full-access']],
     [{ allowedPermissionProfiles: { ':workspace': true } }, []],
     [{ allowedSandboxModes: [] }, []],
     [{ allowedSandboxModes: 'unexpected' }, []]
@@ -44,7 +47,7 @@ describe('structured Codex permissions', () => {
       .mockResolvedValue({ requirements: null })
     const connection = { request }
     expect(await readCodexPermissionChoices(connection)).toEqual([])
-    expect(await readCodexPermissionChoices(connection)).toHaveLength(3)
+    expect(await readCodexPermissionChoices(connection)).toHaveLength(4)
   })
 
   it('caches only a missing method, scoped to its connection', async () => {
@@ -57,7 +60,7 @@ describe('structured Codex permissions', () => {
     expect(request).toHaveBeenCalledOnce()
     expect(
       await readCodexPermissionChoices({ request: async () => ({ requirements: null }) })
-    ).toHaveLength(3)
+    ).toHaveLength(4)
   })
 
   it.each(['/srv/folder-workspace', 'C:\\work\\folder-workspace'])(
@@ -76,6 +79,16 @@ describe('structured Codex permissions', () => {
       })
     }
   )
+
+  it('sets and recognizes Auto review without broadening the workspace sandbox', () => {
+    const standard = codexPermissionOverrides('workspace-write', '/workspace')
+    const automatic = codexPermissionOverrides('auto-review', '/workspace')
+    expect(automatic).toEqual({ ...standard, approvalsReviewer: 'auto_review' })
+    const response = { ...automatic, sandbox: automatic.sandboxPolicy }
+    expect(readCodexPermissionsMode(response, '/workspace')).toBe('auto-review')
+    expect(readCodexCustomPermissionsDescription(response, '/workspace')).toBeUndefined()
+    expect(() => codexPermissionOverrides('auto-review', undefined)).toThrow('workspace path')
+  })
 
   it('refuses unknown modes and missing workspace context', () => {
     expect(() => codexPermissionOverrides('workspace-write', undefined)).toThrow('workspace path')
@@ -103,7 +116,7 @@ describe('structured Codex permissions', () => {
     ).toBeUndefined()
     expect(
       readCodexPermissionsMode({ ...workspace, approvalsReviewer: 'auto_review' }, '/workspace')
-    ).toBeUndefined()
+    ).toBe('auto-review')
     expect(
       readCodexPermissionsMode(
         { ...workspace, activePermissionProfile: { id: 'custom' } },
@@ -138,5 +151,39 @@ describe('structured Codex permissions', () => {
         '/workspace'
       )
     ).toBeUndefined()
+  })
+
+  it('summarizes an authoritative custom policy without inventing a preset', () => {
+    expect(
+      readCodexCustomPermissionsDescription(
+        {
+          approvalPolicy: 'on-request',
+          approvalsReviewer: 'auto_review',
+          sandbox: { type: 'workspaceWrite', writableRoots: ['/workspace'], networkAccess: true }
+        },
+        '/workspace'
+      )
+    ).toBe('Workspace sandbox · Auto review')
+    expect(
+      readCodexCustomPermissionsDescription(
+        {
+          approvalPolicy: 'never',
+          approvalsReviewer: 'user',
+          sandbox: { type: 'workspaceWrite', writableRoots: ['/workspace'], networkAccess: false }
+        },
+        '/workspace'
+      )
+    ).toBe('Workspace sandbox · No approvals')
+    expect(
+      readCodexCustomPermissionsDescription(
+        {
+          approvalPolicy: 'on-request',
+          approvalsReviewer: 'user',
+          sandbox: { type: 'workspaceWrite', writableRoots: ['/workspace'], networkAccess: false }
+        },
+        '/workspace'
+      )
+    ).toBeUndefined()
+    expect(readCodexCustomPermissionsDescription({}, '/workspace')).toBeUndefined()
   })
 })

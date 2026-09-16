@@ -3,7 +3,6 @@ import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 import { NativeChatResolvedView } from './NativeChatResolvedView'
 import { useNativeChatStatusEntry } from './use-native-chat-status-entry'
 import type { NativeChatViewProps } from './native-chat-view-types'
-import { NativeChatStructuredAdoption } from './NativeChatStructuredAdoption'
 
 export type { NativeChatViewProps } from './native-chat-view-types'
 
@@ -41,27 +40,24 @@ function NativeChatBridgeView({
       agentStatusEntry={agentStatusEntry}
       detectedAgent={detectedAgent}
       ptyId={targetPtyId}
+      retentionIdentity={terminalContext?.retentionIdentity}
+      knownProviderSession={terminalContext?.knownProviderSession}
     >
-      {(resolution) => {
-        const resolvedProps = {
-          paneKey: resolution.paneKey,
-          agent: resolution.agent,
-          sessionId: resolution.sessionId,
-          transcriptPath: resolution.transcriptPath,
-          isVisible,
-          targetPtyId,
-          terminalTabId,
-          ownsTabWideLaunchDraft,
-          onSwitchToTerminal,
-          readTerminalScreen,
-          contextMenuActions
-        }
-        return terminalContext ? (
-          <NativeChatStructuredAdoption {...resolvedProps} terminalContext={terminalContext} />
-        ) : (
-          <NativeChatResolvedView {...resolvedProps} />
-        )
-      }}
+      {(resolution) => (
+        <NativeChatResolvedView
+          paneKey={resolution.paneKey}
+          agent={resolution.agent}
+          sessionId={resolution.sessionId}
+          transcriptPath={resolution.transcriptPath}
+          isVisible={isVisible}
+          targetPtyId={targetPtyId}
+          terminalTabId={terminalTabId}
+          ownsTabWideLaunchDraft={ownsTabWideLaunchDraft}
+          onSwitchToTerminal={onSwitchToTerminal}
+          readTerminalScreen={readTerminalScreen}
+          contextMenuActions={contextMenuActions}
+        />
+      )}
     </NativeChatSessionGate>
   )
 }

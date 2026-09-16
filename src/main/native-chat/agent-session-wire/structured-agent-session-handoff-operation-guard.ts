@@ -115,11 +115,14 @@ export class StructuredAgentSessionHandoffOperationGuard {
     outcome: AgentSessionOperationOutcome
   ): Promise<void> {
     const active = this.activeBySession.get(sessionId)
-    await this.store.recordOperationOutcome({
-      ...(active?.operationId === operationId ? { callerKey: active.callerKey } : {}),
-      operationId,
-      outcome
-    })
-    this.finish(sessionId, operationId)
+    try {
+      await this.store.recordOperationOutcome({
+        ...(active?.operationId === operationId ? { callerKey: active.callerKey } : {}),
+        operationId,
+        outcome
+      })
+    } finally {
+      this.finish(sessionId, operationId)
+    }
   }
 }

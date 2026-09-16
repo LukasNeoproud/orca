@@ -190,6 +190,9 @@ export function normalizeLoadedUiState(
     osc52ClipboardDefaultOnNoticePending: osc52ClipboardNoticePending,
     sortBy: migrate ? ('smart' as const) : sort,
     showDotfilesByWorktree: normalizeShowDotfilesByWorktree(parsed.ui?.showDotfilesByWorktree),
+    conversationHistoryExpandedByWorkspace: normalizeShowDotfilesByWorktree(
+      parsed.ui?.conversationHistoryExpandedByWorkspace
+    ),
     workspaceStatuses,
     _workspaceStatusesDefaultOrderMigrated: true,
     _workspaceStatusesReorderedDefaultRepaired: true,

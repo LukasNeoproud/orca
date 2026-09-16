@@ -44,7 +44,8 @@ export class OrcaRuntimeWithProveRecoveredStructuredTuiPtyProcess extends OrcaRu
         hostId: identity.hostId,
         rootPid: listed.rootProcessId,
         spawnToken: identity.spawnToken,
-        agent: provider
+        agent: provider,
+        unwrapCodexLauncher: provider === 'codex'
       })
       const matched = {
         hostId: observed.hostId === identity.hostId,

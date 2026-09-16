@@ -44,6 +44,9 @@ export type SessionOptionDescriptor = {
         currentValue?: boolean
       }
   valueSource: SessionOptionValueSource
+  /** Reported current state that is intentionally outside the settable choices. */
+  currentValueLabel?: string
+  currentValueDescription?: string
   /** Required so a new producer cannot inherit the wrong lane's rendering by
    *  omission — `dispatched` is emitted identically by both and cannot discriminate. */
   transport: NativeChatLiveOptionTransport

@@ -127,7 +127,8 @@ export const NATIVE_CHAT_METHODS: readonly RpcAnyMethod[] = [
             messages: windowForClient(result.messages, clientKind, limit),
             hasMore: result.hasMore,
             beforeOffset: result.beforeOffset,
-            ...(result.lifecycle ? { lifecycle: result.lifecycle } : {})
+            ...(result.lifecycle ? { lifecycle: result.lifecycle } : {}),
+            ...(result.usageStatus ? { usageStatus: result.usageStatus } : {})
           }
         : result
     }
@@ -179,7 +180,7 @@ export const NATIVE_CHAT_METHODS: readonly RpcAnyMethod[] = [
         sessionId: params.sessionId,
         transcriptPath: params.transcriptPath,
         initialLimit: limit,
-        onInitialSnapshot: (messages, hasMore, beforeOffset, error, lifecycle) => {
+        onInitialSnapshot: (messages, hasMore, beforeOffset, error, lifecycle, usageStatus) => {
           if (closed) {
             return
           }
@@ -191,7 +192,8 @@ export const NATIVE_CHAT_METHODS: readonly RpcAnyMethod[] = [
             hasMore,
             beforeOffset,
             ...(error ? { error } : {}),
-            ...(lifecycle ? { lifecycle } : {})
+            ...(lifecycle ? { lifecycle } : {}),
+            ...(usageStatus ? { usageStatus } : {})
           })
         },
         ...(params.capabilities?.transcriptPending === 1
@@ -203,7 +205,7 @@ export const NATIVE_CHAT_METHODS: readonly RpcAnyMethod[] = [
               }
             }
           : {}),
-        onReplace: (messages, hasMore, beforeOffset, lifecycle) => {
+        onReplace: (messages, hasMore, beforeOffset, lifecycle, usageStatus) => {
           if (closed) {
             return
           }
@@ -212,17 +214,19 @@ export const NATIVE_CHAT_METHODS: readonly RpcAnyMethod[] = [
             messages: windowForClient(messages, clientKind, limit),
             hasMore,
             beforeOffset,
-            ...(lifecycle ? { lifecycle } : {})
+            ...(lifecycle ? { lifecycle } : {}),
+            ...(usageStatus ? { usageStatus } : {})
           })
         },
-        onAppend: (messages, lifecycle) => {
+        onAppend: (messages, lifecycle, usageStatus) => {
           if (closed) {
             return
           }
           emit({
             type: 'appended',
             messages: sanitizeAppendForClient(messages, clientKind),
-            ...(lifecycle ? { lifecycle } : {})
+            ...(lifecycle ? { lifecycle } : {}),
+            ...(usageStatus ? { usageStatus } : {})
           })
         }
       }

@@ -185,17 +185,55 @@ export function useAiVaultSessionWorktreeMap({
   repos?: readonly Pick<Repo, 'id' | 'connectionId' | 'executionHostId'>[]
   worktrees: readonly Worktree[]
 }): ReadonlyMap<string, AiVaultSessionWorktreeInfo> {
-  return useMemo(() => {
-    // Hoisted out of the per-session loop: candidates and their normalized
-    // roots are session-independent.
-    const candidates = buildWorktreeCandidates(worktrees, repos)
-    return new Map(
-      sessions.flatMap((session) => {
-        const worktreeInfo = resolveWorktreeDisplayFromCandidates(session, candidates)
-        return worktreeInfo ? [[session.id, worktreeInfo] as const] : []
-      })
-    )
-  }, [repos, sessions, worktrees])
+  return useMemo(
+    () => getAiVaultSessionWorktreeMap({ sessions, repos, worktrees }),
+    [repos, sessions, worktrees]
+  )
+}
+
+const sessionWorktreeMapCache = new WeakMap<
+  readonly AiVaultSession[],
+  WeakMap<
+    readonly Worktree[],
+    WeakMap<readonly object[], ReadonlyMap<string, AiVaultSessionWorktreeInfo>>
+  >
+>()
+
+/** Shared by the right panel and every expanded workspace card. */
+export function getAiVaultSessionWorktreeMap({
+  sessions,
+  repos = [],
+  worktrees
+}: {
+  sessions: readonly AiVaultSession[]
+  repos?: readonly Pick<Repo, 'id' | 'connectionId' | 'executionHostId'>[]
+  worktrees: readonly Worktree[]
+}): ReadonlyMap<string, AiVaultSessionWorktreeInfo> {
+  let byWorktrees = sessionWorktreeMapCache.get(sessions)
+  if (!byWorktrees) {
+    byWorktrees = new WeakMap()
+    sessionWorktreeMapCache.set(sessions, byWorktrees)
+  }
+  let byRepos = byWorktrees.get(worktrees)
+  if (!byRepos) {
+    byRepos = new WeakMap()
+    byWorktrees.set(worktrees, byRepos)
+  }
+  const repoKey = repos as readonly object[]
+  const cached = byRepos.get(repoKey)
+  if (cached) {
+    return cached
+  }
+
+  const candidates = buildWorktreeCandidates(worktrees, repos)
+  const result = new Map(
+    sessions.flatMap((session) => {
+      const worktreeInfo = resolveWorktreeDisplayFromCandidates(session, candidates)
+      return worktreeInfo ? [[session.id, worktreeInfo] as const] : []
+    })
+  )
+  byRepos.set(repoKey, result)
+  return result
 }
 
 function buildWorktreeCandidates(

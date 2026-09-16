@@ -1,6 +1,9 @@
+// @vitest-environment happy-dom
+
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuickLaunchAgentMenuItems, shouldShowLaunchWatchdogTimeout } from './QuickLaunchButton'
 
 const {
@@ -8,14 +11,21 @@ const {
   storeState,
   openSettingsPageMock,
   openSettingsTargetMock,
-  useDetectedAgentsMock
+  useDetectedAgentsMock,
+  startStructuredAgentLaunchMock
 } = vi.hoisted(() => ({
   shortcutLabelMock: vi.fn<() => string | null>(),
   storeState: {
     settings: {
       defaultTuiAgent: 'codex' as 'claude' | 'codex' | 'gemini' | 'blank' | null,
-      disabledTuiAgents: [] as string[]
+      disabledTuiAgents: [] as string[],
+      experimentalNativeChat: true,
+      experimentalStructuredNativeChat: true,
+      openAgentTabsInChatByDefault: false
     },
+    activeRepoId: null,
+    activeWorktreeId: 'worktree-1',
+    projects: [] as unknown[],
     worktreesByRepo: {} as Record<string, unknown[]>,
     repos: [] as unknown[],
     openSettingsPage: vi.fn(),
@@ -23,7 +33,8 @@ const {
   },
   openSettingsPageMock: vi.fn(),
   openSettingsTargetMock: vi.fn(),
-  useDetectedAgentsMock: vi.fn(() => ({ detectedIds: ['claude', 'codex', 'gemini'] }))
+  useDetectedAgentsMock: vi.fn(() => ({ detectedIds: ['claude', 'codex', 'gemini'] })),
+  startStructuredAgentLaunchMock: vi.fn()
 }))
 
 vi.mock('@/hooks/useDetectedAgents', () => ({
@@ -68,10 +79,17 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
   }
 
   return {
-    DropdownMenuItem: ({ children, ...props }: { children: React.ReactNode }) =>
-      ReactActual.createElement('div', props, children),
+    DropdownMenuItem: ({
+      children,
+      onSelect,
+      ...props
+    }: {
+      children: React.ReactNode
+      onSelect?: () => void
+    }) => ReactActual.createElement('div', { ...props, onClick: onSelect }, children),
     DropdownMenuShortcut: ({ children }: { children: React.ReactNode }) =>
-      ReactActual.createElement('span', { 'data-dropdown-shortcut': 'true' }, children)
+      ReactActual.createElement('span', { 'data-dropdown-shortcut': 'true' }, children),
+    DropdownMenuSeparator: () => ReactActual.createElement('hr')
   }
 })
 
@@ -92,6 +110,15 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/launch-agent-in-new-tab', () => ({
   launchAgentInNewTab: vi.fn()
+}))
+
+vi.mock('@/runtime/local-runtime-capabilities', () => ({
+  readLocalRuntimeCapabilitiesOrUnknown: () => ['agent-session.structured.v1']
+}))
+
+vi.mock('@/lib/structured-agent-session-launch', () => ({
+  startStructuredAgentLaunch: startStructuredAgentLaunchMock,
+  useStructuredAgentLaunchStatus: () => 'idle'
 }))
 
 function renderAgentMenuItems(): string {
@@ -126,6 +153,8 @@ beforeEach(() => {
   storeState.openSettingsPage = openSettingsPageMock
   storeState.openSettingsTarget = openSettingsTargetMock
 })
+
+afterEach(cleanup)
 
 describe('QuickLaunchAgentMenuItems', () => {
   it('renders the new-agent shortcut next to the configured default agent only', () => {
@@ -205,6 +234,69 @@ describe('QuickLaunchAgentMenuItems', () => {
 
     storeState.settings.defaultTuiAgent = 'blank'
     expect(renderAgentMenuItems()).not.toContain('data-dropdown-shortcut="true"')
+  })
+
+  it('lists explicit structured chat actions separately from terminal launches', () => {
+    const html = renderAgentMenuItems()
+
+    expect(html).toContain('New Claude Chat')
+    expect(html).toContain('New Codex Chat')
+    expect(html).toContain('Launch Claude in a new terminal')
+    expect(html).toContain('Launch Codex in a new terminal')
+    expect(html).not.toContain('New Gemini Chat')
+  })
+
+  it('starts an explicit structured chat without invoking the terminal launcher', async () => {
+    const { launchAgentInNewTab } = await import('@/lib/launch-agent-in-new-tab')
+    render(
+      React.createElement(QuickLaunchAgentMenuItems, {
+        worktreeId: 'worktree-1',
+        groupId: 'group-1',
+        onFocusTerminal: vi.fn()
+      })
+    )
+
+    fireEvent.click(screen.getByText('New Codex Chat'))
+
+    expect(startStructuredAgentLaunchMock).toHaveBeenCalledWith('worktree-1', 'codex')
+    expect(launchAgentInNewTab).not.toHaveBeenCalled()
+  })
+
+  it('forwards review-note prompts through an explicit structured chat action', () => {
+    const onPromptDelivered = vi.fn()
+    render(
+      React.createElement(QuickLaunchAgentMenuItems, {
+        worktreeId: 'worktree-1',
+        groupId: 'group-1',
+        onFocusTerminal: vi.fn(),
+        prompt: 'Review these notes',
+        promptDelivery: 'submit-after-ready',
+        onPromptDelivered
+      })
+    )
+
+    fireEvent.click(screen.getByText('New Claude Chat'))
+
+    expect(startStructuredAgentLaunchMock).toHaveBeenCalledWith('worktree-1', 'claude', {
+      prompt: 'Review these notes',
+      promptDelivery: 'submit-after-ready',
+      onPromptDelivered
+    })
+  })
+
+  it('does not offer structured chat for a prompt that must remain an editable draft', () => {
+    render(
+      React.createElement(QuickLaunchAgentMenuItems, {
+        worktreeId: 'worktree-1',
+        groupId: 'group-1',
+        onFocusTerminal: vi.fn(),
+        prompt: 'Keep this editable',
+        promptDelivery: 'draft'
+      })
+    )
+
+    expect(screen.queryByText('New Codex Chat')).toBeNull()
+    expect(screen.queryByText('New Claude Chat')).toBeNull()
   })
 })
 

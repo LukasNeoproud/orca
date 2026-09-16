@@ -5,18 +5,19 @@ import { canContinueAgentSessionInNewSession } from './terminal-agent-session-co
 import type { TerminalPaneController } from './use-terminal-pane-controller'
 import { useAppStore } from '@/store'
 import { resolvePaneAgentSessionId } from './pane-agent-session-id'
+import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 
-export function TerminalPaneNativeChatPortal({
-  controller
+type RetainedPane = TerminalPaneController['retainedChatPaneProjections'][number]
+
+function RetainedNativeChatPanePortal({
+  controller,
+  projection
 }: {
   controller: TerminalPaneController
-}): React.JSX.Element | null {
+  projection: RetainedPane
+}): React.JSX.Element {
   const {
-    chatPane,
-    chatPaneLaunchAgent,
-    chatPaneOwnsTabWideLaunchDraft,
-    chatPanePtyId,
-    chatPaneResolvedAgent,
+    chatLeafId,
     contextMenu,
     effectiveChatViewMode,
     expandedPaneId,
@@ -24,83 +25,116 @@ export function TerminalPaneNativeChatPortal({
     managedPanes,
     readNativeChatTerminalScreen,
     resolveAgentForLeaf,
-    structuredChatAgent,
     structuredChatTarget,
-    structuredSessionId,
     switchNativeChatToTerminal,
     tabId,
     unifiedTabId,
     worktreeId
   } = controller
-  const chatPaneSessionId = useAppStore((state) =>
-    effectiveChatViewMode && chatPane
-      ? resolvePaneAgentSessionId(state, makePaneKey(tabId, chatPane.leafId))
-      : null
+  const { pane } = projection
+  const paneKey = makePaneKey(tabId, pane.leafId)
+  const isActive = effectiveChatViewMode && chatLeafId === pane.leafId
+  const paneSessionId = useAppStore((state) => resolvePaneAgentSessionId(state, paneKey))
+  const knownProviderSession = useAppStore(
+    (state) =>
+      state.agentLaunchConfigByPaneKey[paneKey]?.identity.providerSession ??
+      (projection.ownsTabWideLaunchDraft
+        ? (state.automaticAgentResumeClaimsByTabId[tabId]?.providerSession ??
+          state.pendingStartupByTabId[tabId]?.resumeProviderSession)
+        : undefined)
   )
-  if (!effectiveChatViewMode || !chatPane?.container) {
-    return null
-  }
-
+  const bridgeRetentionIdentity = useAppStore(
+    (state) => `${getExecutionHostIdForWorktree(state, worktreeId)}\0${worktreeId}`
+  )
   const contextMenuActions = {
-    onSplitRight: () => contextMenu.runForPane(chatPane.id, contextMenu.onSplitRight),
-    onSplitDown: () => contextMenu.runForPane(chatPane.id, contextMenu.onSplitDown),
+    onSplitRight: () => contextMenu.runForPane(pane.id, contextMenu.onSplitRight),
+    onSplitDown: () => contextMenu.runForPane(pane.id, contextMenu.onSplitDown),
     canEqualizePaneSizes: managedPanes.length > 1 && expandedPaneId === null,
-    onEqualizePaneSizes: () => contextMenu.runForPane(chatPane.id, contextMenu.onEqualizePaneSizes),
+    onEqualizePaneSizes: () => contextMenu.runForPane(pane.id, contextMenu.onEqualizePaneSizes),
     canExpandPane: managedPanes.length > 1,
-    isPaneExpanded: expandedPaneId === chatPane.id,
-    onToggleExpand: () => contextMenu.runForPane(chatPane.id, contextMenu.onToggleExpand),
+    isPaneExpanded: expandedPaneId === pane.id,
+    onToggleExpand: () => contextMenu.runForPane(pane.id, contextMenu.onToggleExpand),
     canContinueAgentSessionInNewSession: canContinueAgentSessionInNewSession(
-      resolveAgentForLeaf(chatPane.leafId)
+      resolveAgentForLeaf(pane.leafId)
     ),
     onContinueAgentSessionInNewSession: () =>
-      contextMenu.runForPane(chatPane.id, contextMenu.onContinueAgentSessionInNewSession),
-    onForkAgentSession: () =>
-      void contextMenu.runForPane(chatPane.id, contextMenu.onForkAgentSession),
-    onSetTitle: () => contextMenu.runForPane(chatPane.id, contextMenu.onSetTitle),
-    onCopyTerminalId: () => void contextMenu.runForPane(chatPane.id, contextMenu.onCopyTerminalId),
-    onCopyPaneId: () => void contextMenu.runForPane(chatPane.id, contextMenu.onCopyPaneId),
-    canCopyAgentSessionId: chatPaneSessionId !== null,
+      contextMenu.runForPane(pane.id, contextMenu.onContinueAgentSessionInNewSession),
+    onForkAgentSession: () => void contextMenu.runForPane(pane.id, contextMenu.onForkAgentSession),
+    onSetTitle: () => contextMenu.runForPane(pane.id, contextMenu.onSetTitle),
+    onCopyTerminalId: () => void contextMenu.runForPane(pane.id, contextMenu.onCopyTerminalId),
+    onCopyPaneId: () => void contextMenu.runForPane(pane.id, contextMenu.onCopyPaneId),
+    canCopyAgentSessionId: paneSessionId !== null,
     onCopyAgentSessionId: () =>
-      void contextMenu.runForPane(chatPane.id, contextMenu.onCopyAgentSessionId),
+      void contextMenu.runForPane(pane.id, contextMenu.onCopyAgentSessionId),
     canClosePane: managedPanes.length > 1,
-    onClosePane: () => contextMenu.runForPane(chatPane.id, contextMenu.onClosePane)
+    onClosePane: () => contextMenu.runForPane(pane.id, contextMenu.onClosePane)
   }
 
   return createPortal(
-    <div className="native-chat-pane-shell absolute inset-0 z-10 flex min-h-0 min-w-0 bg-background">
-      {structuredSessionId && structuredChatAgent ? (
+    <div
+      className="native-chat-pane-shell absolute inset-0 z-10 min-h-0 min-w-0 bg-background"
+      style={{ display: isActive ? 'flex' : 'none' }}
+      aria-hidden={!isActive}
+    >
+      {projection.structuredSessionId && projection.structuredSessionAgent ? (
         <NativeChatView
           mode="structured"
-          onSwitchToTerminal={switchNativeChatToTerminal}
           tabId={unifiedTabId ?? tabId}
-          sessionId={structuredSessionId}
-          agent={structuredChatAgent}
-          isVisible={isRendererVisible}
+          sessionId={projection.structuredSessionId}
+          agent={projection.structuredSessionAgent}
+          isVisible={isRendererVisible && isActive}
           target={structuredChatTarget}
-          composerPaneKey={makePaneKey(tabId, chatPane.leafId)}
+          composerPaneKey={paneKey}
           contextMenuActions={contextMenuActions}
         />
       ) : (
         <NativeChatView
           terminalTabId={tabId}
-          isVisible={isRendererVisible}
-          paneKey={makePaneKey(tabId, chatPane.leafId)}
-          targetPtyId={chatPanePtyId}
-          launchAgent={chatPaneLaunchAgent}
-          resolvedAgent={chatPaneResolvedAgent}
-          ownsTabWideLaunchDraft={chatPaneOwnsTabWideLaunchDraft}
+          isVisible={isRendererVisible && isActive}
+          paneKey={paneKey}
+          targetPtyId={projection.ptyId}
+          launchAgent={projection.launchAgent}
+          resolvedAgent={projection.resolvedAgent}
+          ownsTabWideLaunchDraft={projection.ownsTabWideLaunchDraft}
           onSwitchToTerminal={switchNativeChatToTerminal}
           readTerminalScreen={readNativeChatTerminalScreen}
           contextMenuActions={contextMenuActions}
           terminalContext={
             unifiedTabId
-              ? { worktreeId, unifiedTabId, singlePane: managedPanes.length === 1 }
+              ? {
+                  worktreeId,
+                  unifiedTabId,
+                  singlePane: managedPanes.length === 1,
+                  retentionIdentity: bridgeRetentionIdentity,
+                  ...(knownProviderSession ? { knownProviderSession } : {})
+                }
               : undefined
           }
         />
       )}
     </div>,
-    chatPane.container,
-    `native-chat-${tabId}-${chatPane.leafId}`
+    pane.container,
+    `native-chat-${tabId}-${pane.leafId}`
+  )
+}
+
+export function TerminalPaneNativeChatPortal({
+  controller
+}: {
+  controller: TerminalPaneController
+}): React.JSX.Element | null {
+  if (controller.retainedChatPaneProjections.length === 0) {
+    return null
+  }
+  return (
+    <>
+      {controller.retainedChatPaneProjections.map((projection) => (
+        <RetainedNativeChatPanePortal
+          key={projection.pane.leafId}
+          controller={controller}
+          projection={projection}
+        />
+      ))}
+    </>
   )
 }
