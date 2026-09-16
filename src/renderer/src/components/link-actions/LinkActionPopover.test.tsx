@@ -237,6 +237,32 @@ describe('LinkActionPopover', () => {
     expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull()
   })
 
+  it('runs additional actions without advertising a click shortcut', () => {
+    const run = vi.fn()
+    const onClose = vi.fn()
+    const restoreFocus = vi.fn()
+    render(
+      <LinkActionPopover
+        request={{
+          anchorX: 100,
+          anchorY: 200,
+          destination: '/tmp/file.ts',
+          kind: 'file',
+          primary: { label: 'Open file', run: vi.fn() },
+          additionalActions: [{ label: 'Reveal in Finder', run }],
+          restoreFocus
+        }}
+        onClose={onClose}
+      />
+    )
+    const reveal = screen.getByRole('button', { name: 'Reveal in Finder' })
+    expect(reveal.textContent).not.toContain('Click')
+    fireEvent.click(reveal)
+    expect(run).toHaveBeenCalledOnce()
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(restoreFocus).toHaveBeenCalledOnce()
+  })
+
   it('opens the terminal link setting from the compact settings button', () => {
     vi.stubGlobal('navigator', { userAgent: 'Macintosh' })
     const onClose = vi.fn()

@@ -61,7 +61,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('terminal file link actions', () => {
-  it('offers Orca and system-default actions for a local file', () => {
+  it('offers Orca, system-default and reveal actions for a local file', async () => {
+    const openPath = vi.fn()
+    const authorizeExternalPath = vi.fn()
+    vi.stubGlobal('window', { api: { fs: { authorizeExternalPath }, shell: { openPath } } })
     const request = vi.fn()
     expect(
       handleTerminalFileLink('/repo/src/main.ts', 12, 4, plainEvent(), deps, context(request))
@@ -76,6 +79,10 @@ describe('terminal file link actions', () => {
         alternate: expect.objectContaining({ label: 'Open with default app' })
       })
     )
+    await actionRequest.additionalActions[0].run()
+    expect(actionRequest.additionalActions[0].label).toBe('Reveal in Finder')
+    expect(authorizeExternalPath).toHaveBeenCalledWith({ targetPath: '/repo/src/main.ts' })
+    expect(openPath).toHaveBeenCalledWith('/repo/src/main.ts')
     actionRequest.primary.run()
     actionRequest.alternate.run()
     expect(mocks.openDetectedFilePath).toHaveBeenNthCalledWith(1, '/repo/src/main.ts', 12, 4, deps)
@@ -83,6 +90,16 @@ describe('terminal file link actions', () => {
       ...deps,
       openWithSystemDefault: true
     })
+  })
+
+  it.each([
+    ['Windows', 'Reveal in File Explorer'],
+    ['Linux', 'Open Containing Folder']
+  ])('uses the file manager label for %s', (userAgent, label) => {
+    vi.stubGlobal('navigator', { userAgent })
+    const request = vi.fn()
+    handleTerminalFileLink('/repo/src/main.ts', null, null, plainEvent(), deps, context(request))
+    expect(request.mock.calls[0][0].additionalActions[0].label).toBe(label)
   })
 
   it('labels workspace switching and omits an impossible remote alternate', () => {
@@ -116,6 +133,7 @@ describe('terminal file link actions', () => {
     const actionRequest = request.mock.calls[0][0]
     expect(actionRequest.primary.label).toBe('Open file')
     expect(actionRequest.alternate.label).toBe('Download & open with default app')
+    expect(actionRequest.additionalActions).toBeUndefined()
 
     actionRequest.alternate.run()
     expect(mocks.downloadAndOpen).toHaveBeenCalledWith({}, '/repo/docs/report.html')

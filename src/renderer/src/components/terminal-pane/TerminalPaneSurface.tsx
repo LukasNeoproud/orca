@@ -217,6 +217,7 @@ export function TerminalPaneSurface({
       />
       <TerminalPaneNativeChatPortal controller={controller} />
       <TerminalContextMenu
+        filePath={contextMenu.filePath}
         open={contextMenu.open}
         onOpenChange={contextMenu.setOpen}
         menuPoint={contextMenu.point}

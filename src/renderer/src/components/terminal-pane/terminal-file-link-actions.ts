@@ -107,6 +107,32 @@ export function handleTerminalFileLink(
           ),
       run: () => openDetectedFilePath(filePath, line, column, deps)
     },
-    ...(systemDefaultRow ? { alternate: systemDefaultRow } : {})
+    ...(systemDefaultRow ? { alternate: systemDefaultRow } : {}),
+    ...(canOpenWithSystemDefault
+      ? {
+          additionalActions: [
+            {
+              label: isMac
+                ? translate(
+                    'auto.components.terminal.pane.TerminalLinkActionPopover.revealInFinder',
+                    'Reveal in Finder'
+                  )
+                : navigator.userAgent.includes('Linux')
+                  ? translate(
+                      'auto.components.terminal.pane.TerminalLinkActionPopover.openContainingFolder',
+                      'Open Containing Folder'
+                    )
+                  : translate(
+                      'auto.components.terminal.pane.TerminalLinkActionPopover.revealInFileExplorer',
+                      'Reveal in File Explorer'
+                    ),
+              run: async () => {
+                await window.api.fs.authorizeExternalPath({ targetPath: mappedPath })
+                await window.api.shell.openPath(mappedPath)
+              }
+            }
+          ]
+        }
+      : {})
   })
 }

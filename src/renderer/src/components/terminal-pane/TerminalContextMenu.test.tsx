@@ -60,6 +60,7 @@ function renderMenu(overrides: Record<string, unknown> = {}): string {
     open: true,
     onOpenChange: vi.fn(),
     menuPoint: { x: 0, y: 0 },
+    filePath: null,
     menuOpenedAtRef: { current: 0 },
     canClosePane: true,
     canExpandPane: true,
@@ -127,6 +128,36 @@ describe('TerminalContextMenu', () => {
     expect(onCopyAgentSessionContext).toHaveBeenCalledTimes(1)
     // Why: copying context must not go through the fork dialog path.
     expect(onForkAgentSession).not.toHaveBeenCalled()
+  })
+
+  it('copies the clicked file link paths without replacing selection Copy', () => {
+    const writeClipboardText = vi.fn()
+    vi.stubGlobal('window', { api: { ui: { writeClipboardText } } })
+    renderMenu({ filePath: { absolute: 'C:\\repo\\src\\file.ts', relative: 'src/file.ts' } })
+
+    const absolute = items.list.find((item) => childrenText(item.children) === 'Copy Absolute Path')
+    const relative = items.list.find((item) => childrenText(item.children) === 'Copy Relative Path')
+    expect(absolute).toBeDefined()
+    expect(relative).toBeDefined()
+    expect(items.list.some((item) => childrenText(item.children).startsWith('CopyCtrl+'))).toBe(
+      true
+    )
+    absolute?.onSelect?.()
+    relative?.onSelect?.()
+    expect(writeClipboardText.mock.calls.map(([text]) => text)).toEqual([
+      'C:\\repo\\src\\file.ts',
+      'src/file.ts'
+    ])
+  })
+
+  it('omits the relative action when the link is outside the workspace', () => {
+    renderMenu({ filePath: { absolute: '/other/file.ts', relative: null } })
+    expect(items.list.some((item) => childrenText(item.children) === 'Copy Absolute Path')).toBe(
+      true
+    )
+    expect(items.list.some((item) => childrenText(item.children) === 'Copy Relative Path')).toBe(
+      false
+    )
   })
 
   it('shows new-session continuation only for eligible agent panes', () => {

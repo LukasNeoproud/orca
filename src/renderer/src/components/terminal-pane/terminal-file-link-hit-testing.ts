@@ -33,9 +33,26 @@ export function openFilePathLinkAtBufferPosition(
   terminalColumns: number,
   deps: FileLinkHitTestDeps
 ): boolean {
+  const match = findFilePathLinkAtBufferPosition(buffer, position, terminalColumns, deps)
+  if (!match) {
+    return false
+  }
+  openDetectedFilePath(match.absolutePath, match.line, match.column, {
+    ...deps,
+    openWithSystemDefault: deps.openWithSystemDefault === true
+  })
+  return true
+}
+
+export function findFilePathLinkAtBufferPosition(
+  buffer: { getLine(y: number): IBufferLine | undefined },
+  position: { x: number; y: number },
+  terminalColumns: number,
+  deps: FileLinkHitTestDeps
+): { absolutePath: string; line: number | null; column: number | null } | null {
   const logicalLines = buildCandidateLogicalLinesForBufferPosition(buffer, position.y)
   if (logicalLines.length === 0) {
-    return false
+    return null
   }
 
   for (const logicalLine of logicalLines) {
@@ -97,15 +114,11 @@ export function openFilePathLinkAtBufferPosition(
     const uncachedMatch = matches.find((match) => match.cachedExists !== false)
     const match = cachedMatch ?? knownWorktreeRootMatch ?? uncachedMatch
     if (match) {
-      openDetectedFilePath(match.absolutePath, match.line, match.column, {
-        ...deps,
-        openWithSystemDefault: deps.openWithSystemDefault === true
-      })
-      return true
+      return { absolutePath: match.absolutePath, line: match.line, column: match.column }
     }
   }
 
-  return false
+  return null
 }
 
 export function buildCandidateLogicalLinesForBufferPosition(

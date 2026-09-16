@@ -52,6 +52,7 @@ type TerminalMenuState = {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   point: { x: number; y: number }
+  filePath: { absolute: string; relative: string | null } | null
   menuOpenedAtRef: React.RefObject<number>
   paneCount: number
   menuPaneId: number | null
@@ -129,14 +130,25 @@ export function useTerminalPaneContextMenu({
       source
     )
 
-  const { open, setOpen, point, menuOpenedAtRef, onContextMenuCapture, onPaneTitleContextMenu } =
-    useTerminalContextMenuTrigger({
-      managerRef,
-      containerRef,
-      contextPaneIdRef,
-      rightClickToPaste,
-      pasteResolvedPane
-    })
+  const {
+    open,
+    setOpen,
+    point,
+    filePath,
+    menuOpenedAtRef,
+    onContextMenuCapture,
+    onPaneTitleContextMenu
+  } = useTerminalContextMenuTrigger({
+    managerRef,
+    containerRef,
+    contextPaneIdRef,
+    rightClickToPaste,
+    pasteResolvedPane,
+    paneCwdRef,
+    paneTransportsRef,
+    worktreeId,
+    fallbackCwd
+  })
 
   const { onSplitRight, onSplitDown } = useTerminalPaneSplitActions({
     managerRef,
@@ -279,6 +291,7 @@ export function useTerminalPaneContextMenu({
     open,
     setOpen,
     point,
+    filePath,
     menuOpenedAtRef,
     paneCount,
     menuPaneId,

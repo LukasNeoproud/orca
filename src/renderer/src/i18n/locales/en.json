@@ -3176,7 +3176,10 @@
             "copiedLink": "Copied link",
             "copyLinkFailed": "Failed to copy link",
             "downloadOpenWithDefaultApp": "Download & open with default app",
-            "downloadOpenFailed": "Failed to download '{{value0}}'."
+            "downloadOpenFailed": "Failed to download '{{value0}}'.",
+            "revealInFinder": "Reveal in Finder",
+            "openContainingFolder": "Open Containing Folder",
+            "revealInFileExplorer": "Reveal in File Explorer"
           },
           "TerminalSessionStateSaveFailureDialog": {
             "6bee0c8f17": "Open Disk Space Analyzer",
@@ -17582,7 +17585,9 @@
       "TerminalContextMenu": {
         "copySessionId": "Copy Session ID",
         "copySessionIdSuccess": "Session ID copied",
-        "copySessionIdError": "Unable to copy session ID"
+        "copySessionIdError": "Unable to copy session ID",
+        "copyAbsolutePath": "Copy Absolute Path",
+        "copyRelativePath": "Copy Relative Path"
       }
     }
   },

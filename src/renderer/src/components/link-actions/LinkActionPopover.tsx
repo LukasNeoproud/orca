@@ -22,7 +22,7 @@ function ActionRow({
   onRun
 }: {
   action: LinkAction
-  alternate: boolean
+  alternate?: boolean
   onRun: () => void
 }): React.JSX.Element {
   const isMac = navigator.userAgent.includes('Mac')
@@ -41,7 +41,9 @@ function ActionRow({
       <span className="min-w-0 flex-1 truncate text-left" title={action.label}>
         {action.label}
       </span>
-      <ShortcutKeyCombo keys={keys} keyCapClassName="min-w-5 px-1 py-0 text-[11px]" />
+      {alternate !== undefined ? (
+        <ShortcutKeyCombo keys={keys} keyCapClassName="min-w-5 px-1 py-0 text-[11px]" />
+      ) : null}
     </Button>
   )
 }
@@ -190,6 +192,9 @@ export function LinkActionPopover<TRequest extends LinkActionRequest>({
               onRun={() => runAction(request.alternate!)}
             />
           ) : null}
+          {request.additionalActions?.map((action) => (
+            <ActionRow key={action.label} action={action} onRun={() => runAction(action)} />
+          ))}
         </PopoverContent>
       ) : null}
     </Popover>

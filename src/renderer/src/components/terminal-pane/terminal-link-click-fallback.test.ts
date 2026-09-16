@@ -4,6 +4,7 @@ import {
   installFilePathLinkClickFallback,
   openFilePathLinkAtBufferPosition
 } from './terminal-link-handlers'
+import { findFilePathLinkAtBufferPosition } from './terminal-file-link-hit-testing'
 import { installHttpLinkClickFallback } from './terminal-url-link-hit-testing'
 import { createTerminalLinkTestDoubles } from './terminal-link-handlers-test-fixtures'
 import {
@@ -54,6 +55,23 @@ vi.mock('@/lib/connection-context', () => ({
 installTerminalLinkTestEnvironment(doubles)
 
 describe('createFilePathLinkProvider range bounds', () => {
+  it('resolves a clicked relative file link for a context menu without opening it', () => {
+    const match = findFilePathLinkAtBufferPosition(
+      makeBuffer([makeBufferLine('src/main.ts:12:4')]),
+      { x: 5, y: 1 },
+      80,
+      {
+        startupCwd: '/repo',
+        worktreeId: 'wt-1',
+        worktreePath: '/repo',
+        runtimeEnvironmentId: null
+      }
+    )
+
+    expect(match).toEqual({ absolutePath: '/repo/src/main.ts', line: 12, column: 4 })
+    expect(openFileMock).not.toHaveBeenCalled()
+    expect(statMock).not.toHaveBeenCalled()
+  })
   it('opens a single-row file path from a direct modifier-click fallback', async () => {
     setPlatform('Macintosh')
     const pathExists = createDeferred<boolean>()

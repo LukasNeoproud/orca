@@ -39,6 +39,7 @@ type TerminalContextMenuProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   menuPoint: { x: number; y: number }
+  filePath: { absolute: string; relative: string | null } | null
   menuOpenedAtRef: React.RefObject<number>
   canClosePane: boolean
   canExpandPane: boolean
@@ -82,6 +83,7 @@ export default function TerminalContextMenu({
   open,
   onOpenChange,
   menuPoint,
+  filePath,
   menuOpenedAtRef,
   canClosePane,
   canExpandPane,
@@ -180,6 +182,31 @@ export default function TerminalContextMenu({
           }
         }}
       >
+        {filePath ? (
+          <>
+            <DropdownMenuItem
+              onSelect={() => void window.api.ui.writeClipboardText(filePath.absolute)}
+            >
+              <Copy />
+              {translate(
+                'components.terminalPane.TerminalContextMenu.copyAbsolutePath',
+                'Copy Absolute Path'
+              )}
+            </DropdownMenuItem>
+            {filePath.relative !== null ? (
+              <DropdownMenuItem
+                onSelect={() => void window.api.ui.writeClipboardText(filePath.relative!)}
+              >
+                <Copy />
+                {translate(
+                  'components.terminalPane.TerminalContextMenu.copyRelativePath',
+                  'Copy Relative Path'
+                )}
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem onSelect={onCopy}>
           <Copy />
           {translate('auto.components.terminal.pane.TerminalContextMenu.f3eeb1de13', 'Copy')}
