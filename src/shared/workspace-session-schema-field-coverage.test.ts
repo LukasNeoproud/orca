@@ -36,6 +36,7 @@ const PERSISTED_WORKSPACE_SESSION_FIELDS = {
   browserPagesByWorkspace: true,
   activeBrowserTabIdByWorktree: true,
   clientHostedBrowserPagesByWorktree: true,
+  headlessBacklogBoardPagesByWorktree: true,
   clientHostedBrowserCloseIntentsByEnvironment: true,
   activeTabTypeByWorktree: true,
   browserUrlHistory: true,

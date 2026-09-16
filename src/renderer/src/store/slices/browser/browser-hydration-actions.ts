@@ -108,7 +108,10 @@ export function createBrowserHydrationActions(
                 // Why re-asserted on restore: the same invariant creation enforces. A session written
                 // by an older or hand-edited build could carry a grant URL here, and it would name a
                 // grant that died with the process that minted it.
-                url: page.docLocation ? ORCA_BROWSER_BLANK_URL : normalizeUrl(page.url),
+                url:
+                  page.docLocation || page.backlogBoardBinding
+                    ? ORCA_BROWSER_BLANK_URL
+                    : normalizeUrl(page.url),
                 loading: false,
                 loadError: page.loadError ?? null
               }

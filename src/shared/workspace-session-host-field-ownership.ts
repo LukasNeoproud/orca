@@ -34,6 +34,7 @@ export const WORKSPACE_SESSION_FIELD_OWNERSHIP = {
   // Runtime-authored, never written by this renderer; classified so a merged read still routes each
   // worktree's rows back to the host that owns them instead of dropping them.
   clientHostedBrowserPagesByWorktree: 'worktreeKeyed',
+  headlessBacklogBoardPagesByWorktree: 'worktreeKeyed',
   unifiedTabs: 'worktreeKeyed',
   tabGroups: 'worktreeKeyed',
   tabGroupLayouts: 'worktreeKeyed',

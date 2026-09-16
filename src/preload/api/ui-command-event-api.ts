@@ -1,4 +1,5 @@
 import type { MarkdownDocument } from '../../shared/filesystem-entry-types'
+import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type {
@@ -85,6 +86,7 @@ export type UiCommandEventApi = {
       sessionProfileId?: string | null
       sessionPartition?: string
       activate?: boolean
+      backlogBoardBinding?: BacklogBoardBinding
     }) => void
   ) => () => void
   replyTabCreate: (reply: { requestId: string; browserPageId?: string; error?: string }) => void

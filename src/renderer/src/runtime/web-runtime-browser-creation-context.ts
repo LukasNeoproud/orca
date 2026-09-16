@@ -1,4 +1,5 @@
 import type { BrowserClientHostPlacementPreference } from '../../../shared/browser-client-host-placement'
+import type { BacklogBoardBinding } from '../../../shared/backlog-board-binding'
 import { BROWSER_TAB_CREATE_KNOWN_ID_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
 import { assertRuntimeManagedBrowserCreationAvailable } from '../lib/client-creation-action-policy'
 import { createBrowserUuid } from '../lib/browser-uuid'
@@ -31,6 +32,7 @@ import {
 import { selectWebRuntimeSessionBrowserWorktree } from './web-runtime-session-workspace-selection'
 
 export type CreateWebRuntimeSessionBrowserTabArgs = {
+  backlogBoardBinding?: BacklogBoardBinding
   worktreeId: string
   environmentId?: string | null
   url?: string

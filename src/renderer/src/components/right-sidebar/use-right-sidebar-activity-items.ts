@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Plug, Files, GitBranch, ListChecks, Workflow } from 'lucide-react'
+import { Plug, Files, GitBranch, ListChecks, Workflow, ListTodo } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useRepoById } from '@/store/selectors'
 import { isFolderRepo } from '../../../../shared/repo-kind'
@@ -66,6 +66,12 @@ export function useRightSidebarActivityItems({
         icon: Files,
         title: translate('auto.components.right.sidebar.index.8bc2bbc3a0', 'Explorer'),
         shortcut: explorerShortcut === 'Unassigned' ? '' : explorerShortcut
+      },
+      {
+        id: 'backlog',
+        icon: ListTodo,
+        title: translate('components.backlog.title', 'Backlog.md'),
+        shortcut: ''
       },
       {
         id: 'vault',

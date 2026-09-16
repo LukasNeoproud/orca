@@ -139,6 +139,7 @@ describe('workspace session field disposition census', () => {
       'activeFileIdByWorktree',
       'activeBrowserTabIdByWorktree',
       'clientHostedBrowserPagesByWorktree',
+      'headlessBacklogBoardPagesByWorktree',
       'activeTabTypeByWorktree',
       'activeTabIdByWorktree',
       'unifiedTabs',

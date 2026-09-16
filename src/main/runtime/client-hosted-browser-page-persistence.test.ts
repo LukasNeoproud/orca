@@ -54,6 +54,42 @@ describe('client-hosted browser page persistence', () => {
     expect(isRestoredClientHostedBrowserPlacement(restored.getPage('page-a')!.placement)).toBe(true)
   })
 
+  it('restores a board binding without replaying its expired localhost URL', () => {
+    const store = sessionStore()
+    const pages = new RuntimeBrowserPageRegistry()
+    const backlogBoardBinding = {
+      workspaceId: 'repo-1::wt-a',
+      executionHostId: 'local' as const,
+      runtimeEnvironmentId: null
+    }
+    pages.publishClientPage({
+      browserPageId: 'board-a',
+      workspaceId: 'repo-1::wt-a',
+      browserProfileId: 'profile-a',
+      executionHostKey: 'local',
+      placement: livePlacement,
+      pairedDeviceId: 'device-a',
+      url: 'http://127.0.0.1:28743/',
+      backlogBoardBinding,
+      loading: false,
+      active: true
+    })
+    persistClientHostedBrowserPages(store, pages, 'repo-1::wt-a')
+    const [saved] = store.session.clientHostedBrowserPagesByWorktree!['repo-1::wt-a']!
+    expect(saved).toMatchObject({ url: 'about:blank', backlogBoardBinding })
+
+    const restored = new RuntimeBrowserPageRegistry()
+    rehydrateClientHostedBrowserPages(restored, {
+      listWorkspaceSessions: () => [store.session],
+      isKnownWorktree: () => true,
+      now: () => NOW
+    })
+    expect(restored.getPage('board-a')).toMatchObject({
+      url: 'about:blank',
+      backlogBoardBinding
+    })
+  })
+
   it('persists no authority: a rehydrated placement can never equal a mintable one', () => {
     // Generation counters start at 1 and only ever increase, so the sentinel's 0s are unreachable.
     expect(RESTORED_CLIENT_HOSTED_BROWSER_PLACEMENT.browserHostGeneration).toBe(0)

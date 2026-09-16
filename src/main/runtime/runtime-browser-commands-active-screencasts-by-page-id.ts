@@ -87,7 +87,7 @@ export class RuntimeBrowserCommandsWithActiveScreencastsByPageId extends Runtime
       return undefined
     }
 
-    const worktreeId = (await this.host.resolveWorktreeSelector(selector)).id
+    const worktreeId = (await this.host.resolveBrowserWorkspace(selector)).id
     // Why: explicit selectors are user intent, so resolution errors surface (not silently widen scope); only activation stays best-effort.
     const bridge = this.host.getAgentBrowserBridge()
     if (bridge && !this.hasLiveRegisteredBrowserTab(bridge, worktreeId)) {

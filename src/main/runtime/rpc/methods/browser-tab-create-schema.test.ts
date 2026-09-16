@@ -35,4 +35,20 @@ describe('browser.tabCreate placement schema', () => {
   it('rejects a navigation target the host does not define', () => {
     expect(() => BrowserTabCreateParams.parse({ navigation: 'others' })).toThrow()
   })
+
+  it('accepts a board binding and rejects an unknown execution host', () => {
+    const backlogBoardBinding = {
+      workspaceId: 'repo::worktree',
+      executionHostId: 'local',
+      runtimeEnvironmentId: null
+    }
+    expect(BrowserTabCreateParams.parse({ backlogBoardBinding })).toMatchObject({
+      backlogBoardBinding
+    })
+    expect(() =>
+      BrowserTabCreateParams.parse({
+        backlogBoardBinding: { ...backlogBoardBinding, executionHostId: 'bogus' }
+      })
+    ).toThrow()
+  })
 })

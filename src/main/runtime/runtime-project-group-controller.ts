@@ -13,6 +13,7 @@ import {
 import { getSshFilesystemProvider } from '../providers/ssh-filesystem-dispatch'
 import type { RuntimeStore } from './runtime-store-contract'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { releaseBacklogWorkspace } from '../backlog-runtime/backlog-runtime-service'
 
 type RuntimeProjectGroupDependencies = {
   getStore: () => RuntimeStore | null
@@ -202,6 +203,9 @@ export class RuntimeProjectGroupController {
         { getSshFilesystemProvider }
       )
       assertFolderWorkspacePathUsable(status)
+      if (updates.folderPath !== workspace.folderPath) {
+        await releaseBacklogWorkspace(folderWorkspaceKey(folderWorkspaceId))
+      }
     }
     const updated = store.updateFolderWorkspace(folderWorkspaceId, updates)
     if (updated) {
@@ -229,6 +233,9 @@ export class RuntimeProjectGroupController {
       if (connectionId !== undefined) {
         await this.deps.teardownFolderWorkspacePtys(worktreeId, connectionId)
       }
+      await releaseBacklogWorkspace(worktreeId).catch((error: unknown) => {
+        console.warn('[backlog] folder workspace cleanup could not be verified:', error)
+      })
       this.deps.cleanupRemovedFolderWorkspaceState(worktreeId)
     }
     const deleted = store.removeFolderWorkspace(folderWorkspaceId)

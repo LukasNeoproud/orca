@@ -753,6 +753,70 @@ describe('RuntimeBrowserCommands headless offscreen routing', () => {
     expect(setActiveTab).toHaveBeenCalledWith(202, 'wt-1')
   })
 
+  it.each([
+    {
+      executionHost: { kind: 'native' as const, runtimeId: 'runtime-a', revision: 1 },
+      expectedHostId: 'local'
+    },
+    {
+      executionHost: {
+        kind: 'ssh' as const,
+        targetId: 'my-server',
+        providerEpoch: 'epoch-a',
+        connectionGeneration: 2
+      },
+      expectedHostId: 'ssh:my-server'
+    }
+  ])(
+    'records server-hosted board binding for $executionHost.kind folder route',
+    async ({ executionHost, expectedHostId }) => {
+      const { RuntimeBrowserCommands } = await import('./orca-runtime-browser')
+      const createTab = vi.fn(async () => ({ browserPageId: 'board-a' }))
+      const rememberHeadlessBacklogBoardPage = vi.fn()
+      const resolveBrowserWorkspace = vi.fn(async () => ({ id: 'folder-a' }))
+      const resolveWorktreeSelector = vi.fn(async () => {
+        throw new Error('not a git worktree')
+      })
+      const binding = {
+        workspaceId: 'folder-a',
+        executionHostId: 'runtime:paired-env' as const,
+        runtimeEnvironmentId: 'paired-env'
+      }
+      const commands = new RuntimeBrowserCommands(
+        createHost({
+          getAvailableAuthoritativeWindow: vi.fn(() => null),
+          getOffscreenBrowserBackend: vi.fn(() => ({ createTab, closeTab: vi.fn() })),
+          resolveBrowserWorkspace,
+          resolveWorktreeSelector,
+          resolveBrowserNetworkExecutionHost: vi.fn(async () => executionHost),
+          rememberHeadlessBacklogBoardPage
+        })
+      )
+      await commands.browserTabCreate({
+        worktree: 'id:folder-a',
+        url: 'http://127.0.0.1:28373',
+        backlogBoardBinding: binding
+      })
+      expect(resolveBrowserWorkspace).toHaveBeenCalledWith('id:folder-a')
+      expect(resolveWorktreeSelector).not.toHaveBeenCalled()
+      expect(rememberHeadlessBacklogBoardPage).toHaveBeenCalledWith('folder-a', {
+        browserPageId: 'board-a',
+        backlogBoardBinding: {
+          workspaceId: 'folder-a',
+          executionHostId: expectedHostId,
+          runtimeEnvironmentId: null
+        }
+      })
+      await expect(
+        commands.browserTabCreate({
+          worktree: 'id:folder-a',
+          backlogBoardBinding: { ...binding, workspaceId: 'other-folder' }
+        })
+      ).rejects.toThrow('does not match')
+      expect(createTab).toHaveBeenCalledTimes(1)
+    }
+  )
+
   it('publishes a headless session snapshot after explicit navigation', async () => {
     const { RuntimeBrowserCommands } = await import('./orca-runtime-browser')
     webContentsFromIdMock.mockReturnValue({ isDestroyed: () => false })

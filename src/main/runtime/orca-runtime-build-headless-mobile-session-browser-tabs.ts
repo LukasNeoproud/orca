@@ -12,6 +12,7 @@ import { advanceTerminalTopologyRevision } from './workspace-session-terminal-me
 import type { PtyControllerInventory } from './runtime-pty-controller-contract'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { rollbackWorkspaceSessionAfterFailedAsyncWrite } from './workspace-session-failed-write-rollback'
+import { getHeadlessBacklogBoardBinding } from './headless-backlog-board-pages'
 
 export class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRuntimeWithPersistTerminalSurfaceRetirements {
   // Why: headless serve backs browser panes with offscreen WebContents that live
@@ -36,6 +37,9 @@ export class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRu
         title: tab.title || tab.url || 'Browser',
         browserWorkspaceId: tab.browserPageId,
         browserPageId: tab.browserPageId,
+        ...(getHeadlessBacklogBoardBinding(this, tab.browserPageId)
+          ? { backlogBoardBinding: getHeadlessBacklogBoardBinding(this, tab.browserPageId) }
+          : {}),
         url: tab.url || 'about:blank',
         loading: false,
         canGoBack: false,
@@ -56,6 +60,7 @@ export class OrcaRuntimeWithBuildHeadlessMobileSessionBrowserTabs extends OrcaRu
         browserWorkspaceId: page.browserPageId,
         browserPageId: page.browserPageId,
         browserProfileId: page.browserProfileId,
+        ...(page.backlogBoardBinding ? { backlogBoardBinding: page.backlogBoardBinding } : {}),
         executionHostKey: page.executionHostKey,
         placement: page.placement,
         url: page.url,

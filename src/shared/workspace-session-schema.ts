@@ -31,6 +31,7 @@ import {
 } from './workspace-session-browser-schema'
 import { clientHostedBrowserCloseIntentSchema } from './client-hosted-browser-close-intent'
 import { persistedClientHostedBrowserPageSchema } from './client-hosted-browser-page-record'
+import { persistedHeadlessBacklogBoardPageSchema } from './headless-backlog-board-page'
 import { persistedOpenFileSchema } from './workspace-session-editor-schema'
 import { sleepingAgentSessionsByPaneKeySchema } from './workspace-session-sleeping-agents'
 import {
@@ -239,6 +240,10 @@ export const workspaceSessionStateSchema: z.ZodType<WorkspaceSessionState> = z.o
   clientHostedBrowserPagesByWorktree: salvagedOptional(
     'clientHostedBrowserPagesByWorktree',
     salvagingRecord(worktreeIdSchema, salvagingArray(persistedClientHostedBrowserPageSchema))
+  ),
+  headlessBacklogBoardPagesByWorktree: salvagedOptional(
+    'headlessBacklogBoardPagesByWorktree',
+    salvagingRecord(worktreeIdSchema, salvagingArray(persistedHeadlessBacklogBoardPageSchema))
   ),
   clientHostedBrowserCloseIntentsByEnvironment: salvagedOptional(
     'clientHostedBrowserCloseIntentsByEnvironment',

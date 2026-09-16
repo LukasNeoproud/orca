@@ -9,6 +9,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { wslHookRelayManager } from '../agent-hooks/wsl-hook-relay-manager'
 import { removeManagedAgentHooksAsync } from '../agent-hooks/managed-agent-hook-controls'
 import { stopStructuredAgentSessionRuntime } from '../runtime/structured-agent-session-runtime'
+import { disposeBacklogRuntimeService } from '../backlog-runtime/backlog-runtime-service'
 import { awaitRuntimeFileWatcherUnsubscribes } from '../runtime/orca-runtime-files'
 import { clearRuntimeMetadataIfOwned } from '../runtime/runtime-metadata'
 import { shutdownPairedRuntimeBrowserClientHosts } from '../browser/paired-runtime-browser-client-host-runtime'
@@ -132,6 +133,7 @@ function installWillQuitHandler(): void {
     const pluginHostShutdown = state.pluginService?.dispose() ?? Promise.resolve()
     const codexBackfillRecoveryShutdown = stopCodexStateDbBackfillRecoveries()
     const structuredAgentSessionShutdown = stopStructuredAgentSessionRuntime()
+    const backlogShutdown = disposeBacklogRuntimeService()
     state.pluginService = null
     setUnreadDockBadgeCount(0)
     // Why wait rather than kill: the child finishes fine orphaned, and signalling
@@ -243,6 +245,7 @@ function installWillQuitHandler(): void {
       { name: 'ref-maintenance', promise: refMaintenanceShutdown },
       { name: 'codex-backfill-recovery', promise: codexBackfillRecoveryShutdown },
       { name: 'structured-agent-session', promise: structuredAgentSessionShutdown },
+      { name: 'backlog', promise: backlogShutdown },
       { name: 'usage-cache', promise: usageCacheFlush },
       { name: 'stats', promise: statsFlush },
       { name: 'state', promise: storeFlush }

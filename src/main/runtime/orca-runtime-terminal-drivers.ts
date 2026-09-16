@@ -15,6 +15,7 @@ import type { StatsCollector } from '../stats/collector'
 import { RuntimeRemoteFetchController } from './runtime-remote-fetch-controller'
 import { RuntimeWorktreeBaseReconciliation } from './runtime-worktree-base-reconciliation'
 import { RuntimeWorktreeRemovalInFlight } from './runtime-worktree-removal-in-flight'
+import { rememberHeadlessBacklogBoardPage } from './headless-backlog-board-pages'
 
 export class OrcaRuntimeWithTerminalDrivers extends OrcaRuntimeWithFitOverrideListeners {
   // Why: per-PTY driver state. The "driver" is whoever currently owns the
@@ -47,6 +48,14 @@ export class OrcaRuntimeWithTerminalDrivers extends OrcaRuntimeWithFitOverrideLi
       getAuthoritativeWindow: () => this.getAuthoritativeWindow(),
       getAvailableAuthoritativeWindow: () => this.getAvailableAuthoritativeWindow(),
       getOffscreenBrowserBackend: () => this.offscreenBrowserBackend,
+      rememberHeadlessBacklogBoardPage: (worktreeId, page) =>
+        rememberHeadlessBacklogBoardPage(
+          this,
+          worktreeId,
+          page,
+          (id) => this.getWorkspaceSessionForWorktree(id),
+          (id, session) => this.setWorkspaceSessionForWorktree(id, session)
+        ),
       markHeadlessBrowserSessionTabActive: this.markHeadlessBrowserSessionTabActive.bind(this),
       notifyHeadlessBrowserSessionTabsChanged: (worktreeId) =>
         this.notifyMobileSessionTabsChanged(worktreeId),

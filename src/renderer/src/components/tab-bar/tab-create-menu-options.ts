@@ -4,6 +4,7 @@ import type { BuiltInWindowsTerminalShell } from '../../../../shared/windows-ter
 import { isClipboardTextByteLengthOverLimit } from '../../../../shared/clipboard-text'
 
 export type TabCreateMenuOptionKind =
+  | 'open-backlog'
   | 'go-to-simulator'
   | 'new-browser'
   | 'new-markdown'
@@ -21,6 +22,7 @@ export type TabCreateMenuOption = {
 }
 
 export type TabCreateMenuOptionsContext = {
+  hasBacklog?: boolean
   hasNewBrowser: boolean
   hasNewMarkdown: boolean
   hasOpenMarkdown: boolean
@@ -111,6 +113,15 @@ export function buildTabCreateMenuOptions(
         translate('auto.components.tab.bar.tab.create.menu.options.c87ad57785', 'browser tab'),
         translate('auto.components.tab.bar.tab.create.menu.options.cce7ef1d2c', 'web')
       ]
+    })
+  }
+
+  if (context.hasBacklog) {
+    options.push({
+      id: 'open-backlog',
+      kind: 'open-backlog',
+      label: translate('components.backlog.title', 'Backlog.md'),
+      keywords: ['backlog', 'tasks', 'board', 'open backlog']
     })
   }
 

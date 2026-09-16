@@ -18,10 +18,13 @@ import {
 import { resolveWorktreeOperationRoute } from './worktree-operation-route'
 import { getExecutionHostIdForWorktree } from './worktree-runtime-owner'
 import { resolveSshWorkspaceBrowserRouteEligibility } from './ssh-workspace-browser-route-eligibility'
+import type { BacklogBoardBinding } from '../../../shared/backlog-board-binding'
 
 export type WorkspaceBrowserTabIntent = { kind: 'url' } | { kind: 'search'; engine: SearchEngine }
 
 export type OpenWorkspaceBrowserTabRequest = {
+  backlogBoardBinding?: BacklogBoardBinding
+  title?: string
   workspaceId: string
   targetGroupId?: string
   url: string
@@ -194,7 +197,8 @@ function createClientBrowserTab(
         state.defaultBrowserSessionProfileIdByHostId[hostId] ??
         state.defaultBrowserSessionProfileId,
       targetGroupId: request.targetGroupId,
-      title: presentation.title
+      title: presentation.title,
+      backlogBoardBinding: request.backlogBoardBinding
     })
   } catch (error) {
     throw openFailure(presentation.error, 'client tab creation rejected', error)
@@ -214,6 +218,9 @@ export async function openWorkspaceBrowserTab(
   request: OpenWorkspaceBrowserTabRequest
 ): Promise<void> {
   const presentation = intentPresentation(request.intent, request.url)
+  if (request.title) {
+    presentation.title = request.title
+  }
   if (!validateTarget(request.url)) {
     throw openFailure(presentation.error, 'target is not an http(s) URL')
   }
@@ -299,6 +306,7 @@ export async function openWorkspaceBrowserTab(
       ...(request.focusOnCreate !== undefined ? { focusOnCreate: request.focusOnCreate } : {}),
       selectWorktree: request.selectWorktree !== false,
       stagedTitle: presentation.title,
+      backlogBoardBinding: request.backlogBoardBinding,
       stagedFocusAddressBar: false,
       failureLogMode: 'operation-only'
     })

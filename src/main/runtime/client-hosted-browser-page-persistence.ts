@@ -120,8 +120,10 @@ export function buildPersistedClientHostedBrowserPages(
             browserPageId: page.browserPageId,
             workspaceId: page.workspaceId,
             browserProfileId: page.browserProfileId,
-            url: page.url,
+            // Why: a saved loopback lease belongs to a dead board instance after restart.
+            url: page.backlogBoardBinding ? 'about:blank' : page.url,
             title: page.title,
+            ...(page.backlogBoardBinding ? { backlogBoardBinding: page.backlogBoardBinding } : {}),
             pairedDeviceId: page.pairedDeviceId,
             savedAt
           } satisfies PersistedClientHostedBrowserPage
@@ -174,8 +176,9 @@ export function rehydrateClientHostedBrowserPages(
             executionHostKey: RESTORED_CLIENT_HOSTED_EXECUTION_HOST_KEY,
             placement: RESTORED_CLIENT_HOSTED_BROWSER_PLACEMENT,
             pairedDeviceId: row.pairedDeviceId,
-            url: row.url,
+            url: row.backlogBoardBinding ? 'about:blank' : row.url,
             title: row.title,
+            ...(row.backlogBoardBinding ? { backlogBoardBinding: row.backlogBoardBinding } : {}),
             // Why not loading: nothing is driving this page, so a carried-over spinner would never
             // settle -- the same reason a host-quit row reports settled.
             loading: false,
@@ -227,6 +230,7 @@ function samePersistedClientHostedBrowserPages(
       row.browserProfileId === next.browserProfileId &&
       row.url === next.url &&
       row.title === next.title &&
+      JSON.stringify(row.backlogBoardBinding) === JSON.stringify(next.backlogBoardBinding) &&
       row.pairedDeviceId === next.pairedDeviceId
     )
   })

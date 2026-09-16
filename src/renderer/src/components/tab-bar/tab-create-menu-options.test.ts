@@ -53,6 +53,25 @@ describe('tab create menu options', () => {
     ).toEqual(['new-browser'])
   })
 
+  it('finds the Backlog.md board action beside browser creation', () => {
+    const options = buildTabCreateMenuOptions({
+      terminalOnly: false,
+      hasBacklog: true,
+      hasNewBrowser: true,
+      hasNewMarkdown: false,
+      hasOpenMarkdown: false,
+      hasSimulator: false,
+      simulatorIsGoTo: false
+    })
+
+    expect(options.map((option) => option.kind)).toEqual([
+      'new-terminal',
+      'new-browser',
+      'open-backlog'
+    ])
+    expect(findMatchingTabCreateMenuOptions('backlog', options)[0]?.kind).toBe('open-backlog')
+  })
+
   it('keeps terminal and markdown results when client-impossible actions are omitted', () => {
     const options = buildTabCreateMenuOptions({
       terminalOnly: false,

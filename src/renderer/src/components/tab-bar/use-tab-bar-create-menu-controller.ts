@@ -9,6 +9,7 @@ import {
 } from '@/lib/launch-agent-in-new-tab'
 import type { WindowsTerminalCapabilities } from '@/lib/windows-terminal-capabilities'
 import { useAppStore } from '../../store'
+import { openBacklogBoardFromMenu } from './backlog-board-menu-action'
 import type { TabAgentLaunchOption } from './tab-agent-launch-options'
 import { buildTabCreateMenuOptions, type TabCreateMenuOption } from './tab-create-menu-options'
 import { resolveWindowsShellLaunchTarget } from './windows-shell-launch'
@@ -21,9 +22,8 @@ import type {
   resolveWindowsPowerShellImplementationSetting
 } from './use-tab-bar-runtime-model'
 
-const NEW_TAB_MENU_TERMINAL_FOCUS_RETRY_MS = 50
-const NEW_TAB_MENU_TERMINAL_FOCUS_TIMEOUT_MS = 5000
-
+const NEW_TAB_MENU_TERMINAL_FOCUS_RETRY_MS = 50,
+  NEW_TAB_MENU_TERMINAL_FOCUS_TIMEOUT_MS = 5000
 export type TabBarCreateMenuController = {
   newTabMenuOpen: boolean
   setNewTabMenuOpen: (open: boolean) => void
@@ -83,7 +83,6 @@ export function useTabBarCreateMenuController({
   onNewFileTab?: () => void
   onOpenFileTab?: () => void
 }): TabBarCreateMenuController {
-  // Why: <webview> clicks are out-of-process, so Radix's document-pointerdown outside-click check misses them; use window blur.
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false)
   const [createMenuQuery, setCreateMenuQuery] = useState('')
   const pendingNewTabMenuFocusRef = useRef<(() => void) | null>(null)
@@ -128,7 +127,6 @@ export function useTabBarCreateMenuController({
   const queueNewActiveTerminalFocusAfterNewTabMenuClose = (): void => {
     const previousActiveTabId = useAppStore.getState().activeTabId
     pendingNewTabMenuFocusRef.current = () => {
-      // Why: paired web/SSH tab creation is async; await the host snapshot's new terminal instead of the pre-existing active tab.
       focusNewActiveTerminalWhenReady(
         previousActiveTabId,
         Date.now() + NEW_TAB_MENU_TERMINAL_FOCUS_TIMEOUT_MS,
@@ -163,6 +161,7 @@ export function useTabBarCreateMenuController({
     () =>
       buildTabCreateMenuOptions({
         terminalOnly,
+        hasBacklog: !terminalOnly && managedBrowserCreationEnabled,
         windowsShellEntries,
         hasNewBrowser: !terminalOnly && managedBrowserCreationEnabled,
         hasNewMarkdown: !terminalOnly && Boolean(onNewFileTab),
@@ -208,6 +207,8 @@ export function useTabBarCreateMenuController({
       case 'new-browser':
         onNewBrowserTab()
         break
+      case 'open-backlog':
+        return openBacklogBoardFromMenu(worktreeId, resolvedGroupId)
       case 'new-markdown':
         onNewFileTab?.()
         break
@@ -266,12 +267,10 @@ export function useTabBarCreateMenuController({
       if (node !== null) {
         return
       }
-      // Why: cancel the delayed focus handoff via this root ref cleanup, avoiding an otherwise cleanup-only React Effect.
       clearPendingNewTabMenuFocusAnimation()
       clearPendingNewTabMenuFocusRetry()
     }
   }
-  const clearPendingNewTabMenuFocusOnUnmount = clearPendingNewTabMenuFocusOnUnmountRef.current
 
   useEffect(() => {
     if (!newTabMenuOpen) {
@@ -297,7 +296,7 @@ export function useTabBarCreateMenuController({
     handleSelectCreateMenuOption,
     launchAgentFromNewTabEntry,
     runPendingNewTabMenuFocusAfterClose,
-    clearPendingNewTabMenuFocusOnUnmount,
+    clearPendingNewTabMenuFocusOnUnmount: clearPendingNewTabMenuFocusOnUnmountRef.current,
     queueNewActiveTerminalFocusAfterNewTabMenuClose,
     queueTerminalTabFocusAfterNewTabMenuClose,
     queueFocusAfterNewTabMenuClose,

@@ -231,7 +231,7 @@ async function recoverPage(
     placement,
     executionHostKey
   )
-  const url = inventory?.currentUrl ?? page.url
+  const url = page.backlogBoardBinding ? 'about:blank' : (inventory?.currentUrl ?? page.url)
   if (url && url !== 'about:blank') {
     await navigateRecoveredPage(options.authority, page.browserPageId, placement, url)
     options.pages.updatePage(page.browserPageId, placement, { url, loading: false })

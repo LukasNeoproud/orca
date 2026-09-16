@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { BacklogBoardBinding } from './backlog-board-binding'
+import { normalizeExecutionHostId, type ExecutionHostId } from './execution-host'
 
 /**
  * Durable form of a client-hosted logical page.
@@ -27,6 +29,7 @@ export type PersistedClientHostedBrowserPage = {
   browserProfileId: string
   url: string
   title: string
+  backlogBoardBinding?: BacklogBoardBinding
   /**
    * Preferred placement: the durable paired device that hosted the page. Deliberately not
    * `browserHostClientId`, which a desktop re-mints per process and which therefore names nothing
@@ -85,6 +88,15 @@ export const persistedClientHostedBrowserPageSchema: z.ZodType<PersistedClientHo
     browserProfileId: identity,
     url: z.string().max(8192),
     title: z.string().max(4096),
+    backlogBoardBinding: z
+      .object({
+        workspaceId: identity,
+        executionHostId: z.custom<ExecutionHostId>(
+          (value) => typeof value === 'string' && normalizeExecutionHostId(value) === value
+        ),
+        runtimeEnvironmentId: z.string().nullable()
+      })
+      .optional(),
     pairedDeviceId: identity,
     savedAt: z.number().int().nonnegative()
   })

@@ -1,4 +1,5 @@
 import type { MarkdownDocument } from '../../shared/filesystem-entry-types'
+import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 import { ipcRenderer } from 'electron'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { KeybindingActionId } from '../../shared/keybindings'
@@ -154,6 +155,7 @@ export const uiStateAndMenuCommandsApi = {
       sessionProfileId?: string | null
       sessionPartition?: string
       activate?: boolean
+      backlogBoardBinding?: BacklogBoardBinding
     }) => void
   ): (() => void) => {
     const listener = (
@@ -166,6 +168,7 @@ export const uiStateAndMenuCommandsApi = {
         sessionProfileId?: string | null
         sessionPartition?: string
         activate?: boolean
+        backlogBoardBinding?: BacklogBoardBinding
       }
     ) => callback(data)
     ipcRenderer.on('browser:requestTabCreate', listener)

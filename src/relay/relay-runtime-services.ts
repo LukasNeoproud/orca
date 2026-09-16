@@ -20,6 +20,7 @@ import { RelayPtySourcePublication } from './relay-pty-source-publication'
 import { SkillInstallHandler } from './skill-install-handler'
 import { relayLogLine } from './relay-diagnostic-log'
 import { remoteCliRequestTimeoutMs } from './remote-cli-timeout'
+import { BacklogHandler } from './backlog-handler'
 
 export class RelayRuntimeServices {
   readonly ptyHandler: PtyHandler
@@ -28,6 +29,7 @@ export class RelayRuntimeServices {
   readonly fsHandler: FsHandler
   readonly gitHandler: GitHandler
   readonly skillInstallHandler: SkillInstallHandler
+  readonly backlogHandler: BacklogHandler
   private readonly aiVaultService: ReturnType<typeof createRelayAiVaultService> | null
   private readonly registeredHandlers: readonly unknown[]
 
@@ -70,6 +72,7 @@ export class RelayRuntimeServices {
     this.gitHandler = new GitHandler(dispatcher, context, watchRegistry, responseStreams)
     const preflightHandler = new PreflightHandler(dispatcher)
     this.skillInstallHandler = new SkillInstallHandler(dispatcher)
+    this.backlogHandler = new BacklogHandler(dispatcher)
     const externalAutomationsHandler = new ExternalAutomationsHandler(dispatcher)
     const portScanHandler = new PortScanHandler(dispatcher)
     const agentExecHandler = new AgentExecHandler(dispatcher)
@@ -99,6 +102,11 @@ export class RelayRuntimeServices {
   }
 
   async disposeOwnedProcesses(): Promise<void> {
+    await this.backlogHandler.dispose().catch((error) => {
+      relayLogLine(
+        `[relay] Backlog.md shutdown failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    })
     await this.skillInstallHandler.dispose().catch((error) => {
       relayLogLine(
         `[relay] Skill upload cleanup failed: ${error instanceof Error ? error.message : String(error)}`

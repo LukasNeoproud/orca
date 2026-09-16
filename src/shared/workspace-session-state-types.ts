@@ -7,6 +7,7 @@ import type { BrowserHistoryEntry, BrowserPage, BrowserWorkspace } from './brows
 import type { WorkspaceDocHistoryEntry } from './workspace-doc-history'
 import type { ClientHostedBrowserCloseIntent } from './client-hosted-browser-close-intent'
 import type { PersistedClientHostedBrowserPage } from './client-hosted-browser-page-record'
+import type { PersistedHeadlessBacklogBoardPage } from './headless-backlog-board-page'
 import type { ClosedTerminalTabTombstonesByTabId } from './closed-terminal-tab-tombstones'
 
 /** Minimal subset of OpenFile persisted across restarts.
@@ -67,6 +68,8 @@ export type WorkspaceSessionState = {
    * `browserPagesByWorkspace` rows are the client-side half of the same tabs.
    */
   clientHostedBrowserPagesByWorktree?: Record<string, PersistedClientHostedBrowserPage[]>
+  /** Runtime-owned board pages. Their ephemeral localhost URL is never persisted. */
+  headlessBacklogBoardPagesByWorktree?: Record<string, PersistedHeadlessBacklogBoardPage[]>
   /**
    * Client-authored: closes of client-hosted pages that could not reach their owning runtime,
    * keyed by runtime environment ID. Replayed on reconnect so persistence cannot resurrect a tab

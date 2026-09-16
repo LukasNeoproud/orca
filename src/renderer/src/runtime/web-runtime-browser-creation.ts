@@ -93,7 +93,8 @@ export async function createWebRuntimeSessionBrowserTab(
           // Why: place the new browser in the clicked split group so the host snapshot is authoritative for it (no left-snap).
           ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
           // Why: web clients need the local tab now; waiting for host webview registration makes the workspace appear to close.
-          waitForRegistration: args.waitForRegistration ?? false
+          waitForRegistration: args.waitForRegistration ?? false,
+          backlogBoardBinding: args.backlogBoardBinding
         },
         timeoutMs: 15_000
       })) as RuntimeRpcResponse<BrowserTabCreateResult>

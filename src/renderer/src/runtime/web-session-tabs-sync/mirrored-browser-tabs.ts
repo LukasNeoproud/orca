@@ -11,6 +11,20 @@ import { browserPageEqual } from './state-equality-tabs'
 import { collectLayoutGroupIds } from './tab-group-layout-tree'
 import { buildBrowserUnifiedTab } from './tab-builders'
 import { isReadyBrowserTab } from './terminal-surfaces'
+import { parseExecutionHostId, toRuntimeExecutionHostId } from '../../../../shared/execution-host'
+import type { BacklogBoardBinding } from '../../../../shared/backlog-board-binding'
+
+export function rebaseBacklogBoardBinding(
+  binding: BacklogBoardBinding,
+  environmentId: string
+): BacklogBoardBinding {
+  const host = parseExecutionHostId(binding.executionHostId)
+  return {
+    workspaceId: binding.workspaceId,
+    executionHostId: host?.kind === 'ssh' ? host.id : toRuntimeExecutionHostId(environmentId),
+    runtimeEnvironmentId: environmentId
+  }
+}
 
 export function findBrowserWorkspaceForRemotePage(
   state: WebSessionTabsSyncState,
@@ -196,6 +210,9 @@ export function buildMirroredBrowserTabs(
         (tab.placement?.kind === 'client' ? existing?.page.loadError : tab.loadError) ?? null,
       createdAt,
       browserRuntimeEnvironmentId: environmentId,
+      backlogBoardBinding: tab.backlogBoardBinding
+        ? rebaseBacklogBoardBinding(tab.backlogBoardBinding, environmentId)
+        : (existing?.page.backlogBoardBinding ?? null),
       viewportPresetId: existing?.page.viewportPresetId ?? null
     }
     // Why: reuse hinges on browserPageEqual comparing workspaceId — the removed-workspace

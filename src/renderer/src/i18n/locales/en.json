@@ -17589,6 +17589,31 @@
         "copyAbsolutePath": "Copy Absolute Path",
         "copyRelativePath": "Copy Relative Path"
       }
+    },
+    "backlog": {
+      "boardFailed": "Could not open Backlog.md",
+      "boardConnecting": "Connecting to Backlog.md…",
+      "retry": "Retry",
+      "openFailed": "Could not open Backlog.md: {{value0}}",
+      "taskDetails": "Task details",
+      "backToTasks": "Back to tasks",
+      "refresh": "Refresh backlog",
+      "openBoard": "Open board",
+      "selectWorkspace": "Select a workspace to view its backlog.",
+      "loadingTask": "Loading task…",
+      "description": "Description",
+      "acceptanceCriteria": "Acceptance criteria",
+      "loadFailed": "Could not load the backlog.",
+      "setup": "Backlog.md setup",
+      "loading": "Loading backlog…",
+      "searchTasks": "Search backlog tasks",
+      "searchPlaceholder": "Search ID or title",
+      "filterStatus": "Filter task status",
+      "allStatuses": "All statuses",
+      "taskCount": "{{value0}} of {{value1}}",
+      "empty": "No backlog tasks found in this workspace.",
+      "noMatches": "No tasks match the search or status.",
+      "title": "Backlog.md"
     }
   },
   "dashboardPopout": {

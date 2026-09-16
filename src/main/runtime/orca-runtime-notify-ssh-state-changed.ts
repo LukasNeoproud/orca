@@ -10,6 +10,11 @@ import { navigationTargetsClients, navigationTargetsHost } from '../../shared/ru
 import { toRuntimeActivateWorktreeEvent } from '../../shared/runtime-client-events'
 import type { AgentBrowserBridge } from '../browser/agent-browser-bridge'
 import type { BrowserBackend } from '../browser/browser-backend'
+import {
+  collectHeadlessBacklogBoardWorktreeIds,
+  restoreHeadlessBacklogBoardPages
+} from './headless-backlog-board-pages'
+import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
 
 export class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWithGetStatus {
@@ -188,6 +193,27 @@ export class OrcaRuntimeWithNotifySshStateChanged extends OrcaRuntimeWithGetStat
 
   setOffscreenBrowserBackend(backend: BrowserBackend | null): void {
     this.offscreenBrowserBackend = backend
+    if (!backend) {
+      return
+    }
+    const hostIds = new Set([
+      LOCAL_EXECUTION_HOST_ID,
+      ...(this.store?.getWorkspaceSessionHostIds?.() ?? [])
+    ])
+    const worktreeIds = collectHeadlessBacklogBoardWorktreeIds(
+      [...hostIds].map((hostId) => this.store?.getWorkspaceSession?.(hostId))
+    )
+    void restoreHeadlessBacklogBoardPages(
+      this,
+      backend,
+      worktreeIds,
+      (id) => this.getWorkspaceSessionForWorktree(id),
+      (id) => {
+        if (this.offscreenBrowserBackend === backend) {
+          this.notifyMobileSessionTabsChanged(id)
+        }
+      }
+    )
   }
 
   getOffscreenBrowserBackend(): BrowserBackend | null {

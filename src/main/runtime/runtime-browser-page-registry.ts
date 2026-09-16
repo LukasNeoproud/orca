@@ -2,6 +2,7 @@ import {
   sameRuntimeBrowserPlacement,
   type RuntimeBrowserClientPlacement
 } from '../../shared/runtime-browser-placement'
+import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 
 const DEFAULT_MAX_RUNTIME_BROWSER_PAGES = 256
 const MAX_IDENTITY_LENGTH = 256
@@ -17,6 +18,7 @@ export type RuntimeBrowserClientPage = Readonly<{
    * a retained page has no lease left to look its host's name up through.
    */
   pairedDeviceId?: string
+  backlogBoardBinding?: BacklogBoardBinding
   url: string
   title: string
   loading: boolean
@@ -40,7 +42,12 @@ type RuntimeBrowserClientPageInput = Pick<
   Partial<
     Pick<
       RuntimeBrowserClientPage,
-      'pairedDeviceId' | 'title' | 'canGoBack' | 'canGoForward' | 'metadataRevision'
+      | 'pairedDeviceId'
+      | 'backlogBoardBinding'
+      | 'title'
+      | 'canGoBack'
+      | 'canGoForward'
+      | 'metadataRevision'
     >
   >
 

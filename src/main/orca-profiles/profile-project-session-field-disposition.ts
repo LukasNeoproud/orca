@@ -83,6 +83,10 @@ export const WORKSPACE_SESSION_FIELD_DISPOSITION = {
     onRepoRemoval: 'prunedByOwnerKey',
     onTransfer: 'notTransferred'
   },
+  headlessBacklogBoardPagesByWorktree: {
+    onRepoRemoval: 'prunedByOwnerKey',
+    onTransfer: 'notTransferred'
+  },
   // Keyed by runtime environment, not by worktree: this client's debt to environments that outlive
   // any one repo.
   clientHostedBrowserCloseIntentsByEnvironment: {

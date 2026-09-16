@@ -22,6 +22,7 @@ import { WorkspaceDocPagePane } from '../workspace-doc/workspace-doc-page-pane'
 import { DeferredBrowserContent } from './DeferredBrowserContent'
 import { isBrowserPagePanePaintable } from '../host-guest/browser-page-paintability'
 import { SshRoutedBrowserPageGate } from './ssh-routed-browser-page-gate'
+import { BacklogBoardPageGate } from './BacklogBoardPageGate'
 
 export default function BrowserPane({
   browserTab,
@@ -120,32 +121,34 @@ export default function BrowserPane({
     // for a client-placed page. It mounts quiet on the client pane until adoption fills it in.
     const restoredClientHosted = environmentHandle?.restoredClientHosted === true
     return activeBrowserPage ? (
-      clientPlacement || stagedClientHosted || restoredClientHosted ? (
-        <ClientHostedBrowserPagePane
-          key={`${activeBrowserRuntimeEnvironmentId}:${activeBrowserPage.id}`}
-          browserTab={activeBrowserPage}
-          workspaceId={browserTab.id}
-          runtimeEnvironmentId={activeBrowserRuntimeEnvironmentId}
-          worktreeId={browserTab.worktreeId}
-          placement={clientPlacement}
-          isActive={isActive}
-          chromeShortcutScope={resolvedChromeShortcutScope}
-          onUpdatePageState={updateBrowserPageState}
-          onSetUrl={setBrowserPageUrl}
-        />
-      ) : (
-        <RemoteBrowserPagePane
-          key={`${activeBrowserRuntimeEnvironmentId}:${activeBrowserPage.id}`}
-          browserTab={activeBrowserPage}
-          workspaceId={browserTab.id}
-          runtimeEnvironmentId={activeBrowserRuntimeEnvironmentId}
-          worktreeId={browserTab.worktreeId}
-          isActive={isActive}
-          chromeShortcutScope={resolvedChromeShortcutScope}
-          onUpdatePageState={updateBrowserPageState}
-          onSetUrl={setBrowserPageUrl}
-        />
-      )
+      <BacklogBoardPageGate page={activeBrowserPage}>
+        {clientPlacement || stagedClientHosted || restoredClientHosted ? (
+          <ClientHostedBrowserPagePane
+            key={`${activeBrowserRuntimeEnvironmentId}:${activeBrowserPage.id}`}
+            browserTab={activeBrowserPage}
+            workspaceId={browserTab.id}
+            runtimeEnvironmentId={activeBrowserRuntimeEnvironmentId}
+            worktreeId={browserTab.worktreeId}
+            placement={clientPlacement}
+            isActive={isActive}
+            chromeShortcutScope={resolvedChromeShortcutScope}
+            onUpdatePageState={updateBrowserPageState}
+            onSetUrl={setBrowserPageUrl}
+          />
+        ) : (
+          <RemoteBrowserPagePane
+            key={`${activeBrowserRuntimeEnvironmentId}:${activeBrowserPage.id}`}
+            browserTab={activeBrowserPage}
+            workspaceId={browserTab.id}
+            runtimeEnvironmentId={activeBrowserRuntimeEnvironmentId}
+            worktreeId={browserTab.worktreeId}
+            isActive={isActive}
+            chromeShortcutScope={resolvedChromeShortcutScope}
+            onUpdatePageState={updateBrowserPageState}
+            onSetUrl={setBrowserPageUrl}
+          />
+        )}
+      </BacklogBoardPageGate>
     ) : (
       <div className="flex h-full min-h-0 flex-1 bg-background" />
     )
@@ -178,23 +181,27 @@ export default function BrowserPane({
                       isActive={isActive && page.id === activeBrowserPage?.id}
                     />
                   ) : (
-                    <BrowserPagePane
-                      browserTab={page}
-                      workspaceId={browserTab.id}
-                      worktreeId={browserTab.worktreeId}
-                      sessionProfileId={browserTab.sessionProfileId ?? null}
-                      sessionPartition={routedPartition ?? browserTab.sessionPartition ?? null}
-                      isActive={isActive && page.id === activeBrowserPage?.id}
-                      chromeShortcutScope={
-                        page.id === activeBrowserPage?.id ? resolvedChromeShortcutScope : 'inactive'
-                      }
-                      isAutomationVisible={automationVisiblePageIds.has(page.id)}
-                      isMobileDriven={mobileDrivenPageIds.has(page.id)}
-                      isRemotelyViewed={remotelyViewedPageIds.has(page.id)}
-                      inputLocked={activeBrowserDriver.kind === 'mobile'}
-                      onUpdatePageState={updateBrowserPageState}
-                      onSetUrl={setBrowserPageUrl}
-                    />
+                    <BacklogBoardPageGate page={page}>
+                      <BrowserPagePane
+                        browserTab={page}
+                        workspaceId={browserTab.id}
+                        worktreeId={browserTab.worktreeId}
+                        sessionProfileId={browserTab.sessionProfileId ?? null}
+                        sessionPartition={routedPartition ?? browserTab.sessionPartition ?? null}
+                        isActive={isActive && page.id === activeBrowserPage?.id}
+                        chromeShortcutScope={
+                          page.id === activeBrowserPage?.id
+                            ? resolvedChromeShortcutScope
+                            : 'inactive'
+                        }
+                        isAutomationVisible={automationVisiblePageIds.has(page.id)}
+                        isMobileDriven={mobileDrivenPageIds.has(page.id)}
+                        isRemotelyViewed={remotelyViewedPageIds.has(page.id)}
+                        inputLocked={activeBrowserDriver.kind === 'mobile'}
+                        onUpdatePageState={updateBrowserPageState}
+                        onSetUrl={setBrowserPageUrl}
+                      />
+                    </BacklogBoardPageGate>
                   )}
                 </DeferredBrowserContent>
               ))}

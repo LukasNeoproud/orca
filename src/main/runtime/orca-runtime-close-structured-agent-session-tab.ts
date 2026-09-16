@@ -11,6 +11,7 @@ import type { RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import { getMobileSessionSnapshotTabIdentityKeys } from './mobile-session-tab-merge'
 import type { BrowserSessionTabSelectionOptions } from './browser-tab-create-publication'
 import { getRuntimeBrowserPageRegistry } from './runtime-browser-page-registry'
+import { forgetHeadlessBacklogBoardPage } from './headless-backlog-board-pages'
 import { applyBrowserSessionTabSelection } from './browser-session-tab-selection-snapshot'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { retireStructuredAgentSessionTabFrom } from './structured-agent-session-tab-retirement'
@@ -143,6 +144,13 @@ export class OrcaRuntimeWithCloseStructuredAgentSessionTab extends OrcaRuntimeWi
 
   // Public so runtime-side page release (lease fencing) can prune a tab whose page is gone.
   retireRuntimeOwnedBrowserSessionTab(worktreeId: string, browserPageId: string): boolean {
+    forgetHeadlessBacklogBoardPage(
+      this,
+      worktreeId,
+      browserPageId,
+      (id) => this.getWorkspaceSessionForWorktree(id),
+      (id, session) => this.setWorkspaceSessionForWorktree(id, session)
+    )
     // Why: before the snapshot guard — worktree removal drops the snapshot first, and the host
     // rows for its client pages would otherwise be stranded on screen with nothing to retract them.
     this.clientHostedBrowserRows.publish(worktreeId)

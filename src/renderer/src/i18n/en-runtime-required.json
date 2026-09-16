@@ -1921,6 +1921,11 @@
           "34f733dda2": "Go to Worktree",
           "3e5f66564e": "Workspace unavailable"
         },
+        "WorktreeConversationHistory": {
+          "structuredAgentUnsupported": "This agent does not support Chat UI.",
+          "structuredLocalOnly": "Chat UI is available for local sessions only.",
+          "structuredWorkspaceUnsupported": "Chat UI is unavailable in this workspace."
+        },
         "WorktreeList": {
           "2ca6e29a3c": "repo",
           "45fbfe0335": "rename",
@@ -2610,6 +2615,9 @@
   },
   "components": {
     "native-chat": {
+      "codexStatus": {
+        "usedOfMax": "{{used}} of {{max}} tokens ({{percent}})"
+      },
       "composer": {
         "effort": "Effort"
       },

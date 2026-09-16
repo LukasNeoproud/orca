@@ -37,6 +37,7 @@ const STATIC_RIGHT_SIDEBAR_TABS = [
   'vault',
   'workspaces',
   'pr-checks',
+  'backlog',
   'source-control',
   'checks',
   'ports'

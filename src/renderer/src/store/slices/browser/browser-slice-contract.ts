@@ -30,9 +30,11 @@ import type {
 } from '@/runtime/client-hosted-browser-close-intents'
 import type { WorkspaceSessionHydrationOptions } from '@/lib/workspace-session-hydration-keys'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
+import type { BacklogBoardBinding } from '../../../../../shared/backlog-board-binding'
 import type { RuntimeBrowserPlacement } from '../../../../../shared/runtime-browser-placement'
 
 export type CreateBrowserTabOptions = {
+  backlogBoardBinding?: BacklogBoardBinding
   activate?: boolean
   browserPageId?: string
   title?: string

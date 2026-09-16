@@ -1,4 +1,5 @@
 import type { AgentStatusEntry } from './agent-status-types'
+import type { BacklogBoardBinding } from './backlog-board-binding'
 import type { BrowserCertificateFailure, BrowserLoadError } from './browser-workspace-types'
 import type { RuntimeBrowserPlacement } from './runtime-browser-placement'
 import type { TerminalColorOverrides } from './terminal-color-overrides'
@@ -78,6 +79,7 @@ export type RuntimeMobileSessionBrowserTab = {
   browserWorkspaceId: string
   browserPageId: string | null
   browserProfileId?: string
+  backlogBoardBinding?: BacklogBoardBinding
   executionHostKey?: string
   placement?: RuntimeBrowserPlacement
   url: string

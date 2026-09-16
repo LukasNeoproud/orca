@@ -17,6 +17,7 @@ import type { BrowserHostLeaseRegistry } from './browser-host-lease-registry'
 import type { RuntimeBrowserPageRegistry } from './runtime-browser-page-registry'
 import type { BrowserWindow } from 'electron'
 import type { BrowserBackend } from '../browser/browser-backend'
+import type { PersistedHeadlessBacklogBoardPage } from '../../shared/headless-backlog-board-page'
 import type { BrowserSessionTabSelectionOptions } from './browser-tab-create-publication'
 
 export type BrowserCommandTargetParams = {
@@ -157,6 +158,10 @@ export function clampOptionalNumber(
 }
 
 export type RuntimeBrowserCommandHost = {
+  rememberHeadlessBacklogBoardPage?(
+    worktreeId: string,
+    page: PersistedHeadlessBacklogBoardPage
+  ): void
   getAgentBrowserBridge(): AgentBrowserBridge | null
   resolveWorktreeSelector(selector: string): Promise<{
     id: string

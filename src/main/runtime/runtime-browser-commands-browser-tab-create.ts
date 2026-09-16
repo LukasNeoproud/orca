@@ -17,6 +17,8 @@ import { browserNetworkExecutionHostKey } from '../browser/browser-network-execu
 import { waitForTabRegistration } from '../ipc/browser-tab-registration-wait'
 import { BROWSER_CLIENT_AUTOMATION_HOST_CAPABILITY } from '../../shared/browser-client-automation-protocol'
 import { BROWSER_HOST_WEBVIEW_CAPABILITY } from './browser-host-capability-selection'
+import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
+import { LOCAL_EXECUTION_HOST_ID, toSshExecutionHostId } from '../../shared/execution-host'
 
 export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCommandsWithBrowserSetHeaders {
   async browserTabCreate(
@@ -29,6 +31,7 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
       activate?: boolean
       navigation?: RuntimeNavigationTarget
       targetGroupId?: string
+      backlogBoardBinding?: BacklogBoardBinding
       placement?: BrowserPageCreationPlacement
     },
     caller?: { pairedDeviceId?: string; clientKind?: 'mobile' | 'runtime' }
@@ -40,11 +43,33 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
       clientKind: caller?.clientKind
     })
     const worktree = params.worktree
-      ? params.placement?.kind === 'client'
+      ? params.backlogBoardBinding || params.placement?.kind === 'client'
         ? await this.host.resolveBrowserWorkspace(params.worktree)
         : await this.host.resolveWorktreeSelector(params.worktree)
       : undefined
     const worktreeId = worktree?.id
+    if (
+      params.backlogBoardBinding &&
+      (!worktree || params.backlogBoardBinding.workspaceId !== worktree.id)
+    ) {
+      throw new BrowserError(
+        'invalid_argument',
+        'Backlog board binding does not match the workspace.'
+      )
+    }
+    const boardExecutionHost = params.backlogBoardBinding
+      ? await this.host.resolveBrowserNetworkExecutionHost(worktree)
+      : undefined
+    const hostBacklogBoardBinding: BacklogBoardBinding | undefined = params.backlogBoardBinding
+      ? {
+          workspaceId: worktree!.id,
+          executionHostId:
+            boardExecutionHost?.kind === 'ssh'
+              ? toSshExecutionHostId(boardExecutionHost.targetId)
+              : LOCAL_EXECUTION_HOST_ID,
+          runtimeEnvironmentId: null
+        }
+      : undefined
     const sessionPartition = browserSessionRegistry.resolveKnownPartition(params.profileId)
     if (!sessionPartition) {
       throw new BrowserError(
@@ -66,7 +91,8 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
         )
       }
       const browserPageId = params.page ?? randomUUID()
-      const executionHost = await this.host.resolveBrowserNetworkExecutionHost(worktree)
+      const executionHost =
+        boardExecutionHost ?? (await this.host.resolveBrowserNetworkExecutionHost(worktree))
       const authority = this.host.getBrowserHostLeaseRegistry()
       const browserProfileId = params.profileId ?? browserSessionRegistry.getDefaultProfile().id
       const created = await createRuntimeBrowserClientPage(authority, {
@@ -87,7 +113,8 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
         pairedDeviceId: caller.pairedDeviceId,
         url: 'about:blank',
         loading: url !== 'about:blank',
-        active: focus.startsActive
+        active: focus.startsActive,
+        ...(hostBacklogBoardBinding ? { backlogBoardBinding: hostBacklogBoardBinding } : {})
       })
       publishCreatedBrowserSessionTab(this.host, {
         placementKind: 'client',
@@ -125,6 +152,21 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
         profileId: params.profileId,
         ...(params.page ? { browserPageId: params.page } : {})
       })
+      if (hostBacklogBoardBinding && worktreeId) {
+        try {
+          if (!this.host.rememberHeadlessBacklogBoardPage) {
+            throw new Error('Backlog board page persistence is unavailable')
+          }
+          this.host.rememberHeadlessBacklogBoardPage(worktreeId, {
+            browserPageId: created.browserPageId,
+            ...(params.profileId ? { browserProfileId: params.profileId } : {}),
+            backlogBoardBinding: hostBacklogBoardBinding
+          })
+        } catch (error) {
+          await offscreen.closeTab(created.browserPageId)
+          throw error
+        }
+      }
       publishCreatedBrowserSessionTab(this.host, {
         placementKind: 'offscreen',
         browserPageId: created.browserPageId,
@@ -141,7 +183,8 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
       params.profileId,
       params.profileId ? sessionPartition : undefined,
       focus.focusesHost,
-      params.page
+      params.page,
+      hostBacklogBoardBinding
     )
 
     // Why: the webview must mount and register before the tab is operable, so wait here (returning the ID anyway on timeout).

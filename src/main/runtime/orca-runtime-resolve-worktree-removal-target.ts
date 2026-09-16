@@ -8,6 +8,7 @@ import { splitWorktreeId } from '../../shared/worktree/id'
 import { runtimeWorktreeIdsEqual } from './runtime-worktree-path-identity'
 import { hasWorktreeRemovalRepoOwnerOnOtherHost } from '../worktree-removal-repo-owner'
 import { advertisedUrlWatcher } from '../ports/advertised-url-watcher'
+import { releaseBacklogWorkspace } from '../backlog-runtime/backlog-runtime-service'
 import { deleteWorktreeHistoryDir } from '../terminal-history-deletion'
 import { closeClientHostedBrowserPagesForWorktree } from './worktree-browser-client-page-close'
 import type { ForceDeleteWorktreeBranchResult } from '../../shared/worktree/create-types'
@@ -43,6 +44,9 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
     worktreeId: string,
     hostId?: ExecutionHostId
   ): void {
+    void releaseBacklogWorkspace(worktreeId, hostId).catch((error: unknown) => {
+      console.warn('[backlog] workspace cleanup could not be verified:', error)
+    })
     // Why: worktree IDs are path-derived and can be recreated, so removal must
     // purge history and process-local caches before the ID points at new state.
     const persistedHostId = store.getWorktreeMeta(worktreeId)?.hostId

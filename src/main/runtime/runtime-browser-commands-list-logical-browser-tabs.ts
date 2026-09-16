@@ -8,6 +8,7 @@ import type { BrowserCommandTargetParams } from './runtime-browser-commands-brow
 import { browserManager } from '../browser/browser-manager'
 import { randomUUID } from 'node:crypto'
 import { ipcMain } from 'electron'
+import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 
 export class RuntimeBrowserCommandsWithListLogicalBrowserTabs extends RuntimeBrowserCommandsWithBrowserTabClose {
   protected listLogicalBrowserTabs(
@@ -37,7 +38,8 @@ export class RuntimeBrowserCommandsWithListLogicalBrowserTabs extends RuntimeBro
         certificateFailure: null,
         worktreeId: page.workspaceId,
         profileId: profile.id,
-        profileLabel: profile.label
+        profileLabel: profile.label,
+        ...(page.backlogBoardBinding ? { backlogBoardBinding: page.backlogBoardBinding } : {})
       }
     })
     const tabs = [...serverTabs, ...clientTabs]
@@ -104,7 +106,8 @@ export class RuntimeBrowserCommandsWithListLogicalBrowserTabs extends RuntimeBro
     profileId: string | undefined,
     sessionPartition: string | undefined,
     activate?: boolean,
-    requestedPageId?: string
+    requestedPageId?: string,
+    backlogBoardBinding?: BacklogBoardBinding
   ): Promise<{ browserPageId: string }> {
     const win = this.host.getAuthoritativeWindow()
     const requestId = randomUUID()
@@ -139,6 +142,7 @@ export class RuntimeBrowserCommandsWithListLogicalBrowserTabs extends RuntimeBro
         // Why: keep these undefined (not null) when no profile is chosen so the renderer still applies default-profile inheritance.
         sessionProfileId: profileId,
         sessionPartition,
+        ...(backlogBoardBinding ? { backlogBoardBinding } : {}),
         activate
       })
     })

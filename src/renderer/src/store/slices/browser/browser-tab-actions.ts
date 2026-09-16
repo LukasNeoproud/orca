@@ -48,6 +48,9 @@ export function createBrowserTabActions(
         browserPageId,
         options?.docLocation
       )
+      if (options?.backlogBoardBinding) {
+        page.backlogBoardBinding = options.backlogBoardBinding
+      }
       // Why: with no explicit profile, inherit the user's default so a Settings preference applies to new tabs.
       const sessionProfileId =
         options?.sessionProfileId !== undefined

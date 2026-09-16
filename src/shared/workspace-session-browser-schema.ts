@@ -8,6 +8,7 @@ import { normalizeBrowserHistoryEntries } from './workspace-session-browser-hist
 import { normalizeWorkspaceDocHistoryEntries } from './workspace-doc-history'
 import { isDocPreviewUrl } from './doc-preview-scheme'
 import { salvagingArray } from './zod-salvage'
+import { normalizeExecutionHostId, type ExecutionHostId } from './execution-host'
 
 const browserLoadErrorSchema = z.object({
   code: z.number(),
@@ -24,6 +25,14 @@ const browserPageDocLocationSchema = z.object({
   kind: z.literal('workspace-doc'),
   worktreeId: z.string(),
   filePath: z.string()
+})
+
+const backlogBoardBindingSchema = z.object({
+  workspaceId: z.string(),
+  executionHostId: z.custom<ExecutionHostId>(
+    (value) => typeof value === 'string' && normalizeExecutionHostId(value) === value
+  ),
+  runtimeEnvironmentId: z.string().nullable()
 })
 
 const browserViewportPresetIdSchema = z.enum([
@@ -105,6 +114,7 @@ export const browserPageSchema = z.object({
   // docLocation restores a workspace document as a blank New Tab — the page keeps its blank url
   // and loses the only field that said which document it was.
   docLocation: browserPageDocLocationSchema.nullable().optional(),
+  backlogBoardBinding: backlogBoardBindingSchema.nullable().optional(),
   // Why persisted: one-level history across an address-bar conversion should survive a restart.
   // The url variant holds a store url that already passed every fence on its way in — and the
   // same prefix fence every other url sink applies stands at this door too, so a session file

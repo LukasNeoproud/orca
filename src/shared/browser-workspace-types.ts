@@ -87,6 +87,8 @@ export type BrowserPageConversionOrigin =
       browserRuntimeEnvironmentId?: string | null
     }
 
+import type { BacklogBoardBinding } from './backlog-board-binding'
+
 export type BrowserPage = {
   id: string
   workspaceId: string
@@ -112,6 +114,7 @@ export type BrowserPage = {
   viewportPresetId?: BrowserViewportPresetId | null
   /** Set on a page that shows a workspace document; absent on every page that shows a URL. */
   docLocation?: BrowserPageDocLocation | null
+  backlogBoardBinding?: BacklogBoardBinding | null
   /** Set on a page the address bar converted from the other kind; absent everywhere else. */
   convertedFrom?: BrowserPageConversionOrigin | null
   /** Set on a page Back returned across a conversion to; Forward re-crosses it. */

@@ -14,6 +14,7 @@
 import process from 'node:process'
 import { setAppEnvironment, type AppEnvironment } from '../../shared/app-environment'
 import { setSecretStore, type SecretStore } from '../../shared/secret-store'
+import { disposeBacklogRuntimeService } from '../backlog-runtime/backlog-runtime-service'
 import type { ServeReadiness } from '../server/serve-readiness'
 import { setRuntimeBrowserCommandsFactory } from '../runtime/runtime-browser-commands-factory'
 import { resolveOrcadBrowserProvider, type OrcadBrowserProvider } from './orcad-browser-provider'
@@ -265,6 +266,9 @@ async function startOrcadRuntime(
       try {
         await rpc.stop()
       } finally {
+        await disposeBacklogRuntimeService().catch((error: unknown) => {
+          console.warn('[backlog] shutdown could not be verified:', error)
+        })
         // Why disconnect and not shut down: the daemon must outlive this process, or an
         // orcad restart goes back to killing every running terminal. See
         // orcad-daemon-supervision.ts.

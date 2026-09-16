@@ -53,6 +53,7 @@ export function registerBrowserRequestIpcBridge(
           targetGroupId: data.activate ? undefined : activeBrowserUnifiedTab?.groupId,
           sessionProfileId: data.sessionProfileId,
           sessionPartition: data.sessionPartition,
+          backlogBoardBinding: data.backlogBoardBinding,
           activate: data.activate === true
         })
         // Why: registerGuest fires with the page ID, not the workspace ID; return it so waitForTabRegistration can correlate.

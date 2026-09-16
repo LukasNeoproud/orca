@@ -15,6 +15,30 @@ const row = {
 }
 
 describe('preserving runtime-authored workspace session fields', () => {
+  it('carries durable headless board identity across renderer writes', () => {
+    const board = {
+      browserPageId: 'board-a',
+      backlogBoardBinding: {
+        workspaceId: 'repo-1::wt-a',
+        executionHostId: 'local' as const,
+        runtimeEnvironmentId: null
+      }
+    }
+    const prior = session()
+    prior.headlessBacklogBoardPagesByWorktree = { 'repo-1::wt-a': [board] }
+    const next = preserveRuntimeAuthoredWorkspaceSessionFields(session(), prior)
+    expect(next.headlessBacklogBoardPagesByWorktree).toEqual({ 'repo-1::wt-a': [board] })
+    expect(
+      preserveRuntimeAuthoredWorkspaceSessionFields(
+        {
+          ...session(),
+          headlessBacklogBoardPagesByWorktree: {}
+        },
+        prior
+      ).headlessBacklogBoardPagesByWorktree
+    ).toEqual({})
+  })
+
   it('carries the rows across a write that never mentions them', () => {
     // The desktop renderer builds its payload from Zustand, which has no idea the runtime
     // authority sharing this profile persists client-hosted pages.

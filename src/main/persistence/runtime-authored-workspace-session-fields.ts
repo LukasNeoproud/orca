@@ -20,13 +20,18 @@ export function preserveRuntimeAuthoredWorkspaceSessionFields(
   prior: WorkspaceSessionState | null | undefined
 ): WorkspaceSessionState {
   if (
-    next.clientHostedBrowserPagesByWorktree !== undefined ||
-    prior?.clientHostedBrowserPagesByWorktree === undefined
+    (next.clientHostedBrowserPagesByWorktree !== undefined ||
+      prior?.clientHostedBrowserPagesByWorktree === undefined) &&
+    (next.headlessBacklogBoardPagesByWorktree !== undefined ||
+      prior?.headlessBacklogBoardPagesByWorktree === undefined)
   ) {
     return next
   }
   return {
     ...next,
-    clientHostedBrowserPagesByWorktree: prior.clientHostedBrowserPagesByWorktree
+    clientHostedBrowserPagesByWorktree:
+      next.clientHostedBrowserPagesByWorktree ?? prior.clientHostedBrowserPagesByWorktree,
+    headlessBacklogBoardPagesByWorktree:
+      next.headlessBacklogBoardPagesByWorktree ?? prior.headlessBacklogBoardPagesByWorktree
   }
 }

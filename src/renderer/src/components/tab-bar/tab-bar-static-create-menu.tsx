@@ -1,5 +1,6 @@
 import React from 'react'
-import { FilePlus, FileText, Globe, Smartphone, TerminalSquare } from 'lucide-react'
+import { FilePlus, FileText, Globe, ListTodo, Smartphone, TerminalSquare } from 'lucide-react'
+import { openBacklogBoardFromMenu } from './backlog-board-menu-action'
 import { translate } from '@/i18n/i18n'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -112,6 +113,18 @@ export function renderTabBarStaticCreateMenu({
         <DropdownMenuShortcut>{newBrowserShortcut}</DropdownMenuShortcut>
       </DropdownMenuItem>
     ) : null
+  const backlogMenuItem =
+    !terminalOnly && managedBrowserCreationEnabled ? (
+      <DropdownMenuItem
+        onSelect={() => {
+          openBacklogBoardFromMenu(props.worktreeId, props.groupId)
+        }}
+        className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
+      >
+        <ListTodo className="size-4 text-muted-foreground" />
+        {translate('components.backlog.title', 'Backlog.md')}
+      </DropdownMenuItem>
+    ) : null
   const newSimulatorMenuItem =
     !terminalOnly && mobileEmulatorEnabled && mobileEmulatorCreationEnabled && onNewSimulatorTab ? (
       workspaceHasSimulatorTab ? (
@@ -184,6 +197,7 @@ export function renderTabBarStaticCreateMenu({
       {openMarkdownMenuItem}
       {defaultTerminalMenuItems}
       {newBrowserMenuItem}
+      {backlogMenuItem}
       {newSimulatorMenuItem}
       {mobileEmulatorIntroMenuBlock}
     </>
@@ -191,6 +205,7 @@ export function renderTabBarStaticCreateMenu({
     <>
       {defaultTerminalMenuItems}
       {newBrowserMenuItem}
+      {backlogMenuItem}
       {newMarkdownMenuItem}
       {openMarkdownMenuItem}
       {newSimulatorMenuItem}
