@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { appendFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -11,6 +11,72 @@ import type { BacklogSnapshot } from '../../shared/backlog-types'
 describe.skipIf(process.env.ORCA_BACKLOG_INTEGRATION_TEST !== '1')(
   'installed Backlog.md CLI',
   () => {
+    it('publishes configured priorities and task ordinal from an isolated project', async () => {
+      const root = await mkdtemp(join(tmpdir(), 'orca-backlog-metadata-'))
+      const service = createBacklogService()
+      let release: (() => void) | undefined
+      const command = async (args: string[]) => {
+        const result = await runProcess({
+          program: 'backlog',
+          args,
+          cwd: root,
+          env: { ...process.env, BACKLOG_CWD: root },
+          timeoutMs: 15_000
+        })
+        if (result.code !== 0) {
+          throw new Error(result.stderr || result.stdout)
+        }
+      }
+      try {
+        await command([
+          'init',
+          'Metadata fixture',
+          '--no-git',
+          '--defaults',
+          '--integration-mode',
+          'none'
+        ])
+        await appendFile(
+          join(root, 'backlog', 'config.yml'),
+          '\npriorities: ["Urgent", "Normal", "Later"]\n'
+        )
+        await command([
+          'task',
+          'create',
+          'Ordered task',
+          '--priority',
+          'Urgent',
+          '--ordinal',
+          '7',
+          '--plain'
+        ])
+        const target: BacklogTarget = {
+          key: root,
+          spawn: (args) => spawnBacklogProcess({ kind: 'native', cwd: root }, args)
+        }
+        const snapshot = await new Promise<BacklogSnapshot>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Metadata snapshot timeout')), 12_000)
+          release = service.subscribe(target, (value) => {
+            if (value.state === 'error') {
+              clearTimeout(timer)
+              reject(new Error(value.error))
+            } else if (value.state === 'ready' && value.priorities) {
+              clearTimeout(timer)
+              resolve(value)
+            }
+          })
+        })
+        expect(snapshot.priorities).toEqual(['Urgent', 'Normal', 'Later'])
+        expect(snapshot.tasks).toMatchObject([
+          { title: 'Ordered task', priority: 'urgent', ordinal: 7 }
+        ])
+      } finally {
+        release?.()
+        await service.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }, 30_000)
+
     it('isolates projects, observes CLI edits, and serves the shared board', async () => {
       const roots = await Promise.all([
         mkdtemp(join(tmpdir(), 'orca-backlog-a-')),

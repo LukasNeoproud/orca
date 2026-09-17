@@ -9,6 +9,18 @@ sidebar. The sidebar reads tasks, searches their IDs and titles, filters by stat
 and previews descriptions and acceptance criteria. Create and edit tasks in the
 full web board. Both entry points open the same board tab for that workspace.
 
+The sidebar defaults to **Backlog order** (ascending task `ordinal`). Tasks without
+an ordinal follow ordered tasks; ties and missing ordinals use natural task ID order
+(`TASK-2` before `TASK-10`). **Sort by** also offers task ID and priority. Priority
+uses the project's configured priority order; unknown labels follow alphabetically,
+and tasks without a priority come last. Older hosts or failed config reads fall
+back to High, Medium, Low, followed by other labels and unprioritized tasks.
+Search, status filters, live updates, and returning from task details preserve the
+selected sort mode while the workspace panel is mounted. Sorting never edits tasks.
+
+Descriptions and acceptance criteria render Markdown using Orca's existing comment
+renderer, including lists, links, emphasis and code blocks. Criteria remain read-only.
+
 ## Workspace ownership
 
 Each worktree uses its own checkout. Plain folder workspaces are supported too;
@@ -35,6 +47,10 @@ causes execution to fall back to the desktop. Older runtimes/relays without
   `--watch` falls back to one-shot JSON reads every five seconds while subscribed.
 - Task details use `backlog task view <id> --json`. The adapter accepts JSON schema
   version 1 and ignores extra fields; incompatible output produces an error.
+- Priority order is read once per subscription lifetime with `backlog config get
+  priorities` on the execution host. This optional read does not delay task loading;
+  refreshing the sole subscriber or reopening the panel reads it again. Task ordinals
+  and snapshot priorities are optional for compatibility with older runtimes.
 - Opening the board starts `backlog browser --no-open --port <port>` on loopback.
   Concurrent opens share startup, and occupied ports are retried. Orca does not
   attach to or stop a separately launched Backlog.md server.

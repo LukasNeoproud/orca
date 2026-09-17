@@ -18,6 +18,8 @@ import {
   refreshBacklog,
   subscribeBacklog
 } from '@/lib/backlog-client'
+import BacklogTaskDetail from './BacklogTaskDetail'
+import { orderBacklogTasks, type BacklogTaskOrder } from './backlog-task-order'
 import type { BacklogSnapshot, BacklogTask } from '../../../../shared/backlog-types'
 
 const DOCS_URL = 'https://github.com/MrLesk/Backlog.md'
@@ -50,6 +52,7 @@ function BacklogPanelForWorkspace({
 }): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<BacklogSnapshot>(INITIAL_SNAPSHOT)
   const [query, setQuery] = useState('')
+  const [order, setOrder] = useState<BacklogTaskOrder>('ordinal')
   const [status, setStatus] = useState(ALL_STATUSES)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [detail, setDetail] = useState<BacklogTask | null>(null)
@@ -90,12 +93,12 @@ function BacklogPanelForWorkspace({
   )
   const filteredTasks = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
-    return snapshot.tasks.filter(
+    return orderBacklogTasks(snapshot.tasks, order, snapshot.priorities).filter(
       (task) =>
         (status === ALL_STATUSES || task.status === status.slice(STATUS_VALUE_PREFIX.length)) &&
         (!needle || `${task.id} ${task.title}`.toLocaleLowerCase().includes(needle))
     )
-  }, [snapshot.tasks, status, query])
+  }, [snapshot.tasks, snapshot.priorities, order, status, query])
 
   const openBoard = (): void => {
     if (!workspaceId) {
@@ -186,39 +189,7 @@ function BacklogPanelForWorkspace({
               {translate('components.backlog.loadingTask', 'Loading task…')}
             </p>
           ) : (
-            <div className="space-y-4 text-xs">
-              <div>
-                <p className="font-mono text-[11px] text-muted-foreground">{detail.id}</p>
-                <h2 className="mt-1 text-sm font-semibold">{detail.title}</h2>
-                <p className="mt-1 text-muted-foreground">
-                  {detail.status}
-                  {detail.priority ? ` · ${detail.priority}` : ''}
-                </p>
-              </div>
-              {detail.description && (
-                <div>
-                  <h3 className="mb-1 font-semibold">
-                    {translate('components.backlog.description', 'Description')}
-                  </h3>
-                  <p className="whitespace-pre-wrap break-words">{detail.description}</p>
-                </div>
-              )}
-              {detail.acceptanceCriteria?.length ? (
-                <div>
-                  <h3 className="mb-2 font-semibold">
-                    {translate('components.backlog.acceptanceCriteria', 'Acceptance criteria')}
-                  </h3>
-                  <ul className="space-y-2">
-                    {detail.acceptanceCriteria.map((criterion) => (
-                      <li key={criterion.index} className="flex gap-2">
-                        <span aria-hidden="true">{criterion.checked ? '☑' : '☐'}</span>
-                        <span className="whitespace-pre-wrap break-words">{criterion.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
+            <BacklogTaskDetail task={detail} />
           )}
         </div>
       ) : snapshot.state === 'error' ? (
@@ -290,6 +261,29 @@ function BacklogPanelForWorkspace({
                 })}
               </span>
             </div>
+            <Select value={order} onValueChange={(value) => setOrder(value as BacklogTaskOrder)}>
+              <SelectTrigger
+                size="sm"
+                aria-label={translate('components.backlog.sortTasks', 'Sort tasks')}
+                className="w-full min-w-0 text-xs"
+              >
+                <span className="text-muted-foreground">
+                  {translate('components.backlog.sortBy', 'Sort by')}
+                </span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="ordinal">
+                  {translate('components.backlog.sortBacklog', 'Backlog order')}
+                </SelectItem>
+                <SelectItem value="id">
+                  {translate('components.backlog.sortId', 'Task ID')}
+                </SelectItem>
+                <SelectItem value="priority">
+                  {translate('components.backlog.sortPriority', 'Priority')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {snapshot.tasks.length === 0 ? (
             <div className="space-y-2 px-3 py-4 text-xs text-muted-foreground">

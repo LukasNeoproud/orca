@@ -88,6 +88,13 @@ export function parseTask(value: unknown): BacklogTask {
     status: value.status,
     priority: value.priority
   }
+  if (
+    typeof value.ordinal === 'number' &&
+    Number.isSafeInteger(value.ordinal) &&
+    value.ordinal >= 0
+  ) {
+    task.ordinal = value.ordinal
+  }
   if (value.description !== undefined && value.description !== null) {
     if (typeof value.description !== 'string') {
       throw new Error('Backlog returned an unsupported task schema')

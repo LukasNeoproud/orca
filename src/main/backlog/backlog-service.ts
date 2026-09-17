@@ -2,7 +2,12 @@ import type { BacklogSnapshot, BacklogTask } from '../../shared/backlog-types'
 import { BacklogJsonStream, parseTaskList, parseTaskView } from './backlog-json'
 import { createBacklogBoardService } from './backlog-board-service'
 import { backlogErrorMessage, isUnsupportedWatch } from './backlog-diagnostic'
-import { runJson, appendLimited, MAX_DIAGNOSTIC } from './backlog-json-command'
+import {
+  runJson,
+  readBacklogPriorities,
+  appendLimited,
+  MAX_DIAGNOSTIC
+} from './backlog-json-command'
 
 export type BacklogChild = {
   onStdout(listener: (chunk: Buffer | string) => void): () => void
@@ -34,6 +39,8 @@ type WatchState = {
   startupTimer?: ReturnType<typeof setTimeout>
   generation: number
   mode: 'watch' | 'poll'
+  priorityRead?: AbortController
+  priorities?: string[]
 }
 
 export function createBacklogService(options: BacklogServiceOptions = {}) {
@@ -44,10 +51,27 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
   let disposed = false
 
   function publish(state: WatchState, snapshot: BacklogSnapshot): void {
-    state.snapshot = snapshot
+    state.snapshot = state.priorities ? { ...snapshot, priorities: state.priorities } : snapshot
     for (const listener of state.listeners) {
-      listener(snapshot)
+      listener(state.snapshot)
     }
+  }
+
+  function readPriorities(state: WatchState): void {
+    if (state.priorityRead) {
+      return
+    }
+    const controller = new AbortController()
+    state.priorityRead = controller
+    void readBacklogPriorities(state.target, startupTimeoutMs, controller.signal)
+      .then((priorities) => {
+        if (controller.signal.aborted || disposed || state.listeners.size === 0) {
+          return
+        }
+        state.priorities = priorities
+        publish(state, state.snapshot)
+      })
+      .catch(() => undefined)
   }
 
   function failWatch(state: WatchState, error: unknown): void {
@@ -76,6 +100,7 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
       const value = await runJson(state.target, ['task', 'list', '--json'], startupTimeoutMs)
       if (state.listeners.size > 0) {
         publish(state, { state: 'ready', tasks: parseTaskList(value) })
+        readPriorities(state)
       }
     } catch (error) {
       if (state.listeners.size > 0) {
@@ -131,6 +156,7 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
         for (const value of stream.push(chunk)) {
           clearTimeout(initialTimeout)
           publish(state, { state: 'ready', tasks: parseTaskList(value) })
+          readPriorities(state)
         }
       } catch (error) {
         end(error)
@@ -197,6 +223,7 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
         return
       }
       state.generation++
+      state.priorityRead?.abort()
       clearTimeout(state.startupTimer)
       if (state.timer) {
         clearTimeout(state.timer)
@@ -223,6 +250,7 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
     disposed = true
     for (const state of watches.values()) {
       state.generation++
+      state.priorityRead?.abort()
       clearTimeout(state.startupTimer)
       if (state.timer) {
         clearTimeout(state.timer)
@@ -239,6 +267,7 @@ export function createBacklogService(options: BacklogServiceOptions = {}) {
     const watchState = watches.get(target.key)
     if (watchState) {
       watchState.generation++
+      watchState.priorityRead?.abort()
       clearTimeout(watchState.timer)
       clearTimeout(watchState.startupTimer)
       watchState.listeners.clear()

@@ -97,9 +97,91 @@ describe('Backlog JSON stream', () => {
       'exceeded'
     )
   })
+
+  it('keeps valid ordinals and omits absent or invalid optional ordinals', () => {
+    const tasks = [0, 3, null, '4', -1, 1.5, undefined].map((ordinal, index) => ({
+      id: `${index}`,
+      title: 'Task',
+      status: 'todo',
+      priority: null,
+      ordinal
+    }))
+    expect(
+      parseTaskList({ schemaVersion: 1, kind: 'task-list', tasks }).map((task) => task.ordinal)
+    ).toEqual([0, 3, undefined, undefined, undefined, undefined, undefined])
+  })
 })
 
 describe('Backlog service', () => {
+  it('publishes tasks before configured priority order and caches it for later watch updates', async () => {
+    const { children, target } = setup()
+    const service = createBacklogService()
+    const listener = vi.fn()
+    const release = service.subscribe(target, listener)
+    await Promise.resolve()
+    children[0].write(list)
+    expect(listener.mock.lastCall?.[0]).toMatchObject({ state: 'ready', tasks: [{ id: '1' }] })
+    expect(listener.mock.lastCall?.[0].priorities).toBeUndefined()
+    await Promise.resolve()
+    expect(vi.mocked(target.spawn).mock.calls[1][0]).toEqual(['config', 'get', 'priorities'])
+    const config = Buffer.from('Urgent, Vysoká, Medium, Low\n')
+    const split = config.indexOf(Buffer.from('á')) + 1
+    children[1].write(config.subarray(0, split))
+    children[1].write(config.subarray(split))
+    children[1].exit(0)
+    await vi.waitFor(() => {
+      expect(listener.mock.lastCall?.[0].priorities).toEqual(['Urgent', 'Vysoká', 'Medium', 'Low'])
+    })
+    children[0].write(list)
+    expect(listener.mock.lastCall?.[0].priorities).toEqual(['Urgent', 'Vysoká', 'Medium', 'Low'])
+    expect(vi.mocked(target.spawn).mock.calls).toHaveLength(2)
+    release()
+    await service.dispose()
+  })
+
+  it('omits priorities on config failure and rereads for a new watch lifecycle', async () => {
+    const { children, target } = setup()
+    const service = createBacklogService()
+    const first = vi.fn()
+    const releaseFirst = service.subscribe(target, first)
+    await Promise.resolve()
+    children[0].write(list)
+    await Promise.resolve()
+    children[1].exit(1)
+    expect(first.mock.lastCall?.[0]).toMatchObject({ state: 'ready' })
+    expect(first.mock.lastCall?.[0].priorities).toBeUndefined()
+    releaseFirst()
+    const second = vi.fn()
+    const releaseSecond = service.subscribe(target, second)
+    await Promise.resolve()
+    children[2].write(list)
+    await Promise.resolve()
+    expect(vi.mocked(target.spawn).mock.calls[3][0]).toEqual(['config', 'get', 'priorities'])
+    children[3].write('Critical, Normal\n')
+    children[3].exit(0)
+    await vi.waitFor(() => {
+      expect(second.mock.lastCall?.[0].priorities).toEqual(['Critical', 'Normal'])
+    })
+    releaseSecond()
+    await service.dispose()
+  })
+
+  it('stops a pending priority read and ignores its late output after disposal', async () => {
+    const { children, target } = setup()
+    const service = createBacklogService()
+    const listener = vi.fn()
+    service.subscribe(target, listener)
+    await Promise.resolve()
+    children[0].write(list)
+    await Promise.resolve()
+    const calls = listener.mock.calls.length
+    await service.dispose()
+    expect(children[1].stop).toHaveBeenCalledOnce()
+    children[1].write('High, Low\n')
+    children[1].exit(0)
+    expect(listener).toHaveBeenCalledTimes(calls)
+  })
+
   it('shares a watch and falls back to polling only for unsupported --watch', async () => {
     vi.useFakeTimers()
     const { children, target } = setup()

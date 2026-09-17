@@ -115,4 +115,44 @@ describe('BacklogPanel', () => {
     expect(screen.getByText('Literal all status')).toBeTruthy()
     expect(screen.queryByText('Completed task')).toBeNull()
   })
+
+  it('keeps the selected order through filtering, snapshots and detail navigation', async () => {
+    let publish: (snapshot: BacklogSnapshot) => void = () => {}
+    const orderedTasks: BacklogTask[] = [
+      { id: 'TASK-10', title: 'Task ten', status: 'To Do', priority: 'Next', ordinal: 1 },
+      { id: 'TASK-2', title: 'Task two', status: 'To Do', priority: 'Now', ordinal: 2 },
+      { id: 'TASK-1', title: 'Task one', status: 'Done', priority: null, ordinal: 3 }
+    ]
+    mock.subscribeBacklog.mockImplementationOnce((_id, listener) => {
+      publish = listener
+      listener({ state: 'ready', tasks: orderedTasks, priorities: ['Now', 'Next'] })
+      return vi.fn()
+    })
+    render(<BacklogPanel isVisible />)
+    const titles = () =>
+      screen.getAllByRole('listitem').map((row) => row.textContent?.split('TASK-')[0])
+    expect(titles()).toEqual(['Task ten', 'Task two', 'Task one'])
+    const select = (control: string, option: string) => {
+      fireEvent.keyDown(screen.getByRole('combobox', { name: control }), { key: 'ArrowDown' })
+      fireEvent.click(screen.getByRole('option', { name: option }))
+    }
+    select('Sort tasks', 'Task ID')
+    expect(titles()).toEqual(['Task one', 'Task two', 'Task ten'])
+    select('Filter task status', 'To Do')
+    select('Sort tasks', 'Priority')
+    expect(titles()).toEqual(['Task two', 'Task ten'])
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search backlog tasks' }), {
+      target: { value: 'Task' }
+    })
+    act(() =>
+      publish({ state: 'ready', tasks: orderedTasks.toReversed(), priorities: ['Next', 'Now'] })
+    )
+    expect(titles()).toEqual(['Task ten', 'Task two'])
+    fireEvent.click(screen.getByRole('button', { name: /Task ten/ }))
+    expect(await screen.findByText('Restore sign in')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tasks' }))
+    expect(screen.getByRole('combobox', { name: 'Sort tasks' }).textContent).toContain('Priority')
+    expect(titles()).toEqual(['Task ten', 'Task two'])
+    expect(orderedTasks.map((task) => task.id)).toEqual(['TASK-10', 'TASK-2', 'TASK-1'])
+  })
 })

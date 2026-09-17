@@ -5,6 +5,7 @@ export type BacklogTask = {
   title: string
   status: string
   priority: string | null
+  ordinal?: number
   description?: string
   acceptanceCriteria?: { index: number; text: string; checked: boolean }[]
 }
@@ -12,6 +13,7 @@ export type BacklogTask = {
 export type BacklogSnapshot = {
   state: 'loading' | 'ready' | 'error'
   tasks: BacklogTask[]
+  priorities?: string[]
   error?: string
   stale?: boolean
 }

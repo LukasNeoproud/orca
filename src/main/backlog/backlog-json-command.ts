@@ -1,8 +1,10 @@
+import { StringDecoder } from 'node:string_decoder'
 import type { BacklogTarget } from './backlog-service'
 import { BacklogJsonStream } from './backlog-json'
 import { backlogErrorMessage } from './backlog-diagnostic'
 
 export const MAX_DIAGNOSTIC = 8_192
+const MAX_CONFIG_OUTPUT = 8_192
 
 export function appendLimited(current: string, chunk: Buffer | string, limit: number): string {
   return (current + chunk.toString()).slice(-limit)
@@ -70,5 +72,79 @@ export async function runJson(
         finish(error)
       }
     })
+  })
+}
+
+export async function readBacklogPriorities(
+  target: BacklogTarget,
+  timeoutMs: number,
+  signal: AbortSignal
+): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const decoder = new StringDecoder('utf8')
+    let output = ''
+    let settled = false
+    let child: Awaited<ReturnType<BacklogTarget['spawn']>> | undefined
+    const finish = (error?: Error): void => {
+      if (settled) {
+        return
+      }
+      settled = true
+      clearTimeout(timeout)
+      signal.removeEventListener('abort', abort)
+      if (error) {
+        reject(error)
+        return
+      }
+      const priorities = output
+        .trim()
+        .split(',')
+        .map((priority) => priority.trim())
+      if (priorities.some((priority) => !priority)) {
+        reject(new Error('Backlog returned invalid priorities'))
+      } else {
+        resolve(priorities)
+      }
+    }
+    const abort = (): void => {
+      finish(new Error('Backlog priority read cancelled'))
+      void child?.stop().catch(() => undefined)
+    }
+    const timeout = setTimeout(() => {
+      finish(new Error('Backlog priority read timed out'))
+      void child?.stop().catch(() => undefined)
+    }, timeoutMs)
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+      return
+    }
+    void target.spawn(['config', 'get', 'priorities']).then(
+      (spawned) => {
+        child = spawned
+        if (settled) {
+          void child.stop().catch(() => undefined)
+          return
+        }
+        child.onStdout((chunk) => {
+          if (settled) {
+            return
+          }
+          output += typeof chunk === 'string' ? chunk : decoder.write(chunk)
+          if (Buffer.byteLength(output) > MAX_CONFIG_OUTPUT) {
+            finish(new Error('Backlog priority output exceeded 8 KB'))
+            void child?.stop().catch(() => undefined)
+          }
+        })
+        child.onError((error) => finish(error))
+        child.onExit((code) => {
+          output += decoder.end()
+          finish(
+            code === 0 ? undefined : new Error(`Backlog priority read exited with code ${code}`)
+          )
+        })
+      },
+      (error: unknown) => finish(new Error(backlogErrorMessage(error)))
+    )
   })
 }
