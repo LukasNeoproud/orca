@@ -61,6 +61,7 @@ export function EditorDiffFileSurface({
           filePath={activeFile.relativePath}
           mimeType={diffContent.mimeType}
           sideBySide={sideBySide}
+          worktreeId={activeFile.worktreeId}
         />
       )
     }

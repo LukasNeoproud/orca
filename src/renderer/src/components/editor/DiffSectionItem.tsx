@@ -366,6 +366,7 @@ export function DiffSectionItem({
           addLineCommentPlaceholder={addLineCommentPlaceholder}
           addLineCommentLabel={addLineCommentLabel}
           isBranchMode={isBranchMode}
+          worktreeId={worktreeId}
           sideBySide={sideBySide}
           isDark={isDark}
           language={language}

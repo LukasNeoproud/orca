@@ -1,0 +1,188 @@
+@media (min-width: 1650px) {
+  .preview-pair {
+    grid-template-columns: 1.2fr 1fr;
+  }
+  .chat-content {
+    padding-top: 36px;
+  }
+}
+@media (max-width: 1150px) {
+  .workspace-sidebar {
+    width: 220px;
+  }
+  .chat-content {
+    padding: 24px;
+  }
+  .chat-heading {
+    padding: 22px 24px;
+  }
+  .composer-area {
+    padding: 12px 24px;
+  }
+  .preview-pair {
+    grid-template-columns: 1fr;
+  }
+  .preview-pair .screenshot-preview {
+    padding: 16px 45px;
+  }
+  .changes-list {
+    width: 180px;
+  }
+  .changes-list > button {
+    font-size: 10px;
+  }
+  .review-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .comparison {
+    padding: 0 16px;
+    gap: 8px;
+  }
+  .comparison-pane > header {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+@media (max-width: 800px) {
+  .workspace-sidebar {
+    width: 185px;
+  }
+  .scenario small,
+  .brand > span:last-child,
+  .workspace-name > svg:last-child {
+    display: none;
+  }
+  .scenario {
+    padding: 10px 7px;
+  }
+  .sidebar-bottom {
+    padding: 18px 6px;
+  }
+  .sidebar-bottom p {
+    font-size: 11px;
+  }
+  .format-grid,
+  .supporting-previews {
+    grid-template-columns: 1fr;
+  }
+  .changes-list {
+    width: 150px;
+  }
+  .changes-list > button {
+    flex-wrap: wrap;
+  }
+  .comparison {
+    grid-template-columns: 1fr;
+  }
+  .image-scroll {
+    height: 260px;
+  }
+  .chat-heading h1 {
+    font-size: 16px;
+  }
+  .chat-heading {
+    align-items: flex-start;
+  }
+  .chat-heading > button {
+    white-space: normal;
+    height: auto;
+    font-size: 11px;
+  }
+  .mock-label {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .workspace-sidebar {
+    display: none;
+  }
+  .prototype-bar {
+    padding: 0 10px;
+  }
+  .prototype-bar > div {
+    gap: 7px;
+  }
+  .version-label,
+  .prototype-bar .divider {
+    display: none;
+  }
+  .prototype-bar > div > span:not(.version-label) {
+    display: none;
+  }
+  .chat-content {
+    padding: 20px 16px;
+  }
+  .chat-heading {
+    padding: 18px 16px;
+  }
+  .composer-area {
+    padding: 10px 16px;
+  }
+  .composer-area > small {
+    font-size: 9px;
+  }
+  .user-message {
+    max-width: 95%;
+  }
+  .review-callout {
+    flex-wrap: wrap;
+  }
+  .review-callout > span {
+    font-size: 11px;
+  }
+  .changes-list {
+    width: 120px;
+    padding: 12px 5px;
+  }
+  .changes-list > button {
+    font-size: 9px;
+    word-break: break-word;
+  }
+  .review-heading {
+    padding: 16px;
+  }
+  .review-heading h2 {
+    font-size: 14px;
+  }
+  .review-heading p {
+    font-size: 11px;
+  }
+  .review-toolbar {
+    padding: 10px;
+  }
+  .zoom-label {
+    min-width: 140px;
+  }
+  .zoom-label input {
+    width: 50px;
+  }
+  .review-toolbar > div {
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .statusbar > span:last-child {
+    display: none;
+  }
+  .file-tab {
+    padding: 18px;
+  }
+  .comment-form {
+    margin: 15px 10px;
+  }
+  .review-comments {
+    margin: 15px 10px;
+  }
+  .section-heading {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

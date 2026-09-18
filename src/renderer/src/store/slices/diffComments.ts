@@ -6,6 +6,10 @@ import { createBrowserUuid } from '@/lib/browser-uuid'
 import { findFolderWorkspaceOwner } from '@/lib/folder-workspace-runtime-owner'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import {
+  decodeImageReviewCommentFromLegacyHost,
+  decodeImageReviewCommentsFromLegacyHost
+} from '../../../../shared/image-review-comment-wire'
+import {
   enqueueDiffCommentPersist,
   mutateDiffComments,
   normalizeDiffComment
@@ -42,6 +46,7 @@ function deliverySnapshotMatches(
   comment: DiffComment,
   snapshot: DiffCommentDeliverySnapshot
 ): boolean {
+  comment = decodeImageReviewCommentFromLegacyHost(comment)
   return (
     comment.id === snapshot.id &&
     comment.body === snapshot.body &&
@@ -83,7 +88,9 @@ export const createDiffCommentsSlice: StateCreator<AppState, [], [], DiffComment
       // Why: cast the frozen sentinel to the mutable return type; runtime freeze makes accidental mutation throw.
       return EMPTY_COMMENTS as DiffComment[]
     }
-    return worktree.diffComments
+    return scope?.type === 'folder'
+      ? decodeImageReviewCommentsFromLegacyHost(worktree.diffComments)
+      : worktree.diffComments
   },
 
   addDiffComment: async (input) => {

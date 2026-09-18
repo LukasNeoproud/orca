@@ -1,3 +1,4 @@
+import { NativeChatRichMarkdown } from './link-preview/NativeChatRichMarkdown'
 import { memo, useCallback, useMemo, useRef } from 'react'
 import CommentMarkdown, {
   type CommentMarkdownLinkClickHandler
@@ -187,7 +188,9 @@ export const MessageRow = memo(function MessageRow({
         enablePreview={runtimeContext !== undefined}
       />
       {markdown ? (
-        <CommentMarkdown
+        <NativeChatRichMarkdown
+          runtimeContext={runtimeContext}
+          enablePreviews={!isReasoning && !isSystem}
           content={markdown}
           variant="document"
           className="text-sm"

@@ -18,6 +18,7 @@ import { normalizeAppIconId } from '../../../shared/app-icon'
 import { normalizeUiLanguage } from '../../../shared/ui-language'
 import { normalizeWorktreeVisibilityDefaults } from '../../../shared/external-worktree-visibility'
 import { normalizePRBotAuthorOverrides } from '../../../shared/pr-bot-author-overrides'
+import { normalizeNativeChatLinkPreviewMode } from '../../../shared/native-chat-link-preview-mode'
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import {
   addMobilePairingCustomAddress,
@@ -175,6 +176,11 @@ export function updateSettings(
   }
   if ('uiLanguage' in updates) {
     sanitizedUpdates.uiLanguage = normalizeUiLanguage(updates.uiLanguage)
+  }
+  if ('nativeChatLinkPreviewMode' in updates) {
+    sanitizedUpdates.nativeChatLinkPreviewMode = normalizeNativeChatLinkPreviewMode(
+      updates.nativeChatLinkPreviewMode
+    )
   }
   if ('prBotAuthorOverrides' in updates) {
     // Why: every writer (desktop IPC, web RPC, migrations) hits this boundary, so the persisted list stays bounded and well-formed.

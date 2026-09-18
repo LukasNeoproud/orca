@@ -23,6 +23,7 @@ import {
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import { normalizeUiLanguage } from '../../../../shared/ui-language'
 import { normalizeUsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
+import { normalizeNativeChatLinkPreviewMode } from '../../../../shared/native-chat-link-preview-mode'
 import { mergeWorkspaceCleanupUIState } from '../../../../shared/workspace-cleanup-ui-state'
 
 export function mergeWebUIState(
@@ -163,7 +164,10 @@ export function mergeSettings(
     terminalCustomThemes: normalizeTerminalCustomThemes(
       updates.terminalCustomThemes ?? base.terminalCustomThemes
     ),
-    uiLanguage: normalizeUiLanguage(updates.uiLanguage ?? base.uiLanguage)
+    uiLanguage: normalizeUiLanguage(updates.uiLanguage ?? base.uiLanguage),
+    nativeChatLinkPreviewMode: normalizeNativeChatLinkPreviewMode(
+      updates.nativeChatLinkPreviewMode ?? base.nativeChatLinkPreviewMode
+    )
   }
   return {
     ...merged,

@@ -127,6 +127,7 @@ export function buildDefaultSettings(args: {
     experimentalNativeChat: false,
     experimentalStructuredNativeChat: false,
     agentSessionHistoryOpenMode: 'terminal',
+    nativeChatLinkPreviewMode: 'hover',
     nativeChatSessionOptions: {},
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,

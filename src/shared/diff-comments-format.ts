@@ -18,6 +18,15 @@ export function formatDiffComment(c: DiffComment): string {
       : c.startLine !== undefined && c.startLine !== c.lineNumber
         ? `Lines: ${c.startLine}-${c.lineNumber}`
         : `Line: ${c.lineNumber}`
+  if (c.source === 'image' && c.imageRegion) {
+    const { x, y, width, height } = c.imageRegion
+    return [
+      `File: ${c.filePath}`,
+      'Source: image',
+      `Region (% of modified image): x=${x}, y=${y}, width=${width}, height=${height}`,
+      `User comment: "${escaped}"`
+    ].join('\n')
+  }
   if (!isMarkdownComment(c)) {
     return [`File: ${c.filePath}`, locationLabel, `User comment: "${escaped}"`].join('\n')
   }

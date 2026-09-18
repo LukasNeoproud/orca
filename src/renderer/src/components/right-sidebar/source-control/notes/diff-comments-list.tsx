@@ -7,8 +7,11 @@ import type { DiffComment } from '../../../../../../shared/diff-comment-types'
 import { useCopyFeedbackState } from './copy-feedback'
 
 function getLocalizedDiffCommentLineLabel(
-  comment: Pick<DiffComment, 'lineNumber' | 'startLine'>
+  comment: Pick<DiffComment, 'lineNumber' | 'startLine' | 'source'>
 ): string {
+  if (comment.source === 'image') {
+    return translate('image.review.imageArea', 'image area')
+  }
   // Why: lineNumber 0 is the file-level note sentinel (see formatDiffComment's "Scope: file"), not a real line.
   if (comment.lineNumber === 0) {
     return translate(
@@ -150,7 +153,12 @@ export function DiffCommentsInlineList({
                   <span className="shrink-0 rounded bg-muted/70 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
                     {getDiffCommentSource(c) === 'markdown'
                       ? translate('auto.components.right.sidebar.SourceControl.94c42b252e', 'MD')
-                      : translate('auto.components.right.sidebar.SourceControl.c56ba7fa06', 'Diff')}
+                      : getDiffCommentSource(c) === 'image'
+                        ? translate('image.review.imageBadge', 'Image')
+                        : translate(
+                            'auto.components.right.sidebar.SourceControl.c56ba7fa06',
+                            'Diff'
+                          )}
                   </span>
                   {c.sentAt ? (
                     <span className="shrink-0 rounded bg-muted/70 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
@@ -169,11 +177,15 @@ export function DiffCommentsInlineList({
                     'auto.components.right.sidebar.SourceControl.1623bf4e19',
                     'Copy note'
                   )}
-                  aria-label={translate(
-                    'auto.components.right.sidebar.SourceControl.c085946bda',
-                    'Copy note on line {{value0}}',
-                    { value0: c.lineNumber }
-                  )}
+                  aria-label={
+                    c.source === 'image'
+                      ? translate('image.review.copyNote', 'Copy note on image area')
+                      : translate(
+                          'auto.components.right.sidebar.SourceControl.c085946bda',
+                          'Copy note on line {{value0}}',
+                          { value0: c.lineNumber }
+                        )
+                  }
                 >
                   {copiedId === c.id ? <Check className="size-3" /> : <Copy className="size-3" />}
                 </button>

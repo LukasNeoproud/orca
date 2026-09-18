@@ -1,3 +1,5 @@
+import { translate } from '@/i18n/i18n'
+import { nativeChatFilePreviewActions } from './native-chat-file-preview-actions'
 import { useCallback, useState, type RefObject } from 'react'
 import {
   closeLinkActionRequest,
@@ -26,8 +28,9 @@ export type NativeChatLinkActions = {
 export function useNativeChatLinkActions(
   context: NativeChatFileLinkContext | null,
   rootRef: RefObject<HTMLElement | null>,
-  scope: { sessionId: string | null; isVisible: boolean }
+  scope: { sessionId: string | null; isVisible: boolean; insertReference?: (text: string) => void }
 ): NativeChatLinkActions {
+  const { insertReference } = scope
   const openFileLink = useNativeChatFileLinkClick(context)
   const [linkActionRequest, setLinkActionRequest] = useState<LinkActionRequest | null>(null)
   const scopeKey = JSON.stringify([
@@ -45,13 +48,41 @@ export function useNativeChatLinkActions(
   }, [])
 
   const onLinkClick = useCallback<CommentMarkdownLinkClickHandler>(
-    (event, href) => {
+    (event, href, options) => {
       if (!context) {
         return
       }
       const route = routeNativeChatHref(href)
       if (route.kind === 'file') {
-        openFileLink?.(event, href)
+        if (
+          event.shiftKey ||
+          (navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey) ||
+          event.button === 1
+        ) {
+          openFileLink?.(event, href)
+          return
+        }
+        const request = nativeChatFilePreviewActions(
+          event,
+          href,
+          context,
+          openFileLink,
+          insertReference
+        )
+        if (request) {
+          if (options?.preview) {
+            request.additionalActions = [
+              {
+                label: translate('auto.components.nativeChat.preview.preview', 'Preview'),
+                run: options.preview
+              },
+              ...(request.additionalActions ?? [])
+            ]
+          }
+          event.preventDefault()
+          event.stopPropagation()
+          setLinkActionRequest(request)
+        }
         return
       }
       // mailto: and other schemes keep the anchor's default handling.
@@ -73,10 +104,35 @@ export function useNativeChatLinkActions(
         actionsEnabled: state.settings?.terminalLinkActionPopoverEnabled !== false,
         restoreFocus: () =>
           (anchor.isConnected ? anchor : rootRef.current)?.focus({ preventScroll: true }),
-        request: setLinkActionRequest
+        request: (request) =>
+          setLinkActionRequest({
+            ...request,
+            additionalActions: [
+              ...(options?.preview
+                ? [
+                    {
+                      label: translate('auto.components.nativeChat.preview.preview', 'Preview'),
+                      run: options.preview
+                    }
+                  ]
+                : []),
+              ...(insertReference
+                ? [
+                    {
+                      label: translate(
+                        'auto.components.nativeChat.preview.addReference',
+                        'Add reference to prompt'
+                      ),
+                      run: () => insertReference?.(`${route.url} `)
+                    }
+                  ]
+                : []),
+              ...(request.additionalActions ?? [])
+            ]
+          })
       })
     },
-    [context, openFileLink, rootRef]
+    [context, openFileLink, rootRef, insertReference]
   )
 
   return {

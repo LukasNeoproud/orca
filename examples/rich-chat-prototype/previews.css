@@ -1,0 +1,258 @@
+.format-filter {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.raw {
+  padding: 16px;
+  font-size: 11px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 140px;
+}
+.data-tree {
+  padding: 18px;
+  font: 12px var(--font-mono);
+}
+.data-tree summary {
+  cursor: pointer;
+}
+.data-tree p {
+  margin: 12px 0 12px 18px;
+  color: var(--muted-foreground);
+}
+.data-tree p span {
+  color: var(--foreground);
+  float: right;
+}
+.data-table {
+  width: 100%;
+  font-size: 12px;
+  text-align: left;
+  border-collapse: collapse;
+}
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.data-table th:not(:first-child),
+.data-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.diagram-preview {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 28px 12px;
+  min-height: 150px;
+  font-size: 11px;
+}
+.diagram-preview span {
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.diagram-outcomes {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pdf-preview {
+  background: var(--muted);
+  padding: 20px;
+  max-height: 310px;
+  overflow: hidden;
+}
+.pdf-paper {
+  background: var(--background);
+  border: 1px solid var(--border);
+  max-width: 300px;
+  margin: auto;
+  padding: 25px;
+  min-height: 290px;
+}
+.pdf-paper small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.pdf-paper h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+.pdf-paper p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 10px 0 15px;
+}
+.pdf-paper strong {
+  font-size: 12px;
+}
+.pdf-paper hr {
+  margin: 18px 0;
+  border-color: var(--border);
+}
+.report-preview {
+  padding: 20px;
+}
+.report-preview > div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.report-preview strong {
+  font-size: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.report-preview span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.report-preview details {
+  margin-top: 18px;
+  font-size: 12px;
+}
+.report-preview summary {
+  cursor: pointer;
+  color: var(--destructive);
+}
+.report-preview pre {
+  font-size: 11px;
+  margin-top: 12px;
+  line-height: 1.7;
+}
+.chart-preview {
+  padding: 20px;
+  font-size: 12px;
+}
+.chart-preview > strong {
+  font-weight: 500;
+}
+.chart-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 18px 0;
+  font-size: 11px;
+}
+.chart-row > span {
+  width: 55px;
+  flex-shrink: 0;
+}
+.chart-row i {
+  background: var(--chart-1);
+  height: 9px;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+.chart-row small {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chart-preview > small {
+  font-size: 10px;
+}
+.html-preview {
+  width: 100%;
+  height: 270px;
+  border: none;
+}
+.unavailable {
+  min-height: 170px;
+  padding: 22px 16px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+}
+.unavailable > svg {
+  color: var(--muted-foreground);
+  width: 22px;
+  height: 22px;
+}
+.unavailable > strong {
+  font-weight: 500;
+}
+.unavailable > span,
+.unavailable > small {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  max-width: 260px;
+  line-height: 1.6;
+}
+.state-note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 0 20px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.compact-card {
+  max-width: 440px;
+}
+.compact-card .file-caption {
+  border: 0;
+}
+.tool-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 16px 0;
+  font-size: 12px;
+}
+.tool-block summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+.tool-block summary span {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.tool-block pre {
+  padding: 14px;
+  background: var(--editor-surface);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.inline-diff {
+  font: 11px/1.8 var(--font-mono);
+  padding: 8px 0;
+}
+.inline-diff > div {
+  padding: 1px 16px;
+}
+.added {
+  background: color-mix(in srgb, var(--git-decoration-added) 10%, transparent);
+  color: var(--git-decoration-added);
+}
+.removed {
+  background: color-mix(in srgb, var(--git-decoration-deleted) 10%, transparent);
+  color: var(--git-decoration-deleted);
+}

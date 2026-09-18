@@ -3,7 +3,14 @@
 // a diff so they can be handed back to an AI agent (pasted into a terminal
 // or used to bootstrap a new agent session). Stored on WorktreeMeta so the
 // existing persistence layer writes them to orca-data.json automatically.
-export type DiffCommentSource = 'diff' | 'markdown'
+export type DiffCommentSource = 'diff' | 'markdown' | 'image'
+export type ImageReviewRegion = {
+  /** Percentages of the modified image's natural bounds. */
+  x: number
+  y: number
+  width: number
+  height: number
+}
 export type DiffReviewScope = 'unstaged' | 'staged' | 'branch'
 
 export type MobileDiffReviewFileState = {
@@ -32,6 +39,8 @@ export type DiffComment = {
   source?: DiffCommentSource
   /** Exact text selected when creating a markdown note, when available. */
   selectedText?: string
+  /** Region on the modified image, independent of viewer zoom and layout. */
+  imageRegion?: ImageReviewRegion
   /** Inclusive range start. Must be <= lineNumber when present. */
   startLine?: number
   lineNumber: number

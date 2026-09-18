@@ -422,6 +422,33 @@ describe('ExperimentalPane', () => {
     root.unmount()
   })
 
+  it('defaults link previews to hover and persists paragraph placement', async () => {
+    const updateSettings = vi.fn()
+    const settings = { ...getDefaultSettings('/tmp'), experimentalNativeChat: true }
+    const { root, container } = await renderExperimentalPane({ updateSettings, settings })
+
+    expect(container.textContent).toContain('Link previews')
+    expect(
+      container
+        .querySelector('[data-testid="native-chat-link-preview-mode-select"]')
+        ?.getAttribute('data-value')
+    ).toBe('hover')
+
+    const paragraphOption = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[data-slot="select-item"]')
+    ).find((button) => button.getAttribute('data-value') === 'paragraph')
+    if (!paragraphOption) {
+      throw new Error('Paragraph link-preview option was not rendered')
+    }
+
+    await act(async () => {
+      paragraphOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(updateSettings).toHaveBeenCalledWith({ nativeChatLinkPreviewMode: 'paragraph' })
+    root.unmount()
+  })
+
   // Each control writes only its own preference.
   it.each([false, true])(
     'changing structured chat leaves the default view (%s) unchanged',

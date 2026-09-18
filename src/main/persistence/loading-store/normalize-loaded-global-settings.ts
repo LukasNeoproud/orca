@@ -7,6 +7,7 @@ import { normalizeAppIconId } from '../../../shared/app-icon'
 import { normalizeTerminalCustomThemes } from '../../../shared/terminal-custom-themes'
 import { projectSourceControlAiToLegacyCommitMessageAi } from '../../../shared/source-control-ai'
 import { normalizeUiLanguage } from '../../../shared/ui-language'
+import { normalizeNativeChatLinkPreviewMode } from '../../../shared/native-chat-link-preview-mode'
 import { stripRetiredGlobalSettings } from '../applying-settings/terminal-settings-migrations'
 import { readLegacySidekickFlag } from '../applying-settings/onboarding-normalization'
 import type { PersistedState } from '../../../shared/persisted-state-types'
@@ -114,6 +115,9 @@ export function normalizeLoadedGlobalSettings(
     // Why: missing means default-on; round-trips unchanged on non-mac since darwin consumers gate the effect.
     showMenuBarIcon: parsed.settings?.showMenuBarIcon !== false,
     uiLanguage: normalizeUiLanguage(parsed.settings?.uiLanguage),
+    nativeChatLinkPreviewMode: normalizeNativeChatLinkPreviewMode(
+      parsed.settings?.nativeChatLinkPreviewMode
+    ),
     defaultTaskSource: taskProviderSettings.defaultTaskSource,
     visibleTaskProviders: taskProviderSettings.visibleTaskProviders,
     visibleTaskProvidersDefaultedForJira: true,

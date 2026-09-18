@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React, { forwardRef, useImperativeHandle } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +8,12 @@ import type { AgentJournalRenderItem } from '../../../../shared/agent-session-jo
 import type * as Wire from '../../../../shared/agent-session-wire'
 import { decodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { NativeChatQuestionCardProps } from './NativeChatQuestionCard'
+
+const localCodexSessionProps = {
+  isVisible: true,
+  target: { kind: 'local' as const },
+  agent: 'codex' as const
+}
 
 const mocks = vi.hoisted(() => ({
   call: vi.fn(),
@@ -185,11 +192,9 @@ describe('NativeChatStructuredSession', () => {
   it('routes app-menu paste into the structured composer', () => {
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-paste"
         sessionId="session-paste"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -202,18 +207,30 @@ describe('NativeChatStructuredSession', () => {
 
   it('wires remote structured file links through the host-aware native chat opener', () => {
     render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-1"
-        sessionId="session-1"
-        target={{ kind: 'environment', environmentId: 'env-1' }}
-        agent="codex"
-      />
+      <TooltipProvider>
+        <NativeChatStructuredSession
+          isVisible
+          tabId="structured-tab-1"
+          sessionId="session-1"
+          target={{ kind: 'environment', environmentId: 'env-1' }}
+          agent="codex"
+        />
+      </TooltipProvider>
     )
 
     expect(mocks.messageListProps?.allowFileUriLinks).toBe(true)
-    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn() }
-    mocks.messageListProps?.onLinkClick?.(event, 'file:///repo/src/a.ts')
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      currentTarget: document.createElement('a'),
+      clientX: 0,
+      clientY: 0
+    }
+    act(() => {
+      mocks.messageListProps?.onLinkClick?.(event, 'file:///repo/src/a.ts')
+    })
+    expect(mocks.fileLinkClick).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Open file'))
     expect(mocks.fileLinkClick).toHaveBeenCalledWith(event, 'file:///repo/src/a.ts')
   })
 
@@ -417,11 +434,9 @@ describe('NativeChatStructuredSession', () => {
   it('routes a bare model command to the native option picker', async () => {
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-1"
         sessionId="session-1"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
     const dispatchCommand = mocks.composerProps?.structuredTransport?.dispatchCommand as
@@ -452,11 +467,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-1"
         sessionId="session-1"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -483,11 +496,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-wedge"
         sessionId="session-wedge"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -514,11 +525,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-probe-flag"
         sessionId="session-probe-flag"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -546,11 +555,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-parked"
         sessionId="session-parked"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -595,11 +602,9 @@ describe('NativeChatStructuredSession', () => {
 
     const makeView = (): React.ReactElement => (
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-churn"
         sessionId="session-churn"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
     const { rerender } = render(makeView())
@@ -682,11 +687,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-forced"
         sessionId="session-forced"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -720,11 +723,9 @@ describe('NativeChatStructuredSession', () => {
 
     render(
       <NativeChatStructuredSession
-        isVisible
+        {...localCodexSessionProps}
         tabId="structured-tab-pending"
         sessionId="session-pending"
-        target={{ kind: 'local' }}
-        agent="codex"
       />
     )
 
@@ -749,11 +750,9 @@ describe('NativeChatStructuredSession', () => {
     try {
       render(
         <NativeChatStructuredSession
-          isVisible
+          {...localCodexSessionProps}
           tabId="structured-tab-budget"
           sessionId="session-budget"
-          target={{ kind: 'local' }}
-          agent="codex"
         />
       )
 

@@ -10,6 +10,10 @@ import {
   resolveAgentSessionHistoryOpenMode,
   type AgentSessionHistoryOpenMode
 } from '../../../../shared/agent-session-history-open-mode'
+import {
+  resolveNativeChatLinkPreviewMode,
+  type NativeChatLinkPreviewMode
+} from '../../../../shared/native-chat-link-preview-mode'
 
 type NativeChatDefaultView = 'terminal-chat' | 'native-chat'
 
@@ -27,6 +31,7 @@ export function NativeChatExperimentalSetting({
   const defaultView: NativeChatDefaultView =
     settings.openAgentTabsInChatByDefault === true ? 'native-chat' : 'terminal-chat'
   const historyOpenMode = resolveAgentSessionHistoryOpenMode(settings)
+  const linkPreviewMode = resolveNativeChatLinkPreviewMode(settings)
 
   return (
     <SearchableSetting
@@ -118,6 +123,11 @@ export function NativeChatExperimentalSetting({
             </Select>
           </div>
 
+          <LinkPreviewModeSetting
+            linkPreviewMode={linkPreviewMode}
+            updateSettings={updateSettings}
+          />
+
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 shrink space-y-0.5">
               <Label>
@@ -161,6 +171,66 @@ export function NativeChatExperimentalSetting({
         />
       </div>
     </SearchableSetting>
+  )
+}
+
+function LinkPreviewModeSetting({
+  linkPreviewMode,
+  updateSettings
+}: {
+  linkPreviewMode: NativeChatLinkPreviewMode
+  updateSettings: (updates: Partial<GlobalSettings>) => void
+}): React.JSX.Element {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0 shrink space-y-0.5">
+        <Label>
+          {translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.linkPreviewTitle',
+            'Link previews'
+          )}
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.linkPreviewCopy',
+            'Show previews when a link is hovered or focused, or after each paragraph and list.'
+          )}
+        </p>
+      </div>
+      <Select
+        value={linkPreviewMode}
+        onValueChange={(value: NativeChatLinkPreviewMode) => {
+          updateSettings({ nativeChatLinkPreviewMode: value })
+        }}
+      >
+        <SelectTrigger
+          data-testid="native-chat-link-preview-mode-select"
+          data-value={linkPreviewMode}
+          aria-label={translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.linkPreviewLabel',
+            'Link preview display'
+          )}
+          className="w-36"
+          size="sm"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" side="bottom" sideOffset={4} avoidCollisions={false}>
+          <SelectItem value="hover">
+            {translate(
+              'auto.components.settings.ExperimentalPane.nativeChat.linkPreviewHover',
+              'On hover'
+            )}
+          </SelectItem>
+          <SelectItem value="paragraph">
+            {translate(
+              'auto.components.settings.ExperimentalPane.nativeChat.linkPreviewParagraph',
+              'After paragraph or list'
+            )}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

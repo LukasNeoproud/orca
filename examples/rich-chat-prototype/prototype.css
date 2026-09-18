@@ -1,0 +1,8 @@
+@import '../../src/renderer/src/assets/main.css';
+@import './shell.css';
+@import './previews.css';
+@import './review.css';
+@import './responsive.css';
+@import './inline-previews.css';
+@source './*.tsx';
+@source '../../src/renderer/src/components/ui';

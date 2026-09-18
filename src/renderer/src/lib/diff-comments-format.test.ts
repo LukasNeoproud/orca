@@ -16,6 +16,18 @@ function makeComment(overrides: Partial<DiffComment> = {}): DiffComment {
 }
 
 describe('formatDiffComment', () => {
+  it('includes modified image coordinates in the existing review prompt', () => {
+    expect(
+      formatDiffComment(
+        makeComment({
+          source: 'image',
+          lineNumber: 0,
+          imageRegion: { x: 12.5, y: 20, width: 30, height: 40 },
+          body: 'Move this button'
+        })
+      )
+    ).toContain('Region (% of modified image): x=12.5, y=20, width=30, height=40')
+  })
   it('emits the fixed three-line structure', () => {
     const out = formatDiffComment(makeComment())
     expect(out).toBe(

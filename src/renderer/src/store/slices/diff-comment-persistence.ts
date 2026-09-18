@@ -13,10 +13,14 @@ import {
   getRuntimeEnvironmentIdForFolderWorkspace
 } from '@/lib/folder-workspace-runtime-owner'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
+import { encodeImageReviewCommentForLegacyHost } from '../../../../shared/image-review-comment-wire'
 
 export function normalizeDiffComment(comment: DiffComment): DiffComment {
   const rawSource = (comment as { source?: unknown }).source
-  const source = rawSource === 'markdown' || rawSource === 'diff' ? rawSource : undefined
+  const source =
+    rawSource === 'markdown' || rawSource === 'diff' || rawSource === 'image'
+      ? rawSource
+      : undefined
   const rawStartLine = (comment as { startLine?: unknown }).startLine
   const startLine =
     Number.isInteger(rawStartLine) &&
@@ -76,7 +80,10 @@ async function persist(
             await callRuntimeRpc<{ folderWorkspace: FolderWorkspace | null }>(
               target,
               'folderWorkspace.update',
-              { folderWorkspaceId: scope.folderWorkspaceId, updates: { diffComments } },
+              {
+                folderWorkspaceId: scope.folderWorkspaceId,
+                updates: { diffComments: diffComments.map(encodeImageReviewCommentForLegacyHost) }
+              },
               { timeoutMs: 15_000 }
             )
           ).folderWorkspace

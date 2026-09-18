@@ -49,6 +49,18 @@ export function getNativeChatExperimentalSearchEntry(): SettingsSearchEntry {
       ...translateSearchKeyword(
         'auto.components.settings.experimental.search.nativeChat.agent',
         'agent'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.experimental.search.nativeChat.linkPreview',
+        'link preview'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.experimental.search.nativeChat.hover',
+        'hover'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.experimental.search.nativeChat.paragraph',
+        'paragraph'
       )
     ]
   }

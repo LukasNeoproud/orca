@@ -34,6 +34,7 @@ type DiffSectionBodyProps = {
   addLineCommentPlaceholder?: string
   addLineCommentLabel?: string
   isBranchMode: boolean
+  worktreeId?: string
   sideBySide: boolean
   isDark: boolean
   language: string
@@ -61,6 +62,7 @@ export function DiffSectionBody({
   addLineCommentPlaceholder,
   addLineCommentLabel,
   isBranchMode,
+  worktreeId,
   sideBySide,
   isDark,
   language,
@@ -148,6 +150,7 @@ export function DiffSectionBody({
             mimeType={section.diffResult.mimeType}
             sideBySide={sideBySide}
             layout={useIntrinsicImageHeight ? 'intrinsic' : 'fill'}
+            worktreeId={worktreeId}
           />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center">

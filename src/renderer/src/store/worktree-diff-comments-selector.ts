@@ -3,6 +3,7 @@ import type { AppState } from './types'
 import { getIndexedWorktreeById } from './worktree-repo-index'
 import { findFolderWorkspaceOwner } from '@/lib/folder-workspace-runtime-owner'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
+import { decodeImageReviewCommentsFromLegacyHost } from '../../../shared/image-review-comment-wire'
 
 const EMPTY_DIFF_COMMENTS = Object.freeze([]) as unknown as DiffComment[]
 
@@ -29,7 +30,8 @@ export function selectWorktreeDiffComments(
   }
   const scope = parseWorkspaceKey(worktreeId)
   if (scope?.type === 'folder') {
-    return findFolderWorkspaceOwner(state, scope.folderWorkspaceId)?.diffComments
+    const comments = findFolderWorkspaceOwner(state, scope.folderWorkspaceId)?.diffComments
+    return comments ? decodeImageReviewCommentsFromLegacyHost(comments) : undefined
   }
   // Why: mounted Monaco and diff surfaces rerun this selector on every store
   // write, so share the immutable-snapshot index instead of rescanning all worktrees.

@@ -100,11 +100,24 @@ describe('Store', () => {
     expect(settings.experimentalActivityDefaultedOffForAllUsers).toBe(true)
     expect(settings.experimentalTerminalAttention).toBe(false)
     expect(settings.experimentalNewWorktreeCardStyle).toBe(false)
+    expect(settings.nativeChatLinkPreviewMode).toBe('hover')
     expect(settings.floatingTerminalEnabled).toBe(true)
     expect(settings.floatingTerminalDefaultedForAllUsers).toBe(true)
     expect(settings.notifications.customSoundPath).toBeNull()
     expect(settings.notifications.customSoundVolume).toBe(100)
     expect(settings.notifications.suppressWhenFocused).toBe(true)
+  })
+
+  it('normalizes an invalid persisted native chat link-preview mode', async () => {
+    const persisted = getDefaultPersistedState(testState.dir)
+    writeDataFile({
+      ...persisted,
+      settings: { ...persisted.settings, nativeChatLinkPreviewMode: 'end-of-answer' as never }
+    })
+
+    const store = await createStore()
+
+    expect(store.getSettings().nativeChatLinkPreviewMode).toBe('hover')
   })
 
   it('repairs a persisted terminal line height outside xterm bounds', async () => {

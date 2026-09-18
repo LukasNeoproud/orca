@@ -173,10 +173,12 @@ describe('native chat transcript links', () => {
     )
   })
 
-  it('leaves file links on the existing native chat opener', async () => {
+  it('offers file actions before using the existing native chat opener', async () => {
     render(<Transcript markdown="Edit [the file](file:///repo/src/a.ts)." />)
 
     fireEvent.click(await screen.findByRole('link', { name: 'the file' }))
+    expect(mocks.openFileLink).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Open file'))
 
     expect(mocks.openFileLink).toHaveBeenCalledOnce()
     expect(screen.queryByText('System Browser')).toBeNull()

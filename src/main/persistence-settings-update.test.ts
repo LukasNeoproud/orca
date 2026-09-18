@@ -111,6 +111,18 @@ describe('Store', () => {
     ).toBe(false)
   })
 
+  it('normalizes native chat link-preview mode on settings writes', async () => {
+    const store = await createStore()
+
+    expect(
+      store.updateSettings({ nativeChatLinkPreviewMode: 'paragraph' }).nativeChatLinkPreviewMode
+    ).toBe('paragraph')
+    expect(
+      store.updateSettings({ nativeChatLinkPreviewMode: 'end-of-answer' as never })
+        .nativeChatLinkPreviewMode
+    ).toBe('hover')
+  })
+
   it('normalizes bot-author overrides on load and every settings write', async () => {
     writeDataFile({
       settings: {

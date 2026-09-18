@@ -320,10 +320,13 @@ export function NativeChatResolvedView({
     setPending(writePendingSendCache(pendingScope, []))
     interactiveSend.cancel()
   }, [interactiveSend, pendingScope])
+  const insertLinkReference = useCallback((text: string) => {
+    composerRef.current?.insertTypedText(text)
+  }, [])
   const { onLinkClick, linkActionRequest, closeLinkActions } = useNativeChatLinkActions(
     fileLinkContext,
     rootRef,
-    { sessionId, isVisible }
+    { sessionId, isVisible, insertReference: insertLinkReference }
   )
 
   // Chat-only font zoom via Cmd/Ctrl +/-/0, gated to the live conversation so

@@ -12,7 +12,8 @@ import { ExpandableMarkdownImage } from './MarkdownImageLightbox'
 
 export type CommentMarkdownLinkClickHandler = (
   event: React.MouseEvent<HTMLElement>,
-  href: string | undefined
+  href: string | undefined,
+  options?: { preview?: () => void }
 ) => void
 
 export function isTrustedCompactImageSrc(src: string | undefined): src is string {

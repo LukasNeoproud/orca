@@ -1,5 +1,5 @@
 import React from 'react'
-import Markdown, { defaultUrlTransform } from 'react-markdown'
+import Markdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
@@ -188,6 +188,8 @@ type CommentMarkdownProps = React.ComponentPropsWithoutRef<'div'> & {
   allowFileUriLinks?: boolean
   linkifyFilePaths?: boolean
   expandImages?: boolean
+  extraRehypePlugins?: MarkdownPlugins
+  componentOverrides?: Components
 }
 
 // Why forwardRef + rest props: Radix's HoverCardTrigger asChild merges a ref
@@ -204,6 +206,8 @@ const CommentMarkdown = React.memo(
       allowFileUriLinks = false,
       linkifyFilePaths = false,
       expandImages = false,
+      componentOverrides,
+      extraRehypePlugins,
       ...rest
     },
     ref
@@ -220,6 +224,14 @@ const CommentMarkdown = React.memo(
         ? createDocumentCommentMarkdownComponents(onLinkClick)
         : createCompactCommentMarkdownComponents(onLinkClick, expandImages)
     }, [expandImages, variant, onLinkClick])
+    const mergedComponents = React.useMemo(
+      () => ({ ...components, ...componentOverrides }),
+      [components, componentOverrides]
+    )
+    const activeRehypePlugins = React.useMemo(
+      () => (extraRehypePlugins ? [...rehypePlugins, ...extraRehypePlugins] : rehypePlugins),
+      [extraRehypePlugins]
+    )
     const activeRemarkPlugins = React.useMemo(() => {
       const plugins = linkifyFilePaths
         ? [...remarkPlugins, remarkNativeChatFileLinks]
@@ -242,8 +254,8 @@ const CommentMarkdown = React.memo(
       >
         <Markdown
           remarkPlugins={activeRemarkPlugins}
-          rehypePlugins={rehypePlugins}
-          components={components}
+          rehypePlugins={activeRehypePlugins}
+          components={mergedComponents}
           urlTransform={
             allowFileUriLinks ? commentMarkdownFileUriUrlTransform : commentMarkdownUrlTransform
           }
