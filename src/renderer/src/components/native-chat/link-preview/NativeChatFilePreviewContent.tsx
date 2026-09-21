@@ -73,12 +73,13 @@ export default function NativeChatFilePreviewContent({
 
   if (kind === 'code') {
     return (
-      <div className="h-full overflow-auto scrollbar-editor p-3">
+      <div className="h-full min-h-0 overflow-hidden p-3">
         <NativeChatHighlightedCode
           content={content}
           filePath={filePath}
           startLine={1}
           targetLine={line}
+          fillHeight
         />
       </div>
     )

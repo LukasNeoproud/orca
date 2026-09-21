@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import NativeChatFilePreviewContent from './NativeChatFilePreviewContent'
 import { useNativeChatFilePreview } from './useNativeChatFilePreview'
 import type { ChatPreviewTarget } from './native-chat-preview-groups'
+import { cn } from '@/lib/utils'
+import { nativeChatPreviewKind } from './native-chat-preview-kind'
 
 export function NativeChatLinkPreviewCard({
   target,
@@ -63,7 +65,7 @@ export function NativeChatLinkPreviewCard({
       ref={ref}
       className={
         embedded
-          ? 'min-w-0 text-sm not-italic'
+          ? 'flex min-h-0 min-w-0 flex-1 flex-col text-sm not-italic'
           : 'my-2 min-w-0 overflow-hidden rounded-md border border-border bg-muted/30 text-sm not-italic'
       }
     >
@@ -90,9 +92,15 @@ export function NativeChatLinkPreviewCard({
         className={
           target.kind === 'web'
             ? 'p-3'
-            : expanded
-              ? 'h-[min(32rem,55vh)] overflow-auto scrollbar-editor p-3'
-              : 'h-64 overflow-auto scrollbar-editor p-3'
+            : cn(
+                'min-h-0',
+                expanded ? 'h-[min(32rem,55vh)]' : 'h-64',
+                preview.status === 'ready' &&
+                  !needsExplicitRead &&
+                  nativeChatPreviewKind(target.path, preview.mimeType) === 'code'
+                  ? 'overflow-hidden'
+                  : 'overflow-auto scrollbar-editor p-3'
+              )
         }
       >
         {target.kind === 'web' ? (
@@ -160,7 +168,7 @@ export function NativeChatLinkPreviewCard({
         )}
       </div>
       {target.kind === 'file' && (
-        <div className="border-t border-border px-3 py-1 text-xs text-muted-foreground">
+        <div className="shrink-0 border-t border-border px-3 py-1 text-xs text-muted-foreground">
           {preview.changed
             ? translate(
                 'auto.components.nativeChat.preview.changed',

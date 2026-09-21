@@ -246,7 +246,7 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
             <X />
           </PreviewIconButton>
         </div>
-        <div className="min-h-0 overflow-auto scrollbar-editor">
+        <div className="flex min-h-0 overflow-hidden">
           <NativeChatLinkPreviewCard
             target={target}
             runtimeContext={preview.runtimeContext}

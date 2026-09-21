@@ -3,6 +3,7 @@ import { all, createLowlight } from 'lowlight'
 import type { Element, Root, RootContent, Text } from 'hast'
 import type { NativeChatHighlightedCodeProps } from './NativeChatHighlightedCode'
 import { previewCodeLanguage } from './native-chat-preview-kind'
+import { cn } from '@/lib/utils'
 
 const lowlight = createLowlight(all)
 
@@ -27,7 +28,8 @@ export default function NativeChatHighlightedCodeImpl({
   language,
   filePath,
   startLine,
-  targetLine
+  targetLine,
+  fillHeight = false
 }: NativeChatHighlightedCodeProps): React.JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null)
   const syntax = useMemo<Root | null>(() => {
@@ -59,7 +61,10 @@ export default function NativeChatHighlightedCodeImpl({
   return (
     <div
       ref={rootRef}
-      className="rich-markdown-code-block-wrapper my-0 max-h-64 min-w-0 overflow-auto scrollbar-editor"
+      className={cn(
+        'rich-markdown-code-block-wrapper my-0 min-w-0 overflow-auto scrollbar-editor',
+        fillHeight ? 'my-0! h-full min-h-0' : 'max-h-64'
+      )}
     >
       {startLine && startLine > 0 ? (
         <div className="flex font-mono text-xs leading-5">
