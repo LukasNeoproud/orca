@@ -1,6 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import { nativeChatFilePreviewActions } from './native-chat-file-preview-actions'
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useRef, useState, type RefObject } from 'react'
 import {
   closeLinkActionRequest,
   type LinkActionRequest
@@ -36,9 +36,6 @@ export function useNativeChatLinkActions(
   const { insertReference } = scope
   const openFileLink = useNativeChatFileLinkClick(context)
   const [linkActionRequest, setLinkActionRequest] = useState<LinkActionRequest | null>(null)
-  const activePreviewRef = useRef<{ owner: symbol; close: () => void; pinned: boolean } | null>(
-    null
-  )
   const scopeKey = JSON.stringify([
     context?.worktreeId,
     context?.runtimeEnvironmentId,
@@ -54,58 +51,20 @@ export function useNativeChatLinkActions(
   const closeLinkActions = useCallback((dismissed?: LinkActionRequest) => {
     setLinkActionRequest((current) => closeLinkActionRequest(current, dismissed))
   }, [])
-  const closeActivePreview = useCallback(() => {
-    const active = activePreviewRef.current
-    activePreviewRef.current = null
-    active?.close()
-  }, [])
-  const claimPreviewOwner = useCallback((owner: symbol, close: () => void, pinned: boolean) => {
-    const active = activePreviewRef.current
-    if (active?.owner === owner) {
-      activePreviewRef.current = { owner, close, pinned }
-      return true
-    }
-    if (active?.pinned && !pinned) {
-      return false
-    }
-    active?.close()
-    activePreviewRef.current = { owner, close, pinned }
-    return true
-  }, [])
-  const claimPreview = useCallback(
-    (owner: symbol, close: () => void, pinned: boolean) => {
-      if (
-        !scope.isVisible ||
-        !previewScopeRef.current.isVisible ||
-        previewScopeRef.current.scopeKey !== scopeKey
-      ) {
-        return false
+  const showPreview = useCallback(
+    (request: LinkActionRequest, explicit: boolean) => {
+      if (!previewScopeRef.current.isVisible || previewScopeRef.current.scopeKey !== scopeKey) {
+        return
       }
-      return claimPreviewOwner(owner, close, pinned)
+      setLinkActionRequest((current) => {
+        if (current && !explicit) {
+          return current
+        }
+        return { ...request, transient: false }
+      })
     },
-    [claimPreviewOwner, scope.isVisible, scopeKey]
+    [scopeKey]
   )
-  const releasePreview = useCallback((owner: symbol) => {
-    if (activePreviewRef.current?.owner === owner) {
-      activePreviewRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    const root = rootRef.current
-    if (!root) {
-      return
-    }
-    const closeOnScroll = (): void => {
-      closeActivePreview()
-      setLinkActionRequest(null)
-    }
-    root.addEventListener('scroll', closeOnScroll, true)
-    return () => root.removeEventListener('scroll', closeOnScroll, true)
-  }, [closeActivePreview, rootRef])
-  useEffect(() => {
-    closeActivePreview()
-  }, [closeActivePreview, scopeKey, scope.isVisible])
 
   const createPreviewRequest = useCallback(
     (anchor: HTMLElement, href: string): LinkActionRequest | null => {
@@ -155,6 +114,7 @@ export function useNativeChatLinkActions(
       if (!context) {
         return
       }
+      setLinkActionRequest(null)
       const route = routeNativeChatHref(href)
       if (route.kind === 'file') {
         if (
@@ -183,7 +143,6 @@ export function useNativeChatLinkActions(
           }
           event.preventDefault()
           event.stopPropagation()
-          closeActivePreview()
           setLinkActionRequest(request)
         }
         return
@@ -208,7 +167,6 @@ export function useNativeChatLinkActions(
         restoreFocus: () =>
           (anchor.isConnected ? anchor : rootRef.current)?.focus({ preventScroll: true }),
         request: (request) => {
-          closeActivePreview()
           setLinkActionRequest({
             ...request,
             preview: options?.preview,
@@ -230,12 +188,11 @@ export function useNativeChatLinkActions(
         }
       })
     },
-    [closeActivePreview, context, createPreviewRequest, openFileLink, rootRef, insertReference]
+    [context, createPreviewRequest, openFileLink, rootRef, insertReference]
   )
 
   onLinkClick.createPreviewRequest = createPreviewRequest
-  onLinkClick.claimPreview = claimPreview
-  onLinkClick.releasePreview = releasePreview
+  onLinkClick.showPreview = showPreview
 
   return {
     onLinkClick: context ? onLinkClick : undefined,

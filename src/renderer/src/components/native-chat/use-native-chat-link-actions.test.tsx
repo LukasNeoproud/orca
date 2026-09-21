@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import type { ReactNode } from 'react'
 import { useRef } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
+import { NativeChatPreviewLink } from './link-preview/NativeChatPreviewLink'
 import { useNativeChatLinkActions } from './use-native-chat-link-actions'
 import type * as TerminalFileOpenRouting from '@/components/terminal-pane/terminal-file-open-routing'
 
@@ -55,15 +56,21 @@ vi.mock('@/components/ui/popover', () => ({
   PopoverContent: ({ children }: { children: ReactNode }) => <div>{children}</div>
 }))
 
+vi.mock('./link-preview/NativeChatLinkPreviewCard', () => ({
+  NativeChatLinkPreviewCard: () => <div data-testid="preview-content" />
+}))
+
 const context = { worktreeId: 'wt-1', worktreePath: '/repo', runtimeEnvironmentId: null }
 
 function Transcript({
   markdown,
   sessionId = 'session-1',
   isVisible = true,
-  linkContext = context
+  linkContext = context,
+  preview = false
 }: {
   markdown: string
+  preview?: boolean
   sessionId?: string
   isVisible?: boolean
   linkContext?: typeof context | null
@@ -76,12 +83,20 @@ function Transcript({
   )
   return (
     <div ref={rootRef}>
-      <CommentMarkdown
-        content={markdown}
-        variant="document"
-        onLinkClick={onLinkClick}
-        allowFileUriLinks
-      />
+      {preview ? (
+        markdown ? (
+          <NativeChatPreviewLink href="https://example.com" hover onLinkClick={onLinkClick}>
+            {markdown}
+          </NativeChatPreviewLink>
+        ) : null
+      ) : (
+        <CommentMarkdown
+          content={markdown}
+          variant="document"
+          onLinkClick={onLinkClick}
+          allowFileUriLinks
+        />
+      )}
       <LinkActionPopover request={linkActionRequest} onClose={closeLinkActions} />
     </div>
   )
@@ -90,10 +105,31 @@ function Transcript({
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.useRealTimers()
   mocks.settings = { openLinksInApp: true, terminalLinkActionPopoverEnabled: true }
 })
 
 describe('native chat transcript links', () => {
+  it('keeps a hover preview through new messages, scrolling and source removal until closed', () => {
+    vi.useFakeTimers()
+    const { rerender, container } = render(<Transcript markdown="source" preview />)
+    const link = screen.getByRole('link', { name: 'source' })
+    fireEvent.pointerEnter(link)
+    act(() => vi.advanceTimersByTime(250))
+    expect(screen.getByTestId('preview-content')).toBeTruthy()
+    fireEvent.pointerLeave(link)
+    act(() => vi.advanceTimersByTime(1000))
+    rerender(<Transcript markdown="new agent message" preview linkContext={{ ...context }} />)
+    fireEvent.scroll(container.firstElementChild!)
+    expect(screen.getByTestId('preview-content')).toBeTruthy()
+    rerender(<Transcript markdown="" preview />)
+    expect(screen.getByTestId('preview-content')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }))
+    expect(screen.queryByTestId('preview-content')).toBeNull()
+    act(() => vi.advanceTimersByTime(1000))
+    expect(screen.queryByTestId('preview-content')).toBeNull()
+  })
+
   it.each(['hidden', 'session', 'workspace', 'no-context'] as const)(
     'dismisses a request when the transcript is %s',
     async (change) => {

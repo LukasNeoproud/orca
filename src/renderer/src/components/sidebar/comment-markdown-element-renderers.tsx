@@ -18,8 +18,7 @@ export type CommentMarkdownLinkClickHandler = {
     options?: { preview?: LinkActionRequest['preview'] }
   ): void
   createPreviewRequest?: (anchor: HTMLElement, href: string) => LinkActionRequest | null
-  claimPreview?: (owner: symbol, close: () => void, pinned: boolean) => boolean
-  releasePreview?: (owner: symbol) => void
+  showPreview?: (request: LinkActionRequest, explicit: boolean) => void
 }
 
 export function isTrustedCompactImageSrc(src: string | undefined): src is string {

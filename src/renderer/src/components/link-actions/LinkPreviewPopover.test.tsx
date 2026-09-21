@@ -46,6 +46,27 @@ function request(): LinkActionRequest {
 }
 
 describe('unified link preview', () => {
+  it('ignores focus changes but dismisses on an outside pointer press', async () => {
+    const current = { ...request(), transient: false }
+    const close = vi.fn()
+    render(
+      <TooltipProvider>
+        <button>Composer</button>
+        <LinkActionPopover request={current} onClose={close} />
+      </TooltipProvider>
+    )
+    await screen.findByRole('button', { name: /Open file/ })
+    const composer = screen.getByRole('button', { name: 'Composer' })
+    composer.focus()
+    fireEvent.focusIn(composer)
+    expect(close).not.toHaveBeenCalled()
+    // Radix installs its document pointer listener after the opening event.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.pointerDown(composer, { button: 0 })
+    fireEvent.click(composer)
+    expect(close).toHaveBeenCalledWith(current)
+  })
+
   it('focuses the primary action when first opened from the keyboard', async () => {
     render(
       <TooltipProvider>

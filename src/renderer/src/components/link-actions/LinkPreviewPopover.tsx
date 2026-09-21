@@ -88,11 +88,11 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
     () => ({
       current: {
         getBoundingClientRect: () =>
-          request.anchorElement?.getBoundingClientRect() ??
+          (request.transient ? request.anchorElement?.getBoundingClientRect() : undefined) ??
           new DOMRect(request.anchorX, request.anchorY, 0, 0)
       }
     }),
-    [request.anchorElement, request.anchorX, request.anchorY]
+    [request.anchorElement, request.anchorX, request.anchorY, request.transient]
   )
   useEffect(() => {
     if (request.focusOnOpen) {
@@ -185,6 +185,7 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
           event.preventDefault()
           close(!request.transient || contentRef.current?.contains(document.activeElement))
         }}
+        onFocusOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => {
           if (request.anchorElement?.contains(event.target as Node)) {
             event.preventDefault()

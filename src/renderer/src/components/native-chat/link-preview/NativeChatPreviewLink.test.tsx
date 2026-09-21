@@ -7,34 +7,6 @@ import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/Comme
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import { NativeChatPreviewLink } from './NativeChatPreviewLink'
 
-vi.mock('@/components/link-actions/LinkActionPopover', () => ({
-  LinkActionPopover: ({
-    request,
-    onPointerEnter,
-    onPointerLeave,
-    onPin
-  }: {
-    request: LinkActionRequest | null
-    onPointerEnter?: () => void
-    onPointerLeave?: () => void
-    onPin?: (pinned: boolean) => void
-  }) =>
-    request ? (
-      <div
-        data-testid="preview-popover"
-        data-transient={String(request.transient)}
-        data-focus-on-open={String(request.focusOnOpen)}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        {request.preview?.target.path}
-        <button type="button" onClick={() => onPin?.(request.transient === true)}>
-          pin
-        </button>
-      </div>
-    ) : null
-}))
-
 const context: RuntimeFileOperationArgs = {
   settings: null,
   worktreeId: 'worktree-1',
@@ -57,25 +29,8 @@ function requestFor(anchor: HTMLElement, pinOnClick = true): LinkActionRequest {
 
 function linkHandler(pinOnClick = true): CommentMarkdownLinkClickHandler {
   const handler = vi.fn() as unknown as CommentMarkdownLinkClickHandler
-  let active: { owner: symbol; close: () => void; pinned: boolean } | null = null
   handler.createPreviewRequest = vi.fn((anchor) => requestFor(anchor, pinOnClick))
-  handler.claimPreview = (owner, close, pinned) => {
-    if (active?.owner === owner) {
-      active = { owner, close, pinned }
-      return true
-    }
-    if (active?.pinned && !pinned) {
-      return false
-    }
-    active?.close()
-    active = { owner, close, pinned }
-    return true
-  }
-  handler.releasePreview = (owner) => {
-    if (active?.owner === owner) {
-      active = null
-    }
-  }
+  handler.showPreview = vi.fn()
   return handler
 }
 
@@ -108,7 +63,7 @@ afterEach(() => {
 })
 
 describe('native chat preview links', () => {
-  it('opens after 250ms and crosses the pointer gap during the 150ms close delay', () => {
+  it('forwards a hover request after 250ms and only cancels it while pending', () => {
     vi.useFakeTimers()
     const handler = linkHandler()
     render(<Preview onLinkClick={handler} />)
@@ -116,117 +71,90 @@ describe('native chat preview links', () => {
 
     fireEvent.pointerEnter(link)
     act(() => vi.advanceTimersByTime(249))
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
-    act(() => vi.advanceTimersByTime(1))
-    const popover = screen.getByTestId('preview-popover')
-    expect(popover.dataset.transient).toBe('true')
+    expect(handler.showPreview).not.toHaveBeenCalled()
 
     fireEvent.pointerLeave(link)
-    act(() => vi.advanceTimersByTime(100))
-    fireEvent.pointerEnter(popover)
-    act(() => vi.advanceTimersByTime(100))
-    expect(screen.getByTestId('preview-popover')).toBeTruthy()
+    act(() => vi.advanceTimersByTime(1_000))
+    expect(handler.showPreview).not.toHaveBeenCalled()
 
-    fireEvent.pointerLeave(popover)
-    act(() => vi.advanceTimersByTime(150))
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
+    fireEvent.pointerEnter(link)
+    act(() => vi.advanceTimersByTime(250))
+    expect(handler.showPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchorElement: link,
+        destination: '/repo/worktree/src/main.ts',
+        focusOnOpen: false,
+        transient: false,
+        preview: expect.objectContaining({
+          target: expect.objectContaining({ path: '/repo/worktree/src/main.ts', line: 12 })
+        })
+      }),
+      false
+    )
+
+    fireEvent.pointerLeave(link)
+    act(() => vi.advanceTimersByTime(1_000))
+    expect(handler.showPreview).toHaveBeenCalledOnce()
   })
 
-  it('pins the mounted hover request on click without rebuilding it', () => {
+  it('delegates a click as an explicit preview request after a hover preview', () => {
     vi.useFakeTimers()
     const handler = linkHandler()
     render(<Preview onLinkClick={handler} />)
     const link = screen.getByRole('link', { name: 'main' })
+
     fireEvent.pointerEnter(link)
     act(() => vi.advanceTimersByTime(250))
-
     expect(fireEvent.click(link, { detail: 1 })).toBe(false)
 
-    expect(screen.getByTestId('preview-popover').dataset.transient).toBe('false')
-    expect(handler.createPreviewRequest).toHaveBeenCalledOnce()
+    expect(handler.createPreviewRequest).toHaveBeenCalledTimes(2)
+    expect(handler.showPreview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ focusOnOpen: false, transient: false }),
+      true
+    )
     expect(handler).not.toHaveBeenCalled()
   })
 
-  it('returns an unpinned card to transient close behavior without removing it immediately', () => {
-    vi.useFakeTimers()
+  it('requests focus when keyboard activation opens a preview', () => {
     const handler = linkHandler()
     render(<Preview onLinkClick={handler} />)
     const link = screen.getByRole('link', { name: 'main' })
-    fireEvent.pointerEnter(link)
-    act(() => vi.advanceTimersByTime(250))
-    fireEvent.click(link, { detail: 1 })
 
-    fireEvent.click(screen.getByRole('button', { name: 'pin' }))
+    expect(fireEvent.click(link, { detail: 0 })).toBe(false)
 
-    const popover = screen.getByTestId('preview-popover')
-    expect(popover.dataset.transient).toBe('true')
-    fireEvent.pointerLeave(popover)
-    act(() => vi.advanceTimersByTime(150))
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
-  })
-
-  it('keeps a pinned preview through another hover and replaces it on explicit click', () => {
-    vi.useFakeTimers()
-    const handler = linkHandler()
-    render(
-      <>
-        <Preview onLinkClick={handler}>first</Preview>
-        <Preview onLinkClick={handler} href="docs/guide.md">
-          second
-        </Preview>
-      </>
+    expect(handler.showPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ focusOnOpen: true, transient: false }),
+      true
     )
-    const first = screen.getByRole('link', { name: 'first' })
-    const second = screen.getByRole('link', { name: 'second' })
-    fireEvent.pointerEnter(first)
-    act(() => vi.advanceTimersByTime(250))
-    fireEvent.click(first, { detail: 1 })
-    fireEvent.pointerEnter(second)
-    act(() => vi.advanceTimersByTime(250))
-
-    expect(screen.getAllByTestId('preview-popover')).toHaveLength(1)
-    expect(screen.getByTestId('preview-popover').textContent).toContain('src/main.ts')
-
-    fireEvent.click(second, { detail: 1 })
-
-    expect(screen.getAllByTestId('preview-popover')).toHaveLength(1)
-    expect(screen.getByTestId('preview-popover').textContent).toContain('docs/guide.md')
   })
 
-  it('focuses actions when keyboard activation pins the focused preview', () => {
+  it.each([{ metaKey: true }, { ctrlKey: true }, { altKey: true }, { shiftKey: true }])(
+    'keeps modifier clicks on the existing file opener: %o',
+    (modifiers) => {
+      const handler = linkHandler()
+      render(<Preview onLinkClick={handler} />)
+
+      expect(fireEvent.click(screen.getByRole('link', { name: 'main' }), modifiers)).toBe(false)
+
+      expect(handler).toHaveBeenCalledOnce()
+      expect(handler.createPreviewRequest).not.toHaveBeenCalled()
+      expect(handler.showPreview).not.toHaveBeenCalled()
+    }
+  )
+
+  it('keeps hover previews available but delegates explicit clicks when destination actions are disabled', () => {
     vi.useFakeTimers()
-    const handler = linkHandler()
-    render(<Preview onLinkClick={handler} />)
-    const link = screen.getByRole('link', { name: 'main' })
-    fireEvent.focus(link)
-    act(() => vi.advanceTimersByTime(250))
-
-    fireEvent.click(link, { detail: 0 })
-
-    expect(screen.getByTestId('preview-popover').dataset.focusOnOpen).toBe('true')
-  })
-
-  it('keeps direct modifier clicks on the existing file opener', () => {
-    const handler = linkHandler()
-    render(<Preview onLinkClick={handler} />)
-    const link = screen.getByRole('link', { name: 'main' })
-
-    expect(fireEvent.click(link, { metaKey: true })).toBe(false)
-
-    expect(handler).toHaveBeenCalledOnce()
-    expect(handler.createPreviewRequest).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
-  })
-
-  it('delegates plain clicks when destination actions are disabled', () => {
     const handler = linkHandler(false)
     render(<Preview onLinkClick={handler} />)
     const link = screen.getByRole('link', { name: 'main' })
 
-    expect(fireEvent.click(link)).toBe(false)
+    fireEvent.pointerEnter(link)
+    act(() => vi.advanceTimersByTime(250))
+    expect(handler.showPreview).toHaveBeenCalledWith(expect.anything(), false)
 
+    expect(fireEvent.click(link)).toBe(false)
     expect(handler).toHaveBeenCalledOnce()
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
+    expect(handler.showPreview).toHaveBeenCalledOnce()
   })
 
   it('delegates plain clicks when no preview request can be built', () => {
@@ -237,7 +165,7 @@ describe('native chat preview links', () => {
     fireEvent.click(screen.getByRole('link', { name: 'main' }))
 
     expect(handler).toHaveBeenCalledOnce()
-    expect(screen.queryByTestId('preview-popover')).toBeNull()
+    expect(handler.showPreview).not.toHaveBeenCalled()
   })
 
   it('adds preview context to the legacy click request when hover is off', () => {
@@ -257,6 +185,7 @@ describe('native chat preview links', () => {
       })
     )
     expect(handler.createPreviewRequest).not.toHaveBeenCalled()
+    expect(handler.showPreview).not.toHaveBeenCalled()
   })
 
   it('prevents file URI navigation when runtime context is missing', () => {

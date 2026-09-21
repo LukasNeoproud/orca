@@ -81,9 +81,10 @@ describe('native chat rich markdown previews', () => {
     ])
   })
 
-  it('keeps previews in hover mode until link focus', async () => {
+  it('delegates keyboard-activated hover previews to the transcript', async () => {
     mocks.mode = 'hover'
     const onLinkClick = vi.fn() as unknown as CommentMarkdownLinkClickHandler
+    onLinkClick.showPreview = vi.fn()
     onLinkClick.createPreviewRequest = (anchor) => ({
       anchorX: 0,
       anchorY: 0,
@@ -103,8 +104,11 @@ describe('native chat rich markdown previews', () => {
       </TooltipProvider>
     )
     expect(screen.queryByTestId('preview-card')).toBeNull()
-    fireEvent.focus(screen.getByRole('link', { name: 'main' }))
-    await waitFor(() => expect(screen.getByTestId('preview-card')).toBeTruthy())
+    fireEvent.click(screen.getByRole('link', { name: 'main' }), { detail: 0 })
+    expect(onLinkClick.showPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ transient: false, focusOnOpen: true }),
+      true
+    )
   })
 
   it('does not create previews for paths inside a fenced code block', () => {
