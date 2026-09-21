@@ -30,7 +30,9 @@ export default function ImageViewerPopup({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-1/2 left-1/2 flex h-[80vh] w-[70vw] max-w-[70vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden border border-border/60 bg-background p-0 shadow-2xl sm:max-w-[70vw]"
+        // Keep both modal layers above the link preview popover (z-60).
+        overlayClassName="z-[70]"
+        className="top-1/2 left-1/2 z-[70] flex h-[80vh] w-[70vw] max-w-[70vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden border border-border/60 bg-background p-0 shadow-2xl sm:max-w-[70vw]"
       >
         <DialogTitle className="sr-only">{filename}</DialogTitle>
         <DialogDescription className="sr-only">
