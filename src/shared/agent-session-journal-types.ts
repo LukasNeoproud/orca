@@ -10,6 +10,7 @@
 import type { AgentType } from './agent-status-types'
 import type { NativeChatToolMetadata } from './native-chat-tool-identity'
 import type { NativeChatBlock, NativeChatRole } from './native-chat-types'
+import type { NativeChatGeneration } from './native-chat-generation'
 
 export { type AgentType }
 
@@ -78,6 +79,7 @@ export type AgentJournalMessageItem = {
   kind: 'message'
   role: NativeChatRole
   blocks: NativeChatBlock[]
+  generation?: NativeChatGeneration
 }
 
 export type AgentJournalToolCallState = 'running' | 'completed' | 'failed'

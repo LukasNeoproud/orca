@@ -1,6 +1,7 @@
 import type { AgentSessionDeltaCoalescerDeps } from '../native-chat/agent-session-wire/agent-session-delta-coalescer'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import type { CodexStructuredSessionEvent } from './codex-structured-session-adapter'
+import type { CodexTurnGenerationMetadata } from './codex-structured-generation-metrics'
 
 export type CodexJournalTranslatorDeps = {
   sink: StructuredAgentSessionEventSink
@@ -9,6 +10,7 @@ export type CodexJournalTranslatorDeps = {
   coalesceMs?: number
   maxRetainedBytes?: number
   schedule?: AgentSessionDeltaCoalescerDeps['schedule']
+  generationMetadata?: () => CodexTurnGenerationMetadata
 }
 
 export type CodexJournalTranslator = {

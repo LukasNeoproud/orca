@@ -8,6 +8,7 @@
 
 import type { AgentType } from './agent-status-types'
 import type { NativeChatToolMetadata } from './native-chat-tool-identity'
+import type { NativeChatGeneration } from './native-chat-generation'
 
 export type { AgentType }
 
@@ -154,6 +155,7 @@ export type NativeChatMessage = {
   /** Optional explicit turn key. When present, two messages with the same
    *  `turnId` are treated as the same turn for dedup regardless of `id`. */
   turnId?: string
+  generation?: NativeChatGeneration
 }
 
 export const NATIVE_CHAT_TURN_LIFECYCLE_STATES = ['working', 'completed', 'interrupted'] as const

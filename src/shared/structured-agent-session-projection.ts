@@ -132,6 +132,9 @@ export function projectStructuredItemsToNativeChat(
             id: item.itemId,
             role: projected.role,
             blocks: projected.blocks,
+            ...(item.body.kind === 'message' && item.body.generation
+              ? { generation: item.body.generation }
+              : {}),
             timestamp: item.observedAt,
             source: 'transcript'
           }

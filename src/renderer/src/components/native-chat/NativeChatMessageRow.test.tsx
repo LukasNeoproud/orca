@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import { MessageRow } from './NativeChatMessageRow'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 afterEach(cleanup)
 
@@ -24,6 +25,33 @@ function renderMessage(role: NativeChatMessage['role'], timestamp: number | null
 }
 
 describe('MessageRow control visibility', () => {
+  it('shows settled generation metadata next to the assistant response', () => {
+    render(
+      <TooltipProvider>
+        <MessageRow
+          message={{
+            id: 'response',
+            role: 'assistant',
+            timestamp: 0,
+            source: 'transcript',
+            blocks: [{ type: 'text', text: 'Measured response' }],
+            generation: {
+              model: 'turn-model',
+              serviceTier: 'priority',
+              method: 'stream-estimate',
+              outputTokens: 200,
+              generationDurationMs: 2_000
+            }
+          }}
+          expandSignal={false}
+          onScrollMessageToTop={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    expect(screen.getByText('turn-model · Fast mode · ≈ 100 tok/s')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Copy message' })).toBeInTheDocument()
+  })
+
   it('appends time to the existing agent controls and inherits their reveal', () => {
     renderMessage('assistant')
     const copy = screen.getByRole('button', { name: 'Copy message' })

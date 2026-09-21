@@ -11,8 +11,21 @@ import {
   parseJsonObject,
   timestampMs
 } from '../ai-vault/session-scanner-values'
+import {
+  createCodexTranscriptLineDecoder as createGenerationDecoder,
+  type CodexTranscriptDecodeDirection,
+  type CodexTranscriptLineDecoder
+} from './transcript-codex-generation'
 import { claudeContentBlocks, toolResultOutput } from './transcript-record-blocks'
 import { CODEX_EVENT_TURN_ABORTED } from './transcript-turn-markers'
+
+export type { CodexTranscriptDecodeDirection, CodexTranscriptLineDecoder }
+
+export function createCodexTranscriptLineDecoder(
+  direction: CodexTranscriptDecodeDirection = 'forward'
+): CodexTranscriptLineDecoder {
+  return createGenerationDecoder(decodeCodexTranscriptLine, direction)
+}
 
 export function decodeCodexTranscriptLine(
   line: string,

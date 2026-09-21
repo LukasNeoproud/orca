@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
-import { startCodexTurn, type CodexTurnHost } from './codex-structured-turn-start'
+import {
+  dispatchCodexTurn,
+  startCodexTurn,
+  type CodexTurnHost
+} from './codex-structured-turn-start'
 import { restoredCodexSessionOptions } from './codex-structured-session-options'
 
 const body: AgentJournalMessageItem = {
@@ -20,6 +24,25 @@ function host(options: Record<string, string> = {}): CodexTurnHost {
 }
 
 describe('Codex next-turn settings', () => {
+  it('freezes generation settings before the request can observe a later option change', async () => {
+    const session = host({ model: 'response-model', serviceTier: 'priority' })
+    session.connection.request = vi.fn(async () => {
+      session.options.set('model', 'next-model')
+      session.options.set('serviceTier', 'default')
+      return { turn: { id: 'turn-1' } }
+    })
+    await dispatchCodexTurn(session, { clientMessageId: 'message-1', body }, undefined)
+    expect(session.pendingTurnGenerationMetadata).toEqual({
+      model: 'response-model',
+      serviceTier: 'priority'
+    })
+    expect(session.connection.request).toHaveBeenCalledWith(
+      'turn/start',
+      expect.objectContaining({ model: 'response-model', serviceTier: 'priority' }),
+      { timeoutMs: undefined }
+    )
+  })
+
   it('leaves provider defaults untouched before any selection', async () => {
     const session = host()
     await startCodexTurn(session, { clientMessageId: 'message-1', body })

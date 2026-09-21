@@ -26,12 +26,16 @@ export function createIncrementalTranscriptState(): IncrementalTranscriptState {
   }
 }
 
-export function resetIncrementalTranscriptState(state: IncrementalTranscriptState): void {
+export function resetIncrementalTranscriptState(
+  state: IncrementalTranscriptState,
+  decode?: NativeChatLineDecoder
+): void {
   state.offset = 0
   state.pendingChunks.length = 0
   state.pendingStart = 0
   state.pendingBytes = 0
   state.droppingOversizedRecord = false
+  decode?.reset?.()
 }
 
 export async function readIncrementalTranscriptMessages(

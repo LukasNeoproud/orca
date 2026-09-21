@@ -7,8 +7,8 @@ import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-statu
 import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from './session-file-resolver'
 import {
+  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
-  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
@@ -37,7 +37,13 @@ import {
 
 export const MAX_NATIVE_CHAT_TRANSCRIPT_RECORD_BYTES = 2 * 1024 * 1024
 
-export type NativeChatLineDecoder = (line: string, fallbackId: string) => NativeChatMessage | null
+export type NativeChatLineDecoder = ((
+  line: string,
+  fallbackId: string
+) => NativeChatMessage | null) & {
+  reset?: () => void
+  reverse?: () => NativeChatLineDecoder
+}
 
 export function nativeChatLineDecoderForAgent(agent: AgentType): NativeChatLineDecoder | null {
   const transcriptAgent = resolveNativeChatTranscriptAgent(agent)
@@ -45,7 +51,7 @@ export function nativeChatLineDecoderForAgent(agent: AgentType): NativeChatLineD
     return decodeClaudeTranscriptLine
   }
   if (transcriptAgent === 'codex') {
-    return decodeCodexTranscriptLine
+    return createCodexTranscriptLineDecoder()
   }
   if (transcriptAgent === 'grok') {
     return decodeGrokTranscriptLine
@@ -75,6 +81,7 @@ export async function readNativeChatTranscriptTailFile(
   malformedRecordCount?: number
   oversizedRecordCount?: number
 }> {
+  const lineDecode = decode.reverse?.() ?? decode
   signal?.throwIfAborted()
   const end = Math.min(
     (await wslGatedStat(filePath, 'exact', signal)).size,
@@ -220,7 +227,7 @@ export async function readNativeChatTranscriptTailFile(
     // records so reconnect snapshots can replay completion without guessing
     // from the last visible assistant message.
     lifecycle ??= decodeLifecycle?.(line, fallbackId) ?? undefined
-    const message = decode(line, fallbackId)
+    const message = lineDecode(line, fallbackId)
     if (message) {
       messages.push({ message, offset: lineOffset })
     }
@@ -247,12 +254,14 @@ export async function readNativeChatTranscriptTail(
     }
   | { error: string; notFound?: true }
 > {
-  const decode = nativeChatLineDecoderForAgent(args.agent)
+  const transcriptAgent = resolveNativeChatTranscriptAgent(args.agent)
+  const decode =
+    transcriptAgent === 'codex'
+      ? createCodexTranscriptLineDecoder('reverse')
+      : nativeChatLineDecoderForAgent(args.agent)
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
   const usage =
-    resolveNativeChatTranscriptAgent(args.agent) === 'codex'
-      ? new CodexTranscriptUsageStatusAccumulator()
-      : undefined
+    transcriptAgent === 'codex' ? new CodexTranscriptUsageStatusAccumulator() : undefined
   if (!decode) {
     return { error: 'Transcript unavailable' }
   }

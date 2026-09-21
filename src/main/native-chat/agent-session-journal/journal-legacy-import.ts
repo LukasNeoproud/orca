@@ -22,8 +22,8 @@ import type { NativeChatBlock, NativeChatMessage } from '../../../shared/native-
 import { resolveNativeChatTranscriptAgent } from '../../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from '../session-file-resolver'
 import {
+  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
-  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from '../transcript-line-decoders'
@@ -168,7 +168,6 @@ export async function prepareLegacyTranscriptImport(input: {
 
 const TRANSCRIPT_DECODERS = {
   claude: decodeClaudeTranscriptLine,
-  codex: decodeCodexTranscriptLine,
   grok: decodeGrokTranscriptLine,
   omp: decodeOmpTranscriptLine
 } as const
@@ -177,7 +176,7 @@ const TRANSCRIPT_DECODERS = {
  *  index-aligned with `messages`. */
 async function decodeWithIdentities(input: {
   filePath: string
-  transcriptAgent: keyof typeof TRANSCRIPT_DECODERS
+  transcriptAgent: keyof typeof TRANSCRIPT_DECODERS | 'codex'
   agent: AgentType
   sessionId: string
   decodedMessageIdentities?: true
@@ -187,7 +186,10 @@ async function decodeWithIdentities(input: {
     agent: input.agent,
     sessionId: input.sessionId
   })
-  const decode = TRANSCRIPT_DECODERS[input.transcriptAgent]
+  const decode =
+    input.transcriptAgent === 'codex'
+      ? createCodexTranscriptLineDecoder()
+      : TRANSCRIPT_DECODERS[input.transcriptAgent]
   const identities: AgentJournalItemIdentity[] = []
   let lineIndex = 0
 
@@ -252,7 +254,8 @@ function legacyItemBody(
   return {
     kind: 'message',
     role: message.role,
-    blocks: message.blocks.map((block) => boundBlock(block, limits))
+    blocks: message.blocks.map((block) => boundBlock(block, limits)),
+    ...(message.generation ? { generation: message.generation } : {})
   }
 }
 

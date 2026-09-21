@@ -297,6 +297,44 @@ describe('claude import', () => {
 })
 
 describe('codex import', () => {
+  it('retains verified turn model and tier while marking legacy timing unavailable', async () => {
+    const filePath = await writeFixture('generation-rollout.jsonl', [
+      {
+        type: 'turn_context',
+        payload: { model: 'gpt-fast', service_tier: 'priority' }
+      },
+      {
+        type: 'response_item',
+        payload: {
+          id: 'response-1',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Done.' }]
+        }
+      }
+    ])
+    const journal = await open('codex', CODEX_SESSION)
+
+    await importLegacyTranscriptIntoJournal({
+      journal,
+      agent: 'codex',
+      sessionId: CODEX_SESSION,
+      fence: 1,
+      options: { filePath }
+    })
+
+    expect(journal.snapshot().items[0]?.body).toMatchObject({
+      kind: 'message',
+      role: 'assistant',
+      generation: {
+        model: 'gpt-fast',
+        serviceTier: 'priority',
+        method: 'stream-estimate',
+        unavailableReason: 'timing-unavailable'
+      }
+    })
+  })
+
   it('upserts live transcript messages without rolling the structured epoch', async () => {
     const journal = await open('codex', CODEX_SESSION)
     const epoch = journal.epoch

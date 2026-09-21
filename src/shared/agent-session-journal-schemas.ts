@@ -129,7 +129,17 @@ const Resolution = z.object({
 const MessageBody = z.object({
   kind: z.literal('message'),
   role: z.string().min(1),
-  blocks: z.array(Block)
+  blocks: z.array(Block),
+  generation: z
+    .object({
+      model: z.string().optional(),
+      serviceTier: z.string().optional(),
+      outputTokens: z.number().int().nonnegative().optional(),
+      generationDurationMs: z.number().nonnegative().optional(),
+      method: z.string(),
+      unavailableReason: z.string().optional()
+    })
+    .optional()
 })
 
 export const AgentJournalItemBodySchema = z.discriminatedUnion('kind', [

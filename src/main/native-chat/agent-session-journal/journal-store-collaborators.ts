@@ -59,6 +59,7 @@ export function createJournalStoreCollaborators(host: JournalStoreHost): Journal
     readOnly: host.readOnly,
     setReadOnly: host.setReadOnly,
     highestFence: () => host.state().highestFence,
+    state: host.state,
     cursor: host.cursor,
     adopt: host.adopt
   })

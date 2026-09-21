@@ -1,4 +1,4 @@
-import type { NativeChatMessage, NativeChatTurnLifecycle } from '../../shared/native-chat-types'
+import type { NativeChatTurnLifecycle } from '../../shared/native-chat-types'
 import {
   boundaryFingerprint,
   readTranscriptFileVersion,
@@ -10,14 +10,14 @@ import {
   readIncrementalTranscriptMessages,
   resetIncrementalTranscriptState
 } from './transcript-incremental-reader'
-import { readNativeChatTranscriptTailFile } from './transcript-tail-reader'
+import {
+  readNativeChatTranscriptTailFile,
+  type NativeChatLineDecoder
+} from './transcript-tail-reader'
 import { emitTranscriptUnavailableSnapshot } from './transcript-unavailable-snapshot'
 import { transcriptWatcherPathIsInstallable } from './transcript-watcher-install-probe'
 import { nativeChatTurnLifecycleDecoderForAgent } from './transcript-turn-lifecycle'
-import type {
-  NativeChatTranscriptSubscription,
-  SubscribeNativeChatTranscriptArgs
-} from './transcript-watch-contract'
+import type * as Watch from './transcript-watch-contract'
 import { createTranscriptWatchScheduler } from './transcript-watch-scheduler'
 import { WslTranscriptFsError } from './wsl-transcript-fs-gate'
 import {
@@ -33,10 +33,10 @@ import { createTranscriptAppendDrain } from './transcript-append-drain'
 /** Install a live tail, or return null when the resolved file is not readable yet. */
 export async function installTranscriptWatcher(
   filePath: string,
-  decode: (line: string, fallbackId: string) => NativeChatMessage | null,
-  args: SubscribeNativeChatTranscriptArgs,
+  decode: NativeChatLineDecoder,
+  args: Watch.SubscribeNativeChatTranscriptArgs,
   signal?: AbortSignal
-): Promise<NativeChatTranscriptSubscription | null> {
+): Promise<Watch.NativeChatTranscriptSubscription | null> {
   const isWslPath = isWslTranscriptWatcherPath(filePath)
   if (!(await transcriptWatcherPathIsInstallable(filePath, signal))) {
     return null
@@ -123,7 +123,7 @@ export async function installTranscriptWatcher(
       nativeWatcher.invalidate()
     }
     if (contentReplaced) {
-      resetIncrementalTranscriptState(state)
+      resetIncrementalTranscriptState(state, decode)
       usage.reset()
     }
     // Why: subscriber callbacks may replace the path before the drain can finish.

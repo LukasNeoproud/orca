@@ -14,6 +14,7 @@ import { splitNativeChatBlocks } from './native-chat-tool-fold'
 import { NativeChatToolRun } from './NativeChatToolRun'
 import { NativeChatNoticeRow } from './NativeChatNoticeRow'
 import { NativeChatMessageTimestamp } from './NativeChatMessageTimestamp'
+import { NativeChatGenerationStats } from './NativeChatGenerationStats'
 import { nativeChatProseToMarkdown } from './native-chat-prose'
 import {
   NativeChatAgentControls,
@@ -210,6 +211,7 @@ export const MessageRow = memo(function MessageRow({
           structuredActivityUi={structuredActivityUi}
         />
       ) : null}
+      {showControls ? <NativeChatGenerationStats generation={message.generation} /> : null}
       {showControls ? (
         <NativeChatAgentControls
           markdown={markdown}

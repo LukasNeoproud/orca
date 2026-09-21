@@ -10,6 +10,7 @@ import type { CodexJournalTranslator } from './codex-structured-journal-translat
 import type { CodexTurnProcessSnapshot } from './codex-structured-turn-processes'
 import type { StructuredAgentSessionLifecycleEvent } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { CodexContextUsage, CodexWeeklyUsage } from '../../shared/codex-context-usage'
+import type { CodexTurnGenerationMetadata } from './codex-structured-generation-metrics'
 
 export type CodexStructuredLaunch = {
   command: string
@@ -80,6 +81,8 @@ export type CodexSession = {
     permissions?: string
     permissionsCustomDescription?: string
   }
+  /** Captured before `turn/start`; the later notification cannot read a newer option write. */
+  pendingTurnGenerationMetadata?: CodexTurnGenerationMetadata
   supportsDefaultServiceTier?: boolean
   turnIdWaiters: ((turnId: string) => void)[]
   translator: CodexJournalTranslator | null

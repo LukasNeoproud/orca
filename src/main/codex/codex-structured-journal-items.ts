@@ -1,7 +1,9 @@
 import type {
   AgentJournalItemBody,
-  AgentJournalItemIdentity
+  AgentJournalItemIdentity,
+  AgentJournalMessageItem
 } from '../../shared/agent-session-journal-types'
+import type { NativeChatGeneration } from '../../shared/native-chat-generation'
 import { requiresTerminalSettlement } from '../native-chat/agent-session-journal/journal-terminal-settlement'
 import {
   codexItemIdentity,
@@ -35,6 +37,10 @@ export class CodexJournalItems {
   readonly streams
   private readonly identities = new Map<string, AgentJournalItemIdentity>()
   private readonly details = new Map<string, string>()
+  private readonly completedMessages = new Map<
+    string,
+    { identity: AgentJournalItemIdentity; body: AgentJournalMessageItem }
+  >()
 
   constructor(
     private readonly deps: Pick<
@@ -108,6 +114,10 @@ export class CodexJournalItems {
       return { handled: true, admission }
     }
     if (event.method === 'item/completed') {
+      if (translated.body.kind === 'message' && translated.body.role === 'assistant') {
+        this.completedMessages.set(itemKey, { identity, body: translated.body })
+        this.trimCompletedMessages()
+      }
       this.streams.forget(event.threadId, item.id)
       this.activeItems.delete(itemKey)
     } else {
@@ -124,7 +134,29 @@ export class CodexJournalItems {
     this.streams.dispose()
     this.identities.clear()
     this.details.clear()
+    this.completedMessages.clear()
     this.activeItems.clear()
+  }
+
+  appendGeneration(
+    threadId: string,
+    itemId: string,
+    generation: NativeChatGeneration
+  ): CodexJournalTranslationAdmission {
+    const message = this.completedMessages.get(codexStructuredItemKey(threadId, itemId))
+    if (!message) {
+      return CODEX_JOURNAL_ADMITTED
+    }
+    const body = { ...message.body, generation }
+    const admission = appendCodexLifecycleItem(this.deps.sink, message.identity, body)
+    if (!admission.accepted) {
+      return admission
+    }
+    const published = publishCodexLifecycle(this.deps.sink)
+    if (published.accepted) {
+      message.body = body
+    }
+    return published
   }
 
   private appendTranslated(
@@ -222,6 +254,16 @@ export class CodexJournalItems {
       this.activeItems.delete(oldest)
     }
     return CODEX_JOURNAL_ADMITTED
+  }
+
+  private trimCompletedMessages(): void {
+    while (this.completedMessages.size > MAX_CODEX_ACTIVE_ITEMS) {
+      const oldest = this.completedMessages.keys().next().value
+      if (typeof oldest !== 'string') {
+        return
+      }
+      this.completedMessages.delete(oldest)
+    }
   }
 }
 

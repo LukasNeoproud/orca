@@ -163,6 +163,37 @@ describe('codex journal translation', () => {
     expect(tap.publishes()).toBe(1)
   })
 
+  it('persists generation only after a clean completed turn', () => {
+    const tap = recorder()
+    const translator = createCodexJournalTranslator({
+      sink: tap.sink,
+      primaryThreadId: () => THREAD_ID
+    })
+    translator.handle(TURN_STARTED)
+    translator.handle(
+      notification('item/completed', { item: { type: 'agentMessage', id: 'answer', text: 'Done' } })
+    )
+    translator.handle(
+      notification('thread/tokenUsage/updated', {
+        threadId: THREAD_ID,
+        turnId: TURN_ID,
+        tokenUsage: { last: { outputTokens: 12, reasoningOutputTokens: 2 } }
+      })
+    )
+    expect(tap.rows.at(-1)?.body).not.toHaveProperty('generation')
+
+    translator.handle(
+      notification('turn/completed', { turn: { id: TURN_ID, status: 'completed' } })
+    )
+    expect(tap.rows.at(-1)?.body).toMatchObject({
+      kind: 'message',
+      generation: {
+        method: 'stream-estimate',
+        unavailableReason: 'stream-timing-unavailable'
+      }
+    })
+  })
+
   it('releases a turn ordinal map when the turn completes', () => {
     const spy = vi.spyOn(CodexTurnOrdinals.prototype, 'forgetTurn')
     try {

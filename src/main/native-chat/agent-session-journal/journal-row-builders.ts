@@ -7,6 +7,7 @@ import type {
 } from '../../../shared/agent-session-journal-types'
 import { AGENT_SESSION_JOURNAL_SCHEMA_VERSION } from '../../../shared/agent-session-journal-types'
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
+import { retainJournalGeneration } from './journal-generation-retention'
 import type { JournalReducerState } from './journal-reducer'
 import type {
   JournalDispatchRow,
@@ -111,7 +112,12 @@ export function journalLifecycleBatchRowBuilder(
           )) + 1
       revisions.set(resolved, revision)
       return mutation.kind === 'item'
-        ? { kind: 'item', itemId, revision, body: mutation.body }
+        ? {
+            kind: 'item',
+            itemId,
+            revision,
+            body: retainJournalGeneration(current.items.get(resolved)?.body, mutation.body)
+          }
         : { kind: 'tombstone', itemId, revision }
     })
     const row: JournalLifecycleBatchRow = {
@@ -153,7 +159,7 @@ export function buildJournalItemRow(input: {
     kind: 'item',
     itemId,
     revision,
-    body: input.body,
+    body: retainJournalGeneration(input.state.items.get(resolved)?.body, input.body),
     ...journalRowBase(input.state.epoch, input.seq, input.fence, input.ts),
     ...(input.recovered ? { recovered: input.recovered } : {})
   }

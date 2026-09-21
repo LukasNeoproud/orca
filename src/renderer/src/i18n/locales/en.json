@@ -17077,6 +17077,16 @@
       "empty": "No users found"
     },
     "native-chat": {
+      "generation": {
+        "fast": "Fast mode",
+        "standard": "Standard mode",
+        "unknownMode": "Mode unavailable",
+        "tierMode": "{{tier}} mode",
+        "unknownModel": "Model unavailable",
+        "unavailable": "tok/s unavailable",
+        "unavailableDetail": "Token count or generation time is unavailable.",
+        "estimateDetail": "{{tokens}} output tokens (excluding reasoning) ÷ {{seconds}} s"
+      },
       "notices": {
         "compaction": "Context compacted",
         "details": "Details",

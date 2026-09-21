@@ -8,6 +8,10 @@ import {
 import { isCodexAppServerUnsupportedError } from './codex-app-server-session'
 import { readCodexTurnId } from './codex-structured-thread-facts'
 import { codexPermissionOverrides } from './codex-structured-permissions'
+import {
+  codexTurnGenerationMetadata,
+  type CodexTurnGenerationMetadata
+} from './codex-structured-generation-metrics'
 
 // Starting a Codex turn and learning its id, which are not the same event:
 // `turn/start` returns the id on newer builds and acks before it exists on
@@ -46,6 +50,8 @@ export type CodexTurnHost = {
   cwd?: string
   supportsDefaultServiceTier?: boolean
   options: Map<string, string>
+  reportedOptions?: { model?: string; serviceTier?: string | null }
+  pendingTurnGenerationMetadata?: CodexTurnGenerationMetadata
   turnIdWaiters: ((turnId: string) => void)[]
 }
 
@@ -126,9 +132,11 @@ export async function dispatchCodexTurn(
 ): Promise<AgentSessionDispatchOutcome> {
   let turnId: string | null
   try {
+    session.pendingTurnGenerationMetadata = codexTurnGenerationMetadata(session)
     turnId = await startCodexTurn(session, { ...input, timeoutMs })
   } catch (error) {
     if (isCodexAppServerRequestError(error) || isCodexAppServerUnsupportedError(error)) {
+      delete session.pendingTurnGenerationMetadata
       return { state: 'rejected', reason: (error as Error).message }
     }
     throw error

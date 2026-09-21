@@ -9,6 +9,7 @@ import {
   stopSupersededCodexAcquisition
 } from './codex-structured-acquisition-lifecycle'
 import { createCodexJournalTranslator } from './codex-structured-journal-translation'
+import { codexTurnGenerationMetadata } from './codex-structured-generation-metrics'
 import { openCodexAppServerConnection } from './codex-app-server-connection'
 import { codexProcessIdentity, codexProviderHandleLink } from './codex-structured-owner-identity'
 import { buildCodexStructuredChildEnvironment } from './codex-structured-child-environment'
@@ -82,6 +83,15 @@ export async function acquireCodexStructuredSession(input: {
     ? createCodexJournalTranslator({
         sink: acquireInput.events,
         primaryThreadId: () => primaryThreadId,
+        generationMetadata: () => {
+          const session = sessions.get(sessionId)
+          const pending = session?.pendingTurnGenerationMetadata
+          if (pending) {
+            delete session.pendingTurnGenerationMetadata
+            return pending
+          }
+          return codexTurnGenerationMetadata(session)
+        },
         bindPromptItemId: (journalItemId, threadId, promptKey) =>
           acquisition.prompts.bindJournalItemId(journalItemId, threadId, promptKey)
       })

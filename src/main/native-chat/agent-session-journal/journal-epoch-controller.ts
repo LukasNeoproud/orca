@@ -3,6 +3,9 @@ import type {
   AgentSessionJournalIdentity
 } from '../../../shared/agent-session-journal-types'
 import type Database from '../../sqlite/sync-database'
+import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
+import { retainJournalGeneration } from './journal-generation-retention'
+import type { JournalReducerState } from './journal-reducer'
 import { replaceJournalEpoch, type JournalReplacementItem } from './journal-epoch-replacement'
 import { publishNewEpoch } from './journal-epoch-rollover'
 import type { JournalLoad } from './journal-open'
@@ -20,6 +23,7 @@ export class JournalEpochController {
       readOnly: () => boolean
       setReadOnly: (readOnly: boolean) => void
       highestFence: () => number
+      state: () => JournalReducerState
       cursor: () => AgentJournalCursor
       adopt: (loaded: JournalLoad) => void
     }
@@ -67,7 +71,13 @@ export class JournalEpochController {
         identity: this.deps.identity,
         reason,
         fence,
-        items,
+        items: items.map((item) => ({
+          ...item,
+          body: retainJournalGeneration(
+            this.deps.state().items.get(agentJournalItemKey(item.identity))?.body,
+            item.body
+          )
+        })),
         now: this.deps.now,
         mintEpoch: this.deps.mintEpoch,
         onPublished: this.deps.adopt

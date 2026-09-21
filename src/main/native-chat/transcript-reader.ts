@@ -10,8 +10,8 @@ import { resolveSessionFilePath, type ResolveSessionFileOptions } from './sessio
 import { openTranscriptReadStream } from './wsl-transcript-fs-access'
 import { wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
 import {
+  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
-  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
@@ -66,7 +66,7 @@ export async function readNativeChatTranscript(
     }
     if (transcriptAgent === 'codex') {
       const usage = new CodexTranscriptUsageStatusAccumulator()
-      const messages = await readTranscript(filePath, decodeCodexTranscriptLine, (line) =>
+      const messages = await readTranscript(filePath, createCodexTranscriptLineDecoder(), (line) =>
         usage.observe(line)
       )
       await enrichCodexTranscriptUsageStatus(filePath, usage)
