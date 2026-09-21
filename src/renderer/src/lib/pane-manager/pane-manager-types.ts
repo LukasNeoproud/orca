@@ -66,6 +66,8 @@ export type PaneManagerOptions = {
   terminalLigaturesEnabled?: () => boolean
   terminalTuiScrollSensitivity?: () => number | undefined
   onLinkClick?: (paneId: number, event: MouseEvent | undefined, url: string) => void
+  onLinkHover?: (paneId: number, event: MouseEvent, url: string) => boolean
+  onLinkLeave?: (paneId: number) => void
   /** Resolved per hover so link-routing setting changes apply without recreating panes. */
   // Why: required so dropping the wiring is a compile error — an optional hint with a
   // default would silently serve stale copy that no test can distinguish.

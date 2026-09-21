@@ -6,10 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { useNativeChatLinkActions } from './use-native-chat-link-actions'
+import type * as TerminalFileOpenRouting from '@/components/terminal-pane/terminal-file-open-routing'
 
 const mocks = vi.hoisted(() => ({
   openHttpLink: vi.fn(),
   openFileLink: vi.fn(),
+  openDetectedFilePath: vi.fn(),
   settings: { openLinksInApp: true, terminalLinkActionPopoverEnabled: true } as {
     openLinksInApp?: boolean
     terminalLinkActionPopoverEnabled?: boolean
@@ -17,6 +19,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/http-link-routing', () => ({ openHttpLink: mocks.openHttpLink }))
+
+vi.mock('@/components/terminal-pane/terminal-file-open-routing', async (importOriginal) => ({
+  ...(await importOriginal<typeof TerminalFileOpenRouting>()),
+  openDetectedFilePath: mocks.openDetectedFilePath
+}))
 
 vi.mock('./native-chat-http-link-source-owner', () => ({
   resolveNativeChatHttpLinkSourceOwner: () => ({ kind: 'local' }),
@@ -180,7 +187,12 @@ describe('native chat transcript links', () => {
     expect(mocks.openFileLink).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('Open file'))
 
-    expect(mocks.openFileLink).toHaveBeenCalledOnce()
+    expect(mocks.openDetectedFilePath).toHaveBeenCalledWith(
+      '/repo/src/a.ts',
+      null,
+      null,
+      expect.objectContaining({ worktreeId: 'wt-1', worktreePath: '/repo' })
+    )
     expect(screen.queryByText('System Browser')).toBeNull()
   })
 })

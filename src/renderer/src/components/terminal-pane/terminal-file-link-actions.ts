@@ -7,8 +7,10 @@ import {
 } from './terminal-file-open-routing'
 import { isTerminalLinkDirectActivation } from './terminal-link-activation'
 import {
+  requestTerminalLinkPreview,
   requestTerminalLinkAction,
-  type TerminalLinkActionContext
+  type TerminalLinkActionContext,
+  type TerminalLinkActionDetails
 } from './terminal-link-action-request'
 import { resolveKnownWorktreeRootPathLink } from './terminal-worktree-path-link'
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
@@ -21,24 +23,13 @@ export type TerminalFileLinkActionDeps = {
   wslDistro?: string | null
 }
 
-export function handleTerminalFileLink(
+export function buildTerminalFileLinkActionDetails(
   filePath: string,
   line: number | null,
   column: number | null,
-  event: MouseEvent | undefined,
   deps: TerminalFileLinkActionDeps,
-  actionContext?: TerminalLinkActionContext | null,
   actionDestination?: string
-): boolean {
-  if (isTerminalLinkDirectActivation(event)) {
-    event?.preventDefault?.()
-    openDetectedFilePath(filePath, line, column, {
-      ...deps,
-      openWithSystemDefault: Boolean(event?.shiftKey)
-    })
-    return true
-  }
-
+): TerminalLinkActionDetails {
   const mappedPath = mapTerminalFilePath(
     filePath,
     deps.worktreePath,
@@ -47,7 +38,8 @@ export function handleTerminalFileLink(
   const fileContext = getTerminalFileContext(
     deps.worktreeId,
     deps.worktreePath,
-    deps.runtimeEnvironmentId
+    deps.runtimeEnvironmentId,
+    mappedPath
   )
   const worktreeRoot = resolveKnownWorktreeRootPathLink(mappedPath)
   const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(fileContext, mappedPath)
@@ -92,9 +84,23 @@ export function handleTerminalFileLink(
             ),
             run: () => downloadAndOpenRemoteTerminalFile(fileContext, mappedPath)
           }
-  return requestTerminalLinkAction(event, actionContext, {
+  return {
     destination: actionDestination ?? mappedPath,
     kind: worktreeRoot ? 'workspace' : 'file',
+    ...(!worktreeRoot && !/[/\\]$/.test(mappedPath)
+      ? {
+          preview: {
+            target: {
+              href: mappedPath,
+              key: mappedPath,
+              path: mappedPath,
+              line,
+              kind: 'file' as const
+            },
+            runtimeContext: fileContext
+          }
+        }
+      : {}),
     primary: {
       label: worktreeRoot
         ? translate(
@@ -134,5 +140,46 @@ export function handleTerminalFileLink(
           ]
         }
       : {})
-  })
+  }
+}
+
+export function handleTerminalFileLink(
+  filePath: string,
+  line: number | null,
+  column: number | null,
+  event: MouseEvent | undefined,
+  deps: TerminalFileLinkActionDeps,
+  actionContext?: TerminalLinkActionContext | null,
+  actionDestination?: string
+): boolean {
+  if (isTerminalLinkDirectActivation(event)) {
+    event?.preventDefault?.()
+    openDetectedFilePath(filePath, line, column, {
+      ...deps,
+      openWithSystemDefault: Boolean(event?.shiftKey)
+    })
+    return true
+  }
+
+  return requestTerminalLinkAction(
+    event,
+    actionContext,
+    buildTerminalFileLinkActionDetails(filePath, line, column, deps, actionDestination)
+  )
+}
+
+export function previewTerminalFileLink(
+  filePath: string,
+  line: number | null,
+  column: number | null,
+  event: MouseEvent | undefined,
+  deps: TerminalFileLinkActionDeps,
+  actionContext?: TerminalLinkActionContext | null,
+  actionDestination?: string
+): boolean {
+  return requestTerminalLinkPreview(
+    event,
+    actionContext,
+    buildTerminalFileLinkActionDetails(filePath, line, column, deps, actionDestination)
+  )
 }

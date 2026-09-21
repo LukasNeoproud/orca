@@ -162,6 +162,8 @@ export function createTerminalPaneCreatedHandler(
       getLinkActionContext: context.getLinkActionContext,
       getPaneLinkCwd: context.getPaneLinkCwd,
       getUrlOpenLinkHint: context.getUrlOpenLinkHint,
+      invalidateLinkPreview: deps.invalidateTerminalLinkPreview,
+      dismissLinkPreview: deps.dismissTerminalLinkPreview,
       onShowSessionRestoredBanner: context.onShowSessionRestoredBanner,
       ptyStartup: ptyDeps.startup
     })

@@ -9,8 +9,7 @@ import type { PaneManager } from '@/lib/pane-manager/pane-manager'
 import type { PtyTransport } from './pty-transport'
 import type { SearchState } from './keyboard-handlers'
 import type { CloseTerminalDialogCopyKind } from './CloseTerminalDialog'
-import type { TerminalLinkActionRequest } from './terminal-link-action-request'
-import { closeTerminalLinkActionRequest } from './terminal-link-action-request'
+import { useTerminalLinkActionState } from './use-terminal-link-action-state'
 import type { PreparedAgentSessionFork } from './terminal-agent-session-fork'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import { createTerminalQuickCommandDraft } from '@/components/terminal-quick-commands/TerminalQuickCommandDialog'
@@ -93,14 +92,7 @@ export function useTerminalPaneFoundation(
   const [expandedPaneId, setExpandedPaneId] = useState<number | null>(null)
   const [paneCount, setPaneCount] = useState<number>(0)
   const [paneLayoutRevision, setPaneLayoutRevision] = useState(0)
-  const [terminalLinkActionRequest, setTerminalLinkActionRequest] =
-    useState<TerminalLinkActionRequest | null>(null)
-  const requestTerminalLinkAction = useCallback((request: TerminalLinkActionRequest) => {
-    setTerminalLinkActionRequest(request)
-  }, [])
-  const closeTerminalLinkActions = useCallback((dismissed?: TerminalLinkActionRequest) => {
-    setTerminalLinkActionRequest((current) => closeTerminalLinkActionRequest(current, dismissed))
-  }, [])
+  const terminalLinkActions = useTerminalLinkActionState()
   const [searchOpen, setSearchOpen] = useState(false)
   const searchOpenRef = useRef(false)
   // Keyboard callbacks must observe current search state immediately.
@@ -193,9 +185,16 @@ export function useTerminalPaneFoundation(
     setPaneCount,
     paneLayoutRevision,
     setPaneLayoutRevision,
-    terminalLinkActionRequest,
-    requestTerminalLinkAction,
-    closeTerminalLinkActions,
+    terminalLinkActionRequest: terminalLinkActions.request,
+    requestTerminalLinkAction: terminalLinkActions.requestAction,
+    requestTerminalLinkPreview: terminalLinkActions.requestPreview,
+    leaveTerminalLinkPreview: terminalLinkActions.leavePreview,
+    invalidateTerminalLinkPreview: terminalLinkActions.invalidatePanePreview,
+    dismissTerminalLinkPreview: terminalLinkActions.dismissPanePreview,
+    closeTerminalLinkActions: terminalLinkActions.close,
+    handleTerminalLinkPopoverPointerEnter: terminalLinkActions.onPointerEnter,
+    handleTerminalLinkPopoverPointerLeave: terminalLinkActions.onPointerLeave,
+    handleTerminalLinkPopoverPin: terminalLinkActions.onPin,
     searchOpen,
     setSearchOpen,
     searchOpenRef,

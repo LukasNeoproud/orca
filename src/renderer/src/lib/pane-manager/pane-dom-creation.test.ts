@@ -156,4 +156,27 @@ describe('createPaneDOM link tooltips', () => {
 
     expect(onLinkClick).toHaveBeenCalledWith(7, event, 'https://example.com')
   })
+
+  it('hands WebLinks hover ownership to a rich preview and reports leave', () => {
+    const leafId = '11111111-1111-4111-8111-111111111111' as TerminalLeafId
+    const onLinkHover = vi.fn(() => true)
+    const onLinkLeave = vi.fn()
+    const pane = createPaneDOM(
+      7,
+      leafId,
+      { linkOpenHint: () => 'open hint', onLinkHover, onLinkLeave },
+      { active: null } as never,
+      {} as never,
+      vi.fn(),
+      vi.fn()
+    )
+    const event = {} as MouseEvent
+
+    webLinksAddonMock.options?.hover?.(event, 'https://example.com')
+    expect(onLinkHover).toHaveBeenCalledWith(7, event, 'https://example.com')
+    expect(pane.linkTooltip.style.display).toBe('none')
+
+    webLinksAddonMock.options?.leave?.()
+    expect(onLinkLeave).toHaveBeenCalledWith(7)
+  })
 })

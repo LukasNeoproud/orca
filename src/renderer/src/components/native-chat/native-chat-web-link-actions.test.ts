@@ -1,8 +1,12 @@
+// @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LinkActionRequest } from '@/components/link-actions/link-action-request'
 import type * as HttpLinkDestinations from '@/lib/http-link-destinations'
 import type { HttpLinkActionDestinations } from '@/lib/http-link-destinations'
-import { handleNativeChatWebLink } from './native-chat-web-link-actions'
+import {
+  handleNativeChatWebLink,
+  nativeChatWebLinkActionRequest
+} from './native-chat-web-link-actions'
 
 const mocks = vi.hoisted(() => ({ openRoutedHttpLink: vi.fn() }))
 
@@ -63,6 +67,19 @@ afterEach(() => {
 })
 
 describe('handleNativeChatWebLink', () => {
+  it('builds hover actions from the real anchor without dispatching a click', () => {
+    const { deps: d } = deps()
+    const anchor = document.createElement('a')
+    const click = vi.fn()
+    anchor.addEventListener('click', click)
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({ left: 18, bottom: 42 } as DOMRect)
+
+    const request = nativeChatWebLinkActionRequest(anchor, 'https://example.com/', d)
+
+    expect(request).toMatchObject({ anchorX: 18, anchorY: 42, anchorElement: anchor })
+    expect(click).not.toHaveBeenCalled()
+  })
+
   it('anchors keyboard activation to the focused link', () => {
     stubPlatform(true)
     const { deps: d, requests } = deps()

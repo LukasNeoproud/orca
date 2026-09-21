@@ -29,7 +29,8 @@ vi.mock('@/lib/worktree-activation', () => ({
 }))
 
 vi.mock('@/lib/connection-context', () => ({
-  getConnectionId: () => null
+  getConnectionId: () => null,
+  getConnectionIdForFile: () => null
 }))
 
 async function writeTerminal(terminal: Terminal, data: string): Promise<void> {

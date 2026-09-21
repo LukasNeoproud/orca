@@ -1,6 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import { nativeChatFilePreviewActions } from './native-chat-file-preview-actions'
-import { useCallback, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import {
   closeLinkActionRequest,
   type LinkActionRequest
@@ -14,7 +14,10 @@ import {
   canNativeChatOpenOwnedBrowser,
   resolveNativeChatHttpLinkSourceOwner
 } from './native-chat-http-link-source-owner'
-import { handleNativeChatWebLink } from './native-chat-web-link-actions'
+import {
+  handleNativeChatWebLink,
+  nativeChatWebLinkActionRequest
+} from './native-chat-web-link-actions'
 import { useNativeChatFileLinkClick } from './use-native-chat-file-link-click'
 
 export type NativeChatLinkActions = {
@@ -33,12 +36,17 @@ export function useNativeChatLinkActions(
   const { insertReference } = scope
   const openFileLink = useNativeChatFileLinkClick(context)
   const [linkActionRequest, setLinkActionRequest] = useState<LinkActionRequest | null>(null)
+  const activePreviewRef = useRef<{ owner: symbol; close: () => void; pinned: boolean } | null>(
+    null
+  )
   const scopeKey = JSON.stringify([
     context?.worktreeId,
     context?.runtimeEnvironmentId,
     scope.sessionId
   ])
   const [previousScopeKey, setPreviousScopeKey] = useState(scopeKey)
+  const previewScopeRef = useRef({ scopeKey, isVisible: scope.isVisible })
+  previewScopeRef.current = { scopeKey, isVisible: scope.isVisible }
   if (previousScopeKey !== scopeKey || (!scope.isVisible && linkActionRequest !== null)) {
     setPreviousScopeKey(scopeKey)
     setLinkActionRequest(null)
@@ -46,6 +54,101 @@ export function useNativeChatLinkActions(
   const closeLinkActions = useCallback((dismissed?: LinkActionRequest) => {
     setLinkActionRequest((current) => closeLinkActionRequest(current, dismissed))
   }, [])
+  const closeActivePreview = useCallback(() => {
+    const active = activePreviewRef.current
+    activePreviewRef.current = null
+    active?.close()
+  }, [])
+  const claimPreviewOwner = useCallback((owner: symbol, close: () => void, pinned: boolean) => {
+    const active = activePreviewRef.current
+    if (active?.owner === owner) {
+      activePreviewRef.current = { owner, close, pinned }
+      return true
+    }
+    if (active?.pinned && !pinned) {
+      return false
+    }
+    active?.close()
+    activePreviewRef.current = { owner, close, pinned }
+    return true
+  }, [])
+  const claimPreview = useCallback(
+    (owner: symbol, close: () => void, pinned: boolean) => {
+      if (
+        !scope.isVisible ||
+        !previewScopeRef.current.isVisible ||
+        previewScopeRef.current.scopeKey !== scopeKey
+      ) {
+        return false
+      }
+      return claimPreviewOwner(owner, close, pinned)
+    },
+    [claimPreviewOwner, scope.isVisible, scopeKey]
+  )
+  const releasePreview = useCallback((owner: symbol) => {
+    if (activePreviewRef.current?.owner === owner) {
+      activePreviewRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) {
+      return
+    }
+    const closeOnScroll = (): void => {
+      closeActivePreview()
+      setLinkActionRequest(null)
+    }
+    root.addEventListener('scroll', closeOnScroll, true)
+    return () => root.removeEventListener('scroll', closeOnScroll, true)
+  }, [closeActivePreview, rootRef])
+  useEffect(() => {
+    closeActivePreview()
+  }, [closeActivePreview, scopeKey, scope.isVisible])
+
+  const createPreviewRequest = useCallback(
+    (anchor: HTMLElement, href: string): LinkActionRequest | null => {
+      if (!context || !scope.isVisible || previewScopeRef.current.scopeKey !== scopeKey) {
+        return null
+      }
+      const route = routeNativeChatHref(href)
+      if (route.kind === 'file') {
+        return nativeChatFilePreviewActions(anchor, href, context, insertReference, false)
+      }
+      if (route.kind !== 'web' || !/^https?:/i.test(route.url)) {
+        return null
+      }
+      const state = useAppStore.getState()
+      const sourceOwner = resolveNativeChatHttpLinkSourceOwner(state, context.worktreeId)
+      const request = nativeChatWebLinkActionRequest(anchor, route.url, {
+        worktreeId: context.worktreeId,
+        sourceOwner,
+        destinations: httpLinkActionDestinationsFor(
+          state.settings,
+          sourceOwner,
+          canNativeChatOpenOwnedBrowser(state, context.worktreeId, sourceOwner)
+        ),
+        restoreFocus: () =>
+          (anchor.isConnected ? anchor : rootRef.current)?.focus({ preventScroll: true })
+      })
+      request.pinOnClick = state.settings?.terminalLinkActionPopoverEnabled !== false
+      if (insertReference) {
+        request.additionalActions = [
+          {
+            label: translate(
+              'auto.components.nativeChat.preview.addReference',
+              'Add reference to prompt'
+            ),
+            run: () => insertReference(`${route.url} `)
+          },
+          ...(request.additionalActions ?? [])
+        ]
+      }
+      return request
+    },
+    [context, insertReference, rootRef, scope.isVisible, scopeKey]
+  )
 
   const onLinkClick = useCallback<CommentMarkdownLinkClickHandler>(
     (event, href, options) => {
@@ -62,25 +165,25 @@ export function useNativeChatLinkActions(
           openFileLink?.(event, href)
           return
         }
-        const request = nativeChatFilePreviewActions(
-          event,
-          href,
-          context,
-          openFileLink,
-          insertReference
-        )
+        const request = createPreviewRequest(event.currentTarget, href ?? '')
         if (request) {
-          if (options?.preview) {
+          if (event.detail !== 0) {
+            request.anchorX = event.clientX
+            request.anchorY = event.clientY
+          }
+          request.preview = options?.preview
+          if (!options?.preview) {
             request.additionalActions = [
+              ...(request.additionalActions ?? []),
               {
-                label: translate('auto.components.nativeChat.preview.preview', 'Preview'),
-                run: options.preview
-              },
-              ...(request.additionalActions ?? [])
+                label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
+                run: () => window.api.ui.writeClipboardText(request.destination)
+              }
             ]
           }
           event.preventDefault()
           event.stopPropagation()
+          closeActivePreview()
           setLinkActionRequest(request)
         }
         return
@@ -104,18 +207,12 @@ export function useNativeChatLinkActions(
         actionsEnabled: state.settings?.terminalLinkActionPopoverEnabled !== false,
         restoreFocus: () =>
           (anchor.isConnected ? anchor : rootRef.current)?.focus({ preventScroll: true }),
-        request: (request) =>
+        request: (request) => {
+          closeActivePreview()
           setLinkActionRequest({
             ...request,
+            preview: options?.preview,
             additionalActions: [
-              ...(options?.preview
-                ? [
-                    {
-                      label: translate('auto.components.nativeChat.preview.preview', 'Preview'),
-                      run: options.preview
-                    }
-                  ]
-                : []),
               ...(insertReference
                 ? [
                     {
@@ -130,10 +227,15 @@ export function useNativeChatLinkActions(
               ...(request.additionalActions ?? [])
             ]
           })
+        }
       })
     },
-    [context, openFileLink, rootRef, insertReference]
+    [closeActivePreview, context, createPreviewRequest, openFileLink, rootRef, insertReference]
   )
+
+  onLinkClick.createPreviewRequest = createPreviewRequest
+  onLinkClick.claimPreview = claimPreview
+  onLinkClick.releasePreview = releasePreview
 
   return {
     onLinkClick: context ? onLinkClick : undefined,

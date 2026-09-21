@@ -60,6 +60,10 @@ export function cleanupTerminalPaneMount(args: {
   refs.linkPointerGesturesRef.current.clear()
   disposeAll(refs.fileLinkClickFallbackDisposablesRef.current)
   disposeAll(refs.httpLinkClickFallbackDisposablesRef.current)
+  disposeAll(refs.linkPreviewInvalidationDisposablesRef.current)
+  for (const pane of manager.getPanes()) {
+    deps.dismissTerminalLinkPreview(pane.id)
+  }
   disposeAll(refs.selectionDisposablesRef.current)
   for (const timer of refs.selectionCaptureTimersRef.current.values()) {
     window.clearTimeout(timer)

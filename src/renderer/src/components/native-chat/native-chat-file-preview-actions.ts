@@ -1,40 +1,46 @@
 import { formatNativeChatFileReference } from './native-chat-composer-target'
 import { translate } from '@/i18n/i18n'
-import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import type { LinkActionRequest } from '@/components/link-actions/link-action-request'
 import { useAppStore } from '@/store'
 import { detectLanguage } from '@/lib/language-detect'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
 import { resolveNativeChatFileLink, type NativeChatFileLinkContext } from './native-chat-file-link'
+import { buildTerminalFileLinkActionDetails } from '@/components/terminal-pane/terminal-file-link-actions'
 
 export function nativeChatFilePreviewActions(
-  event: Parameters<CommentMarkdownLinkClickHandler>[0],
+  anchor: HTMLElement,
   href: string | undefined,
   context: NativeChatFileLinkContext,
-  open: CommentMarkdownLinkClickHandler | undefined,
-  insertReference?: (text: string) => void
+  insertReference?: (text: string) => void,
+  includeCopyPath = true
 ): LinkActionRequest | null {
   const target = resolveNativeChatFileLink(href, context)
   if (!target) {
     return null
   }
-  const anchor = event.currentTarget
-  const keyboardAnchor = event.detail === 0 ? anchor.getBoundingClientRect() : null
+  const bounds = anchor.getBoundingClientRect()
   const state = useAppStore.getState()
+  const openActions = buildTerminalFileLinkActionDetails(
+    target.absolutePath,
+    target.line,
+    target.column,
+    context,
+    target.absolutePath
+  )
   const relative = toWorktreeRelativePath(target.absolutePath, context.worktreePath)
   const changed = state.gitStatusByWorktree?.[context.worktreeId]?.find(
     (entry) => entry.path === relative && !entry.conflictStatus && !entry.submoduleRoot
   )
   return {
-    anchorX: keyboardAnchor?.left ?? event.clientX,
-    anchorY: keyboardAnchor?.bottom ?? event.clientY,
+    anchorX: bounds.left,
+    anchorY: bounds.bottom,
+    anchorElement: anchor,
     destination: target.absolutePath,
-    kind: 'file',
-    primary: {
-      label: translate('auto.components.nativeChat.preview.openFile', 'Open file'),
-      run: () => open?.(event, href)
-    },
+    kind: openActions.kind,
+    primary: openActions.primary,
+    alternate: openActions.alternate,
     additionalActions: [
+      ...(openActions.additionalActions ?? []),
       ...(changed
         ? [
             {
@@ -67,10 +73,14 @@ export function nativeChatFilePreviewActions(
             }
           ]
         : []),
-      {
-        label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
-        run: () => window.api.ui.writeClipboardText(target.absolutePath)
-      }
+      ...(includeCopyPath
+        ? [
+            {
+              label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
+              run: () => window.api.ui.writeClipboardText(target.absolutePath)
+            }
+          ]
+        : [])
     ],
     restoreFocus: () => {
       if (anchor.isConnected) {

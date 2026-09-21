@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
-import { Check, Copy, ExternalLink, Globe, Settings } from 'lucide-react'
+import { Check, Copy, Settings } from 'lucide-react'
 import { toast } from 'sonner'
-import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
+import { LinkActionRow } from './LinkActionRow'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -10,46 +10,37 @@ import { translate } from '@/i18n/i18n'
 import { BROWSER_TERMINAL_LINK_ACTIONS_SETTINGS_TARGET_ID } from '@/lib/settings-navigation-types'
 import { useAppStore } from '@/store'
 import type { LinkAction, LinkActionRequest } from './link-action-request'
+import { LinkPreviewPopover } from './LinkPreviewPopover'
 
 type LinkActionPopoverProps<TRequest extends LinkActionRequest> = {
   request: TRequest | null
   onClose: (dismissed?: TRequest) => void
-}
-
-function ActionRow({
-  action,
-  alternate,
-  onRun
-}: {
-  action: LinkAction
-  alternate?: boolean
-  onRun: () => void
-}): React.JSX.Element {
-  const isMac = navigator.userAgent.includes('Mac')
-  const keys = alternate
-    ? [isMac ? '⇧' : 'Shift', isMac ? '⌘' : 'Ctrl', 'Click']
-    : [isMac ? '⌘' : 'Ctrl', 'Click']
-
-  return (
-    <Button
-      className="h-8 w-full justify-start gap-1.5 px-1.5 text-[13px] font-normal has-[>svg]:px-1.5"
-      variant="ghost"
-      onClick={onRun}
-    >
-      {action.external === true ? <ExternalLink className="size-3.5" /> : null}
-      {action.external === false ? <Globe className="size-3.5" /> : null}
-      <span className="min-w-0 flex-1 truncate text-left" title={action.label}>
-        {action.label}
-      </span>
-      {alternate !== undefined ? (
-        <ShortcutKeyCombo keys={keys} keyCapClassName="min-w-5 px-1 py-0 text-[11px]" />
-      ) : null}
-    </Button>
-  )
+  onPointerEnter?: () => void
+  onPointerLeave?: () => void
+  onPin?: (pinned: boolean) => void
 }
 
 /** Shared by the terminal and native chat: pick where a clicked link opens. */
 export function LinkActionPopover<TRequest extends LinkActionRequest>({
+  request,
+  ...props
+}: LinkActionPopoverProps<TRequest>): React.JSX.Element {
+  return request?.preview ? (
+    <LinkPreviewPopover
+      key={JSON.stringify([
+        request.preview.target.key,
+        request.preview.runtimeContext?.worktreeId,
+        request.preview.runtimeContext?.connectionId
+      ])}
+      request={request}
+      {...props}
+    />
+  ) : (
+    <LegacyLinkActionPopover request={request} {...props} />
+  )
+}
+
+function LegacyLinkActionPopover<TRequest extends LinkActionRequest>({
   request,
   onClose
 }: LinkActionPopoverProps<TRequest>): React.JSX.Element {
@@ -180,20 +171,20 @@ export function LinkActionPopover<TRequest extends LinkActionRequest>({
               </TooltipContent>
             </Tooltip>
           </div>
-          <ActionRow
+          <LinkActionRow
             action={request.primary}
             alternate={false}
             onRun={() => runAction(request.primary)}
           />
           {request.alternate ? (
-            <ActionRow
+            <LinkActionRow
               action={request.alternate}
               alternate
               onRun={() => runAction(request.alternate!)}
             />
           ) : null}
           {request.additionalActions?.map((action) => (
-            <ActionRow key={action.label} action={action} onRun={() => runAction(action)} />
+            <LinkActionRow key={action.label} action={action} onRun={() => runAction(action)} />
           ))}
         </PopoverContent>
       ) : null}

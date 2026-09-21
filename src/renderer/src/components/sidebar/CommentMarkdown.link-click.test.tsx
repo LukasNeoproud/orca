@@ -8,6 +8,10 @@ import {
   routeNativeChatHref
 } from '../../../../shared/native-chat-href-routing'
 import CommentMarkdown from './CommentMarkdown'
+import type { CommentMarkdownLinkClickHandler } from './comment-markdown-element-renderers'
+
+const createLinkClickHandler = (): CommentMarkdownLinkClickHandler =>
+  vi.fn<(...args: Parameters<CommentMarkdownLinkClickHandler>) => void>()
 
 describe('CommentMarkdown link click handler', () => {
   let root: Root | null = null
@@ -23,7 +27,7 @@ describe('CommentMarkdown link click handler', () => {
   })
 
   it('lets callers intercept rendered document links', () => {
-    const onLinkClick = vi.fn((event: React.MouseEvent<HTMLElement>) => {
+    const onLinkClick: CommentMarkdownLinkClickHandler = vi.fn((event) => {
       event.preventDefault()
     })
     container = document.createElement('div')
@@ -53,7 +57,7 @@ describe('CommentMarkdown link click handler', () => {
   })
 
   it('intercepts auxiliary clicks on generated native file links', () => {
-    const onLinkClick = vi.fn((event: React.MouseEvent<HTMLElement>) => {
+    const onLinkClick: CommentMarkdownLinkClickHandler = vi.fn((event) => {
       event.preventDefault()
     })
     container = document.createElement('div')
@@ -227,7 +231,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content={String.raw`Open /tmp/sta-6481-explainer.html, docs/review.docx, C:\Reports\final.pages, ./scripts/release, and src/release:12.`}
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -290,7 +294,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content={`${proseFalsePositives.join(', ')}; ${inlineCodeFalsePositives.map((value) => `\`${value}\``).join(', ')}; ${quotedFalsePositives.join(', ')}`}
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -318,7 +322,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Updated src/foo.ts and src/bar.ts, then docs/My Folder/notes.md."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -339,7 +343,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content={"Don't skip \"Brennan's Folder/notes.md\"; open 'My Folder/guide.md'."}
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -371,7 +375,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Open `My Folder/notes.md`."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -396,7 +400,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content='Keep `aspect 16:9` and "John 3:16" as references.'
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -419,7 +423,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content={content}
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -448,7 +452,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Open /tmp/报告.html, docs/报告/file.html, docs/café/report.pdf, and docs/archive.7z."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -469,7 +473,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Leave /tmp/$draft/report.html as one path or plain text."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -489,7 +493,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Open src/foo.ts! Read docs/guide.md? View assets/report.pdf—then continue."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -510,7 +514,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Run --config=./config.yaml。然后打开 docs/指南.md！再看 docs/报告.pdf？"
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -531,7 +535,7 @@ describe('CommentMarkdown link click handler', () => {
         <CommentMarkdown
           variant="document"
           content="Leave src/foo.ts!draft/file.html, src/foo.ts—draft/file.html."
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )
@@ -585,7 +589,7 @@ describe('CommentMarkdown link click handler', () => {
             '/tmp/not-a-link.html',
             '```'
           ].join('\n')}
-          onLinkClick={vi.fn()}
+          onLinkClick={createLinkClickHandler()}
           linkifyFilePaths
         />
       )

@@ -145,6 +145,8 @@ export function prepareTerminalPaneMount(
       pointerGesture,
       claimPtyMouse: suppression.claimAction,
       request: deps.requestTerminalLinkAction,
+      requestPreview: deps.requestTerminalLinkPreview,
+      leavePreview: deps.leaveTerminalLinkPreview,
       focusTerminal: () => pane.terminal.focus()
     }
   }

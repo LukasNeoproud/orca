@@ -1,4 +1,6 @@
 import type { HttpLinkAction } from '@/lib/http-link-destinations'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { ChatPreviewTarget } from '@/components/native-chat/link-preview/native-chat-preview-groups'
 
 export type LinkActionKind = 'url' | 'file' | 'workspace' | 'terminal' | 'task'
 
@@ -13,6 +15,11 @@ export type LinkActionRequest = {
   primary: LinkAction
   alternate?: LinkAction
   additionalActions?: LinkAction[]
+  preview?: { target: ChatPreviewTarget; runtimeContext?: RuntimeFileOperationArgs | null }
+  transient?: boolean
+  anchorElement?: HTMLElement
+  pinOnClick?: boolean
+  focusOnOpen?: boolean
   /** Hands focus back to the surface that owned the click (terminal, chat transcript). */
   restoreFocus: () => void
 }

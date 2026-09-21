@@ -8,6 +8,7 @@ import type { AgentJournalRenderItem } from '../../../../shared/agent-session-jo
 import type * as Wire from '../../../../shared/agent-session-wire'
 import { decodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { NativeChatQuestionCardProps } from './NativeChatQuestionCard'
+import type * as TerminalFileOpenRouting from '@/components/terminal-pane/terminal-file-open-routing'
 
 const localCodexSessionProps = {
   isVisible: true,
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   handoff: null as Wire.AgentSessionHandoffStatus | null,
   requestHandoff: vi.fn(),
   fileLinkClick: vi.fn(),
+  openDetectedFilePath: vi.fn(),
   mode: 'static' as 'static' | 'outbox',
   messageListProps: null as null | {
     allowFileUriLinks?: boolean
@@ -138,6 +140,11 @@ vi.mock('./use-native-chat-file-link-click', () => ({
   useNativeChatFileLinkClick: (context: unknown) => (context ? mocks.fileLinkClick : undefined)
 }))
 
+vi.mock('@/components/terminal-pane/terminal-file-open-routing', async (importOriginal) => ({
+  ...(await importOriginal<typeof TerminalFileOpenRouting>()),
+  openDetectedFilePath: mocks.openDetectedFilePath
+}))
+
 vi.mock('./NativeChatMessageList', () => ({
   NativeChatMessageList: (props: typeof mocks.messageListProps) => {
     mocks.messageListProps = props
@@ -168,6 +175,20 @@ vi.mock('./NativeChatQuestionCard', () => ({
 
 import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 
+function sessionView(
+  id: string,
+  props: Partial<React.ComponentProps<typeof NativeChatStructuredSession>> = {}
+): React.ReactElement {
+  return (
+    <NativeChatStructuredSession
+      {...localCodexSessionProps}
+      tabId={`structured-tab-${id}`}
+      sessionId={`session-${id}`}
+      {...props}
+    />
+  )
+}
+
 describe('NativeChatStructuredSession', () => {
   afterEach(() => {
     cleanup()
@@ -175,6 +196,7 @@ describe('NativeChatStructuredSession', () => {
     mocks.mode = 'static'
     mocks.handoff = null
     mocks.requestHandoff.mockReset()
+    mocks.openDetectedFilePath.mockReset()
     mocks.messageListProps = null
     mocks.composerProps = null
     mocks.questionCardProps = null
@@ -190,13 +212,7 @@ describe('NativeChatStructuredSession', () => {
   })
 
   it('routes app-menu paste into the structured composer', () => {
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-paste"
-        sessionId="session-paste"
-      />
-    )
+    render(sessionView('paste'))
 
     const composer = screen.getByTestId('structured-composer')
     composer.focus()
@@ -206,17 +222,9 @@ describe('NativeChatStructuredSession', () => {
   })
 
   it('wires remote structured file links through the host-aware native chat opener', () => {
-    render(
-      <TooltipProvider>
-        <NativeChatStructuredSession
-          isVisible
-          tabId="structured-tab-1"
-          sessionId="session-1"
-          target={{ kind: 'environment', environmentId: 'env-1' }}
-          agent="codex"
-        />
-      </TooltipProvider>
-    )
+    render(sessionView('1', { target: { kind: 'environment', environmentId: 'env-1' } }), {
+      wrapper: TooltipProvider
+    })
 
     expect(mocks.messageListProps?.allowFileUriLinks).toBe(true)
     const event = {
@@ -231,11 +239,15 @@ describe('NativeChatStructuredSession', () => {
     })
     expect(mocks.fileLinkClick).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('Open file'))
-    expect(mocks.fileLinkClick).toHaveBeenCalledWith(event, 'file:///repo/src/a.ts')
+    expect(mocks.openDetectedFilePath).toHaveBeenCalledWith(
+      '/repo/src/a.ts',
+      null,
+      null,
+      expect.objectContaining({ worktreeId: 'wt-1', worktreePath: '/repo' })
+    )
   })
 
-  // Turn status and transcript image previews shipped Codex-first. Every
-  // structured session renders through the same list, so neither is agent-gated.
+  // Structured transcript features remain agent-agnostic.
   it.each(['codex', 'claude'] as const)(
     'renders the structured transcript and handoff controls for %s',
     (agent) => {
@@ -247,14 +259,10 @@ describe('NativeChatStructuredSession', () => {
         operationId: null
       }
       render(
-        <NativeChatStructuredSession
-          isVisible
-          tabId="structured-tab-parity"
-          composerPaneKey="original-tab:original-leaf"
-          sessionId="session-parity"
-          target={{ kind: 'local' }}
-          agent={agent}
-        />
+        sessionView('parity', {
+          composerPaneKey: 'original-tab:original-leaf',
+          agent
+        })
       )
 
       expect(mocks.composerProps?.paneKey).toBe('original-tab:original-leaf')
@@ -275,15 +283,7 @@ describe('NativeChatStructuredSession', () => {
     ]
     mocks.stopBackgroundTask.mockResolvedValue({ cancelled: true })
 
-    render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-background"
-        sessionId="session-background"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
-    )
+    render(sessionView('background', { agent: 'claude' }))
 
     const status = screen
       .getByText('Monitoring background tasks')
@@ -331,15 +331,7 @@ describe('NativeChatStructuredSession', () => {
         })
     )
 
-    render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-concurrent-background"
-        sessionId="session-concurrent-background"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
-    )
+    render(sessionView('concurrent-background', { agent: 'claude' }))
     fireEvent.click(screen.getByRole('button', { name: 'Monitoring background tasks' }))
     const firstStop = screen.getByRole('button', { name: 'Stop First task' })
     const secondStop = screen.getByRole('button', { name: 'Stop Second task' })
@@ -374,25 +366,19 @@ describe('NativeChatStructuredSession', () => {
         })
     )
     const { rerender } = render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-stale-background"
-        sessionId="session-old"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
+      sessionView('stale-background', {
+        sessionId: 'session-old',
+        agent: 'claude'
+      })
     )
     fireEvent.click(screen.getByRole('button', { name: 'Monitoring background tasks' }))
     fireEvent.click(screen.getByRole('button', { name: 'Stop Shared task' }))
 
     rerender(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-stale-background"
-        sessionId="session-current"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
+      sessionView('stale-background', {
+        sessionId: 'session-current',
+        agent: 'claude'
+      })
     )
     const currentStop = screen.getByRole('button', { name: 'Stop Shared task' })
     expect((currentStop as HTMLButtonElement).disabled).toBe(false)
@@ -409,15 +395,7 @@ describe('NativeChatStructuredSession', () => {
     mocks.monitoringBackgroundTasks = true
     mocks.stopBackgroundTask.mockResolvedValue({ cancelled: true })
 
-    render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-taskless-background"
-        sessionId="session-taskless-background"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
-    )
+    render(sessionView('taskless-background', { agent: 'claude' }))
     expect(screen.queryByRole('button', { name: 'Stop background tasks' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Monitoring background tasks' }))
     expect(screen.getByText('Task details are unavailable for this session.')).toBeTruthy()
@@ -432,13 +410,7 @@ describe('NativeChatStructuredSession', () => {
   })
 
   it('routes a bare model command to the native option picker', async () => {
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-1"
-        sessionId="session-1"
-      />
-    )
+    render(sessionView('1'))
     const dispatchCommand = mocks.composerProps?.structuredTransport?.dispatchCommand as
       | ((text: string) => Promise<{ accepted: boolean }>)
       | undefined
@@ -465,13 +437,7 @@ describe('NativeChatStructuredSession', () => {
       }
     })
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-1"
-        sessionId="session-1"
-      />
-    )
+    render(sessionView('1'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -494,13 +460,7 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'accepted' } }
     })
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-wedge"
-        sessionId="session-wedge"
-      />
-    )
+    render(sessionView('wedge'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -523,13 +483,7 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'accepted' } }
     })
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-probe-flag"
-        sessionId="session-probe-flag"
-      />
-    )
+    render(sessionView('probe-flag'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -553,13 +507,7 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'accepted' } }
     })
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-parked"
-        sessionId="session-parked"
-      />
-    )
+    render(sessionView('parked'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -600,13 +548,7 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'accepted' } }
     })
 
-    const makeView = (): React.ReactElement => (
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-churn"
-        sessionId="session-churn"
-      />
-    )
+    const makeView = (): React.ReactElement => sessionView('churn')
     const { rerender } = render(makeView())
 
     const send = mocks.composerProps?.structuredTransport?.send as
@@ -649,17 +591,8 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'accepted' } }
     })
 
-    const makeView = (
-      target: { kind: 'local' } | { kind: 'environment'; environmentId: string }
-    ) => (
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-target-switch"
-        sessionId="session-target-switch"
-        target={target}
-        agent="codex"
-      />
-    )
+    const makeView = (target: { kind: 'local' } | { kind: 'environment'; environmentId: string }) =>
+      sessionView('target-switch', { target })
     const { rerender } = render(makeView({ kind: 'local' }))
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -685,13 +618,7 @@ describe('NativeChatStructuredSession', () => {
     // Both the original send and the user's explicit Retry fail at the transport.
     mocks.call.mockRejectedValue(new Error('socket closed'))
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-forced"
-        sessionId="session-forced"
-      />
-    )
+    render(sessionView('forced'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -721,13 +648,7 @@ describe('NativeChatStructuredSession', () => {
       value: { submission: { clientMessageId: 'client-1', dispatchState: 'pending' } }
     })
 
-    render(
-      <NativeChatStructuredSession
-        {...localCodexSessionProps}
-        tabId="structured-tab-pending"
-        sessionId="session-pending"
-      />
-    )
+    render(sessionView('pending'))
 
     const send = mocks.composerProps?.structuredTransport?.send as
       | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -748,13 +669,7 @@ describe('NativeChatStructuredSession', () => {
     mocks.call.mockRejectedValue(new Error('socket closed'))
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      render(
-        <NativeChatStructuredSession
-          {...localCodexSessionProps}
-          tabId="structured-tab-budget"
-          sessionId="session-budget"
-        />
-      )
+      render(sessionView('budget'))
 
       const send = mocks.composerProps?.structuredTransport?.send as
         | ((text: string, attachments: readonly { id: string; path: string }[]) => boolean)
@@ -816,15 +731,7 @@ describe('NativeChatStructuredSession', () => {
       }
     ]
 
-    render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-questions"
-        sessionId="session-questions"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
-    )
+    render(sessionView('questions', { agent: 'claude' }))
 
     const card = mocks.questionCardProps
     if (!card) {
@@ -874,15 +781,7 @@ describe('NativeChatStructuredSession', () => {
       }
     ]
 
-    render(
-      <NativeChatStructuredSession
-        isVisible
-        tabId="structured-tab-legacy-question"
-        sessionId="session-legacy-question"
-        target={{ kind: 'local' }}
-        agent="claude"
-      />
-    )
+    render(sessionView('legacy-question', { agent: 'claude' }))
 
     const card = mocks.questionCardProps
     if (!card) {

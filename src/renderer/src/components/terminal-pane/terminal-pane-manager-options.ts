@@ -21,6 +21,8 @@ import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { scheduleRuntimeGraphSync } from '@/runtime/sync-runtime-graph'
 import { acquireWebviewsDragPassthrough } from '../browser-pane/host-guest/webview-registry'
 import { handleTerminalWebLinkClick } from './terminal-web-link-click'
+import { previewTerminalHttpLink } from './terminal-url-link-hit-testing'
+import { leaveTerminalLinkPreview } from './terminal-link-action-request'
 import { createTerminalPaneCreatedHandler } from './terminal-pane-pane-created'
 import { createTerminalPaneClosedHandler } from './terminal-pane-pane-closed'
 import {
@@ -173,6 +175,17 @@ export function createTerminalPaneManagerOptions(
         actionDestinations: context.getHttpLinkActionDestinations(paneId)
       })
     },
+    onLinkHover: (paneId, event, url) => {
+      const activePane = managerRef.current?.getPanes().find((candidate) => candidate.id === paneId)
+      return previewTerminalHttpLink(url, event, {
+        worktreeId,
+        sourceOwner: activePane ? context.getHttpLinkSourceOwnerForPane(paneId) : { kind: 'local' },
+        requestOpenLinksInAppPreference,
+        linkActionContext: context.getLinkActionContext(paneId),
+        actionDestinations: context.getHttpLinkActionDestinations(paneId)
+      })
+    },
+    onLinkLeave: (paneId) => leaveTerminalLinkPreview(context.getLinkActionContext(paneId)),
     linkOpenHint: context.getUrlOpenLinkHint,
     formatLinkTooltip: (paneId, url, hint) =>
       formatTerminalUrlTooltip(url, hint, context.getHttpLinkSourceOwnerForPane(paneId)),

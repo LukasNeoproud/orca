@@ -1,4 +1,4 @@
-import type { IDisposable, ILink, ILinkProvider, Terminal } from '@xterm/xterm'
+import type { IDisposable, ILink, ILinkProvider } from '@xterm/xterm'
 import {
   extractTerminalFileLinkCandidates,
   extractTerminalFileLinks,
@@ -8,14 +8,11 @@ import type { PaneManager } from '@/lib/pane-manager/pane-manager'
 import { isRemoteRuntimeFileOperation, runtimePathExists } from '@/runtime/runtime-file-client'
 import {
   buildCandidateLogicalLinesForBufferPosition,
-  dedupeLogicalLines,
-  openFilePathLinkAtBufferPosition
+  dedupeLogicalLines
 } from './terminal-file-link-hit-testing'
 import {
   getTerminalFileContext,
-  isHtmlFilePath,
   mapTerminalFilePath,
-  shouldOpenTerminalFileWithSystemDefault,
   terminalLinkWslDistro
 } from './terminal-file-open-routing'
 import {
@@ -30,21 +27,19 @@ import {
   writeTerminalPathExistsCache
 } from './terminal-path-exists-cache'
 import {
-  getTerminalHtmlFileOpenHint,
-  getTerminalOrcaFileOpenHint,
-  getTerminalWorktreePathOpenHint,
   getTerminalFileOpenHint,
+  getTerminalHtmlFileOpenHint,
   getTerminalUrlOpenHint
 } from './terminal-link-open-hints'
 import { resolveKnownWorktreeRootPathLink } from './terminal-worktree-path-link'
-import { isTerminalLinkDirectActivation } from './terminal-link-activation'
-import { getTerminalBufferPositionForMouseEvent } from './terminal-mouse-buffer-position'
 import type { TerminalLinkActionContext } from './terminal-link-action-request'
 import { handleTerminalFileLink } from './terminal-file-link-actions'
+import { createTerminalFileLinkHoverHandlers } from './terminal-file-link-hover'
 
 export { openDetectedFilePath } from './terminal-file-open-routing'
 export { mapTerminalFilePath } from './terminal-file-open-routing'
 export { openFilePathLinkAtBufferPosition } from './terminal-file-link-hit-testing'
+export { installFilePathLinkClickFallback } from './terminal-file-link-click-fallback'
 export { getTerminalFileOpenHint, getTerminalHtmlFileOpenHint, getTerminalUrlOpenHint }
 export { isTerminalLinkActivation } from './terminal-link-activation'
 
@@ -154,7 +149,8 @@ export function createFilePathLinkProvider(
               const fileContext = getTerminalFileContext(
                 worktreeId,
                 worktreePath,
-                runtimeEnvironmentId
+                runtimeEnvironmentId,
+                mappedPath
               )
               const isRemoteRuntimePath = isRemoteRuntimeFileOperation(fileContext, mappedPath)
               const cacheKey = getTerminalPathExistsCacheKey({
@@ -206,31 +202,24 @@ export function createFilePathLinkProvider(
                       pane.terminal.clearSelection?.()
                     }
                   },
-                  hover: () => {
-                    // Why: only local paths can offer the Shift+modifier system
-                    // default escape hatch; remote paths may not exist locally.
-                    const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(
-                      fileContext,
-                      mappedPath
-                    )
-                    const showActions = deps.getLinkActionContext
-                      ? deps.getLinkActionContext(paneId) !== null
-                      : true
-                    const hint = worktreeRootLink
-                      ? getTerminalWorktreePathOpenHint(canOpenWithSystemDefault, showActions)
-                      : canOpenWithSystemDefault
-                        ? isHtmlFilePath(mappedPath)
-                          ? getTerminalHtmlFileOpenHint(showActions)
-                          : showActions
-                            ? openLinkHint
-                            : getTerminalFileOpenHint(false)
-                        : getTerminalOrcaFileOpenHint(showActions)
-                    linkTooltip.textContent = `${mappedPath} (${hint})`
-                    linkTooltip.style.display = ''
-                  },
-                  leave: () => {
-                    linkTooltip.style.display = 'none'
-                  }
+                  ...createTerminalFileLinkHoverHandlers({
+                    actionDeps: {
+                      worktreeId,
+                      worktreePath,
+                      runtimeEnvironmentId,
+                      wslDistro: deps.wslDistro
+                    },
+                    column: resolved.column,
+                    fileContext,
+                    getLinkActionContext: deps.getLinkActionContext
+                      ? () => deps.getLinkActionContext!(paneId)
+                      : undefined,
+                    isWorktreeRoot: Boolean(worktreeRootLink),
+                    line: resolved.line,
+                    linkTooltip,
+                    mappedPath,
+                    openLinkHint
+                  })
                 }
               }
             }
@@ -265,57 +254,6 @@ export function createFilePathLinkProvider(
           // Link discovery is best-effort; a stale xterm callback must not
           // recreate the unhandled rejection this path is meant to contain.
         })
-    }
-  }
-}
-
-export function installFilePathLinkClickFallback(
-  paneId: number,
-  terminal: Terminal,
-  deps: LinkHandlerDeps
-): IDisposable {
-  const mouseUpListenerOptions = { capture: true }
-  const handleMouseUp = (event: MouseEvent): void => {
-    if (!isTerminalLinkDirectActivation(event)) {
-      return
-    }
-
-    const position = getTerminalBufferPositionForMouseEvent(terminal, event)
-    if (!position) {
-      return
-    }
-    const runtimeEnvironmentId =
-      deps.getRuntimeEnvironmentIdForPane?.(paneId) ?? deps.runtimeEnvironmentId ?? null
-    // Why: xterm can show a wrapped provider link as active while still missing
-    // activation for the clicked wrapped row. Always retry file-path hit testing
-    // on modifier mouseup; openDetectedFilePath coalesces duplicate opens.
-    const opened = openFilePathLinkAtBufferPosition(
-      terminal.buffer.active,
-      position,
-      terminal.cols,
-      {
-        startupCwd: deps.getPaneLinkCwd?.(paneId) ?? deps.startupCwd,
-        terminalHomePath: deps.terminalHomePath,
-        worktreeId: deps.worktreeId,
-        worktreePath: deps.worktreePath,
-        runtimeEnvironmentId,
-        wslDistro: deps.wslDistro,
-        pathExistsCache: deps.pathExistsCache,
-        openWithSystemDefault: Boolean(event.shiftKey)
-      }
-    )
-    if (opened) {
-      event.preventDefault()
-      event.stopPropagation()
-      terminal.clearSelection()
-    }
-  }
-
-  const terminalElement = terminal.element
-  terminalElement?.addEventListener('mouseup', handleMouseUp, mouseUpListenerOptions)
-  return {
-    dispose: () => {
-      terminalElement?.removeEventListener('mouseup', handleMouseUp, mouseUpListenerOptions)
     }
   }
 }

@@ -4,12 +4,17 @@ import type { TerminalLinkActionContext } from './terminal-link-action-request'
 const mocks = vi.hoisted(() => ({
   canOpenWithSystemDefault: true,
   downloadAndOpen: vi.fn(),
+  fileContext: {} as { connectionId?: string },
+  getTerminalFileContext: vi.fn(),
   openDetectedFilePath: vi.fn(),
   worktreeRoot: false
 }))
 
 vi.mock('./terminal-file-open-routing', () => ({
-  getTerminalFileContext: () => ({}),
+  getTerminalFileContext: (...args: unknown[]) => {
+    mocks.getTerminalFileContext(...args)
+    return mocks.fileContext
+  },
   mapTerminalFilePath: (filePath: string) => filePath,
   openDetectedFilePath: mocks.openDetectedFilePath,
   shouldOpenTerminalFileWithSystemDefault: () => mocks.canOpenWithSystemDefault,
@@ -54,6 +59,7 @@ function context(request: ReturnType<typeof vi.fn>): TerminalLinkActionContext {
 beforeEach(() => {
   vi.stubGlobal('navigator', { userAgent: 'Macintosh' })
   mocks.canOpenWithSystemDefault = true
+  mocks.fileContext = {}
   mocks.worktreeRoot = false
   vi.clearAllMocks()
 })
@@ -75,6 +81,9 @@ describe('terminal file link actions', () => {
       expect.objectContaining({
         destination: '/repo/src/main.ts',
         kind: 'file',
+        preview: expect.objectContaining({
+          target: expect.objectContaining({ path: '/repo/src/main.ts', line: 12, kind: 'file' })
+        }),
         primary: expect.objectContaining({ label: 'Open file' }),
         alternate: expect.objectContaining({ label: 'Open with default app' })
       })
@@ -116,6 +125,7 @@ describe('terminal file link actions', () => {
       })
     )
     expect(actionRequest).not.toHaveProperty('alternate')
+    expect(actionRequest).not.toHaveProperty('preview')
   })
 
   it('offers the same rows for a remote previewable file, downloading before the OS opens it', () => {
@@ -138,6 +148,30 @@ describe('terminal file link actions', () => {
     actionRequest.alternate.run()
     expect(mocks.downloadAndOpen).toHaveBeenCalledWith({}, '/repo/docs/report.html')
     expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
+  })
+
+  it('uses the file-scoped host context for a folder-workspace preview', () => {
+    mocks.fileContext = { connectionId: 'ssh-folder-repo' }
+    const request = vi.fn()
+
+    handleTerminalFileLink(
+      '/folder/remote-repo/src/main.ts',
+      8,
+      null,
+      plainEvent(),
+      { worktreeId: 'folder-1', worktreePath: '/folder' },
+      context(request)
+    )
+
+    expect(mocks.getTerminalFileContext).toHaveBeenCalledWith(
+      'folder-1',
+      '/folder',
+      undefined,
+      '/folder/remote-repo/src/main.ts'
+    )
+    expect(request.mock.calls[0][0].preview.runtimeContext).toEqual({
+      connectionId: 'ssh-folder-repo'
+    })
   })
 
   it('keeps row parity between local and remote previewable files', () => {

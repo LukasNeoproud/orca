@@ -22,6 +22,11 @@ export type NativeChatWebLinkDeps = {
   request: (request: LinkActionRequest) => void
 }
 
+type NativeChatWebLinkRequestDeps = Pick<
+  NativeChatWebLinkDeps,
+  'worktreeId' | 'sourceOwner' | 'destinations' | 'restoreFocus'
+>
+
 type ChatLinkMouseEvent = Pick<
   MouseEvent,
   'altKey' | 'clientX' | 'clientY' | 'ctrlKey' | 'metaKey' | 'shiftKey'
@@ -32,6 +37,38 @@ type ChatLinkMouseEvent = Pick<
   preventDefault: () => void
 }
 
+function openNativeChatWebLink(
+  url: string,
+  deps: NativeChatWebLinkRequestDeps,
+  destination: HttpLinkDestination | undefined
+): void {
+  openRoutedHttpLink(url, {
+    worktreeId: deps.worktreeId,
+    sourceOwner: deps.sourceOwner,
+    modifierHeld: false,
+    ...(destination ? { forceDestination: destination } : {})
+  })
+}
+
+export function nativeChatWebLinkActionRequest(
+  anchor: HTMLElement,
+  url: string,
+  deps: NativeChatWebLinkRequestDeps
+): LinkActionRequest {
+  const bounds = anchor.getBoundingClientRect()
+  return {
+    anchorX: bounds.left,
+    anchorY: bounds.bottom,
+    anchorElement: anchor,
+    destination: url,
+    kind: 'url',
+    restoreFocus: deps.restoreFocus,
+    ...buildHttpLinkActions(deps.destinations, (destination) =>
+      openNativeChatWebLink(url, deps, destination)
+    )
+  }
+}
+
 /** Returns true when the click was consumed; false leaves the anchor's default. */
 export function handleNativeChatWebLink(
   event: ChatLinkMouseEvent,
@@ -39,12 +76,7 @@ export function handleNativeChatWebLink(
   deps: NativeChatWebLinkDeps
 ): boolean {
   const open = (destination: HttpLinkDestination | undefined): void =>
-    openRoutedHttpLink(url, {
-      worktreeId: deps.worktreeId,
-      sourceOwner: deps.sourceOwner,
-      modifierHeld: false,
-      ...(destination ? { forceDestination: destination } : {})
-    })
+    openNativeChatWebLink(url, deps, destination)
 
   if (isTerminalLinkDirectActivation(event)) {
     event.preventDefault()
@@ -65,13 +97,21 @@ export function handleNativeChatWebLink(
     return true
   }
   const keyboardAnchor = event.detail === 0 ? event.currentTarget?.getBoundingClientRect() : null
-  deps.request({
-    anchorX: keyboardAnchor?.left ?? event.clientX,
-    anchorY: keyboardAnchor?.bottom ?? event.clientY,
-    destination: url,
-    kind: 'url',
-    restoreFocus: deps.restoreFocus,
-    ...buildHttpLinkActions(deps.destinations, open)
-  })
+  const anchor = event.currentTarget
+  if (anchor instanceof HTMLElement) {
+    const request = nativeChatWebLinkActionRequest(anchor, url, deps)
+    request.anchorX = keyboardAnchor?.left ?? event.clientX
+    request.anchorY = keyboardAnchor?.bottom ?? event.clientY
+    deps.request(request)
+  } else {
+    deps.request({
+      anchorX: keyboardAnchor?.left ?? event.clientX,
+      anchorY: keyboardAnchor?.bottom ?? event.clientY,
+      destination: url,
+      kind: 'url',
+      restoreFocus: deps.restoreFocus,
+      ...buildHttpLinkActions(deps.destinations, open)
+    })
+  }
   return true
 }

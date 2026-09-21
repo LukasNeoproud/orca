@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatRichMarkdown } from './NativeChatRichMarkdown'
 
 const mocks = vi.hoisted(() => ({ mode: 'hover' as 'hover' | 'paragraph' }))
@@ -81,7 +83,25 @@ describe('native chat rich markdown previews', () => {
 
   it('keeps previews in hover mode until link focus', async () => {
     mocks.mode = 'hover'
-    render(<NativeChatRichMarkdown runtimeContext={context} content="Open [main](src/main.ts)." />)
+    const onLinkClick = vi.fn() as unknown as CommentMarkdownLinkClickHandler
+    onLinkClick.createPreviewRequest = (anchor) => ({
+      anchorX: 0,
+      anchorY: 0,
+      anchorElement: anchor,
+      destination: '/repo/worktree/src/main.ts',
+      kind: 'file',
+      primary: { label: 'Open file', run: vi.fn() },
+      restoreFocus: vi.fn()
+    })
+    render(
+      <TooltipProvider>
+        <NativeChatRichMarkdown
+          runtimeContext={context}
+          content="Open [main](src/main.ts)."
+          onLinkClick={onLinkClick}
+        />
+      </TooltipProvider>
+    )
     expect(screen.queryByTestId('preview-card')).toBeNull()
     fireEvent.focus(screen.getByRole('link', { name: 'main' }))
     await waitFor(() => expect(screen.getByTestId('preview-card')).toBeTruthy())

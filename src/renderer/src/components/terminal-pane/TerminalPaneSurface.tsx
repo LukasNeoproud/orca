@@ -54,6 +54,9 @@ export function TerminalPaneSurface({
     handleContextMenuToggleNativeChat,
     handlePrimarySelectionAuxClick,
     handlePrimarySelectionMiddleMouseDown,
+    handleTerminalLinkPopoverPointerEnter,
+    handleTerminalLinkPopoverPointerLeave,
+    handleTerminalLinkPopoverPin,
     handleRemoveTitle,
     handleRenameBlur,
     handleRenameCancel,
@@ -263,7 +266,13 @@ export function TerminalPaneSurface({
         canCopyAgentSessionId={menuAgentSessionId !== null}
         onCopyAgentSessionId={() => void contextMenu.onCopyAgentSessionId()}
       />
-      <LinkActionPopover request={terminalLinkActionRequest} onClose={closeTerminalLinkActions} />
+      <LinkActionPopover
+        request={terminalLinkActionRequest}
+        onClose={closeTerminalLinkActions}
+        onPointerEnter={handleTerminalLinkPopoverPointerEnter}
+        onPointerLeave={handleTerminalLinkPopoverPointerLeave}
+        onPin={handleTerminalLinkPopoverPin}
+      />
       {quickCommandEditorOpen ? (
         <TerminalQuickCommandEditorDialog
           command={quickCommandDraft}

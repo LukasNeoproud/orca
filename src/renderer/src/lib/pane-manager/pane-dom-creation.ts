@@ -72,9 +72,13 @@ export function createPaneDOM(
   const webLinksAddon = new WebLinksAddon(
     options.onLinkClick ? (event, uri) => options.onLinkClick!(id, event, uri) : undefined,
     {
-      hover: (_event, uri) => {
+      hover: (event, uri) => {
         if (uri) {
           linkTooltipHoverToken += 1
+          if (options.onLinkHover?.(id, event, uri)) {
+            linkTooltip.style.display = 'none'
+            return
+          }
           const hoverToken = linkTooltipHoverToken
           const openLinkHint = options.linkOpenHint(id)
           linkTooltip.textContent = defaultLinkTooltipText(uri, openLinkHint)
@@ -97,6 +101,7 @@ export function createPaneDOM(
       leave: () => {
         linkTooltipHoverToken += 1
         linkTooltip.style.display = 'none'
+        options.onLinkLeave?.(id)
       }
     }
   )

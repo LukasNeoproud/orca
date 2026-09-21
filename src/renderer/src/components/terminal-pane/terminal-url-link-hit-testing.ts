@@ -21,8 +21,10 @@ import {
 } from '@/lib/http-link-destinations'
 import { isTerminalOwnedLinkGesture } from './terminal-link-activation'
 import {
+  requestTerminalLinkPreview,
   requestTerminalLinkAction,
-  type TerminalLinkActionContext
+  type TerminalLinkActionContext,
+  type TerminalLinkActionDetails
 } from './terminal-link-action-request'
 
 export { extractTerminalHttpLinks } from './terminal-http-url-extraction'
@@ -58,6 +60,22 @@ export type TerminalHttpLinkActionDestinations = HttpLinkActionDestinations
 
 export type TerminalLinkRoutingPreferenceRequester = HttpLinkRoutingPreferenceRequester
 
+function buildTerminalHttpLinkActionDetails(
+  url: string,
+  deps: UrlLinkHitTestDeps
+): TerminalLinkActionDetails {
+  return {
+    destination: deps.actionDestination ?? url,
+    kind: 'url',
+    preview: {
+      target: { href: url, key: url, path: url, line: null, kind: 'web' }
+    },
+    ...buildHttpLinkActions(deps.actionDestinations, (destination) =>
+      openRoutedHttpLink(url, { ...deps, modifierHeld: false, forceDestination: destination })
+    )
+  }
+}
+
 function isDesktopHttpLinkFallbackActivation(event: MouseEvent): boolean {
   if (event.defaultPrevented || event.button !== 0) {
     return false
@@ -83,13 +101,23 @@ export function handleTerminalHttpLink(
     return true
   }
 
-  return requestTerminalLinkAction(event, deps.linkActionContext, {
-    destination: deps.actionDestination ?? url,
-    kind: 'url',
-    ...buildHttpLinkActions(deps.actionDestinations, (destination) =>
-      openRoutedHttpLink(url, { ...deps, modifierHeld: false, forceDestination: destination })
-    )
-  })
+  return requestTerminalLinkAction(
+    event,
+    deps.linkActionContext,
+    buildTerminalHttpLinkActionDetails(url, deps)
+  )
+}
+
+export function previewTerminalHttpLink(
+  url: string,
+  event: MouseEvent | undefined,
+  deps: UrlLinkHitTestDeps
+): boolean {
+  return requestTerminalLinkPreview(
+    event,
+    deps.linkActionContext,
+    buildTerminalHttpLinkActionDetails(url, deps)
+  )
 }
 
 export function openHttpLinkAtTerminalMouseEvent(

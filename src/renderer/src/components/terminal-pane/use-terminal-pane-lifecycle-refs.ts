@@ -20,6 +20,7 @@ export function useTerminalPaneLifecycleRefs() {
     httpLinkClickFallbackDisposablesRef: useRef(
       new Map<number, ReturnType<typeof installHttpLinkClickFallback>>()
     ),
+    linkPreviewInvalidationDisposablesRef: useRef(new Map<number, IDisposable>()),
     selectionDisposablesRef: useRef(new Map<number, IDisposable>()),
     selectionCaptureTimersRef: useRef(new Map<number, number>()),
     osc52DisposablesRef: useRef(new Map<number, IDisposable>()),

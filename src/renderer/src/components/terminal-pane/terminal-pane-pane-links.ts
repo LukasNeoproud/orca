@@ -16,7 +16,8 @@ import { createTerminalHandleLinkProvider } from './terminal-handle-links'
 import { installTerminalLinkifierClickPriming } from './terminal-linkifier-click-priming'
 import { installTerminalLinkPointerGesture } from './terminal-link-pointer-gesture'
 import { installHttpLinkClickFallback } from './terminal-url-link-hit-testing'
-import { handleOscLink } from './terminal-osc-link-routing'
+import { handleOscLink, previewOscLink } from './terminal-osc-link-routing'
+import { leaveTerminalLinkPreview } from './terminal-link-action-request'
 import { copyTerminalSelection } from './terminal-selection-copy'
 import { installMouseHideWhileTyping } from './mouse-hide-while-typing'
 import { isPrimarySelectionEnabled, setPrimarySelectionText } from '@/lib/primary-selection'
@@ -38,6 +39,7 @@ type PaneLinkContext = {
     | 'linkPointerGesturesRef'
     | 'fileLinkClickFallbackDisposablesRef'
     | 'httpLinkClickFallbackDisposablesRef'
+    | 'linkPreviewInvalidationDisposablesRef'
     | 'selectionDisposablesRef'
     | 'selectionCaptureTimersRef'
     | 'mouseHideDisposablesRef'
@@ -50,6 +52,8 @@ type PaneLinkContext = {
   getLinkActionContext: (paneId: number) => TerminalLinkActionContext | null
   getPaneLinkCwd: (paneId: number) => string
   getUrlOpenLinkHint: (paneId: number) => string
+  invalidateLinkPreview: (paneId: number) => void
+  dismissLinkPreview: (paneId: number) => void
   onShowSessionRestoredBanner: (paneId: number) => void
   ptyStartup: Parameters<typeof seedStartupSessionRestoredBanner>[0]
 }
@@ -69,6 +73,8 @@ export function installTerminalPaneLinkHandling(context: PaneLinkContext): void 
     getLinkActionContext,
     getPaneLinkCwd,
     getUrlOpenLinkHint,
+    invalidateLinkPreview,
+    dismissLinkPreview,
     onShowSessionRestoredBanner,
     ptyStartup
   } = context
@@ -111,6 +117,14 @@ export function installTerminalPaneLinkHandling(context: PaneLinkContext): void 
       getActionDestinations: () => getHttpLinkActionDestinations(pane.id)
     })
   )
+  const previewInvalidationDisposables = [
+    pane.terminal.onScroll(() => dismissLinkPreview(pane.id)),
+    pane.terminal.onWriteParsed(() => invalidateLinkPreview(pane.id)),
+    pane.terminal.buffer.onBufferChange(() => dismissLinkPreview(pane.id))
+  ]
+  refs.linkPreviewInvalidationDisposablesRef.current.set(pane.id, {
+    dispose: () => previewInvalidationDisposables.forEach((disposable) => disposable.dispose())
+  })
   seedStartupSessionRestoredBanner(ptyStartup, pane.id, onShowSessionRestoredBanner)
 
   refs.selectionDisposablesRef.current.set(
@@ -184,10 +198,23 @@ export function installTerminalPaneLinkHandling(context: PaneLinkContext): void 
         pane.terminal.clearSelection()
       }
     },
-    hover: (_event, text) => {
+    hover: (event, text) => {
       oscTooltipHoverToken += 1
       const hoverToken = oscTooltipHoverToken
       const hint = getUrlOpenLinkHint(pane.id)
+      const previewRequested = previewOscLink(text, event as MouseEvent, {
+        ...linkDeps,
+        startupCwd: getPaneLinkCwd(pane.id),
+        runtimeEnvironmentId: linkDeps.getRuntimeEnvironmentIdForPane?.(pane.id) ?? null,
+        sourceOwner: getHttpLinkSourceOwnerForPane(pane.id),
+        requestOpenLinksInAppPreference,
+        linkActionContext: getLinkActionContext(pane.id),
+        actionDestinations: getHttpLinkActionDestinations(pane.id)
+      })
+      if (previewRequested) {
+        pane.linkTooltip.style.display = 'none'
+        return
+      }
       pane.linkTooltip.textContent = `${text} (${hint})`
       pane.linkTooltip.style.display = ''
       void formatTerminalUrlTooltip(text, hint, getHttpLinkSourceOwnerForPane(pane.id)).then(
@@ -201,6 +228,7 @@ export function installTerminalPaneLinkHandling(context: PaneLinkContext): void 
     leave: () => {
       oscTooltipHoverToken += 1
       pane.linkTooltip.style.display = 'none'
+      leaveTerminalLinkPreview(getLinkActionContext(pane.id))
     }
   }
 }

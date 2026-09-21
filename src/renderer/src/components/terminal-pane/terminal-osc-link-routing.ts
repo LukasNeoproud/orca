@@ -8,12 +8,13 @@ import {
 } from './terminal-link-activation'
 import {
   handleTerminalHttpLink,
+  previewTerminalHttpLink,
   type TerminalHttpLinkActionDestinations,
   type TerminalLinkRoutingPreferenceRequester
 } from './terminal-url-link-hit-testing'
 import type { HttpLinkSourceOwner } from '@/lib/http-link-routing'
 import type { TerminalLinkActionContext } from './terminal-link-action-request'
-import { handleTerminalFileLink } from './terminal-file-link-actions'
+import { handleTerminalFileLink, previewTerminalFileLink } from './terminal-file-link-actions'
 
 type TerminalLinkEvent = Pick<MouseEvent, 'metaKey' | 'ctrlKey'> &
   Partial<
@@ -151,4 +152,89 @@ export function handleOscLink(
     )
   }
   return false
+}
+
+export function previewOscLink(
+  rawText: string,
+  event: MouseEvent | undefined,
+  deps: Pick<LinkHandlerDeps, 'worktreeId' | 'worktreePath'> &
+    Partial<
+      Pick<
+        LinkHandlerDeps,
+        'runtimeEnvironmentId' | 'startupCwd' | 'terminalHomePath' | 'wslDistro'
+      >
+    > & {
+      sourceOwner?: HttpLinkSourceOwner
+      requestOpenLinksInAppPreference?: TerminalLinkRoutingPreferenceRequester
+      linkActionContext?: TerminalLinkActionContext | null
+      actionDestinations?: TerminalHttpLinkActionDestinations
+    }
+): boolean {
+  const previewDetectedPathLink = (): boolean => {
+    const resolved = resolveTerminalFileLinkText(
+      rawText,
+      deps.startupCwd || deps.worktreePath,
+      deps.terminalHomePath
+    )
+    return Boolean(
+      resolved &&
+      previewTerminalFileLink(
+        resolved.absolutePath,
+        resolved.line,
+        resolved.column,
+        event,
+        deps,
+        deps.linkActionContext,
+        rawText
+      )
+    )
+  }
+
+  if (
+    isWindowsAbsolutePathLike(rawText) &&
+    isWindowsAbsolutePathLike(deps.startupCwd || deps.worktreePath)
+  ) {
+    return previewDetectedPathLink()
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(rawText)
+  } catch {
+    return previewDetectedPathLink()
+  }
+  if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    return previewTerminalHttpLink(parsed.toString(), event, {
+      worktreeId: deps.worktreeId,
+      sourceOwner:
+        deps.sourceOwner ??
+        (deps.runtimeEnvironmentId
+          ? { kind: 'runtime', runtimeEnvironmentId: deps.runtimeEnvironmentId }
+          : { kind: 'local' }),
+      requestOpenLinksInAppPreference: deps.requestOpenLinksInAppPreference,
+      linkActionContext: deps.linkActionContext,
+      actionDestinations: deps.actionDestinations,
+      actionDestination: rawText
+    })
+  }
+  if (parsed.protocol !== 'file:') {
+    return false
+  }
+  const allowUncHost =
+    navigator.userAgent.includes('Windows') &&
+    isWindowsAbsolutePathLike(deps.worktreePath) &&
+    !deps.runtimeEnvironmentId
+  const resolved = resolveTerminalFileUrlTarget(parsed, { allowUncHost })
+  return Boolean(
+    resolved &&
+    previewTerminalFileLink(
+      resolved.filePath,
+      resolved.line,
+      resolved.column,
+      event,
+      deps,
+      deps.linkActionContext,
+      rawText
+    )
+  )
 }

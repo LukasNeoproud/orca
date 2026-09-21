@@ -7056,7 +7056,12 @@
             "historyDefaultCopy": "Choose how past Codex and Claude sessions open. This is independent of the default view for new tabs.",
             "historyDefaultLabel": "Default session history view",
             "historyDefaultTerminal": "Terminal chat",
-            "historyDefaultStructured": "Chat UI"
+            "historyDefaultStructured": "Chat UI",
+            "linkPreviewTitle": "Link previews",
+            "linkPreviewCopy": "Show previews when a link is hovered or focused, or after each paragraph and list.",
+            "linkPreviewLabel": "Link preview display",
+            "linkPreviewHover": "On hover",
+            "linkPreviewParagraph": "After paragraph or list"
           },
           "agentDashboard": {
             "title": "Agent Dashboard",
@@ -9477,7 +9482,10 @@
               "openclaude": "openclaude",
               "omp": "omp",
               "terminal": "terminal",
-              "agent": "agent"
+              "agent": "agent",
+              "linkPreview": "link preview",
+              "hover": "hover",
+              "paragraph": "paragraph"
             },
             "agentDashboard": {
               "title": "Agent Dashboard",
@@ -16641,6 +16649,42 @@
       "nativeChat": {
         "contextMenu": {
           "copy": "Copy"
+        },
+        "preview": {
+          "copyPath": "Copy path",
+          "preview": "Preview",
+          "table": "Table",
+          "tree": "Tree",
+          "text": "Text",
+          "invalidStructuredData": "Unable to parse structured data",
+          "diagram": "Diagram",
+          "source": "Source",
+          "loadingFormat": "Loading preview…",
+          "unsupportedFormat": "Preview is unavailable for this file format",
+          "pdfUnavailable": "PDF preview is unavailable",
+          "isolatedHtml": "Isolated HTML preview",
+          "htmlOnDemand": "HTML preview loads on request",
+          "showHtml": "Show preview",
+          "web": "Web",
+          "currentFile": "Current file",
+          "openWebsite": "Open the link to view the website.",
+          "outsideWorkspace": "This file is outside the conversation’s workspace.",
+          "loadFile": "Load preview",
+          "loading": "Loading preview…",
+          "missing": "File no longer exists.",
+          "large": "This file is too large for an inline preview. Open it to view its content.",
+          "unavailable": "The file’s workspace is unavailable.",
+          "error": "Could not load this preview.",
+          "retry": "Retry",
+          "changed": "Changed since first preview · showing current content",
+          "current": "Current content · no historical copy",
+          "summary": "Summary",
+          "passed": "passed",
+          "failed": "failed",
+          "skipped": "skipped",
+          "openFile": "Open file",
+          "reviewChanges": "Review changes in Source Control",
+          "addReference": "Add reference to prompt"
         }
       },
       "orca": {
@@ -16916,6 +16960,15 @@
       "HostedReviewUnlinkMenuItem": {
         "label": "Unlink {{value0}} from workspace",
         "description": "Orca will hide {{value0}} {{value1}} details for this workspace. The {{value0}} and branch on {{value2}} won’t be changed."
+      },
+      "linkPreview": {
+        "unpin": "Unpin preview",
+        "pin": "Pin preview",
+        "close": "Close preview",
+        "collapse": "Reduce preview",
+        "expand": "Expand preview",
+        "pinned": "Pinned",
+        "more": "More actions"
       }
     },
     "i18n": {
@@ -17931,6 +17984,22 @@
       "gitFailed": "Worktree created, but Git reported an error",
       "copyPrompt": "Copy initial prompt",
       "copyFailed": "Could not copy the initial prompt."
+    }
+  },
+  "image": {
+    "review": {
+      "openLarge": "Open larger",
+      "annotate": "Select area",
+      "keyboardArea": "Enter area coordinates",
+      "zoomHint": "Ctrl + scroll to zoom; scroll to pan both images",
+      "areaNote": "Note on selected area",
+      "noteBody": "Image area note",
+      "notePlaceholder": "Describe what should change in this area…",
+      "saveFailed": "Could not save the note. Try again.",
+      "saveNote": "Add note",
+      "imageArea": "image area",
+      "imageBadge": "Image",
+      "copyNote": "Copy note on image area"
     }
   }
 }

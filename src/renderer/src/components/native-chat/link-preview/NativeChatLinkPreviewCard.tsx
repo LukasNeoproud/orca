@@ -11,11 +11,15 @@ import type { ChatPreviewTarget } from './native-chat-preview-groups'
 export function NativeChatLinkPreviewCard({
   target,
   runtimeContext,
-  onLinkClick
+  onLinkClick,
+  embedded = false,
+  expanded = false
 }: {
   target: ChatPreviewTarget
   runtimeContext?: RuntimeFileOperationArgs | null
   onLinkClick?: CommentMarkdownLinkClickHandler
+  embedded?: boolean
+  expanded?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
@@ -57,26 +61,40 @@ export function NativeChatLinkPreviewCard({
   return (
     <div
       ref={ref}
-      className="my-2 min-w-0 overflow-hidden rounded-md border border-border bg-muted/30 text-sm not-italic"
+      className={
+        embedded
+          ? 'min-w-0 text-sm not-italic'
+          : 'my-2 min-w-0 overflow-hidden rounded-md border border-border bg-muted/30 text-sm not-italic'
+      }
     >
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 text-left hover:bg-accent"
-        title={target.path}
-        onClick={(event) => onLinkClick?.(event, target.href)}
+      {!embedded && (
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2 text-left hover:bg-accent"
+          title={target.path}
+          onClick={(event) => onLinkClick?.(event, target.href)}
+        >
+          <span className="truncate font-medium">
+            {name}
+            {target.line ? `:${target.line}` : ''}
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {target.kind === 'web'
+              ? translate('auto.components.nativeChat.preview.web', 'Web')
+              : translate('auto.components.nativeChat.preview.currentFile', 'Current file')}{' '}
+            ↗
+          </span>
+        </button>
+      )}
+      <div
+        className={
+          target.kind === 'web'
+            ? 'p-3'
+            : expanded
+              ? 'h-[min(32rem,55vh)] overflow-auto scrollbar-editor p-3'
+              : 'h-64 overflow-auto scrollbar-editor p-3'
+        }
       >
-        <span className="truncate font-medium">
-          {name}
-          {target.line ? `:${target.line}` : ''}
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {target.kind === 'web'
-            ? translate('auto.components.nativeChat.preview.web', 'Web')
-            : translate('auto.components.nativeChat.preview.currentFile', 'Current file')}{' '}
-          ↗
-        </span>
-      </button>
-      <div className={target.kind === 'web' ? 'p-3' : 'h-64 overflow-auto scrollbar-editor p-3'}>
         {target.kind === 'web' ? (
           <>
             <p className="break-all text-muted-foreground">{target.path}</p>

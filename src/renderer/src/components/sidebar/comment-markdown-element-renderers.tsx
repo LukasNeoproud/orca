@@ -9,12 +9,18 @@ import {
   isGitHubUserAttachmentVideoLink
 } from './comment-markdown-github-attachment-media'
 import { ExpandableMarkdownImage } from './MarkdownImageLightbox'
+import type { LinkActionRequest } from '@/components/link-actions/link-action-request'
 
-export type CommentMarkdownLinkClickHandler = (
-  event: React.MouseEvent<HTMLElement>,
-  href: string | undefined,
-  options?: { preview?: () => void }
-) => void
+export type CommentMarkdownLinkClickHandler = {
+  (
+    event: React.MouseEvent<HTMLElement>,
+    href: string | undefined,
+    options?: { preview?: LinkActionRequest['preview'] }
+  ): void
+  createPreviewRequest?: (anchor: HTMLElement, href: string) => LinkActionRequest | null
+  claimPreview?: (owner: symbol, close: () => void, pinned: boolean) => boolean
+  releasePreview?: (owner: symbol) => void
+}
 
 export function isTrustedCompactImageSrc(src: string | undefined): src is string {
   if (!src) {

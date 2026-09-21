@@ -6,6 +6,7 @@ import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { isPathInsideWorktree, toWorktreeRelativePath } from '@/lib/terminal-links'
 import {
   buildWorkspaceFileContext,
+  buildWorkspaceFileContextForFile,
   canClientOsOpenWorkspaceFile
 } from '@/lib/workspace-file-host-routing'
 import { statRuntimePath, type RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
@@ -48,9 +49,12 @@ function openHtmlFileInBrowser(filePath: string, worktreeId: string): void {
 export function getTerminalFileContext(
   worktreeId: string,
   worktreePath: string,
-  runtimeEnvironmentId?: string | null
+  runtimeEnvironmentId?: string | null,
+  filePath?: string
 ): RuntimeFileOperationArgs {
-  return buildWorkspaceFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
+  return filePath
+    ? buildWorkspaceFileContextForFile(worktreeId, worktreePath, filePath, runtimeEnvironmentId)
+    : buildWorkspaceFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
 }
 
 // Why: a WSL-runtime pane prints POSIX paths even when the worktree lives on a
@@ -140,7 +144,12 @@ export function openDetectedFilePath(
 
   void (async () => {
     let statResult
-    const fileContext = getTerminalFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
+    const fileContext = getTerminalFileContext(
+      worktreeId,
+      worktreePath,
+      runtimeEnvironmentId,
+      mappedFilePath
+    )
     const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(
       fileContext,
       mappedFilePath
