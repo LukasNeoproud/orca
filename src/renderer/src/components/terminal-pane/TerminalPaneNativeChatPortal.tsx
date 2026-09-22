@@ -81,6 +81,7 @@ function RetainedNativeChatPanePortal({
           mode="structured"
           tabId={unifiedTabId ?? tabId}
           sessionId={projection.structuredSessionId}
+          worktreeId={worktreeId}
           agent={projection.structuredSessionAgent}
           isVisible={isRendererVisible && isActive}
           target={structuredChatTarget}

@@ -12,6 +12,7 @@ import type { CloseTerminalDialogCopyKind } from './CloseTerminalDialog'
 import { useTerminalLinkActionState } from './use-terminal-link-action-state'
 import type { PreparedAgentSessionFork } from './terminal-agent-session-fork'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
+import type { CodexConversationContinuationSource } from './codex-conversation-continuation-source'
 import { createTerminalQuickCommandDraft } from '@/components/terminal-quick-commands/TerminalQuickCommandDialog'
 import { useDaemonActions } from '@/components/shared/useDaemonActions'
 import { useMobileOverlayTicks } from './use-mobile-overlay-ticks'
@@ -119,6 +120,8 @@ export function useTerminalPaneFoundation(
   const [agentSessionFork, setAgentSessionFork] = useState<PreparedAgentSessionFork | null>(null)
   const [agentSessionContinuation, setAgentSessionContinuation] =
     useState<AgentSessionContinuationRequest | null>(null)
+  const [codexConversationContinuation, setCodexConversationContinuation] =
+    useState<CodexConversationContinuationSource | null>(null)
   const [terminalError, setTerminalError] = useState<string | null>(null)
   const [terminalErrorsByPaneId, setTerminalErrorsByPaneId] = useState<TerminalErrorsByPaneId>({})
   const [paneProcessExitsByPaneId, setPaneProcessExitsByPaneId] = useState<
@@ -216,6 +219,8 @@ export function useTerminalPaneFoundation(
     setAgentSessionFork,
     agentSessionContinuation,
     setAgentSessionContinuation,
+    codexConversationContinuation,
+    setCodexConversationContinuation,
     terminalError,
     terminalErrorsByPaneId,
     setTerminalErrorsByPaneId,

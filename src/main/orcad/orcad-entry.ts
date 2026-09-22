@@ -1,3 +1,4 @@
+import { startConversationContinuation } from '../runtime/conversation-continuation-runtime'
 /**
  * `orcad` — the Orca runtime served from plain Node, with no Electron.
  *
@@ -197,6 +198,7 @@ async function startOrcadRuntime(
   // restored orchestration rows claiming an authority this host never took over.
   // Why before the RPC server binds: a client host attaching first would find no pages to recover.
   runtime.rehydrateClientHostedBrowserPages()
+  startConversationContinuation(runtime)
 
   await runtime.refreshRestoredOrchestrationAuthority()
   await runtime.reconcileLegacyWorkerTerminals()

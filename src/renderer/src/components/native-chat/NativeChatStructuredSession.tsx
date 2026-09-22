@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
@@ -21,6 +21,12 @@ import { NativeChatBackgroundTasksStatus } from './NativeChatBackgroundTasksStat
 import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHandoffChrome'
 import { useConversationTools } from './use-conversation-tools'
 import { NativeChatStructuredPromptCard } from './NativeChatStructuredPromptCard'
+import { ConversationContinuationPanel } from '@/components/agent-session-continuation/ConversationContinuationPanel'
+import { startStructuredAgentLaunch } from '@/lib/structured-agent-session-launch'
+import {
+  adoptStructuredSessionComposerDraft,
+  stageStructuredSessionComposerDraft
+} from './structured-agent-session-draft-transfer'
 
 type StoppingBackgroundTasks = {
   sessionId: string
@@ -50,6 +56,13 @@ export function NativeChatStructuredSession(
     () => props.composerPaneKey ?? structuredAgentSessionPaneKey(props.tabId, props.sessionId),
     [props.composerPaneKey, props.sessionId, props.tabId]
   )
+  const draftAdoptionKey = `${paneKey}\u0000${props.sessionId}`
+  const [adoptedDraftKey, setAdoptedDraftKey] = useState<string | null>(null)
+  const composerDraftReady = adoptedDraftKey === draftAdoptionKey
+  useLayoutEffect(() => {
+    adoptStructuredSessionComposerDraft({ targetPaneKey: paneKey, sessionId: props.sessionId })
+    setAdoptedDraftKey(draftAdoptionKey)
+  }, [draftAdoptionKey, paneKey, props.sessionId])
   const messageListViewStateKey = useMemo(
     () =>
       JSON.stringify([
@@ -112,6 +125,41 @@ export function NativeChatStructuredSession(
   const activeStoppingBackgroundTasks =
     stoppingBackgroundTasks?.sessionId === props.sessionId ? stoppingBackgroundTasks : null
   const prompt = controller.prompts[0] ?? null
+  const continuationSource = useMemo(() => {
+    const providerSession = controller.providerSession
+    return props.agent === 'codex' && providerSession?.key === 'session_id'
+      ? {
+          providerSessionId: providerSession.id,
+          workspaceId: props.worktreeId,
+          target: props.target,
+          sessionId: props.sessionId
+        }
+      : null
+  }, [controller.providerSession, props.agent, props.sessionId, props.target, props.worktreeId])
+  const continueConversation = useCallback(
+    async (
+      mode: 'original' | 'compacted' | 'reference' | 'fresh',
+      candidate?: { providerSessionId: string; transcriptPath: string },
+      reference?: string
+    ): Promise<void> => {
+      if (mode === 'original') {
+        return
+      }
+      const launch = startStructuredAgentLaunch(props.worktreeId, 'codex', {
+        target: props.target,
+        ...(mode === 'compacted' && candidate
+          ? { resumeFrom: { providerSessionId: candidate.providerSessionId } }
+          : {})
+      })
+      stageStructuredSessionComposerDraft({
+        sourcePaneKey: paneKey,
+        targetSessionId: launch.sessionId,
+        ...(mode === 'reference' && reference ? { prefix: reference } : {})
+      })
+      await launch.launchResult
+    },
+    [paneKey, props.target, props.worktreeId]
+  )
   const retryableOutboxEntry =
     controller.outbox.find((entry) => entry.state === 'unconfirmed') ??
     controller.outbox.find(
@@ -186,6 +234,13 @@ export function NativeChatStructuredSession(
           void controller.requestHandoff(direction, mode, action)
         }}
       />
+      {continuationSource ? (
+        <ConversationContinuationPanel
+          source={continuationSource}
+          busy={controller.isWorking || prompt !== null}
+          onContinue={continueConversation}
+        />
+      ) : null}
       {topicPanel}
       <div className="flex min-h-0 flex-1 flex-col">
         {viewState.kind === 'loading' ? (
@@ -299,7 +354,7 @@ export function NativeChatStructuredSession(
           }}
         />
       ) : null}
-      {prompt ? null : (
+      {prompt || !composerDraftReady ? null : (
         <NativeChatComposer
           ref={composerRef}
           terminalTabId={props.tabId}

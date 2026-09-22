@@ -45,7 +45,7 @@ export function useStructuredAgentSession(args: {
     surface: 'desktop-chat',
     enabled: isVisible
   })
-  const { state, loadingOlder, loadOlder } = useStructuredAgentSessionRead({
+  const { state, loadingOlder, loadOlder, providerSession } = useStructuredAgentSessionRead({
     sessionId,
     target,
     isVisible
@@ -262,6 +262,7 @@ export function useStructuredAgentSession(args: {
           )
       }),
     messages,
+    providerSession,
     items: state.items,
     epoch: state.epoch,
     status: state.status,

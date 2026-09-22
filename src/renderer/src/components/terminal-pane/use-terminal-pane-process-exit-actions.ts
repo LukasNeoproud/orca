@@ -8,6 +8,7 @@ import { clearPaneTerminalError } from './terminal-error-accumulation'
 import { resolveTerminalProcessExitRestartStartup } from './terminal-process-exit-restart'
 import type { PaneProcessExit, PtyConnectionDeps } from './pty-connection-types'
 import type { TerminalPaneCloseController } from './use-terminal-pane-close-actions'
+import { useCodexConversationPaneRestart } from './use-codex-conversation-pane-restart'
 
 /** Owns the restart/close actions for panes whose PTY process has exited. */
 export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseController) {
@@ -60,7 +61,8 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
   const handleRestartCodexPane = useCallback(
     (
       paneId: number,
-      restartStartup: PtyConnectionDeps['startup'] = CODEX_ACCOUNT_RESTART_STARTUP
+      restartStartup: PtyConnectionDeps['startup'] = CODEX_ACCOUNT_RESTART_STARTUP,
+      onStartupBound?: () => void
     ) => {
       const manager = managerRef.current
       const pane = manager?.getPanes().find((candidate) => candidate.id === paneId)
@@ -119,7 +121,8 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
         dispatchNotification,
         setCacheTimerStartedAt,
         syncPanePtyLayoutBinding,
-        clearExitedPanePtyLayoutBinding
+        clearExitedPanePtyLayoutBinding,
+        onStartupBound
       })
       panePtyBindingsRef.current.set(paneId, newPaneBinding)
       manager.setActivePane(paneId, { focus: true })
@@ -165,6 +168,13 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
       worktreeId
     ]
   )
+
+  const restartCodexConversationPane = useCodexConversationPaneRestart({
+    managerRef,
+    restartCodexPane: handleRestartCodexPane,
+    tabId,
+    worktreeId
+  })
 
   const clearPaneProcessExit = useCallback(
     (paneId: number) => {
@@ -248,7 +258,7 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
     pendingCodexPaneRestartIds
   ])
 
-  return { handleRestartExitedPane, handleCloseExitedPane }
+  return { handleRestartExitedPane, handleCloseExitedPane, restartCodexConversationPane }
 }
 
 export type TerminalPaneProcessExitController = ReturnType<typeof useTerminalPaneProcessExitActions>

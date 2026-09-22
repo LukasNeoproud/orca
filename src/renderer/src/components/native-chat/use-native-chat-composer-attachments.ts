@@ -299,7 +299,7 @@ export function readNativeChatAttachmentCache(
   return [...(attachmentCache.get(scopeKey) ?? [])]
 }
 
-function writeNativeChatAttachmentCache(
+export function writeNativeChatAttachmentCache(
   scopeKey: string,
   cacheable: readonly NativeChatComposerImageAttachment[]
 ): void {

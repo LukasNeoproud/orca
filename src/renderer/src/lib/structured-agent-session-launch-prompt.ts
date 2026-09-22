@@ -13,6 +13,7 @@ import {
   type StructuredAgentSessionLaunchPromptMutation
 } from '@/components/native-chat/structured-agent-session-outbox-storage'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
+import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 
 export type StructuredPromptDeliveryResult = {
   delivered: boolean
@@ -35,7 +36,8 @@ function mutateEntry(
 
 async function dispatchStructuredLaunchPrompt(
   entry: StructuredAgentSessionOutboxEntry,
-  receipt: LaunchReceipt
+  receipt: LaunchReceipt,
+  target: RuntimeClientTarget
 ): Promise<boolean> {
   if (
     !mutateEntry(entry, (current) => ({
@@ -49,11 +51,7 @@ async function dispatchStructuredLaunchPrompt(
   try {
     const result = await callStructuredAgentSession<
       AgentSessionMutationResult<AgentSessionSendResult>
-    >(
-      { kind: 'local' },
-      'agentSession.send',
-      structuredAgentSessionSendRequest(entry, receipt.fence)
-    )
+    >(target, 'agentSession.send', structuredAgentSessionSendRequest(entry, receipt.fence))
     if (!result.ok) {
       mutateEntry(entry, (current) =>
         requeueStructuredAgentSessionSendRefusal(current, result.refusal.code, () =>
@@ -80,7 +78,7 @@ async function dispatchStructuredLaunchPrompt(
 
 export function settleStructuredAgentLaunchPrompt(args: {
   launchResult: Promise<LaunchReceipt>
-  options: StructuredLaunchPromptOptions
+  options: StructuredLaunchPromptOptions & { target?: RuntimeClientTarget }
   stagedEntry: StructuredAgentSessionOutboxEntry | null
 }): Promise<StructuredPromptDeliveryResult> | undefined {
   if (!args.options.prompt?.trim()) {
@@ -90,7 +88,11 @@ export function settleStructuredAgentLaunchPrompt(args: {
     if (!args.stagedEntry) {
       return { delivered: false, failureNotified: true }
     }
-    const delivered = await dispatchStructuredLaunchPrompt(args.stagedEntry, receipt)
+    const delivered = await dispatchStructuredLaunchPrompt(
+      args.stagedEntry,
+      receipt,
+      args.options.target ?? { kind: 'local' }
+    )
     if (delivered) {
       args.options.onPromptDelivered?.()
     }

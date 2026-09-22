@@ -145,6 +145,101 @@ describe('connectPanePty', () => {
   afterEach(async () => {
     await restoreTerminalTestGlobals()
   })
+
+  it.each([
+    {
+      mode: 'compacted',
+      startup: {
+        command: "codex 'resume' 'candidate-session'",
+        launchAgent: 'codex' as const,
+        launchConfig: { agentArgs: '', agentEnv: {} },
+        resumeProviderSession: {
+          key: 'session_id' as const,
+          id: 'candidate-session',
+          transcriptPath: '/tmp/candidate-session.jsonl'
+        }
+      },
+      expectedDraft: undefined,
+      expectedProviderSessionId: 'candidate-session'
+    },
+    {
+      mode: 'fresh',
+      startup: {
+        command: 'codex',
+        launchAgent: 'codex' as const,
+        launchConfig: { agentArgs: '', agentEnv: {} }
+      },
+      expectedDraft: undefined,
+      expectedProviderSessionId: undefined
+    },
+    {
+      mode: 'reference',
+      startup: {
+        command: 'codex',
+        launchAgent: 'codex' as const,
+        launchConfig: { agentArgs: '', agentEnv: {} },
+        draftPrompt: 'Read the immutable conversation reference.'
+      },
+      expectedDraft: 'Read the immutable conversation reference.',
+      expectedProviderSessionId: undefined
+    }
+  ])(
+    'keeps an explicit $mode startup authoritative over a stale source resume',
+    async ({ startup, expectedDraft, expectedProviderSessionId }) => {
+      const { connectPanePty } = await import('./pty-connection')
+      const transport = createMockTransport('fresh-pty')
+      transportFactoryQueue.push(transport)
+      const paneKey = makePaneKey('tab-1', LEAF_1)
+      mockStoreState = {
+        ...mockStoreState,
+        tabsByWorktree: { 'wt-1': [{ id: 'tab-1', ptyId: null }] },
+        sleepingAgentSessionsByPaneKey: {
+          [paneKey]: {
+            paneKey,
+            tabId: 'tab-1',
+            worktreeId: 'wt-1',
+            agent: 'codex',
+            providerSession: { key: 'session_id', id: 'source-session' },
+            prompt: 'the completed source task',
+            state: 'done',
+            capturedAt: 1,
+            updatedAt: 1
+          }
+        }
+      } as StoreState
+
+      connectPanePty(
+        createPane(1) as never,
+        createManager(1) as never,
+        createDeps({ startup }) as never
+      )
+      await flushAsyncTicks(20)
+
+      const connectOptions = transport.connect.mock.calls[0]?.[0] as
+        | Record<string, unknown>
+        | undefined
+      expect(connectOptions?.command).toBeUndefined()
+      expect(connectOptions?.resumeProviderSession).toBeUndefined()
+      expect(createdTransportOptions[0]).toEqual(
+        expect.objectContaining({
+          command: startup.command,
+          ...(expectedProviderSessionId
+            ? {
+                resumeProviderSession: expect.objectContaining({
+                  id: expectedProviderSessionId
+                })
+              }
+            : {}),
+          ...(expectedDraft ? { agentPrompt: expectedDraft, agentPromptDelivery: 'draft' } : {})
+        })
+      )
+      if (!expectedProviderSessionId) {
+        expect(createdTransportOptions[0]?.resumeProviderSession).toBeUndefined()
+      }
+      expect(JSON.stringify(connectOptions)).not.toContain('source-session')
+    }
+  )
+
   it.each(['none', 'same-pane', 'other-pane'] as const)(
     'cold-restores a shell with structured ownership: %s',
     async (structuredOwner) => {

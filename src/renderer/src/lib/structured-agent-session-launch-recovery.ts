@@ -7,6 +7,7 @@ import {
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import { refreshLocalStructuredSessionTabs } from '@/runtime/local-structured-session-tabs-sync'
 import { useAppStore } from '@/store'
+import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 
 export type StructuredAgentLaunchReceipt = { sessionId: string; fence: number }
 
@@ -25,6 +26,10 @@ export class StructuredAgentSessionLaunchCancelledError extends Error {
   }
 }
 
+function launchTarget(state: StructuredLaunchRecoveryState): RuntimeClientTarget {
+  return state.intent.target ?? { kind: 'local' }
+}
+
 function throwIfLaunchCancelled(state: StructuredLaunchRecoveryState): void {
   if (state.cancelled) {
     throw new StructuredAgentSessionLaunchCancelledError()
@@ -32,6 +37,9 @@ function throwIfLaunchCancelled(state: StructuredLaunchRecoveryState): void {
 }
 
 async function verifyPublishedSession(state: StructuredLaunchRecoveryState): Promise<void> {
+  if (launchTarget(state).kind !== 'local') {
+    return
+  }
   if (hasAdoptedStructuredSession(state.intent)) {
     return
   }
@@ -67,7 +75,7 @@ async function recoverPublishedSessionReceipt(
 ): Promise<StructuredAgentLaunchReceipt> {
   await verifyPublishedSession(state)
   const history = await callStructuredAgentSession<AgentSessionHistoryResult>(
-    { kind: 'local' },
+    launchTarget(state),
     'agentSession.history',
     { sessionId: state.intent.sessionId, direction: 'tail', limit: 1 }
   )

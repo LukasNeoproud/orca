@@ -18,7 +18,10 @@ import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 export function bindBuildColdRestoreAgentResumeStartup(session: ConnectPanePtySession): void {
   session.buildColdRestoreAgentResumeStartup = (): ColdRestoreAgentResumeStartup | null => {
-    if (session.pendingStartupCommand) {
+    if (
+      (!session.startupPtyBound && session.paneStartup?.command) ||
+      session.pendingStartupCommand
+    ) {
       return null
     }
     const state = useAppStore.getState()

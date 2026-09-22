@@ -222,6 +222,11 @@ export type GlobalSettings = {
   nativeChatLinkPreviewMode?: NativeChatLinkPreviewMode
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */
   nativeChatSessionOptions?: PersistedNativeChatSessionOptions
+  /** Idle continuation offers do not invoke a model. */
+  conversationContinuationOfferAfterMs?: number
+  /** Opt-in preparation of a separate compacted Codex session. */
+  conversationContinuationAutoCompact?: boolean
+  conversationContinuationCompactAfterMs?: number
   /** Extra launcher rows for the worktree "Open in" submenu. VS Code is always shown first. */
   openInApplications?: OpenInApplication[]
   /** Deprecated: migration/backward-compat only. Use PersistedUIState.rightSidebarOpen. */

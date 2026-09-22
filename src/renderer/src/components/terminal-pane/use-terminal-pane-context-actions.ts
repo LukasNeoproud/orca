@@ -41,6 +41,7 @@ export function useTerminalPaneContextActions(controller: TerminalPaneCloseContr
     renamingPaneId,
     rightClickToPaste,
     setAgentSessionContinuation,
+    setCodexConversationContinuation,
     setAgentSessionFork,
     setPaneTitles,
     setRenamingPaneId,
@@ -166,6 +167,7 @@ export function useTerminalPaneContextActions(controller: TerminalPaneCloseContr
     onPasteError: setTerminalError,
     onAgentSessionForkReady: setAgentSessionFork,
     onAgentSessionContinuationReady: setAgentSessionContinuation,
+    onCodexConversationContinuationReady: setCodexConversationContinuation,
     forceBracketedMultilineTextPaste,
     rightClickToPaste
   })

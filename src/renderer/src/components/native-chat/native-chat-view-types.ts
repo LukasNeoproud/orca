@@ -42,6 +42,8 @@ export type NativeChatStructuredViewProps = {
   tabId: string
   groupId?: string
   sessionId: string
+  /** Workspace owned by the host session and its continuation candidates. */
+  worktreeId: string
   target: RuntimeClientTarget
   agent: AgentType
   isVisible: boolean

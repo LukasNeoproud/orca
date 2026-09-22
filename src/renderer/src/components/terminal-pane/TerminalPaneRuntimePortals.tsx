@@ -1,5 +1,8 @@
 import { createPortal } from 'react-dom'
+import { useCallback, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import CodexRestartChip from '../CodexRestartChip'
+import { ConversationContinuationPanel } from '@/components/agent-session-continuation/ConversationContinuationPanel'
 import { TerminalSshReconnectOverlay } from './TerminalSshReconnectOverlay'
 import { TerminalRemoteRuntimeReconnectBanner } from './TerminalRemoteRuntimeReconnectBanner'
 import { TerminalProcessExitOverlay } from './TerminalProcessExitOverlay'
@@ -9,6 +12,135 @@ import { getFitOverrideForPty } from '@/lib/pane-manager/mobile-fit-overrides'
 import { shouldShowMobileDriverOverlay } from './mobile-driver-overlay-visibility'
 import { shouldChatTakeOverMobileSurface } from '../native-chat/native-chat-send-eligibility'
 import type { TerminalPaneController } from './use-terminal-pane-controller'
+import { useAppStore } from '@/store'
+import { getConnectionIdFromState } from '@/lib/connection-context'
+import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { makePaneKey } from '../../../../shared/stable-pane-id'
+import {
+  createCodexConversationContinuationSource,
+  isCodexConversationContinuationBusy,
+  type CodexConversationContinuationSource
+} from './codex-conversation-continuation-source'
+
+function continuationSourceMatches(
+  left: CodexConversationContinuationSource | null,
+  right: CodexConversationContinuationSource
+): boolean {
+  return (
+    left?.paneKey === right.paneKey &&
+    left.providerSessionId === right.providerSessionId &&
+    left.target.kind === right.target.kind &&
+    (left.target.kind !== 'environment' ||
+      (right.target.kind === 'environment' &&
+        left.target.environmentId === right.target.environmentId))
+  )
+}
+
+function CodexConversationContinuationPortal({
+  controller,
+  pane
+}: {
+  controller: TerminalPaneController
+  pane: TerminalPaneController['managedPanes'][number]
+}): React.JSX.Element | null {
+  const {
+    codexConversationContinuation,
+    restartCodexConversationPane,
+    setCodexConversationContinuation,
+    tabId,
+    worktreeId
+  } = controller
+  const paneKey = useMemo(() => makePaneKey(tabId, pane.leafId), [pane.leafId, tabId])
+  const sourceInputs = useAppStore(
+    useShallow((state) => ({
+      status: state.agentStatusByPaneKey[paneKey],
+      environmentId: getRuntimeEnvironmentIdForWorktree(state, worktreeId),
+      connectionId: getConnectionIdFromState(state, worktreeId)
+    }))
+  )
+  const source = useMemo(
+    () =>
+      createCodexConversationContinuationSource(sourceInputs, {
+        pane,
+        tabId,
+        worktreeId
+      }),
+    [pane, sourceInputs, tabId, worktreeId]
+  )
+  const busy = useAppStore((state) => isCodexConversationContinuationBusy(state, { pane, tabId }))
+  const expanded =
+    source !== null && continuationSourceMatches(codexConversationContinuation, source)
+  const onExpandedChange = useCallback(
+    (next: boolean) => {
+      if (!source) {
+        return
+      }
+      setCodexConversationContinuation((current) =>
+        next ? source : continuationSourceMatches(current, source) ? null : current
+      )
+    },
+    [setCodexConversationContinuation, source]
+  )
+  const onContinue = useCallback(
+    async (
+      mode: Parameters<typeof restartCodexConversationPane>[0]['mode'],
+      candidate?: { providerSessionId: string; transcriptPath: string },
+      reference?: string
+    ) => {
+      if (!source) {
+        return
+      }
+      await restartCodexConversationPane({
+        paneId: source.paneId,
+        mode,
+        sourceProviderSessionId: source.providerSessionId,
+        providerSessionId: candidate?.providerSessionId ?? source.providerSessionId,
+        transcriptPath: candidate?.transcriptPath ?? source.transcriptPath,
+        ...(reference ? { reference } : {})
+      })
+      setCodexConversationContinuation(null)
+    },
+    [restartCodexConversationPane, setCodexConversationContinuation, source]
+  )
+  if (!source) {
+    return null
+  }
+  const portalKey = `${source.paneKey}-${source.providerSessionId}-${source.target.kind === 'environment' ? source.target.environmentId : 'local'}`
+  return createPortal(
+    <div className="absolute inset-x-0 top-0 z-20">
+      <ConversationContinuationPanel
+        key={portalKey}
+        source={source}
+        busy={busy}
+        compact
+        expanded={expanded}
+        onExpandedChange={onExpandedChange}
+        onContinue={onContinue}
+      />
+    </div>,
+    pane.container,
+    `codex-conversation-continuation-${portalKey}`
+  )
+}
+
+/** Each live Codex pane owns one panel, including panes currently covered by native chat. */
+export function TerminalPaneCodexConversationContinuationPortals({
+  controller
+}: {
+  controller: TerminalPaneController
+}): React.JSX.Element {
+  return (
+    <>
+      {controller.managedPanes.map((pane) => (
+        <CodexConversationContinuationPortal
+          key={pane.leafId}
+          controller={controller}
+          pane={pane}
+        />
+      ))}
+    </>
+  )
+}
 
 export function TerminalPaneCodexRestartPortals({
   controller

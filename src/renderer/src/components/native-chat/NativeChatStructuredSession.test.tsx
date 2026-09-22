@@ -44,7 +44,27 @@ const mocks = vi.hoisted(() => ({
   monitoringBackgroundTasks: false,
   supportsBackgroundTaskStop: false,
   backgroundTasks: [] as Wire.AgentSessionBackgroundTask[],
-  stopBackgroundTask: vi.fn()
+  stopBackgroundTask: vi.fn(),
+  providerSession: undefined as Wire.AgentSessionHistoryResult['providerSession'],
+  continuationProps: null as null | {
+    onContinue: (
+      mode: 'original' | 'compacted' | 'reference' | 'fresh',
+      candidate?: { providerSessionId: string; transcriptPath: string },
+      reference?: string
+    ) => Promise<void>
+  },
+  launchStructured: vi.fn()
+}))
+
+vi.mock('@/components/agent-session-continuation/ConversationContinuationPanel', () => ({
+  ConversationContinuationPanel: (props: typeof mocks.continuationProps) => {
+    mocks.continuationProps = props
+    return <div data-testid="continuation-panel" />
+  }
+}))
+
+vi.mock('@/lib/structured-agent-session-launch', () => ({
+  startStructuredAgentLaunch: mocks.launchStructured
 }))
 
 vi.mock('@/runtime/structured-agent-session-client', () => ({
@@ -78,6 +98,7 @@ vi.mock('./use-structured-agent-session', async () => {
                 }
               ],
         status: 'ready' as const,
+        providerSession: mocks.providerSession,
         error: outbox.error,
         hasOlder: false,
         loadingOlder: false,
@@ -184,6 +205,7 @@ function sessionView(
       {...localCodexSessionProps}
       tabId={`structured-tab-${id}`}
       sessionId={`session-${id}`}
+      worktreeId="wt-1"
       {...props}
     />
   )
@@ -209,6 +231,9 @@ describe('NativeChatStructuredSession', () => {
     mocks.supportsBackgroundTaskStop = false
     mocks.stopBackgroundTask.mockReset()
     mocks.backgroundTasks = []
+    mocks.providerSession = undefined
+    mocks.continuationProps = null
+    mocks.launchStructured.mockReset()
   })
 
   it('routes app-menu paste into the structured composer', () => {
@@ -219,6 +244,25 @@ describe('NativeChatStructuredSession', () => {
     window.dispatchEvent(new Event('orca-app-menu-paste', { cancelable: true }))
 
     expect(mocks.pasteFromClipboard).toHaveBeenCalledOnce()
+  })
+
+  it('launches a compacted Codex candidate on the owning runtime', async () => {
+    mocks.providerSession = { key: 'session_id', id: 'source-thread' }
+    mocks.launchStructured.mockReturnValue({
+      launchResult: Promise.resolve({ sessionId: 'next', fence: 1 })
+    })
+    render(sessionView('continuation', { target: { kind: 'environment', environmentId: 'env-1' } }))
+
+    await waitFor(() => expect(mocks.continuationProps).not.toBeNull())
+    await mocks.continuationProps?.onContinue('compacted', {
+      providerSessionId: 'candidate-thread',
+      transcriptPath: '/trusted/candidate.jsonl'
+    })
+
+    expect(mocks.launchStructured).toHaveBeenCalledWith('wt-1', 'codex', {
+      target: { kind: 'environment', environmentId: 'env-1' },
+      resumeFrom: { providerSessionId: 'candidate-thread' }
+    })
   })
 
   it('wires remote structured file links through the host-aware native chat opener', () => {

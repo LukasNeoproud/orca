@@ -1,3 +1,4 @@
+import { CONVERSATION_CONTINUATION_METHODS } from './conversation-continuation'
 import type { RpcAnyMethod } from '../core'
 import { STATUS_METHODS } from './status'
 import { AI_VAULT_METHODS } from './ai-vault'
@@ -82,6 +83,7 @@ export const ALL_RPC_METHODS: readonly RpcAnyMethod[] = [
   ...COMPUTER_METHODS,
   ...SESSION_TAB_METHODS,
   ...NATIVE_CHAT_METHODS,
+  ...CONVERSATION_CONTINUATION_METHODS,
   ...FILE_METHODS,
   ...GIT_METHODS,
   ...GITHUB_METHODS,

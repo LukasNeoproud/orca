@@ -1,3 +1,4 @@
+import { startConversationContinuation } from '../runtime/conversation-continuation-runtime'
 import { app } from 'electron'
 import { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { getLocalPtyProvider, getSshPtyProvider, clearProviderPtyState } from '../ipc/pty'
@@ -136,6 +137,7 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   browserManager.setBrowserGuestStateChangedListener((worktreeId) => {
     runtime.notifyMobileSessionTabsChanged(worktreeId)
   })
+  startConversationContinuation(runtime)
   return runtime
 }
 

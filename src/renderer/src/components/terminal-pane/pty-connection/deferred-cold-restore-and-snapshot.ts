@@ -62,7 +62,8 @@ export function bindDeferredColdRestoreAndSnapshot(session: ConnectPanePtySessio
     options: FreshSpawnOptions = {}
   ): Promise<string | null> => {
     session.applyColdRestoreAgentResumeStartup(startup)
-    return session.startFreshSpawn(startup, options)
+    const explicitStartupPending = !session.startupPtyBound && Boolean(session.paneStartup?.command)
+    return session.startFreshSpawn(startup ?? (explicitStartupPending ? undefined : null), options)
   }
   // Why: the hibernation wake fires from noteVisibilityResume in the outer
   // connection scope, long after this deferred-connect closure has run.

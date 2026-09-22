@@ -20,12 +20,18 @@ import {
   resolveWebSessionVisibleTabId
 } from '@/runtime/web-session-focus-intent'
 import { LOCAL_STRUCTURED_SESSION_OWNER } from '@/runtime/local-structured-session-tabs-sync'
+import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 
 export type StructuredAgentSessionLaunchIntent = {
   sessionId: string
   worktreeId: string
   agent: AgentSessionHandleProvider
+  target?: RuntimeClientTarget
   params: StructuredAgentSessionCreateParams
+}
+
+function launchTarget(intent: StructuredAgentSessionLaunchIntent): RuntimeClientTarget {
+  return intent.target ?? { kind: 'local' }
 }
 
 class StructuredAgentSessionCreateError extends Error {
@@ -90,12 +96,15 @@ export function isDefinitiveStructuredAgentSessionCreateError(error: unknown): b
 export function createStructuredAgentSessionLaunchIntent(
   worktreeId: string,
   agent: AgentSessionHandleProvider,
-  resumeFrom?: StructuredAgentSessionResumeSource
+  resumeFrom?: StructuredAgentSessionResumeSource,
+  target: RuntimeClientTarget = { kind: 'local' }
 ): StructuredAgentSessionLaunchIntent {
   const sessionId = createStructuredAgentSessionId(agent, () => crypto.randomUUID())
   const state = useAppStore.getState()
   recordWebSessionFocusIntent(
-    { environmentId: LOCAL_STRUCTURED_SESSION_OWNER },
+    {
+      environmentId: target.kind === 'local' ? LOCAL_STRUCTURED_SESSION_OWNER : target.environmentId
+    },
     worktreeId,
     `agent-session:${sessionId}`,
     undefined,
@@ -105,6 +114,7 @@ export function createStructuredAgentSessionLaunchIntent(
     sessionId,
     worktreeId,
     agent,
+    target,
     params: structuredAgentSessionCreateParams({
       sessionId,
       worktree: toRuntimeWorktreeSelector(worktreeId),
@@ -118,8 +128,11 @@ export function createStructuredAgentSessionLaunchIntent(
 export function abandonStructuredAgentSessionLaunchIntent(
   intent: StructuredAgentSessionLaunchIntent
 ): void {
+  const target = launchTarget(intent)
   clearWebSessionFocusIntentIfMatches(
-    { environmentId: LOCAL_STRUCTURED_SESSION_OWNER },
+    {
+      environmentId: target.kind === 'local' ? LOCAL_STRUCTURED_SESSION_OWNER : target.environmentId
+    },
     intent.worktreeId,
     `agent-session:${intent.sessionId}`
   )
@@ -152,7 +165,7 @@ async function hostSupportsCreate(intent: StructuredAgentSessionLaunchIntent): P
   for (let attempt = 0; ; attempt += 1) {
     try {
       const support = await callStructuredAgentSession<{ supported: boolean; reason?: string }>(
-        { kind: 'local' },
+        launchTarget(intent),
         'agentSession.createSupport',
         { worktree: intent.params.worktree, agent: intent.agent }
       )
@@ -194,7 +207,7 @@ export async function launchStructuredAgentSession(
   let result: AgentSessionMutationResult<AgentSessionAttachResult>
   try {
     result = await callStructuredAgentSession<AgentSessionMutationResult<AgentSessionAttachResult>>(
-      { kind: 'local' },
+      launchTarget(intent),
       'agentSession.create',
       intent.params
     )

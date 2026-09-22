@@ -69,6 +69,14 @@ const AGENT_RUNTIME_SEARCH_ENTRY_ID = 'agent-runtime'
 
 const getAllAgentsPaneSearchEntries = createLocalizedCatalog(() => [
   {
+    title: translate('continuation.settings.title', 'Conversation continuation'),
+    description: translate(
+      'continuation.settings.description',
+      'Choose how to continue Codex conversations after a pause. The original conversation is preserved.'
+    ),
+    keywords: ['continuation', 'compact', 'compaction', 'idle', 'resume', 'Codex']
+  },
+  {
     title: translate('auto.components.settings.agents.search.bb9ad95777', 'Agents'),
     description: translate(
       'auto.components.settings.agents.search.01926b9d8c',

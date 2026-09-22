@@ -9,6 +9,7 @@ import type { TerminalPasteSource } from './terminal-paste-coordinator'
 import { runQuickCommandInNewTab } from '@/lib/run-quick-command-in-new-tab'
 import type { PreparedAgentSessionFork } from './terminal-agent-session-fork'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
+import type { CodexConversationContinuationSource } from './codex-conversation-continuation-source'
 import { pasteTerminalPaneMenuClipboard } from './terminal-pane-menu-paste'
 import {
   copyTerminalPaneMenuAgentSessionId,
@@ -44,6 +45,7 @@ type UseTerminalPaneContextMenuDeps = {
   onPasteError: (message: string) => void
   onAgentSessionForkReady: (fork: PreparedAgentSessionFork) => void
   onAgentSessionContinuationReady: (request: AgentSessionContinuationRequest) => void
+  onCodexConversationContinuationReady: (source: CodexConversationContinuationSource) => void
   forceBracketedMultilineTextPaste: boolean
   rightClickToPaste: boolean
 }
@@ -96,6 +98,7 @@ export function useTerminalPaneContextMenu({
   onPasteError,
   onAgentSessionForkReady,
   onAgentSessionContinuationReady,
+  onCodexConversationContinuationReady,
   forceBracketedMultilineTextPaste,
   rightClickToPaste
 }: UseTerminalPaneContextMenuDeps): TerminalMenuState {
@@ -168,7 +171,8 @@ export function useTerminalPaneContextMenu({
     groupId,
     fallbackCwd,
     onAgentSessionForkReady,
-    onAgentSessionContinuationReady
+    onAgentSessionContinuationReady,
+    onCodexConversationContinuationReady
   }
 
   const onCopy = async (): Promise<void> => copyTerminalPaneMenuSelection(resolveMenuPane())

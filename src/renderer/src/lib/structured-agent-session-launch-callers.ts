@@ -5,6 +5,7 @@ import {
 } from '@/lib/structured-agent-session-launch-prompt'
 import type { StructuredAgentSessionOutboxEntry } from '../../../shared/structured-agent-session-outbox'
 import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
+import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 
 export type StructuredRefusalFallback = () =>
   | void
@@ -12,6 +13,8 @@ export type StructuredRefusalFallback = () =>
   | Promise<void | StructuredPromptDeliveryResult>
 
 export type StructuredAgentLaunchOptions = {
+  /** The execution host that owns the workspace and provider session. */
+  target?: RuntimeClientTarget
   prompt?: string
   promptDelivery?: 'auto-submit' | 'submit-after-ready'
   onPromptDelivered?: () => void
