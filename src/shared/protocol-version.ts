@@ -1,4 +1,5 @@
 import { REMOTE_SERVER_UPDATE_CAPABILITY } from './remote-server-update'
+import { BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY } from './backlog-task-association'
 import {
   SKILL_BUNDLE_INSTALL_CAPABILITY,
   SKILL_DELETE_CAPABILITY,
@@ -157,6 +158,12 @@ export const STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY =
 // adopted the conversation or quietly started a blank one. Negotiate before offering the action.
 export const STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY =
   'agent-session.structured.resume-history.v1' as const
+/** Topic metadata is optional so older hosts keep serving the base transcript. */
+export const STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY =
+  'agent-session.structured.topic-index.v1' as const
+/** Prepared branches are additive; old hosts keep serving ordinary structured sessions. */
+export const AGENT_SESSION_BRANCH_RUNTIME_CAPABILITY = 'agent-session.branches.v1' as const
+export const PORTABLE_CONVERSATION_RUNTIME_CAPABILITY = 'conversation.portable-ssh.v1' as const
 // Why: agentSession.subscribeStatus is additive to a surface that already shipped, so a host
 // advertising agent-session.structured.v1 may still answer it with method_not_found. Clients must
 // probe before subscribing or they reconnect forever and never show any status at all.
@@ -241,6 +248,7 @@ export const RUNTIME_CAPABILITIES = [
   'terminal.multiplex.v1',
   'workspace-ports.v1',
   'backlog.v1',
+  BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,
   'mobile.tasks.v1',
   PROJECT_HOST_SETUP_RUNTIME_CAPABILITY,
   TASK_SOURCE_CONTEXT_RUNTIME_CAPABILITY,
@@ -268,6 +276,9 @@ export const RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY,
+  AGENT_SESSION_BRANCH_RUNTIME_CAPABILITY,
+  PORTABLE_CONVERSATION_RUNTIME_CAPABILITY,
   AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY,
   AGENT_SESSION_REWIND_RUNTIME_CAPABILITY,
   AGENT_SESSION_KIMI_RESUME_RUNTIME_CAPABILITY,

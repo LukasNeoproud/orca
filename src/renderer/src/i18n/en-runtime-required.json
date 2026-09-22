@@ -636,6 +636,11 @@
           }
         }
       },
+      "nativeChat": {
+        "preview": {
+          "openFile": "Open file"
+        }
+      },
       "new": {
         "workspace": {
           "SmartWorkspaceNameField": {
@@ -2614,6 +2619,10 @@
     }
   },
   "components": {
+    "backlog": {
+      "sortBy": "Sort by",
+      "taskDetails": "Task details"
+    },
     "native-chat": {
       "codexStatus": {
         "usedOfMax": "{{used}} of {{max}} tokens ({{percent}})"

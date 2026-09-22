@@ -20,6 +20,17 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
   supportsLocation = (location: AgentSessionExecutionLocation): boolean =>
     Object.values(this.adapters).some((adapter) => adapter.supportsLocation?.(location) ?? false)
 
+  supportsConversationFork = (agent: string): boolean =>
+    this.adapterForAgent(agent)?.forkConversation !== undefined
+
+  forkConversation: NonNullable<StructuredAgentSessionAdapter['forkConversation']> = (input) => {
+    const fork = this.owner(input.sourceSessionId).forkConversation
+    if (!fork) {
+      throw new Error('agent_session_branch_provider_unsupported')
+    }
+    return fork(input)
+  }
+
   async acquire(input: Parameters<StructuredAgentSessionAdapter['acquire']>[0]) {
     const adapter = this.requireAgent(input.identity)
     const acquired = await adapter.acquire(input)

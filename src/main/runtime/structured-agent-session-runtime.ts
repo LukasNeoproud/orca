@@ -28,6 +28,9 @@ import {
   type ClaudeManagedAccountGateSettings
 } from '../native-chat/claude-structured-managed-account-support'
 import { AgentSessionRecordStore } from './agent-session-record-store'
+import { AgentSessionBranchStore } from './agent-session-branch-store'
+import { PortableConversationTopicIndexStore } from './portable-conversation-topic-index-store'
+import { PortableConversationProposalStore } from '../conversation-branch/portable-conversation-proposal-store'
 import { agentSessionStorePath } from './agent-session-record-store-file'
 import { stopOrphanAgentSessionChildren } from './agent-session-orphan-child-reaper'
 import {
@@ -197,6 +200,12 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
     directory: join(deps.stateDirectory, RECORD_STORE_DIR_NAME),
     hostId: deps.hostId
   })
+  const durableDirectory = join(deps.stateDirectory, RECORD_STORE_DIR_NAME)
+  const [branchStore, portableTopicStore, portableProposalStore] = await Promise.all([
+    AgentSessionBranchStore.open(durableDirectory),
+    PortableConversationTopicIndexStore.open(durableDirectory),
+    PortableConversationProposalStore.open(durableDirectory)
+  ])
   agentSessionPtyWriteGate.attachRecordLookup((sessionId) => store.getRecord(sessionId))
   // Why: only the durable store can identify a provider child lost before record publication.
   void (deps.reapOrphanChildren ?? stopOrphanAgentSessionChildren)({ store }).catch((error) => {
@@ -217,6 +226,7 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
     let host: StructuredAgentSessionHost | null = null
     let recoveryChain = Promise.resolve()
     const codex = new CodexStructuredSessionAdapter({
+      resolveWorkspacePath: deps.resolveWorkspacePath,
       resolveLaunch: createCodexStructuredLaunchResolver({
         store,
         resolveWorkspacePath: deps.resolveWorkspacePath,
@@ -283,6 +293,9 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
     })
     host = new StructuredAgentSessionHost({
       store,
+      branchStore,
+      portableTopicStore,
+      portableProposalStore,
       adapter,
       journalRoot: deps.stateDirectory,
       claimKeyId: deps.claimKeyId,

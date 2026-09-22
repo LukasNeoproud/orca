@@ -1,23 +1,15 @@
 import * as codexRewind from './codex-structured-rewind'
-import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
 import { StructuredSessionCompaction } from '../native-chat/agent-session-wire/structured-session-compaction'
-import { isCodexAppServerRequestError } from './codex-app-server-connection'
 import type {
   AgentSessionAcquisition,
-  AgentSessionDispatchOutcome,
   StructuredAgentSessionAcquireInput,
-  StructuredAgentSessionAdapter,
-  StructuredAgentSessionSetOptionInput
+  StructuredAgentSessionAdapter
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { CodexJournalTranslationAdmission } from './codex-structured-journal-translation'
 import { answerCodexPrompt } from './codex-structured-prompt-replies'
-import { dispatchCodexTurn, isCodexTurnOptionKey } from './codex-structured-turn-start'
 import { supportsCodexStructuredLocation } from './codex-structured-location-support'
 import * as codexClose from './codex-structured-session-close'
-import {
-  applyCodexStructuredSessionOption,
-  readLiveCodexSessionOptions
-} from './codex-structured-session-options'
+import { readLiveCodexSessionOptions } from './codex-structured-session-options'
 import {
   CodexAcquisitionRegistry,
   requireLiveCodexSession,
@@ -35,6 +27,13 @@ import { CodexStructuredTurnCancellation } from './codex-structured-turn-cancell
 import { createCodexStructuredNotificationRetry } from './codex-structured-notification-retry'
 import { acquireCodexStructuredSession } from './codex-structured-session-acquire'
 import { CodexStructuredSessionStatusMetadata } from './codex-structured-session-status-metadata'
+import { forkCodexStructuredConversation } from './codex-structured-session-fork'
+import {
+  cancelCodexStructuredAdapterTurn,
+  compactCodexStructuredAdapterSession,
+  dispatchCodexStructuredAdapterTurn,
+  setCodexStructuredAdapterOption
+} from './codex-structured-session-operations'
 
 export type {
   CodexStructuredLaunch,
@@ -103,6 +102,15 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     }
     return acquired
   }
+
+  forkConversation: NonNullable<StructuredAgentSessionAdapter['forkConversation']> = async (
+    input
+  ) =>
+    forkCodexStructuredConversation({
+      request: input,
+      source: this.session(input.sourceSessionId),
+      deps: this.deps
+    })
 
   /** Buffers pre-publication events and drops events from superseded children. */
   private deliver(
@@ -182,31 +190,21 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
       .get(sessionId)
       ?.prompts.bindJournalItemId(journalItemId, this.session(sessionId).threadId, promptKey)
 
-  async dispatch(input: {
-    sessionId: string
-    clientMessageId: string
-    body: AgentJournalMessageItem
-    fence: number
-  }): Promise<AgentSessionDispatchOutcome> {
-    const session = this.session(input.sessionId)
-    session.dispatchPending = true
-    try {
-      await this.turnCancellation.captureBaseline(session)
-      return await dispatchCodexTurn(session, input, this.deps.requestTimeoutMs)
-    } finally {
-      session.dispatchPending = false
-    }
-  }
+  dispatch: StructuredAgentSessionAdapter['dispatch'] = async (input) =>
+    dispatchCodexStructuredAdapterTurn({
+      request: input,
+      session: this.session(input.sessionId),
+      cancellation: this.turnCancellation,
+      requestTimeoutMs: this.deps.requestTimeoutMs
+    })
 
-  async cancelTurn(input: {
-    sessionId: string
-    turnId: string
-    fence: number
-  }): Promise<{ cancelled: boolean }> {
-    const session = this.session(input.sessionId)
-    const turnId = this.compactions.providerTurnId(input.sessionId, input.turnId)
-    return turnId ? this.turnCancellation.cancel(session, turnId) : { cancelled: false }
-  }
+  cancelTurn: StructuredAgentSessionAdapter['cancelTurn'] = async (input) =>
+    cancelCodexStructuredAdapterTurn({
+      request: input,
+      session: this.session(input.sessionId),
+      compactions: this.compactions,
+      cancellation: this.turnCancellation
+    })
 
   rewindSupport: NonNullable<StructuredAgentSessionAdapter['rewindSupport']> = (sessionId) =>
     this.sessions.get(sessionId)?.historyMode === 'legacy'
@@ -219,30 +217,14 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
   recoverRewind: NonNullable<StructuredAgentSessionAdapter['recoverRewind']> = (input) =>
     codexRewind.recoverCodexRewind(this.session(input.sessionId), input, this.deps.requestTimeoutMs)
 
-  compact: NonNullable<StructuredAgentSessionAdapter['compact']> = (input) => {
-    const session = this.session(input.sessionId)
-    return this.compactions.run(
-      input.sessionId,
-      session.threadId,
-      async () => {
-        await this.turnCancellation.captureBaseline(session)
-        return session.connection
-          .request(
-            'thread/compact/start',
-            { threadId: session.threadId },
-            { timeoutMs: this.deps.requestTimeoutMs }
-          )
-          .catch((error) => {
-            if (isCodexAppServerRequestError(error)) {
-              return { error: error.message }
-            }
-            throw error
-          })
-      },
-      input.onLateResult,
-      input.turnId
-    )
-  }
+  compact: NonNullable<StructuredAgentSessionAdapter['compact']> = (input) =>
+    compactCodexStructuredAdapterSession({
+      request: input,
+      session: this.session(input.sessionId),
+      compactions: this.compactions,
+      cancellation: this.turnCancellation,
+      requestTimeoutMs: this.deps.requestTimeoutMs
+    })
 
   async answerPrompt(input: {
     sessionId: string
@@ -256,26 +238,13 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     session.translator?.resolvePrompt(input.itemId)
   }
 
-  async setOption(
-    input: StructuredAgentSessionSetOptionInput
-  ): Promise<Readonly<Record<string, string>>> {
-    if (!isCodexTurnOptionKey(input.key)) {
-      throw new Error(`codex app-server has no thread option named ${input.key}`)
-    }
-    const session = this.session(input.sessionId)
-    const previousModel = session.options.get('model') ?? session.reportedOptions.model
-    const options = await applyCodexStructuredSessionOption(
-      session,
-      input.key,
-      input.value,
-      this.deps.requestTimeoutMs
-    )
-    const nextModel = session.options.get('model') ?? session.reportedOptions.model
-    if (input.key === 'model' && nextModel && nextModel !== previousModel) {
-      this.statusMetadata.modelChanged(input.sessionId, session, nextModel)
-    }
-    return options
-  }
+  setOption: StructuredAgentSessionAdapter['setOption'] = (input) =>
+    setCodexStructuredAdapterOption({
+      request: input,
+      session: this.session(input.sessionId),
+      statusMetadata: this.statusMetadata,
+      requestTimeoutMs: this.deps.requestTimeoutMs
+    })
 
   contextUsage = (sessionId: string) => this.statusMetadata.contextUsage(sessionId)
   codexWeeklyUsage = (sessionId: string) => this.statusMetadata.weeklyUsage(sessionId)

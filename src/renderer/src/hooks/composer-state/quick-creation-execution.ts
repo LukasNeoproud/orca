@@ -14,6 +14,7 @@ type QuickCreationExecutionInput = Pick<
   | 'linkedGitLabMR'
   | 'normalizedSparseDirectories'
   | 'onCreated'
+  | 'backgroundCreationCallbacks'
   | 'parentWorktreeId'
   | 'persistDraft'
   | 'persistSetupAgentStartupPolicy'
@@ -42,7 +43,6 @@ import { useAppStore } from '@/store'
 import { settleComposerSubmit } from '@/lib/composer-submit-cancellation'
 import { ensureHooksConfirmed } from '@/lib/ensure-hooks-confirmed'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
-import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
 import { translate } from '@/i18n/i18n'
 import { resolveQuickCreateLinkedWorkItemPrompt } from '@/lib/linked-work-item-context'
 import { buildQuickComposerStartup } from './quick-startup-plan'
@@ -53,6 +53,7 @@ import {
   resolveAgentLaunchRoute
 } from '@/lib/agent-launch-routing'
 import { readLocalRuntimeCapabilitiesOrUnknown } from '@/runtime/local-runtime-capabilities'
+import { queueComposerBackgroundWorktreeCreation } from './composer-background-worktree-creation'
 
 export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
   const {
@@ -66,6 +67,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
     linkedGitLabMR,
     normalizedSparseDirectories,
     onCreated,
+    backgroundCreationCallbacks,
     parentWorktreeId,
     persistDraft,
     persistSetupAgentStartupPolicy,
@@ -276,7 +278,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         clearNewWorkspaceDraft()
       }
 
-      runBackgroundWorktreeCreation(request)
+      queueComposerBackgroundWorktreeCreation(request, backgroundCreationCallbacks)
 
       if (createMultiple) {
         resetForNextCreate()
@@ -295,6 +297,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
       linkedGitLabMR,
       normalizedSparseDirectories,
       onCreated,
+      backgroundCreationCallbacks,
       parentWorktreeId,
       persistDraft,
       persistSetupAgentStartupPolicy,
@@ -316,7 +319,5 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
     ]
   )
 
-  return {
-    executeQuickCreation
-  }
+  return { executeQuickCreation }
 }

@@ -8,7 +8,8 @@ import { getRuntimeEnvironmentIdForWorktree } from './worktree-runtime-owner'
 import {
   callRuntimeRpc,
   getActiveRuntimeTarget,
-  runtimeEnvironmentSupportsCapability
+  runtimeEnvironmentSupportsCapability,
+  type RuntimeClientTarget
 } from '@/runtime/runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import type { RuntimeMobileSessionTabsResult } from '../../../shared/runtime-types'
@@ -170,15 +171,19 @@ async function refreshedWithoutThrowing(
  * Only `revealed` means the tab is on its way. The other three are all terminal for this click, and
  * they are kept apart because the remedy differs: retry, give up, or update the host.
  */
-export async function revealStructuredSession(target: {
-  worktreeId: string
-  sessionId: string
-}): Promise<StructuredSessionRevealOutcome> {
+export async function revealStructuredSession(
+  target: {
+    worktreeId: string
+    sessionId: string
+  },
+  runtimeTarget?: RuntimeClientTarget
+): Promise<StructuredSessionRevealOutcome> {
   const environmentId = getRuntimeEnvironmentIdForWorktree(
     useAppStore.getState(),
     target.worktreeId
   )
-  const host = getActiveRuntimeTarget({ activeRuntimeEnvironmentId: environmentId })
+  const host =
+    runtimeTarget ?? getActiveRuntimeTarget({ activeRuntimeEnvironmentId: environmentId })
   // Negotiated against the host that will answer this call, not the local one: a paired host runs
   // its own build, and its method-not-found is indistinguishable from a refusal we should surface.
   // A local host is this build, so it always has the method and needs no round trip to prove it.
@@ -230,7 +235,10 @@ export async function revealStructuredSession(target: {
 
 type AgentSessionRevealReply = { ok?: boolean; refusal?: { code?: string } }
 
-async function refreshStructuredSessionTabs(worktreeId: string): Promise<void> {
+export async function refreshStructuredSessionTabs(
+  worktreeId: string,
+  runtimeTarget?: RuntimeClientTarget
+): Promise<void> {
   const state = useAppStore.getState()
   const environmentId = getRuntimeEnvironmentIdForWorktree(state, worktreeId)
   // Every other caller that applies an inventory fences it on the sync generation. Structured chat
@@ -239,7 +247,7 @@ async function refreshStructuredSessionTabs(worktreeId: string): Promise<void> {
   const generation = localStructuredSessionGeneration()
   const snapshot = await withStructuredSessionRestoreTimeout(
     callRuntimeRpc<RuntimeMobileSessionTabsResult>(
-      getActiveRuntimeTarget({ activeRuntimeEnvironmentId: environmentId }),
+      runtimeTarget ?? getActiveRuntimeTarget({ activeRuntimeEnvironmentId: environmentId }),
       'session.tabs.list',
       { worktree: toRuntimeWorktreeSelector(worktreeId) },
       { timeoutMs: STRUCTURED_SESSION_RESTORE_TIMEOUT_MS }

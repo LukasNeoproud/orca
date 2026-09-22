@@ -201,6 +201,7 @@ export function useComposerSubmitOrchestration(
     linkedGitLabMR: target.workspaceIdentityState.linkedGitLabMR,
     normalizedSparseDirectories: target.derivedComposerState.normalizedSparseDirectories,
     onCreated: target.composerTargetStore.onCreated,
+    backgroundCreationCallbacks: target.composerTargetStore.backgroundCreationCallbacks,
     parentWorktreeId: target.workspaceIdentityState.parentWorktreeId,
     persistDraft: target.composerTargetStore.persistDraft,
     persistSetupAgentStartupPolicy: target.providerRuntimeSync.persistSetupAgentStartupPolicy,

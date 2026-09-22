@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { plistString } from './macos-dev-launcher.mjs'
 
@@ -29,13 +29,18 @@ writeFileSync(
     2
   )
 )
-const quote = (value) => `'${value.replace(/'/g, `'\\''`)}'`
-// Resolve resources relative to the bundle so it can be copied into ~/Applications.
-writeFileSync(
-  executable,
-  `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(path.join(repoRoot, 'config', 'scripts', 'macos-dev-launcher.mjs'))} "$(dirname "$0")/../Resources/launch.json" "$@" >> ${quote(path.join(outputDir, 'launcher.log'))} 2>&1\n`
-)
-chmodSync(executable, 0o755)
+for (const name of ['macos-dev-launcher.mjs', 'dev-electron-bundle-cache.mjs']) {
+  copyFileSync(path.join(repoRoot, 'config', 'scripts', name), path.join(resources, name))
+}
+execFileSync('/usr/bin/xcrun', [
+  'clang',
+  '-fobjc-arc',
+  '-framework',
+  'Foundation',
+  path.join(repoRoot, 'config', 'scripts', 'macos-dev-launcher-main.m'),
+  '-o',
+  executable
+])
 writeFileSync(
   path.join(contents, 'Info.plist'),
   `<?xml version="1.0" encoding="UTF-8"?>
@@ -46,7 +51,8 @@ writeFileSync(
 <key>CFBundleIdentifier</key><string>com.stablyai.orca.dev-launcher</string>
 <key>CFBundleExecutable</key><string>Orca Dev</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleVersion</key><string>2</string>
+<key>NSDocumentsFolderUsageDescription</key><string>Orca Dev needs access to its development repository in Documents to build and launch the app.</string>
 <key>CFBundleIconFile</key><string>OrcaDev</string>
 <key>LSUIElement</key><true/>
 <key>NSHumanReadableCopyright</key>${plistString(`Launches development sources at ${repoRoot}`)}
@@ -61,6 +67,7 @@ header.write('ic08', 8)
 header.writeUInt32BE(icon.length + 8, 12)
 writeFileSync(path.join(resources, 'OrcaDev.icns'), Buffer.concat([header, icon]))
 execFileSync('/usr/bin/plutil', ['-lint', path.join(contents, 'Info.plist')])
+execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', appPath])
 console.log(
   `Built ${appPath}\nCopy into ~/Applications and launch Orca Dev from Raycast. Rebuild after moving the repository or changing Node/pnpm installations.`
 )

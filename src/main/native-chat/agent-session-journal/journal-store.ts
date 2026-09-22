@@ -41,7 +41,7 @@ import type {
   ResolveDispatchInput
 } from './journal-store-contracts'
 import type { AgentJournalEpochReason, JournalRow } from './journal-row-schema'
-import { AgentSessionJournalError } from './journal-write-guards'
+import { AgentSessionJournalError, assertJournalWritable } from './journal-write-guards'
 import type { JournalRowWriter } from './journal-row-writer'
 import type { JournalEpochController } from './journal-epoch-controller'
 import { JournalConnectionCloser, JournalWriteQueue } from './journal-store-close'
@@ -49,6 +49,8 @@ import { createJournalStoreCollaborators } from './journal-store-collaborators'
 import { ensureJournalDir, journalStoreLoadedFields } from './journal-store-open'
 import type { JournalItemAppender } from './journal-item-appender'
 import type { JournalLifecycleBatchAppender } from './journal-lifecycle-batch-appender'
+import type { StructuredTopicIndex } from '../../../shared/structured-topic-index'
+import { emptyStructuredTopicIndex } from '../../../shared/structured-topic-index'
 
 export { AgentSessionJournalError } from './journal-write-guards'
 
@@ -176,6 +178,45 @@ export class AgentSessionJournal {
     this.state.receipts.get(clientMessageId) ?? null
 
   canonicalItemId = (itemId: string): string => resolveJournalItemId(this.state, itemId)
+
+  readTopicIndex = (): StructuredTopicIndex => {
+    const row = this.requireDatabase()
+      .db.prepare('SELECT index_json FROM journal_topic_index WHERE session_id = ?')
+      .get(this.identity.sessionId) as { index_json?: string } | undefined
+    if (!row?.index_json) {
+      return emptyStructuredTopicIndex(this.identity.sessionId)
+    }
+    try {
+      const value = JSON.parse(row.index_json) as StructuredTopicIndex
+      return value.sessionId === this.identity.sessionId
+        ? value
+        : emptyStructuredTopicIndex(this.identity.sessionId)
+    } catch {
+      return emptyStructuredTopicIndex(this.identity.sessionId)
+    }
+  }
+
+  writeTopicIndex = async (
+    index: StructuredTopicIndex,
+    expectedRevision: number
+  ): Promise<StructuredTopicIndex> =>
+    this.queue.serialize(async () => {
+      assertJournalWritable(this.readOnly, this.identity.sessionId)
+      const current = this.readTopicIndex()
+      if (current.revision !== expectedRevision) {
+        throw new Error('agent_session_topic_index_stale')
+      }
+      if (index.sessionId !== this.identity.sessionId || index.revision !== expectedRevision + 1) {
+        throw new Error('agent_session_topic_index_invalid')
+      }
+      const { db } = this.requireDatabase()
+      db.prepare(
+        `INSERT INTO journal_topic_index (session_id, revision, index_json, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET revision=excluded.revision, index_json=excluded.index_json, updated_at=excluded.updated_at`
+      ).run(this.identity.sessionId, index.revision, JSON.stringify(index), this.now())
+      return index
+    })
 
   readSince(cursor: AgentJournalCursor, limit?: number): JournalReadSince {
     return readJournalSince(

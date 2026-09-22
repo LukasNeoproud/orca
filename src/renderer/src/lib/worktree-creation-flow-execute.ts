@@ -45,7 +45,8 @@ async function preflightAgentTrust(
 
 export async function executeWorktreeCreation(
   creationId: string,
-  request: WorktreeCreationRequest
+  request: WorktreeCreationRequest,
+  onWorkspaceCreated?: (workspaceId: string) => void
 ): Promise<void> {
   const preparedRequest = await prepareRequestForCreate(creationId, request)
   if (!preparedRequest) {
@@ -153,6 +154,7 @@ export async function executeWorktreeCreation(
     return
   }
   await attachEphemeralVmRuntimeToWorkspace(preparedRequest, worktree.id)
+  onWorkspaceCreated?.(worktree.id)
 
   if (result.checkoutWarning) {
     const state = useAppStore.getState()

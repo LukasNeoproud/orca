@@ -14,10 +14,11 @@ export function devLaunchConfiguration({
   nodePath,
   pnpmPath,
   searchPath,
-  background = false
+  background = false,
+  logDirectory = path.join(homedir(), 'Library', 'Logs', 'Orca Dev')
 }) {
   const label = `com.stablyai.orca.dev-launcher.${createHash('sha256').update(repoRoot).digest('hex').slice(0, 12)}`
-  const outputDir = path.join(repoRoot, 'out', 'macos-dev-launcher')
+  const outputDir = logDirectory
   const environment = {
     PATH: `${path.dirname(nodePath)}:${searchPath}`,
     HOME: homedir(),

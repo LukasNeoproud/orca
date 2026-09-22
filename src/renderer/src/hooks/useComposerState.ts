@@ -8,7 +8,7 @@ import {
 } from '@/lib/new-workspace'
 import type { GitHubWorkItem } from '../../../shared/github/work-item-types'
 import type { TuiAgent } from '../../../shared/tui-agent'
-import type { TaskSourceContext } from '../../../shared/task-source-context'
+import type { TaskSourceContext, WorkspaceRunContext } from '../../../shared/task-source-context'
 import type { WorkspaceSource as WorkspaceCreateTelemetrySource } from '../../../shared/workspace-source'
 import type { WorkspaceStatus } from '../../../shared/worktree/types'
 import { normalizeExecutionHostId, type ExecutionHostId } from '../../../shared/execution-host'
@@ -30,6 +30,7 @@ import type {
   ComposerCardActionProps,
   ComposerCardSourceProps
 } from './composer-state/composer-card-contract'
+import type { ComposerBackgroundWorktreeCreationCallbacks } from './composer-state/composer-background-worktree-creation'
 
 export type UseComposerStateOptions = {
   initialRepoId?: string
@@ -40,10 +41,12 @@ export type UseComposerStateOptions = {
   initialLinkedWorkItem?: LinkedWorkItemSummary | null
   initialGitHubWorkItem?: GitHubWorkItem | null
   initialTaskSourceContext?: TaskSourceContext | null
+  initialWorkspaceRunContext?: WorkspaceRunContext | null
   initialWorkspaceStatus?: WorkspaceStatus
   initialBaseBranch?: string
   persistDraft: boolean
   onCreated?: () => void
+  backgroundCreationCallbacks?: ComposerBackgroundWorktreeCreationCallbacks
   isSubmissionCancelled?: () => boolean
   repoIdOverride?: string
   onRepoIdOverrideChange?: (value: string) => void
@@ -138,23 +141,37 @@ export type InitialWorkspaceRunSeedInput = {
     TaskSourceContext,
     'projectId' | 'hostId' | 'projectHostSetupId'
   > | null
+  initialWorkspaceRunContext?: Pick<
+    WorkspaceRunContext,
+    'projectId' | 'hostId' | 'projectHostSetupId'
+  > | null
 }
 
 export function resolveInitialWorkspaceRunSeed({
   draftProjectId,
   draftHostId,
   draftProjectHostSetupId,
-  initialTaskSourceContext
+  initialTaskSourceContext,
+  initialWorkspaceRunContext
 }: InitialWorkspaceRunSeedInput): {
   projectId: string | null
   hostId: ExecutionHostId | null
   projectHostSetupId: string | null
 } {
   return {
-    projectId: draftProjectId ?? initialTaskSourceContext?.projectId ?? null,
-    hostId: normalizeExecutionHostId(draftHostId ?? initialTaskSourceContext?.hostId),
+    projectId:
+      draftProjectId ??
+      initialWorkspaceRunContext?.projectId ??
+      initialTaskSourceContext?.projectId ??
+      null,
+    hostId: normalizeExecutionHostId(
+      draftHostId ?? initialWorkspaceRunContext?.hostId ?? initialTaskSourceContext?.hostId
+    ),
     projectHostSetupId:
-      draftProjectHostSetupId ?? initialTaskSourceContext?.projectHostSetupId ?? null
+      draftProjectHostSetupId ??
+      initialWorkspaceRunContext?.projectHostSetupId ??
+      initialTaskSourceContext?.projectHostSetupId ??
+      null
   }
 }
 

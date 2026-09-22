@@ -22,6 +22,7 @@ import type {
 } from './agent-session-record'
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
 import type { StructuredAgentSessionProjectedStatus } from './structured-agent-session-projection'
+import type { StructuredTopicIndex } from './structured-topic-index'
 
 export type AgentSessionHandoffDirection = 'to-tui' | 'to-native'
 export type AgentSessionHandoffMode = 'now' | 'after-turn' | 'stop-turn'
@@ -384,3 +385,6 @@ export type AgentSessionOptionsResult = {
     confirmed?: readonly string[]
   }
 }
+
+/** Additive topic-index surface. Older hosts simply do not register the methods. */
+export type AgentSessionTopicIndexResult = { index: StructuredTopicIndex }

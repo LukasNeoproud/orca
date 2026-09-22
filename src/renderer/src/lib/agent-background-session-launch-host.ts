@@ -6,7 +6,8 @@ import { getFolderWorkspaceConnectionId } from '@/lib/folder-workspace-connectio
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import { isWindowsAbsolutePathLike } from '../../../shared/cross-platform-path'
 import { repoIsRemote } from '../../../shared/agent-launch-remote'
-import { getRepoSshConnectionId } from '../../../shared/execution-host'
+import { getRepoSshConnectionId, type ExecutionHostId } from '../../../shared/execution-host'
+import { findRepoForHost } from '@/store/slices/repo-host-identity'
 import { isWslUncPath } from '../../../shared/wsl-paths'
 
 type LaunchStore = ReturnType<typeof useAppStore.getState>
@@ -73,4 +74,26 @@ export function resolveAgentBackgroundLaunchHost(args: {
     isRemote: Boolean(folderWorkspaceConnectionId),
     expectedConnectionId: isFolderWorkspace ? (folderWorkspaceConnectionId ?? null) : undefined
   }
+}
+
+export function resolveAgentBackgroundWorkspace(
+  store: LaunchStore,
+  worktreeId: string,
+  executionHostId?: ExecutionHostId
+) {
+  // Folder workspaces exist only in getKnownWorktreeById (#2989).
+  const worktree = store.getKnownWorktreeById(worktreeId, executionHostId)
+  const repo = worktree
+    ? findRepoForHost(store.repos, worktree.repoId, {
+        hostId: executionHostId,
+        settings: store.settings
+      })
+    : null
+  if (!worktree) {
+    throw new Error('The target workspace is no longer available.')
+  }
+  if (executionHostId && !repo && parseWorkspaceKey(worktreeId)?.type !== 'folder') {
+    throw new Error('The target workspace host is unavailable.')
+  }
+  return { worktree, repo }
 }

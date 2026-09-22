@@ -12,7 +12,12 @@ import { useNativeChatTurnStatus } from './use-native-chat-turn-status'
 import { NativeChatTypingIndicatorRow } from './NativeChatTypingIndicatorRow'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import type { NativeChatTurnActivity } from './native-chat-turn-activity'
+import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import { NativeChatTurnActivityLine } from './NativeChatTurnActivityLine'
+import {
+  readNativeChatMessageListViewState,
+  writeNativeChatMessageListViewState
+} from './native-chat-message-list-view-state'
 
 export { ProviderFrameRow } from './NativeChatTranscriptChrome'
 
@@ -33,7 +38,14 @@ export function NativeChatMessageList({
   failedDeliveryMessageIds,
   showTurnStatus = true,
   turnActivity,
-  runtimeContext
+  runtimeContext,
+  scrollToMessageId = null,
+  scrollToMessageEpoch = null,
+  journalEpoch = null,
+  scrollRequestId = 0,
+  viewStateKey,
+  onBranchMessage,
+  branchableMessageIds
 }: {
   session: NativeChatLiveSession
   isWorking: boolean
@@ -49,33 +61,71 @@ export function NativeChatMessageList({
   showTurnStatus?: boolean
   turnActivity?: NativeChatTurnActivity | null
   runtimeContext?: RuntimeFileOperationArgs | null
+  /** Durable journal item id; older pages are fetched until this row becomes available. */
+  scrollToMessageId?: string | null
+  /** The exact epoch prevents an old anchor reaching a recycled item id after rewind. */
+  scrollToMessageEpoch?: string | null
+  journalEpoch?: string | null
+  /** A caller increments this to repeat navigation to the same durable anchor. */
+  scrollRequestId?: number
+  /** In-memory, runtime-scoped view state restored across chat unmounts. */
+  viewStateKey?: string
+  onBranchMessage?: (message: NativeChatMessage, selectedText?: string) => void
+  branchableMessageIds?: ReadonlySet<string>
 }): React.JSX.Element {
+  const rememberedViewState = readNativeChatMessageListViewState(viewStateKey)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
-  const [stuckToBottom, setStuckToBottom] = useState(true)
+  const scrollTopRef = useRef(rememberedViewState?.scrollTop ?? 0)
+  const [stuckToBottom, setStuckToBottom] = useState(
+    () => rememberedViewState?.stuckToBottom ?? true
+  )
   const [showJump, setShowJump] = useState(false)
-  const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<string>>(new Set())
-  const toggleExpandedTurn = useCallback((turnKey: string) => {
-    setExpandedTurnIds((current) => {
-      const next = new Set(current)
-      if (next.has(turnKey)) {
-        next.delete(turnKey)
-      } else {
-        if (next.size >= MAX_EXPANDED_TURNS) {
-          const oldest = next.values().next().value
-          if (oldest) {
-            next.delete(oldest)
+  const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<string>>(
+    () => new Set(rememberedViewState?.expandedTurnIds ?? [])
+  )
+  const toggleExpandedTurn = useCallback(
+    (turnKey: string) => {
+      setExpandedTurnIds((current) => {
+        const next = new Set(current)
+        if (next.has(turnKey)) {
+          next.delete(turnKey)
+        } else {
+          if (next.size >= MAX_EXPANDED_TURNS) {
+            const oldest = next.values().next().value
+            if (oldest) {
+              next.delete(oldest)
+            }
           }
+          next.add(turnKey)
         }
-        next.add(turnKey)
-      }
-      return next
-    })
-  }, [])
+        writeNativeChatMessageListViewState(viewStateKey, {
+          scrollTop: scrollTopRef.current,
+          stuckToBottom: stuckToBottomRef.current,
+          expandedTurnIds: [...next]
+        })
+        return next
+      })
+    },
+    [viewStateKey]
+  )
 
   const stuckToBottomRef = useRef(stuckToBottom)
   stuckToBottomRef.current = stuckToBottom
+  const expandedTurnIdsRef = useRef(expandedTurnIds)
+  expandedTurnIdsRef.current = expandedTurnIds
   const { hasMore, loadingEarlier, loadEarlier } = session
+
+  const persistViewState = useCallback(
+    (scrollTop?: number, stuck?: boolean) => {
+      writeNativeChatMessageListViewState(viewStateKey, {
+        scrollTop: scrollTop ?? scrollTopRef.current,
+        stuckToBottom: stuck ?? stuckToBottomRef.current,
+        expandedTurnIds: [...expandedTurnIdsRef.current]
+      })
+    },
+    [viewStateKey]
+  )
 
   const projectMessages = useMemo(
     () => createNativeChatMessageListProjection(),
@@ -119,8 +169,10 @@ export function NativeChatMessageList({
       return
     }
     const geometry = geometryOf(el)
+    scrollTopRef.current = geometry.scrollTop
     const stick = isNearBottom(geometry)
     setStuckToBottom(stick)
+    persistViewState(geometry.scrollTop, stick)
     setShowJump(shouldShowJumpToLatest(stick, geometry))
     // Near the top — page in older history, anchoring the current position so the
     // prepend doesn't yank the view.
@@ -128,7 +180,7 @@ export function NativeChatMessageList({
       prependAnchorRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop }
       loadEarlier()
     }
-  }, [hasMore, loadingEarlier, loadEarlier])
+  }, [hasMore, loadingEarlier, loadEarlier, persistViewState])
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
@@ -136,21 +188,65 @@ export function NativeChatMessageList({
       return
     }
     el.scrollTop = el.scrollHeight
+    scrollTopRef.current = el.scrollTop
     setStuckToBottom(true)
     setShowJump(false)
-  }, [])
+    persistViewState(el.scrollTop, true)
+  }, [persistViewState])
 
   // Align a single message's top to the top of the scroll viewport.
-  const scrollMessageToTop = useCallback((el: HTMLElement) => {
-    const container = scrollRef.current
-    if (!container) {
+  const scrollMessageToTop = useCallback(
+    (el: HTMLElement) => {
+      const container = scrollRef.current
+      if (!container) {
+        return
+      }
+      stuckToBottomRef.current = false
+      setStuckToBottom(false)
+      const delta = el.getBoundingClientRect().top - container.getBoundingClientRect().top
+      container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
+      scrollTopRef.current = container.scrollTop + delta
+      persistViewState(scrollTopRef.current, false)
+    },
+    [persistViewState]
+  )
+
+  useLayoutEffect(() => {
+    if (scrollToMessageId || !viewStateKey) {
       return
     }
-    stuckToBottomRef.current = false
-    setStuckToBottom(false)
-    const delta = el.getBoundingClientRect().top - container.getBoundingClientRect().top
-    container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
-  }, [])
+    const remembered = readNativeChatMessageListViewState(viewStateKey)
+    if (remembered && scrollRef.current) {
+      scrollRef.current.scrollTop = remembered.scrollTop
+      scrollTopRef.current = remembered.scrollTop
+    }
+  }, [scrollToMessageId, viewStateKey])
+
+  useEffect(() => () => persistViewState(), [persistViewState])
+
+  useEffect(() => {
+    if (!scrollToMessageId || (scrollToMessageEpoch && scrollToMessageEpoch !== journalEpoch)) {
+      return
+    }
+    const target = contentRef.current?.querySelector<HTMLElement>(
+      `[data-native-chat-message-id="${CSS.escape(scrollToMessageId)}"]`
+    )
+    if (target) {
+      scrollMessageToTop(target)
+    } else if (hasMore && !loadingEarlier) {
+      loadEarlier()
+    }
+  }, [
+    hasMore,
+    journalEpoch,
+    loadEarlier,
+    loadingEarlier,
+    messages,
+    scrollMessageToTop,
+    scrollRequestId,
+    scrollToMessageEpoch,
+    scrollToMessageId
+  ])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -250,6 +346,11 @@ export function NativeChatMessageList({
                   structuredActivityUi={showTurnStatus}
                   activityExpandOverride={turnKey ? expandedTurnIds.has(turnKey) : undefined}
                   runtimeContext={runtimeContext}
+                  onBranchMessage={
+                    !branchableMessageIds || branchableMessageIds.has(message.id)
+                      ? onBranchMessage
+                      : undefined
+                  }
                 />
                 {showTurnStatus &&
                 status &&

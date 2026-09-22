@@ -21,6 +21,8 @@ export type LaunchAiVaultSessionInNewTabResult =
 export function launchAiVaultSessionInNewTab(args: {
   agent: AiVaultAgent
   worktreeId: string
+  /** Undefined derives the owner; null explicitly keeps execution on the controlling runtime. */
+  runtimeEnvironmentId?: string | null
   command: string
   cwd?: string
   env?: Record<string, string>
@@ -32,8 +34,21 @@ export function launchAiVaultSessionInNewTab(args: {
 }): LaunchAiVaultSessionInNewTabResult {
   const store = useAppStore.getState()
   let targetGroupId = args.targetGroupId
-  const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, args.worktreeId)
-  if (isWebRuntimeSessionActive(runtimeEnvironmentId)) {
+  const runtimeEnvironmentId =
+    args.runtimeEnvironmentId === undefined
+      ? getRuntimeEnvironmentIdForWorktree(store, args.worktreeId)
+      : args.runtimeEnvironmentId
+  if (runtimeEnvironmentId) {
+    if (!isWebRuntimeSessionActive(runtimeEnvironmentId)) {
+      return {
+        tabId: null,
+        ...(targetGroupId ? { groupId: targetGroupId } : {}),
+        runtimeLaunch: Promise.resolve({
+          status: 'failed',
+          message: 'The owning runtime is unavailable.'
+        })
+      }
+    }
     const runtimeLaunch = createWebRuntimeSessionTerminal({
       worktreeId: args.worktreeId,
       environmentId: runtimeEnvironmentId,

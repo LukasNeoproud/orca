@@ -15,6 +15,7 @@ function configuration() {
   temporaryDirs.push(repoRoot)
   return {
     repoRoot,
+    logDirectory: path.join(repoRoot, 'logs'),
     nodePath: '/node/bin/node',
     pnpmPath: '/node/bin/pnpm',
     searchPath: '/usr/bin:/bin'
@@ -33,6 +34,15 @@ describe('macOS dev launcher', () => {
     )
     expect(devLaunchConfiguration(options).label).toBe(label)
     expect(plistString('A & <B>')).toBe('<string>A &amp; &lt;B&gt;</string>')
+  })
+
+  it('puts default launch logs outside the protected repository', () => {
+    const options = configuration()
+    delete options.logDirectory
+    const { outputDir, plist } = devLaunchConfiguration(options)
+    expect(outputDir).toContain(path.join('Library', 'Logs', 'Orca Dev'))
+    expect(outputDir.startsWith(options.repoRoot)).toBe(false)
+    expect(plist).toContain(plistString(path.join(outputDir, 'dev.log')))
   })
 
   it('keeps an already-running service intact', () => {

@@ -69,6 +69,8 @@ export type RuntimeStore = {
   saveSparsePreset?: Store['saveSparsePreset']
   getMobileClientTabSelections?: Store['getMobileClientTabSelections']
   setMobileClientTabSelections?: Store['setMobileClientTabSelections']
+  getBacklogTaskAssociations?: Store['getBacklogTaskAssociations']
+  persistBacklogTaskAssociations?: Store['persistBacklogTaskAssociations']
   getSettings(): {
     workspaceDir: string
     nestWorkspaces: boolean

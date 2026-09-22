@@ -43,6 +43,7 @@ export type CodexStructuredSessionAdapterDeps = {
   resolveLaunch: (input: {
     identity: AgentSessionJournalIdentity
   }) => Promise<CodexStructuredLaunch>
+  resolveWorkspacePath?: (workspaceId: string) => Promise<string>
   /** Host capability seam; production uses the native Windows process table. */
   isWindowsProcessStartTimeAvailable?: () => boolean
   onEvent?: (event: CodexStructuredSessionEvent) => void

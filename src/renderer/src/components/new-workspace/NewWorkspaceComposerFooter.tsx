@@ -16,6 +16,7 @@ type NewWorkspaceComposerFooterProps = Pick<
   | 'createDisabled'
   | 'creating'
   | 'primaryActionLabel'
+  | 'cancelAction'
 > & {
   submitShortcutModifierLabel: string
 }
@@ -29,6 +30,7 @@ export function NewWorkspaceComposerFooter({
   createDisabled,
   creating,
   primaryActionLabel,
+  cancelAction,
   submitShortcutModifierLabel
 }: NewWorkspaceComposerFooterProps): React.JSX.Element {
   return (
@@ -53,7 +55,7 @@ export function NewWorkspaceComposerFooter({
       <div
         className={cn(
           'flex items-center gap-3',
-          showCreateMultiple ? 'justify-between' : 'justify-end'
+          showCreateMultiple || cancelAction ? 'justify-between' : 'justify-end'
         )}
       >
         {showCreateMultiple ? (
@@ -70,19 +72,32 @@ export function NewWorkspaceComposerFooter({
             </span>
           </button>
         ) : null}
-        <Button
-          onClick={() => void onCreate()}
-          disabled={createDisabled}
-          size="sm"
-          className="text-xs"
-        >
-          {creating ? <LoaderCircle className="size-4 animate-spin" /> : null}
-          {primaryActionLabel}
-          <span className="ml-1 inline-flex items-center gap-0.5 rounded border border-white/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-current/80">
-            <span>{submitShortcutModifierLabel}</span>
-            <CornerDownLeft className="size-3" />
-          </span>
-        </Button>
+        {cancelAction ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={cancelAction.disabled}
+            onClick={cancelAction.onClick}
+          >
+            {cancelAction.label}
+          </Button>
+        ) : null}
+        <div className="ml-auto flex items-center gap-3">
+          <Button
+            onClick={() => void onCreate()}
+            disabled={createDisabled}
+            size="sm"
+            className="text-xs"
+          >
+            {creating ? <LoaderCircle className="size-4 animate-spin" /> : null}
+            {primaryActionLabel}
+            <span className="ml-1 inline-flex items-center gap-0.5 rounded border border-white/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-current/80">
+              <span>{submitShortcutModifierLabel}</span>
+              <CornerDownLeft className="size-3" />
+            </span>
+          </Button>
+        </div>
       </div>
     </>
   )

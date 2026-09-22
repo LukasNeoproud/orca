@@ -52,86 +52,96 @@ describe('active agent note send', () => {
     testState.getActiveRuntimeTarget.mockReturnValue({ kind: 'local' })
   })
 
-  it('sends notes immediately to an explicit note target using bracketed paste and Enter', async () => {
-    testState.appState.activeTabType = 'editor'
-    testState.appState.activeTabIdByWorktree = {}
-    const methods: string[] = []
-    testState.callRuntimeRpc.mockImplementation(async (_target, method, params) => {
-      methods.push(method)
-      if (method === 'terminal.list') {
-        return {
-          terminals: [
-            {
-              handle: 'term-2',
-              worktreeId: 'wt-1',
-              worktreePath: '/repo',
-              branch: 'main',
-              tabId: 'tab-9',
-              leafId: OTHER_LEAF_ID,
-              title: 'Codex',
-              connected: true,
-              writable: true,
-              lastOutputAt: 1,
-              preview: ''
-            }
-          ],
-          totalCount: 1,
-          truncated: false
-        }
-      }
-      if (method === 'terminal.agentStatus') {
-        return { agentStatus: { handle: 'term-2', isRunningAgent: true, status: 'working' } }
-      }
-      if (method === 'terminal.send') {
-        return {
-          send: {
-            handle: 'term-2',
-            accepted: true,
-            bytesWritten: typeof params.text === 'string' ? params.text.length : 1
+  it.each([undefined, { kind: 'environment' as const, environmentId: 'pinned-owner' }])(
+    'sends immediately to an explicit pane on target %j without interrupting',
+    async (runtimeTarget) => {
+      testState.appState.activeTabType = 'editor'
+      testState.appState.activeTabIdByWorktree = {}
+      const methods: string[] = []
+      testState.callRuntimeRpc.mockImplementation(async (_target, method, params) => {
+        methods.push(method)
+        if (method === 'terminal.list') {
+          return {
+            terminals: [
+              {
+                handle: 'term-2',
+                worktreeId: 'wt-1',
+                worktreePath: '/repo',
+                branch: 'main',
+                tabId: 'tab-9',
+                leafId: OTHER_LEAF_ID,
+                title: 'Codex',
+                connected: true,
+                writable: true,
+                lastOutputAt: 1,
+                preview: ''
+              }
+            ],
+            totalCount: 1,
+            truncated: false
           }
         }
-      }
-      throw new Error(`unexpected method ${method}`)
-    })
-
-    await expect(
-      sendNotesToActiveAgentSession({
-        worktreeId: 'wt-1',
-        prompt: 'notes',
-        noteTarget: { tabId: 'tab-9', leafId: OTHER_LEAF_ID }
+        if (method === 'terminal.agentStatus') {
+          return { agentStatus: { handle: 'term-2', isRunningAgent: true, status: 'working' } }
+        }
+        if (method === 'terminal.send') {
+          return {
+            send: {
+              handle: 'term-2',
+              accepted: true,
+              bytesWritten: typeof params.text === 'string' ? params.text.length : 1
+            }
+          }
+        }
+        throw new Error(`unexpected method ${method}`)
       })
-    ).resolves.toEqual({ status: 'sent' })
 
-    expect(methods).toEqual([
-      'terminal.list',
-      'terminal.agentStatus',
-      'terminal.send',
-      'terminal.agentStatus',
-      'terminal.send'
-    ])
-    expect(testState.callRuntimeRpc).toHaveBeenCalledWith(
-      { kind: 'local' },
-      'terminal.send',
-      {
-        terminal: 'term-2',
-        text: `${PASTE_BEGIN}notes${PASTE_END}`,
-        requireAgentStatus: 'sendable',
-        client: { id: 'orca-desktop', type: 'desktop' }
-      },
-      { timeoutMs: 15000 }
-    )
-    expect(testState.callRuntimeRpc).toHaveBeenLastCalledWith(
-      { kind: 'local' },
-      'terminal.send',
-      {
-        terminal: 'term-2',
-        enter: true,
-        requireAgentStatus: 'sendable',
-        client: { id: 'orca-desktop', type: 'desktop' }
-      },
-      { timeoutMs: 15000 }
-    )
-  })
+      await expect(
+        sendNotesToActiveAgentSession({
+          worktreeId: 'wt-1',
+          prompt: 'notes',
+          runtimeTarget,
+          noteTarget: { tabId: 'tab-9', leafId: OTHER_LEAF_ID }
+        })
+      ).resolves.toEqual({ status: 'sent' })
+
+      if (runtimeTarget) {
+        expect(testState.getActiveRuntimeTarget).not.toHaveBeenCalled()
+        expect(
+          testState.callRuntimeRpc.mock.calls.every(([target]) => target === runtimeTarget)
+        ).toBe(true)
+      }
+      expect(methods).toEqual([
+        'terminal.list',
+        'terminal.agentStatus',
+        'terminal.send',
+        'terminal.agentStatus',
+        'terminal.send'
+      ])
+      expect(testState.callRuntimeRpc).toHaveBeenCalledWith(
+        runtimeTarget ?? { kind: 'local' },
+        'terminal.send',
+        {
+          terminal: 'term-2',
+          text: `${PASTE_BEGIN}notes${PASTE_END}`,
+          requireAgentStatus: 'sendable',
+          client: { id: 'orca-desktop', type: 'desktop' }
+        },
+        { timeoutMs: 15000 }
+      )
+      expect(testState.callRuntimeRpc).toHaveBeenLastCalledWith(
+        runtimeTarget ?? { kind: 'local' },
+        'terminal.send',
+        {
+          terminal: 'term-2',
+          enter: true,
+          requireAgentStatus: 'sendable',
+          client: { id: 'orca-desktop', type: 'desktop' }
+        },
+        { timeoutMs: 15000 }
+      )
+    }
+  )
 
   it('refuses explicit targets when an older runtime cannot verify agent status', async () => {
     const methods: string[] = []

@@ -13,7 +13,8 @@ import type {
   AgentSessionMutationEnvelope,
   AgentSessionOptionResult,
   AgentSessionPromptResult,
-  AgentSessionSendResult
+  AgentSessionSendResult,
+  AgentSessionWireRefusal
 } from '../../../shared/agent-session-wire'
 import {
   performCancel,
@@ -40,6 +41,7 @@ export function sendPlan(params: {
   body: AgentJournalMessageItem
   retryUnknown?: true
   beforeRun?: () => void
+  beforeDispatch?: () => AgentSessionWireRefusal | null
 }): MutationPlan<AgentSessionSendResult> {
   // The operation id IS the client message id: one send, one durable row, one
   // key the client reconciles its optimistic bubble against.
@@ -56,13 +58,17 @@ export function sendPlan(params: {
         .some(
           (entry) => entry.clientMessageId === clientMessageId && entry.dispatchState === 'unknown'
         ),
-    run: (ctx) =>
-      performSend(ctx, {
-        clientMessageId,
-        payloadFingerprint: params.envelope.payloadFingerprint,
-        body: params.body,
-        retryUnknown: params.retryUnknown
-      }),
+    run: (ctx) => {
+      const refusal = params.beforeDispatch?.()
+      return refusal
+        ? Promise.resolve({ ok: false as const, refusal })
+        : performSend(ctx, {
+            clientMessageId,
+            payloadFingerprint: params.envelope.payloadFingerprint,
+            body: params.body,
+            retryUnknown: params.retryUnknown
+          })
+    },
     replay: (ctx) => {
       const submission = ctx.journal
         .submissions()

@@ -8,6 +8,7 @@ type ComposerInitialTargetStateInput = Pick<
   | 'initialProjectGroupId'
   | 'initialRepoId'
   | 'initialTaskSourceContext'
+  | 'initialWorkspaceRunContext'
   | 'initialWorkspaceStatus'
   | 'newWorkspaceDraft'
   | 'persistDraft'
@@ -34,6 +35,7 @@ export function useComposerInitialTargetState(input: ComposerInitialTargetStateI
     initialProjectGroupId,
     initialRepoId,
     initialTaskSourceContext,
+    initialWorkspaceRunContext,
     initialWorkspaceStatus,
     newWorkspaceDraft,
     persistDraft,
@@ -63,7 +65,8 @@ export function useComposerInitialTargetState(input: ComposerInitialTargetStateI
     draftProjectId,
     draftHostId,
     draftProjectHostSetupId,
-    initialTaskSourceContext
+    initialTaskSourceContext,
+    initialWorkspaceRunContext
   })
 
   const resolvedInitialWorkspaceStatus = useMemo(

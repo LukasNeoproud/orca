@@ -43,6 +43,7 @@ export function createStructuredClaudeRuntimeAdapter(
 ): ClaudeStructuredSessionAdapter {
   const { store } = deps
   return new ClaudeStructuredSessionAdapter({
+    resolveWorkspacePath: deps.resolveWorkspacePath,
     resolveLaunch: createClaudeStructuredLaunchResolver({
       store,
       resolveWorkspacePath: deps.resolveWorkspacePath,

@@ -1,6 +1,11 @@
+import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { RuntimeTerminalWait } from '../../../shared/runtime-types'
 import { useAppStore } from '@/store'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import {
+  callRuntimeRpc,
+  getActiveRuntimeTarget,
+  type RuntimeClientTarget
+} from '@/runtime/runtime-rpc-client'
 import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
 import { findActiveRuntimeTerminal, getActiveTerminalNoteTarget } from './active-agent-note-target'
 import type { ActiveTerminalNoteTarget } from './active-agent-note-target'
@@ -41,6 +46,9 @@ export async function sendNotesToActiveAgentSession(args: {
   prompt: string
   noteTarget?: ActiveTerminalNoteTarget
   timeoutMs?: number
+  runtimeTarget?: RuntimeClientTarget
+  preserveWhitespace?: boolean
+  expectedExecutionHostId?: ExecutionHostId
 }): Promise<ActiveAgentNotesSendResult> {
   try {
     return await sendNotesToActiveAgentSessionInternal(args)
@@ -55,15 +63,21 @@ async function sendNotesToActiveAgentSessionInternal({
   worktreeId,
   prompt,
   noteTarget: explicitNoteTarget,
-  timeoutMs
+  timeoutMs,
+  runtimeTarget: explicitRuntimeTarget,
+  preserveWhitespace = false,
+  expectedExecutionHostId
 }: {
   worktreeId: string
   prompt: string
   noteTarget?: ActiveTerminalNoteTarget
   timeoutMs?: number
+  runtimeTarget?: RuntimeClientTarget
+  preserveWhitespace?: boolean
+  expectedExecutionHostId?: ExecutionHostId
 }): Promise<ActiveAgentNotesSendResult> {
-  const trimmedPrompt = prompt.trim()
-  if (!trimmedPrompt) {
+  const trimmedPrompt = preserveWhitespace ? prompt : prompt.trim()
+  if (!trimmedPrompt.trim()) {
     return { status: 'empty', code: 'empty' }
   }
   const state = useAppStore.getState()
@@ -71,9 +85,9 @@ async function sendNotesToActiveAgentSessionInternal({
   if (!noteTarget) {
     return reportNoteSendFailure({ status: 'no-active-terminal', code: 'no-note-target' }, null)
   }
-  const runtimeTarget = getActiveRuntimeTarget(
-    getSettingsForWorktreeRuntimeOwner(state, worktreeId)
-  )
+  const runtimeTarget =
+    explicitRuntimeTarget ??
+    getActiveRuntimeTarget(getSettingsForWorktreeRuntimeOwner(state, worktreeId))
   const terminal = await findActiveRuntimeTerminal(
     runtimeTarget,
     worktreeId,
@@ -83,6 +97,12 @@ async function sendNotesToActiveAgentSessionInternal({
   if (!terminal) {
     return reportNoteSendFailure(
       { status: 'no-active-terminal', code: 'no-inventory-match' },
+      noteTarget
+    )
+  }
+  if (expectedExecutionHostId && terminal.executionHostId !== expectedExecutionHostId) {
+    return reportNoteSendFailure(
+      { status: 'status-unavailable', code: 'runtime-unverifiable' },
       noteTarget
     )
   }

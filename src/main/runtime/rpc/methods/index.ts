@@ -35,6 +35,10 @@ import { CLIENT_UI_METHODS } from './client-ui'
 import { CLIENT_EVENT_METHODS } from './client-events'
 import { WORKSPACE_PORT_METHODS } from './workspace-ports'
 import { BACKLOG_METHODS } from './backlog'
+import { PORTABLE_CONVERSATION_SOURCE_METHODS } from './portable-conversation-source'
+import { PORTABLE_CONVERSATION_BRANCH_METHODS } from './portable-conversation-branch'
+import { PORTABLE_CONVERSATION_PROPOSAL_METHODS } from './portable-conversation-proposal'
+import { PORTABLE_CONVERSATION_TOPIC_INDEX_METHODS } from './portable-conversation-topic-index'
 import { PLUGIN_METHODS } from './plugins'
 import { SKILL_METHODS } from './skills'
 import { CLIPBOARD_METHODS } from './clipboard'
@@ -90,6 +94,10 @@ export const ALL_RPC_METHODS: readonly RpcAnyMethod[] = [
   ...SPEECH_METHODS,
   ...WORKSPACE_PORT_METHODS,
   ...BACKLOG_METHODS,
+  ...PORTABLE_CONVERSATION_SOURCE_METHODS,
+  ...PORTABLE_CONVERSATION_BRANCH_METHODS,
+  ...PORTABLE_CONVERSATION_PROPOSAL_METHODS,
+  ...PORTABLE_CONVERSATION_TOPIC_INDEX_METHODS,
   ...PLUGIN_METHODS,
   ...SKILL_METHODS,
   ...CLIPBOARD_METHODS,

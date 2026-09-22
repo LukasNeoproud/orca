@@ -10,6 +10,7 @@ import {
   AGENT_SESSION_HISTORY_MAX_LIMIT
 } from '../../../../shared/agent-session-wire'
 import { normalizeExecutionHostId } from '../../../../shared/execution-host'
+export { TopicIndexWriteParams } from './structured-agent-session-topic-index-schema'
 
 const MAX_ID_LENGTH = 512
 // Four Claude questions with all four generated choices occupy 610 chars when fully percent-encoded.
@@ -68,7 +69,7 @@ const ExecutionHostId = z
     message: 'Invalid execution host id'
   })
 
-const ExecutionLocation = z
+export const ExecutionLocation = z
   .object({
     executionHostId: ExecutionHostId,
     wslDistro: Identifier('Invalid WSL distro').nullable(),

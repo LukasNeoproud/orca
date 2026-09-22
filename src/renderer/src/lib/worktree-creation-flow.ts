@@ -16,6 +16,38 @@ type ContinueBackgroundWorktreeCreationOptions = {
   revealCreationSurface?: boolean
 }
 
+export type BackgroundWorktreeCreationCallbacks = {
+  onCreated?: (workspaceId: string) => void
+  onFailed?: (message: string) => void
+}
+
+function runWorktreeCreation(
+  creationId: string,
+  request: WorktreeCreationRequest,
+  callbacks?: BackgroundWorktreeCreationCallbacks
+): void {
+  let created = false
+  void executeWorktreeCreation(creationId, request, (workspaceId) => {
+    created = true
+    try {
+      callbacks?.onCreated?.(workspaceId)
+    } catch (error) {
+      console.error('Worktree creation completion callback failed:', error)
+    }
+  })
+    .then(() => {
+      const pending = useAppStore.getState().pendingWorktreeCreations[creationId]
+      if (!created && pending?.status === 'error') {
+        callbacks?.onFailed?.(pending.error ?? 'Could not create the worktree.')
+      }
+    })
+    .catch((error: unknown) => {
+      if (!created) {
+        callbacks?.onFailed?.(error instanceof Error ? error.message : String(error))
+      }
+    })
+}
+
 function revealPendingCreation(
   creationId: string,
   request: WorktreeCreationRequest,
@@ -46,7 +78,10 @@ function revealPendingCreation(
  * immediately and the work outlives the now-closed modal. Progress and errors
  * surface on the pending creation's sidebar row and content panel.
  */
-export function runBackgroundWorktreeCreation(request: WorktreeCreationRequest): string {
+export function runBackgroundWorktreeCreation(
+  request: WorktreeCreationRequest,
+  callbacks?: BackgroundWorktreeCreationCallbacks
+): string {
   const store = useAppStore.getState()
   const existingCreationId = findPendingLinkedWorkItemCreationId(
     store.pendingWorktreeCreations,
@@ -62,7 +97,7 @@ export function runBackgroundWorktreeCreation(request: WorktreeCreationRequest):
   // client over plain HTTP). createBrowserUuid falls back to getRandomValues.
   const creationId = createBrowserUuid()
   revealPendingCreation(creationId, request, getInitialWorktreeCreationPhase(request))
-  void executeWorktreeCreation(creationId, request)
+  runWorktreeCreation(creationId, request, callbacks)
   return creationId
 }
 
@@ -101,12 +136,15 @@ export function continueBackgroundWorktreeCreation(
     store.setActiveView('terminal')
     store.setSidebarOpen(true)
   }
-  void executeWorktreeCreation(creationId, request)
+  runWorktreeCreation(creationId, request)
   return true
 }
 
 /** Re-run a failed creation from its panel, reusing the captured request. */
-export function retryBackgroundWorktreeCreation(creationId: string): void {
+export function retryBackgroundWorktreeCreation(
+  creationId: string,
+  callbacks?: BackgroundWorktreeCreationCallbacks
+): void {
   const store = useAppStore.getState()
   const entry = store.pendingWorktreeCreations[creationId]
   if (!entry) {
@@ -133,5 +171,5 @@ export function retryBackgroundWorktreeCreation(creationId: string): void {
     )
     return
   }
-  void executeWorktreeCreation(creationId, entry.request)
+  runWorktreeCreation(creationId, entry.request, callbacks)
 }

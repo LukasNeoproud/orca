@@ -1,5 +1,5 @@
 import React from 'react'
-import { MessagesSquare, MoreHorizontal, SquareTerminal } from 'lucide-react'
+import { GitFork, MessagesSquare, MoreHorizontal, SquareTerminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +20,8 @@ import type { AiVaultSessionResumeTargetState } from '../right-sidebar/ai-vault-
 import { SessionTime } from '../right-sidebar/ai-vault-session-time'
 import type { AiVaultSessionWorktreeInfo } from '../right-sidebar/ai-vault-session-worktree'
 import { getSessionOpenAvailability } from './conversation-history-open-availability'
+import { requestPortableConversationFromHistory } from '@/lib/portable-conversation-request'
+import { portableConversationHistoryWorkspaceId } from '../right-sidebar/portable-conversation-history-entry'
 
 function DisabledHistoryAction({
   label,
@@ -70,6 +72,7 @@ export function ConversationHistorySessionRow({
     targetState,
     settings
   })
+  const portableWorkspaceId = portableConversationHistoryWorkspaceId(session, worktreeInfo)
   const terminalLabel = translate(
     'auto.components.sidebar.WorktreeConversationHistory.openInTerminal',
     'Open in Terminal'
@@ -164,6 +167,17 @@ export function ConversationHistorySessionRow({
               {structuredLabel}
             </DropdownMenuItem>
           )}
+          {portableWorkspaceId ? (
+            <DropdownMenuItem
+              onSelect={() => requestPortableConversationFromHistory(session, portableWorkspaceId)}
+            >
+              <GitFork className="size-3.5" />
+              {translate(
+                'auto.components.conversationBranch.branchFromResponse',
+                'Branch from response…'
+              )}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

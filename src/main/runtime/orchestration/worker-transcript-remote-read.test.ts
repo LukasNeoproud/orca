@@ -14,6 +14,10 @@ function codexMessage(id: string, text: string): Buffer {
   )
 }
 
+function transcriptRecord(value: unknown): Buffer {
+  return Buffer.from(`${JSON.stringify(value)}\n`)
+}
+
 function fileStat(readContents: () => Buffer, readIdentity: () => number = () => 1) {
   return {
     size: readContents().length,
@@ -65,6 +69,201 @@ function preRangeProvider(
 }
 
 describe('remote worker transcript reads', () => {
+  it('carries a final Codex response to its cross-page task-complete marker', async () => {
+    const finalResponse = transcriptRecord({
+      type: 'event_msg',
+      payload: {
+        type: 'item_completed',
+        item: {
+          type: 'AgentMessage',
+          phase: 'final_answer',
+          content: [{ type: 'Text', text: 'Finished answer' }]
+        }
+      }
+    })
+    const started = transcriptRecord({
+      type: 'event_msg',
+      payload: { type: 'task_started', turn_id: 'turn-1' }
+    })
+    const completed = transcriptRecord({
+      type: 'event_msg',
+      payload: { type: 'task_complete', turn_id: 'turn-1' }
+    })
+    const contents = Buffer.concat([started, finalResponse, completed])
+    const provider = rangedProvider(() => contents).provider
+    const transcriptPath = '/remote/completed.jsonl'
+
+    const first = await readWorkerTranscript({
+      agent: 'codex',
+      sessionId: 'completed-session',
+      transcriptPath,
+      filesystemProvider: provider,
+      offset: 0,
+      limit: 1
+    })
+    expect(first).toMatchObject({
+      ok: true,
+      messages: [
+        {
+          id: expect.stringMatching(/^worker-message-/),
+          blocks: [{ type: 'text', text: 'Finished answer' }]
+        }
+      ],
+      turnEvidence: {
+        completedAssistantMessageIds: [],
+        pendingAssistantMessageId: expect.stringMatching(/^worker-message-/)
+      }
+    })
+    if (!first.ok) {
+      throw new Error('Expected the final response page')
+    }
+    const finalMessageId = first.messages[0]!.id
+    expect(first.turnEvidence?.pendingAssistantMessageId).toBe(finalMessageId)
+    expect(JSON.stringify(first.turnEvidence)).not.toContain(transcriptPath)
+
+    await expect(
+      readWorkerTranscript({
+        agent: 'codex',
+        sessionId: 'completed-session',
+        transcriptPath,
+        filesystemProvider: provider,
+        offset: first.nextOffset,
+        expectedSourceFingerprint: first.sourceFingerprint,
+        expectedBoundaryCheckpoint: first.boundaryCheckpoint,
+        pendingAssistantMessageId: first.turnEvidence?.pendingAssistantMessageId
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      messages: [],
+      turnEvidence: {
+        completedAssistantMessageIds: [finalMessageId],
+        pendingAssistantMessageId: null
+      }
+    })
+  })
+
+  it('does not prove commentary or tool-call assistant rows as completed responses', async () => {
+    const contents = Buffer.concat([
+      transcriptRecord({
+        type: 'event_msg',
+        payload: { type: 'task_started', turn_id: 'turn-1' }
+      }),
+      transcriptRecord({
+        type: 'event_msg',
+        payload: {
+          type: 'item_completed',
+          item: {
+            type: 'AgentMessage',
+            id: 'commentary',
+            phase: 'commentary',
+            content: [{ type: 'Text', text: 'I will inspect it.' }]
+          }
+        }
+      }),
+      transcriptRecord({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          id: 'legacy-prose',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Let me call a tool.' }]
+        }
+      }),
+      transcriptRecord({
+        type: 'response_item',
+        payload: { type: 'function_call', id: 'tool-call', name: 'read', arguments: '{}' }
+      }),
+      transcriptRecord({
+        type: 'event_msg',
+        payload: { type: 'task_complete', turn_id: 'turn-1' }
+      })
+    ])
+
+    await expect(
+      readWorkerTranscript({
+        agent: 'codex',
+        sessionId: 'intermediate-session',
+        transcriptPath: '/remote/intermediate.jsonl',
+        filesystemProvider: rangedProvider(() => contents).provider,
+        offset: 0,
+        limit: 10
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      turnEvidence: { completedAssistantMessageIds: [], pendingAssistantMessageId: null }
+    })
+  })
+
+  it('does not carry an incomplete assistant across a new user message without a start marker', async () => {
+    const contents = Buffer.concat([
+      transcriptRecord({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'assistant',
+          id: 'old-answer',
+          content: [{ type: 'text', text: 'Incomplete answer' }]
+        }
+      }),
+      transcriptRecord({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          id: 'next-user',
+          content: [{ type: 'input_text', text: 'Another request' }]
+        }
+      }),
+      transcriptRecord({
+        type: 'event_msg',
+        payload: { type: 'task_complete', turn_id: 'next-turn' }
+      })
+    ])
+    await expect(
+      readWorkerTranscript({
+        agent: 'codex',
+        sessionId: 'session',
+        transcriptPath: '/remote/new-user.jsonl',
+        filesystemProvider: rangedProvider(() => contents).provider,
+        offset: 0,
+        limit: 10
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      turnEvidence: { completedAssistantMessageIds: [], pendingAssistantMessageId: null }
+    })
+  })
+
+  it('uses a Claude terminal stop reason as same-record completion proof', async () => {
+    const contents = transcriptRecord({
+      type: 'assistant',
+      uuid: 'claude-final',
+      message: {
+        role: 'assistant',
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Claude answer' }]
+      }
+    })
+
+    await expect(
+      readWorkerTranscript({
+        agent: 'claude',
+        sessionId: 'claude-session',
+        transcriptPath: '/remote/claude.jsonl',
+        filesystemProvider: rangedProvider(() => contents).provider,
+        offset: 0,
+        limit: 10
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      messages: [{ id: 'claude-final', blocks: [{ type: 'text', text: 'Claude answer' }] }],
+      turnEvidence: {
+        completedAssistantMessageIds: ['claude-final'],
+        pendingAssistantMessageId: null
+      }
+    })
+  })
+
   it('reports a missing attested path separately from remote capability loss', async () => {
     const result = await readWorkerTranscript({
       agent: 'codex',

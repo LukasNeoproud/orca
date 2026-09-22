@@ -2,6 +2,7 @@ import {
   Copy,
   FileJson,
   FolderOpen,
+  GitFork,
   LocateFixed,
   MessageSquarePlus,
   MessagesSquare,
@@ -23,6 +24,7 @@ export function SessionActionMenuItems({
   onResume,
   onContinueInNewSession,
   onResumeInNewChat,
+  onBranchFromResponse,
   onJumpToOriginalPane,
   showJumpToWorktree,
   onJumpToWorktree,
@@ -43,6 +45,7 @@ export function SessionActionMenuItems({
   onResume: () => void
   onContinueInNewSession?: () => void
   onResumeInNewChat?: () => void
+  onBranchFromResponse?: () => void
   onJumpToOriginalPane?: () => void
   showJumpToWorktree: boolean
   onJumpToWorktree?: () => void
@@ -138,6 +141,15 @@ export function SessionActionMenuItems({
           {translate(
             'components.agentSessionContinuation.continueInNewSession',
             'Continue in New Session…'
+          )}
+        </Item>
+      ) : null}
+      {onBranchFromResponse ? (
+        <Item onSelect={onBranchFromResponse}>
+          <GitFork className="size-3.5" />
+          {translate(
+            'auto.components.conversationBranch.branchFromResponse',
+            'Branch from response…'
           )}
         </Item>
       ) : null}

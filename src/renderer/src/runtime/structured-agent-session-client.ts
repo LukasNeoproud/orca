@@ -4,7 +4,10 @@ import type {
   AgentSessionSubscribeEvent
 } from '../../../shared/agent-session-wire'
 import { getRuntimeEnvironmentRevision } from './runtime-environment-revision'
-import { AGENT_SESSION_REWIND_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
+import {
+  AGENT_SESSION_REWIND_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY
+} from '../../../shared/protocol-version'
 import {
   callRuntimeRpc,
   runtimeEnvironmentSupportsCapability,
@@ -16,15 +19,23 @@ export async function callStructuredAgentSession<TResult>(
   method: string,
   params?: unknown
 ): Promise<TResult> {
-  if (
-    method === 'agentSession.rewind' &&
-    target.kind === 'environment' &&
-    !(await runtimeEnvironmentSupportsCapability(
-      target.environmentId,
-      AGENT_SESSION_REWIND_RUNTIME_CAPABILITY
-    ))
-  ) {
-    throw new Error('Rewinding requires a newer Orca server. Update the server and try again.')
+  if (target.kind === 'environment') {
+    const capability =
+      method === 'agentSession.rewind'
+        ? AGENT_SESSION_REWIND_RUNTIME_CAPABILITY
+        : method === 'agentSession.topicIndex' || method === 'agentSession.writeTopicIndex'
+          ? STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY
+          : null
+    if (
+      capability &&
+      !(await runtimeEnvironmentSupportsCapability(target.environmentId, capability))
+    ) {
+      throw new Error(
+        capability === AGENT_SESSION_REWIND_RUNTIME_CAPABILITY
+          ? 'Rewinding requires a newer Orca server. Update the server and try again.'
+          : 'Topics require a newer Orca server. Update the server and try again.'
+      )
+    }
   }
   return method === 'agentSession.conversationCommand'
     ? callRuntimeRpc<TResult>(target, method, params, { timeoutMs: 195_000 })

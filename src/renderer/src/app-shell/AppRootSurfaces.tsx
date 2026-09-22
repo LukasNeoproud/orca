@@ -1,4 +1,6 @@
 import { Suspense } from 'react'
+import { PortableConversationSurface } from './PortableConversationSurface'
+import { useBacklogTaskStartRequest } from '../components/right-sidebar/backlog-task-start-request'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
 import { RecoverableRenderErrorBoundary } from '../components/error-boundaries/RecoverableRenderErrorBoundary'
@@ -23,6 +25,10 @@ import {
 } from './app-root-surface-settings'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 import type { OnboardingGate } from './use-onboarding-and-feature-tips'
+
+const BacklogTaskStartDialog = lazy(
+  () => import('../components/right-sidebar/BacklogTaskStartDialog')
+)
 
 const QuickOpen = lazy(() => import('../components/QuickOpen'))
 const WorktreeJumpPalette = lazy(() => import('../components/WorktreeJumpPalette'))
@@ -142,6 +148,7 @@ export function AppRootSurfaces(props: {
 
   const shouldMountSetupGuideTelemetryObserver = persistedUIReady
   const shouldMountUpdateCard = shouldMountUpdateCardForStatus(updateStatus)
+  const backlogTaskStartRequest = useBacklogTaskStartRequest()
   const shouldMountDictationController = voiceEnabled || dictationState !== 'idle'
   const renderPetOverlay = shouldRenderPetOverlay({ persistedUIReady, petEnabled, petVisible })
 
@@ -192,6 +199,12 @@ export function AppRootSurfaces(props: {
         </ModalBoundary>
       ) : null}
       <Suspense fallback={null}>
+        <PortableConversationSurface />
+        {backlogTaskStartRequest ? (
+          <ModalBoundary boundaryId="modal.backlog-task-start" resetKey>
+            <BacklogTaskStartDialog request={backlogTaskStartRequest} />
+          </ModalBoundary>
+        ) : null}
         {shouldMountAddRepoDialog ? (
           <ModalBoundary boundaryId="modal.add-repo" resetKey={activeModal === 'add-repo'}>
             <AddRepoDialog />

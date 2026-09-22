@@ -173,6 +173,50 @@ describe('launchAgentBackgroundSession', () => {
     expect(result).toMatchObject({ tabId, paneKey, ptyId: 'pty-1' })
   })
 
+  it('uses the explicitly selected host when duplicate workspace and repo ids exist', async () => {
+    state.repos = [
+      { id: 'repo-1', connectionId: null, path: '/repo' },
+      {
+        id: 'repo-1',
+        connectionId: 'ssh-1',
+        executionHostId: 'ssh:worker',
+        path: '/remote/repo'
+      }
+    ] as typeof state.repos
+    state.getKnownWorktreeById = ((worktreeId: string, host?: string) =>
+      worktreeId === 'wt-1' && host === 'ssh:worker'
+        ? { id: 'wt-1', repoId: 'repo-1', path: '/remote/repo/worktree' }
+        : worktreeId === 'wt-1'
+          ? { id: 'wt-1', repoId: 'repo-1', path: '/repo/worktree' }
+          : undefined) as typeof state.getKnownWorktreeById
+    const { launchAgentBackgroundSession } = await import('./launch-agent-background-session')
+
+    await launchAgentBackgroundSession({
+      agent: 'claude',
+      worktreeId: 'wt-1',
+      executionHostId: 'ssh:worker'
+    })
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'worker', cwd: '/remote/repo/worktree' })
+    )
+  })
+
+  it('fails closed when the explicitly selected git-worktree host loses its repo owner', async () => {
+    state.repos = []
+    const { launchAgentBackgroundSession } = await import('./launch-agent-background-session')
+
+    await expect(
+      launchAgentBackgroundSession({
+        agent: 'claude',
+        worktreeId: 'wt-1',
+        executionHostId: 'ssh:worker'
+      })
+    ).rejects.toThrow('target workspace host is unavailable')
+
+    expect(mockSpawn).not.toHaveBeenCalled()
+  })
+
   it('does not create or mount the tab while the explicit PTY spawn is unresolved', async () => {
     let resolveSpawn!: (result: { id: string }) => void
     mockSpawn.mockReturnValueOnce(

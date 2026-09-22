@@ -74,6 +74,22 @@ describe('useComposerState public decisions', () => {
     })
   })
 
+  it('seeds the creation target from a workspace without creating task-provider context', () => {
+    expect(
+      resolveInitialWorkspaceRunSeed({
+        initialWorkspaceRunContext: {
+          projectId: 'source-project',
+          hostId: 'runtime:source',
+          projectHostSetupId: 'source-setup'
+        }
+      })
+    ).toEqual({
+      projectId: 'source-project',
+      hostId: 'runtime:source',
+      projectHostSetupId: 'source-setup'
+    })
+  })
+
   it('drops a task source context whose provider identity no longer matches the linked item', () => {
     const linkedItem = {
       provider: 'github' as const,

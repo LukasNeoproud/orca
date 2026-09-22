@@ -76,7 +76,10 @@ export default function NewWorkspaceComposerCard(
     selectedRepoProjectId,
     activeFolderWorkspaceId,
     onAddProjectOverride,
-    onNestedDialogOpenChange
+    onNestedDialogOpenChange,
+    hideAgentSection,
+    createDisabled,
+    onCreate
   } = props
   const projectOptions = props.projectOptions ?? EMPTY_PROJECT_OPTIONS
   const projectHostSetupOptions = props.projectHostSetupOptions ?? EMPTY_PROJECT_HOST_SETUP_OPTIONS
@@ -273,11 +276,17 @@ export default function NewWorkspaceComposerCard(
     [updateSettings]
   )
   const handleNamePlainEnter = React.useCallback((): void => {
+    if (hideAgentSection) {
+      if (!createDisabled) {
+        onCreate()
+      }
+      return
+    }
     const agentTrigger = composerRef?.current?.querySelector<HTMLElement>(
       '[data-agent-combobox-root="true"][role="combobox"]'
     )
     agentTrigger?.focus()
-  }, [composerRef])
+  }, [composerRef, createDisabled, hideAgentSection, onCreate])
 
   useContextualTour(
     'workspace-creation',
@@ -316,34 +325,38 @@ export default function NewWorkspaceComposerCard(
       )}
     >
       <div className="min-w-0 space-y-4 pt-3">
-        <NewWorkspaceComposerProjectSection
-          {...props}
-          projectOptions={projectOptions}
-          projectHostSetupOptions={projectHostSetupOptions}
-          ephemeralVmRecipes={ephemeralVmRecipes}
-          projectDescriptionId={projectDescriptionId}
-          onAddProject={handleAddProject}
-          focusNameInput={focusNameInput}
-          shouldShowRunTargetPicker={shouldShowRunTargetPicker}
-          handleProjectHostSetupChange={(setupId) => onProjectHostSetupChange?.(setupId)}
-          handleAddSshHost={() => setAddRemoteHostMode('ssh')}
-          handleAddRemoteServer={() => setAddRemoteHostMode('server')}
-          handleConnectRunTargetHost={handleConnectRunTargetHost}
-          handleSetLocation={handleSetLocation}
-          sshStatusLabel={sshStatusLabel}
-          connectButtonLabel={connectButtonLabel}
-          selectedProjectName={selectedProjectName}
-        />
+        {props.hideProjectSection ? null : (
+          <NewWorkspaceComposerProjectSection
+            {...props}
+            projectOptions={projectOptions}
+            projectHostSetupOptions={projectHostSetupOptions}
+            ephemeralVmRecipes={ephemeralVmRecipes}
+            projectDescriptionId={projectDescriptionId}
+            onAddProject={handleAddProject}
+            focusNameInput={focusNameInput}
+            shouldShowRunTargetPicker={shouldShowRunTargetPicker}
+            handleProjectHostSetupChange={(setupId) => onProjectHostSetupChange?.(setupId)}
+            handleAddSshHost={() => setAddRemoteHostMode('ssh')}
+            handleAddRemoteServer={() => setAddRemoteHostMode('server')}
+            handleConnectRunTargetHost={handleConnectRunTargetHost}
+            handleSetLocation={handleSetLocation}
+            sshStatusLabel={sshStatusLabel}
+            connectButtonLabel={connectButtonLabel}
+            selectedProjectName={selectedProjectName}
+          />
+        )}
         {props.simplifiedFields ?? (
           <NewWorkspaceComposerNameSection {...props} onNamePlainEnter={handleNamePlainEnter} />
         )}
-        <NewWorkspaceComposerAgentSection
-          {...props}
-          simplified={Boolean(props.simplifiedFields)}
-          visibleQuickAgents={visibleQuickAgents}
-          defaultTuiAgent={defaultTuiAgent}
-          handleSetDefaultAgent={handleSetDefaultAgent}
-        />
+        {props.hideAgentSection ? null : (
+          <NewWorkspaceComposerAgentSection
+            {...props}
+            simplified={Boolean(props.simplifiedFields)}
+            visibleQuickAgents={visibleQuickAgents}
+            defaultTuiAgent={defaultTuiAgent}
+            handleSetDefaultAgent={handleSetDefaultAgent}
+          />
+        )}
         <NewWorkspaceComposerAdvancedSection
           {...props}
           advancedOpen={

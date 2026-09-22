@@ -8,7 +8,7 @@ const mockSetTabBarOrder = vi.fn()
 const runtimeMocks = vi.hoisted(() => ({
   createWebRuntimeSessionTerminal: vi.fn(),
   getRuntimeEnvironmentIdForWorktree: vi.fn<() => string | null>(() => null),
-  isWebRuntimeSessionActive: vi.fn(() => false)
+  isWebRuntimeSessionActive: vi.fn<(environmentId: string | null) => boolean>(() => false)
 }))
 
 const mockState = {
@@ -189,5 +189,46 @@ describe('launchAiVaultSessionInNewTab', () => {
       await expect(result.runtimeLaunch).resolves.toEqual({ status: 'created' })
     }
     expect(mockSetActiveTabType).toHaveBeenCalledWith('terminal')
+  })
+
+  it('pins a resume to the explicitly selected runtime owner', async () => {
+    runtimeMocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue('stale-owner')
+    runtimeMocks.isWebRuntimeSessionActive.mockImplementation((id) => id === 'selected-owner')
+
+    const result = launchAiVaultSessionInNewTab({
+      agent: 'codex',
+      worktreeId: 'wt-1',
+      runtimeEnvironmentId: 'selected-owner',
+      command: "codex resume 'session-1'"
+    })
+
+    expect(runtimeMocks.createWebRuntimeSessionTerminal).toHaveBeenCalledWith(
+      expect.objectContaining({ environmentId: 'selected-owner', worktreeId: 'wt-1' })
+    )
+    expect(mockCreateTab).not.toHaveBeenCalled()
+    if (result.tabId === null) {
+      await expect(result.runtimeLaunch).resolves.toEqual({ status: 'created' })
+    }
+  })
+
+  it('does not fall back locally when an explicitly selected owner is unavailable', async () => {
+    runtimeMocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue(null)
+    runtimeMocks.isWebRuntimeSessionActive.mockReturnValue(false)
+
+    const result = launchAiVaultSessionInNewTab({
+      agent: 'codex',
+      worktreeId: 'wt-1',
+      runtimeEnvironmentId: 'selected-owner',
+      command: "codex resume 'session-1'"
+    })
+
+    expect(runtimeMocks.createWebRuntimeSessionTerminal).not.toHaveBeenCalled()
+    expect(mockCreateTab).not.toHaveBeenCalled()
+    if (result.tabId === null) {
+      await expect(result.runtimeLaunch).resolves.toEqual({
+        status: 'failed',
+        message: 'The owning runtime is unavailable.'
+      })
+    }
   })
 })

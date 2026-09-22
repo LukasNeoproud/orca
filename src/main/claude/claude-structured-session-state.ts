@@ -59,6 +59,7 @@ export type ClaudeStructuredSessionAdapterDeps = {
   resolveLaunch: (input: {
     identity: AgentSessionJournalIdentity
   }) => Promise<ClaudeStructuredLaunch>
+  resolveWorkspacePath?: (workspaceId: string) => Promise<string>
   onEvent?: (event: ClaudeStructuredSessionEvent) => void
   /** A dispatch whose ack timed out, proven delivered by a later provider replay. */
   onDispatchSettledLate?: (input: {

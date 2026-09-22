@@ -27,6 +27,8 @@ import {
 } from './ai-vault-session-path-actions'
 import { canContinueAiVaultSessionInNewSession } from './ai-vault-session-continuation'
 import type { AiVaultResumeInChatEligibility } from './ai-vault-session-resume-in-chat'
+import { requestPortableConversationFromHistory } from '@/lib/portable-conversation-request'
+import { portableConversationHistoryWorkspaceId } from './portable-conversation-history-entry'
 
 export type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
@@ -107,6 +109,10 @@ export function AiVaultVirtualRow({
   const worktreeJumpId =
     showJumpToWorktree && canJumpToAiVaultSessionWorktree(worktreeInfo)
       ? worktreeInfo?.worktreeId
+      : null
+  const portableWorkspaceId =
+    row.type === 'session'
+      ? portableConversationHistoryWorkspaceId(row.session, worktreeInfo)
       : null
   const resumeState = row.type === 'session' ? getSessionResumeState(row.session) : null
   const resumeActions = row.type === 'session' ? getSessionResumeActions(row.session) : null
@@ -233,6 +239,11 @@ export function AiVaultVirtualRow({
               : undefined
           }
           onResumeInNewChat={chatOpenBlockedReason ? undefined : openInChat}
+          onBranchFromResponse={
+            portableWorkspaceId
+              ? () => requestPortableConversationFromHistory(row.session, portableWorkspaceId)
+              : undefined
+          }
           onResumeInWorktree={() => {
             if (resumeActions?.worktree.worktreeId) {
               onResume(row.session, resumeActions.worktree.worktreeId)

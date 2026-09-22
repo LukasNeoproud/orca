@@ -30,6 +30,10 @@ type WorkerTranscriptReadSuccess = {
   limited: boolean
   clipping: string[]
   warnings: string[]
+  turnEvidence?: {
+    completedAssistantMessageIds: string[]
+    pendingAssistantMessageId: string | null
+  }
 }
 
 export type WorkerTranscriptReadResult = WorkerTranscriptReadFailure | WorkerTranscriptReadSuccess
@@ -46,6 +50,7 @@ export async function readWorkerTranscript(args: {
   expectedSourceFingerprint?: string
   /** Hash of the bounded content immediately before a cursor offset. */
   expectedBoundaryCheckpoint?: string
+  pendingAssistantMessageId?: string | null
   /** Remote execution-host provider. When present no local filesystem lookup occurs. */
   filesystemProvider?: IFilesystemProvider
 }): Promise<WorkerTranscriptReadResult> {

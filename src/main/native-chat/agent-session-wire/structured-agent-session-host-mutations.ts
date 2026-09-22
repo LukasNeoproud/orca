@@ -18,7 +18,8 @@ import type {
   AgentSessionOptionResult,
   AgentSessionOptionsResult,
   AgentSessionPromptResult,
-  AgentSessionSendResult
+  AgentSessionSendResult,
+  AgentSessionWireRefusal
 } from '../../../shared/agent-session-wire'
 import { admitAndRunAgentSessionMutation } from './structured-agent-session-mutation-admission'
 import {
@@ -85,6 +86,7 @@ export function sendStructuredAgentSessionTurn(
     body: AgentJournalMessageItem
     retryUnknown?: true
     beforeRun?: () => void
+    beforeDispatch?: () => AgentSessionWireRefusal | null
   }
 ): Promise<AgentSessionMutationResult<AgentSessionSendResult>> {
   const plan = sendPlan(params)

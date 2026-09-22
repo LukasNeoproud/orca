@@ -21,6 +21,56 @@ selected sort mode while the workspace panel is mounted. Sorting never edits tas
 Descriptions and acceptance criteria render Markdown using Orca's existing comment
 renderer, including lists, links, emphasis and code blocks. Criteria remain read-only.
 
+## Starting and continuing tasks
+
+Task details offer **Start task** for every task status. Choose a workspace in the
+same project and on the same execution host, then select a new or existing
+conversation. New conversations use the host's available agents and Orca's normal
+agent launch preference. **New chat** explicitly starts a structured chat where the
+existing chat capability supports it. Existing conversations retain their agent. Git projects
+also offer **New worktree**, using the existing workspace composer and setup flow;
+folder projects work without Git.
+
+Immediately before sending, Orca reads the task again from the source workspace.
+The prompt includes its ID, title, Markdown description, and checked/unchecked
+acceptance criteria. Existing conversations receive it through their normal send
+path. A running CLI's own handling of new input still applies; there is no new Orca
+queue and no guarantee that input waits for the current work to finish.
+
+A task has one current association, scoped by project identity and execution host.
+Independent folder projects use their workspace identity. The owning runtime stores
+the source and target workspace, conversation identity, and delivery attempt. Direct
+SSH associations live in the controlling runtime; paired environments store them in
+their own runtime. Replacing an association never deletes the old conversation.
+
+**Continue** opens or safely restores the associated conversation without sending
+the task again. Missing workspaces or conversations allow a new selection.
+Unverifiable SSH ownership does not start another agent. A structured send is marked
+confirmed only after acknowledgement; terminal input remains **unverified**, since
+writing to a terminal does not prove acceptance by the agent. An interrupted or
+ambiguous attempt is never automatically resent. Check the linked conversation
+before explicitly starting another attempt.
+
+For an SSH connection owned by a paired runtime, the existing history API cannot
+address that nested host. Starting a new terminal conversation is supported;
+history selection and history-based Continue remain unavailable rather than
+reading a same-named connection on the desktop.
+
+Starting tasks requires runtime capability `backlog.task-associations.v1`. Older
+runtimes still support the existing Backlog reader and board, and show an update
+requirement for the new action. Task status synchronization, multiple association
+history, and a general message queue are outside this integration.
+
+## Sidebar navigation
+
+The sidebar keeps search visible and places status and ordering together. Task
+titles span up to two lines; a conversation icon indicates a saved link, not a
+running agent. The detail shows acceptance-criteria progress and keeps Start or
+Continue in its footer. Linked workspace, agent, and conversation metadata stay
+visible there; unavailable links offer a new selection. Returning with Back or
+Escape restores the task-list position and focus. Arrow keys navigate tasks and
+Enter opens the focused task; an empty filtered list offers Clear filters.
+
 ## Workspace ownership
 
 Each worktree uses its own checkout. Plain folder workspaces are supported too;
@@ -48,7 +98,7 @@ causes execution to fall back to the desktop. Older runtimes/relays without
 - Task details use `backlog task view <id> --json`. The adapter accepts JSON schema
   version 1 and ignores extra fields; incompatible output produces an error.
 - Priority order is read once per subscription lifetime with `backlog config get
-  priorities` on the execution host. This optional read does not delay task loading;
+priorities` on the execution host. This optional read does not delay task loading;
   refreshing the sole subscriber or reopening the panel reads it again. Task ordinals
   and snapshot priorities are optional for compatibility with older runtimes.
 - Opening the board starts `backlog browser --no-open --port <port>` on loopback.
@@ -63,7 +113,10 @@ causes execution to fall back to the desktop. Older runtimes/relays without
 ## Verification
 
 Unit coverage includes JSON framing, process/lease lifetime, per-host routing,
-sidebar subscription races, and browser binding persistence. The optional real
+sidebar subscription races, and browser binding persistence. Task handoff tests
+cover project/host isolation, durable associations, fresh Markdown prompts,
+worktree creation callbacks, ambiguous delivery, concurrent history restoration,
+and Continue without resending. The optional real
 CLI test creates temporary projects and starts a loopback server without opening
 a browser:
 
@@ -73,3 +126,5 @@ ORCA_BACKGROUND_LAUNCH=1 ORCA_BACKLOG_INTEGRATION_TEST=1 pnpm exec vitest run --
 
 The initial integration was verified against Backlog.md 1.52.0. A sandbox that
 denies listening sockets cannot run the HTTP part of this test.
+
+Related conversation branching, exact context handoff, and return-result semantics are documented in [Conversation branching](conversation-branching.md).

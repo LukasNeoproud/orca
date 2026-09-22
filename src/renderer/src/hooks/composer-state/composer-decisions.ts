@@ -1,5 +1,5 @@
 import type { GitHubWorkItem } from '../../../../shared/github/work-item-types'
-import type { TaskSourceContext } from '../../../../shared/task-source-context'
+import type { TaskSourceContext, WorkspaceRunContext } from '../../../../shared/task-source-context'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import type { SmartGitHubPrStartPointSelection } from './source-selection-decisions'
@@ -28,6 +28,10 @@ export type ComposerDecisions = {
     draftProjectHostSetupId?: string | null
     initialTaskSourceContext?: Pick<
       TaskSourceContext,
+      'projectId' | 'hostId' | 'projectHostSetupId'
+    > | null
+    initialWorkspaceRunContext?: Pick<
+      WorkspaceRunContext,
       'projectId' | 'hostId' | 'projectHostSetupId'
     > | null
   }) => {

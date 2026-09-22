@@ -19,8 +19,21 @@ import {
   killWorkspacePort,
   scanWorkspacePortProbes
 } from '../ports/workspace-port-ownership'
+import type { BacklogTaskAssociation } from '../../shared/backlog-task-association'
 
 export class OrcaRuntimeWithListManagedWorktrees extends OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce {
+  getBacklogTaskAssociations(): BacklogTaskAssociation[] {
+    return this.requireStore().getBacklogTaskAssociations?.() ?? []
+  }
+
+  persistBacklogTaskAssociations(next: readonly BacklogTaskAssociation[]): void {
+    const store = this.requireStore()
+    if (!store.persistBacklogTaskAssociations) {
+      throw new Error('backlog_task_association_persistence_unavailable')
+    }
+    store.persistBacklogTaskAssociations(next)
+  }
+
   listManagedWorktrees(
     repoSelector?: string,
     limit = DEFAULT_WORKTREE_LIST_LIMIT,

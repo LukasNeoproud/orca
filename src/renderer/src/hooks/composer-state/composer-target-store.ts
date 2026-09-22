@@ -8,11 +8,12 @@ import {
 import { buildExecutionHostRegistry } from '../../../../shared/execution-host-registry'
 import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-overrides'
 import type { GitHubWorkItem } from '../../../../shared/github/work-item-types'
-import type { TaskSourceContext } from '../../../../shared/task-source-context'
+import type { TaskSourceContext, WorkspaceRunContext } from '../../../../shared/task-source-context'
 import type { WorkspaceStatus } from '../../../../shared/worktree/types'
 import type { WorkspaceSource as WorkspaceCreateTelemetrySource } from '../../../../shared/workspace-source'
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import type { ComposerDecisions } from './composer-decisions'
+import type { ComposerBackgroundWorktreeCreationCallbacks } from './composer-background-worktree-creation'
 
 export type ComposerStateInput = {
   initialRepoId?: string
@@ -23,10 +24,12 @@ export type ComposerStateInput = {
   initialLinkedWorkItem?: LinkedWorkItemSummary | null
   initialGitHubWorkItem?: GitHubWorkItem | null
   initialTaskSourceContext?: TaskSourceContext | null
+  initialWorkspaceRunContext?: WorkspaceRunContext | null
   initialWorkspaceStatus?: WorkspaceStatus
   initialBaseBranch?: string
   persistDraft: boolean
   onCreated?: () => void
+  backgroundCreationCallbacks?: ComposerBackgroundWorktreeCreationCallbacks
   isSubmissionCancelled?: () => boolean
   repoIdOverride?: string
   onRepoIdOverrideChange?: (value: string) => void
@@ -46,10 +49,12 @@ export function useComposerTargetStore(options: ComposerStateInput, decisions: C
     initialLinkedWorkItem = null,
     initialGitHubWorkItem = null,
     initialTaskSourceContext = null,
+    initialWorkspaceRunContext = null,
     initialWorkspaceStatus,
     initialBaseBranch,
     persistDraft,
     onCreated,
+    backgroundCreationCallbacks,
     isSubmissionCancelled = NEVER_CANCEL_COMPOSER_SUBMIT,
     repoIdOverride,
     onRepoIdOverrideChange,
@@ -169,10 +174,12 @@ export function useComposerTargetStore(options: ComposerStateInput, decisions: C
     initialLinkedWorkItem,
     initialGitHubWorkItem,
     initialTaskSourceContext,
+    initialWorkspaceRunContext,
     initialWorkspaceStatus,
     initialBaseBranch,
     persistDraft,
     onCreated,
+    backgroundCreationCallbacks,
     isSubmissionCancelled,
     repoIdOverride,
     onRepoIdOverrideChange,

@@ -50,9 +50,11 @@ import {
   RewindParams,
   SendParams,
   SetOptionParams,
+  TopicIndexWriteParams,
   SubscribeParams,
   UnsubscribeParams
 } from './structured-agent-session-schemas'
+import { STRUCTURED_AGENT_SESSION_BRANCH_METHODS } from './structured-agent-session-branch-methods'
 
 /**
  * The attach-shaped entries take the location from the client instead of resolving it from a
@@ -85,6 +87,7 @@ async function attachClientSuppliedLocation(
 
 export const STRUCTURED_AGENT_SESSION_METHODS: RpcAnyMethod[] = [
   ...STRUCTURED_TERMINAL_ADOPTION_METHODS,
+  ...STRUCTURED_AGENT_SESSION_BRANCH_METHODS,
   defineMethod({
     name: 'agentSession.rewind',
     params: RewindParams,
@@ -254,6 +257,17 @@ export const STRUCTURED_AGENT_SESSION_METHODS: RpcAnyMethod[] = [
     name: 'agentSession.history',
     params: HistoryParams,
     handler: async (params, ctx) => requireHost(ctx).history(params)
+  }),
+  defineMethod({
+    name: 'agentSession.topicIndex',
+    params: OptionsParams,
+    handler: async (params, ctx) => requireHost(ctx).topicIndex(params.sessionId)
+  }),
+  defineMethod({
+    name: 'agentSession.writeTopicIndex',
+    params: TopicIndexWriteParams,
+    handler: async (params, ctx) =>
+      requireHost(ctx).writeTopicIndex(params.sessionId, params.index, params.expectedRevision)
   }),
   defineStreamingMethod({
     name: 'agentSession.subscribe',

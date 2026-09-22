@@ -3,7 +3,7 @@ import type { GitHubWorkItem } from '../../../../shared/github/work-item-types'
 import type { ProjectGroup } from '../../../../shared/project-group-types'
 import type { Repo } from '../../../../shared/repo-types'
 import type { SshConnectionState } from '../../../../shared/ssh-types'
-import type { TaskSourceContext } from '../../../../shared/task-source-context'
+import type { TaskSourceContext, WorkspaceRunContext } from '../../../../shared/task-source-context'
 import type { UISlice } from '../../store/slices/ui'
 import type {
   WorkspaceStatus,
@@ -14,6 +14,7 @@ import type { ExecutionHostRegistryEntry } from '../../../../shared/execution-ho
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import type { ComposerDecisions } from './composer-decisions'
 import type { ComposerStoreActions } from './composer-store-actions'
+import type { ComposerBackgroundWorktreeCreationCallbacks } from './composer-background-worktree-creation'
 import type { SparsePreset } from '../../../../shared/worktree/create-types'
 import type { Project, ProjectHostSetup } from '../../../../shared/project-types'
 import type { PublicKnownRuntimeEnvironment } from '../../../../shared/runtime-environments'
@@ -30,10 +31,12 @@ export type ComposerTargetStoreModel = {
   initialLinkedWorkItem: LinkedWorkItemSummary | null
   initialGitHubWorkItem: GitHubWorkItem | null
   initialTaskSourceContext: TaskSourceContext | null
+  initialWorkspaceRunContext: WorkspaceRunContext | null
   initialWorkspaceStatus: WorkspaceStatus | undefined
   initialBaseBranch: string | undefined
   persistDraft: boolean
   onCreated: (() => void) | undefined
+  backgroundCreationCallbacks: ComposerBackgroundWorktreeCreationCallbacks | undefined
   isSubmissionCancelled: () => boolean
   repoIdOverride: string | undefined
   onRepoIdOverrideChange: ((value: string) => void) | undefined

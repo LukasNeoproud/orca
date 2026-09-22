@@ -136,6 +136,13 @@ export type StructuredAgentSessionAdapter = {
   supportsCreate?(location: AgentSessionExecutionLocation, agent: string): boolean
   /** Provider/runtime support, kept here so remote enablement changes adapter data, not UI logic. */
   supportsLocation?(location: AgentSessionExecutionLocation): boolean
+  supportsConversationFork?(agent: string): boolean
+  forkConversation?(input: {
+    sourceSessionId: string
+    targetSessionId: string
+    targetLocation: AgentSessionExecutionLocation
+    boundaryItemId: string
+  }): Promise<{ providerSessionId: string }>
   /** Makes the reservation real. Called once per reservation, with the spawn
    *  token the lease was reserved under and the fence the handle must be minted
    *  at — the store rejects a link minted at any other fence. */

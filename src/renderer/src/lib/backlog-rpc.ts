@@ -5,8 +5,13 @@ import {
   RuntimeRpcCallError,
   type RuntimeClientTarget
 } from '@/runtime/runtime-rpc-client'
+import { BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY } from '../../../shared/backlog-task-association'
 import { BACKLOG_RUNTIME_CAPABILITY } from '../../../shared/backlog-types'
 import type { ExecutionHostId } from '../../../shared/execution-host'
+import {
+  refreshLocalRuntimeCapabilities,
+  readLocalRuntimeCapabilitiesOrUnknown
+} from '@/runtime/local-runtime-capabilities'
 import { resolveWorktreeOperationRoute } from './worktree-operation-route'
 
 export type BacklogRoute = {
@@ -35,13 +40,35 @@ export async function callBacklog<T>(
   const target: RuntimeClientTarget = route.runtimeEnvironmentId
     ? { kind: 'environment', environmentId: route.runtimeEnvironmentId }
     : { kind: 'local' }
+  const associationAction = action.startsWith('taskAssociations.')
+  const capability = associationAction
+    ? BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY
+    : BACKLOG_RUNTIME_CAPABILITY
+  const updateMessage = associationAction
+    ? 'Update the connected Orca runtime to start Backlog tasks.'
+    : 'Update the connected Orca runtime to use Backlog.md.'
   if (target.kind === 'environment') {
     await assertRuntimeEnvironmentCapability(
       target.environmentId,
-      BACKLOG_RUNTIME_CAPABILITY,
-      'Update the connected Orca runtime to use Backlog.md.',
+      capability,
+      updateMessage,
       15_000
     )
+  }
+  if (associationAction && target.kind === 'local') {
+    let capabilities = readLocalRuntimeCapabilitiesOrUnknown()
+    if (capabilities === null) {
+      await refreshLocalRuntimeCapabilities()
+      capabilities = readLocalRuntimeCapabilitiesOrUnknown()
+    }
+    if (capabilities === null) {
+      throw new Error(
+        'Could not verify runtime support for starting Backlog tasks. Reconnect and retry.'
+      )
+    }
+    if (!capabilities.includes(capability)) {
+      throw new Error(updateMessage)
+    }
   }
   try {
     return await callRuntimeRpc<T>(

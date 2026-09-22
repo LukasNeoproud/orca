@@ -26,6 +26,7 @@ import {
 } from './normalize-loaded-state-collections'
 import { normalizeRetiredNameRegistryMap } from './retired-name-registry-normalization'
 import { hydrateWorktreeMetaAliasProjection } from './worktree-meta-alias-projection'
+import { normalizeBacklogTaskAssociations } from '../../../shared/backlog-task-association'
 
 export function normalizeLoadedProfileState(
   parsed: PersistedState,
@@ -65,6 +66,7 @@ export function normalizeLoadedProfileState(
     mobileClientTabSelectionsByDeviceId: normalizePersistedMobileClientTabSelections(
       parsed.mobileClientTabSelectionsByDeviceId
     ),
+    backlogTaskAssociations: normalizeBacklogTaskAssociations(parsed.backlogTaskAssociations),
     workspaceLineageByChildKey: normalizeWorkspaceLineageByChildKey(
       parsed.workspaceLineageByChildKey
     ),

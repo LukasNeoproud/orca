@@ -3,6 +3,9 @@ import type { AgentSessionProviderHandleLink } from '../../../shared/agent-sessi
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentSessionStatusSummary } from '../../../shared/agent-session-wire'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
+import type { AgentSessionBranchStore } from '../../runtime/agent-session-branch-store'
+import type { PortableConversationTopicIndexStore } from '../../runtime/portable-conversation-topic-index-store'
+import type { PortableConversationProposalStore } from '../../conversation-branch/portable-conversation-proposal-store'
 import type { AgentSessionSpawnTokenScan } from '../../runtime/agent-session-spawn-token-process-scan'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
@@ -36,6 +39,9 @@ export type StructuredAgentSessionHostSession = {
 
 export type StructuredAgentSessionHostDeps = {
   store: AgentSessionRecordStore
+  branchStore?: AgentSessionBranchStore
+  portableTopicStore?: PortableConversationTopicIndexStore
+  portableProposalStore?: PortableConversationProposalStore
   adapter: StructuredAgentSessionAdapter
   journalRoot: string
   claimKeyId: string

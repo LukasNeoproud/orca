@@ -104,7 +104,10 @@ function adapterFor(
   launch: Partial<CodexStructuredLaunch> = {},
   events: CodexStructuredSessionEvent[] = [],
   processControl: Partial<
-    Pick<CodexStructuredSessionAdapterDeps, 'captureTurnProcesses' | 'terminateTurnProcesses'>
+    Pick<
+      CodexStructuredSessionAdapterDeps,
+      'captureTurnProcesses' | 'terminateTurnProcesses' | 'resolveWorkspacePath'
+    >
   > = {},
   onStatusMetadataChanged?: (sessionId: string) => void
 ): CodexStructuredSessionAdapter {
@@ -695,5 +698,47 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
     await expect(acquiring).rejects.toThrow('superseded while being acquired')
     await closing
     expect(codex.connections).toHaveLength(0)
+  })
+})
+
+describe('CodexStructuredSessionAdapter.forkConversation', () => {
+  it('forks at the selected completed turn without dispatching a user turn', async () => {
+    const fork = vi.fn(() => ({ thread: { id: 'thread-child' } }))
+    const codex = fakeCodex({ 'thread/fork': fork })
+    const adapter = adapterFor(codex, {}, [], {
+      resolveWorkspacePath: async (workspaceId) => `/work/${workspaceId}`
+    })
+    await adapter.acquire({
+      identity: identityFor('session-1'),
+      fence: 7,
+      spawnToken: 'spawn-9'
+    })
+
+    await expect(
+      adapter.forkConversation({
+        sourceSessionId: 'session-1',
+        targetSessionId: 'session-2',
+        targetLocation: {
+          executionHostId: 'local',
+          wslDistro: null,
+          workspaceId: 'ws-2',
+          workspaceKind: 'folder'
+        },
+        boundaryItemId: agentJournalItemKey({
+          provider: 'codex',
+          threadId: THREAD_ID,
+          turnId: 'turn-selected',
+          ordinal: 0
+        })
+      })
+    ).resolves.toEqual({ providerSessionId: 'thread-child' })
+    expect(fork).toHaveBeenCalledWith({
+      threadId: THREAD_ID,
+      lastTurnId: 'turn-selected',
+      cwd: '/work/ws-2',
+      excludeTurns: true,
+      deferGoalContinuation: true
+    })
+    expect(codex.connections[0]?.calls.some((call) => call.method === 'turn/start')).toBe(false)
   })
 })

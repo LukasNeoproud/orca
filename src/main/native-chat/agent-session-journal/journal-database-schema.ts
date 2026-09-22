@@ -10,7 +10,7 @@
  *  body version (`JournalRow.v`): a newer build can change either alone.
  *  v2 added `journal_repairs`; a build without it would replay a partially
  *  repaired journal as clean, so it must latch read-only rather than write. */
-export const JOURNAL_DB_SCHEMA_VERSION = 2
+export const JOURNAL_DB_SCHEMA_VERSION = 3
 
 export function createJournalTablesSql(): string {
   return `
@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS journal_repairs (
   epoch        TEXT    NOT NULL,
   content_from INTEGER NOT NULL,
   repaired_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS journal_topic_index (
+  session_id TEXT PRIMARY KEY,
+  revision INTEGER NOT NULL,
+  index_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 `
 }

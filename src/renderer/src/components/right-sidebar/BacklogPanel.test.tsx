@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BacklogSnapshot, BacklogTask } from '../../../../shared/backlog-types'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const mock = vi.hoisted(() => ({
   store: { activeWorktreeId: 'wt-1', activeWorkspaceExecutionHostId: 'local' },
@@ -22,7 +23,19 @@ vi.mock('@/lib/backlog-client', () => ({
   openBacklogBoard: mock.openBacklogBoard
 }))
 
-import BacklogPanel from './BacklogPanel'
+vi.mock('./BacklogTaskAction', () => ({ default: () => <button>Start task</button> }))
+vi.mock('./use-backlog-task-associations', () => ({
+  useBacklogTaskAssociations: () => new Set(['TASK-1'])
+}))
+
+import BacklogPanelContent from './BacklogPanel'
+function BacklogPanel(props: { isVisible: boolean }) {
+  return (
+    <TooltipProvider>
+      <BacklogPanelContent {...props} />
+    </TooltipProvider>
+  )
+}
 
 const tasks: BacklogTask[] = [
   { id: 'TASK-1', title: 'Fix login', status: 'To Do', priority: 'High' },
@@ -55,6 +68,38 @@ describe('BacklogPanel', () => {
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+  })
+
+  it('keeps scroll and focused task through keyboard detail navigation', async () => {
+    render(<BacklogPanel isVisible />)
+    const first = await screen.findByRole('button', { name: /Fix login/ })
+    const second = screen.getByRole('button', { name: /Write docs/ })
+    const list = screen.getByRole('list', { name: 'Tasks' })
+    list.scrollTop = 140
+    fireEvent.scroll(list)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(second)
+    fireEvent.keyDown(second, { key: 'Enter' })
+    await screen.findByText('Restore sign in')
+    expect(screen.getByRole('textbox', { name: 'Search backlog tasks' })).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole('region', { name: 'Backlog.md' }), { key: 'Escape' })
+    expect(document.activeElement).toBe(second)
+    expect(list.scrollTop).toBe(140)
+  })
+
+  it('clears a search with no results and marks a link without claiming agent activity', async () => {
+    render(<BacklogPanel isVisible />)
+    expect(await screen.findByRole('img', { name: 'Linked conversation' })).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search backlog tasks' }), {
+      target: { value: 'missing' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(screen.getByRole('button', { name: /Fix login/ })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Search backlog tasks' })).toHaveProperty(
+      'value',
+      ''
+    )
   })
 
   it('filters tasks, reads details, and resets when the selected host changes', async () => {

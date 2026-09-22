@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Image as ImageIcon } from 'lucide-react'
+import { ArrowUp, GitBranch, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { basename } from '@/lib/path'
@@ -247,16 +247,28 @@ export function NativeChatAgentControls({
   markdown,
   timestamp,
   onScrollToTop,
+  onBranch,
   className
 }: {
   markdown: string
   timestamp: number | null
   onScrollToTop: () => void
+  onBranch?: () => void
   className?: string
 }): React.JSX.Element {
   return (
     <div className={cn('flex items-center gap-1', className)}>
       <NativeChatCopyButton text={markdown} />
+      {onBranch ? (
+        <button
+          type="button"
+          onClick={onBranch}
+          aria-label="Branch from this message"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <GitBranch className="size-3.5" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onScrollToTop}

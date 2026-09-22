@@ -1,15 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
-import { encodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 import { Button } from '@/components/ui/button'
-import { NativeChatApprovalCard } from './NativeChatApprovalCard'
 import { NativeChatComposer, type NativeChatComposerHandle } from './NativeChatComposer'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import { NativeChatMessageList } from './NativeChatMessageList'
-import { NativeChatQuestionCard } from './NativeChatQuestionCard'
 import { selectNativeChatViewState } from './native-chat-view-state'
 import { useNativeChatFontScale } from './use-native-chat-font-scale'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
@@ -22,6 +19,8 @@ import { useStructuredNativeChatPaneCommands } from './use-structured-native-cha
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import { NativeChatBackgroundTasksStatus } from './NativeChatBackgroundTasksStatus'
 import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHandoffChrome'
+import { useConversationTools } from './use-conversation-tools'
+import { NativeChatStructuredPromptCard } from './NativeChatStructuredPromptCard'
 
 type StoppingBackgroundTasks = {
   sessionId: string
@@ -31,14 +30,15 @@ type StoppingBackgroundTasks = {
 
 const NO_STOPPING_TASKS: ReadonlySet<string> = new Set()
 
-function encodeQuestionAnswer(questionId: string, answer: string): string {
-  return `${encodeURIComponent(questionId)}:${encodeURIComponent(answer)}`
-}
-
 export function NativeChatStructuredSession(
   props: Omit<NativeChatStructuredViewProps, 'mode'>
 ): React.JSX.Element {
   const controller = useStructuredAgentSession(props)
+  const {
+    panel: topicPanel,
+    scrollRequest: topicScrollRequest,
+    branchMessage
+  } = useConversationTools(props, controller)
   const [composerError, setComposerError] = useState<string | null>(null)
   const [stoppingBackgroundTasks, setStoppingBackgroundTasks] =
     useState<StoppingBackgroundTasks | null>(null)
@@ -49,6 +49,15 @@ export function NativeChatStructuredSession(
   const paneKey = useMemo(
     () => props.composerPaneKey ?? structuredAgentSessionPaneKey(props.tabId, props.sessionId),
     [props.composerPaneKey, props.sessionId, props.tabId]
+  )
+  const messageListViewStateKey = useMemo(
+    () =>
+      JSON.stringify([
+        props.target.kind,
+        props.target.kind === 'environment' ? props.target.environmentId : null,
+        props.sessionId
+      ]),
+    [props.sessionId, props.target]
   )
   const rootRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<NativeChatComposerHandle>(null)
@@ -103,22 +112,6 @@ export function NativeChatStructuredSession(
   const activeStoppingBackgroundTasks =
     stoppingBackgroundTasks?.sessionId === props.sessionId ? stoppingBackgroundTasks : null
   const prompt = controller.prompts[0] ?? null
-  const questionBody = prompt?.body.kind === 'question' ? prompt.body : null
-  const questions =
-    questionBody?.questions ??
-    (questionBody
-      ? [
-          {
-            id: questionBody.freeTextQuestionId ?? 'q1',
-            question: questionBody.question,
-            options: questionBody.options,
-            multiSelect: false,
-            ...(questionBody.freeTextQuestionId
-              ? { freeTextQuestionId: questionBody.freeTextQuestionId }
-              : {})
-          }
-        ]
-      : [])
   const retryableOutboxEntry =
     controller.outbox.find((entry) => entry.state === 'unconfirmed') ??
     controller.outbox.find(
@@ -193,6 +186,7 @@ export function NativeChatStructuredSession(
           void controller.requestHandoff(direction, mode, action)
         }}
       />
+      {topicPanel}
       <div className="flex min-h-0 flex-1 flex-col">
         {viewState.kind === 'loading' ? (
           <NativeChatEmptyState kind="loading" />
@@ -202,6 +196,7 @@ export function NativeChatStructuredSession(
           <NativeChatEmptyState kind="empty" agent={props.agent} />
         ) : (
           <NativeChatMessageList
+            key={messageListViewStateKey}
             session={session}
             isWorking={controller.isWorking}
             expandSignal={false}
@@ -212,76 +207,27 @@ export function NativeChatStructuredSession(
             onLinkClick={onLinkClick}
             allowFileUriLinks={onLinkClick !== undefined}
             runtimeContext={imageRuntimeContext}
+            scrollToMessageId={topicScrollRequest?.anchor.itemId}
+            scrollToMessageEpoch={topicScrollRequest?.anchor.epoch}
+            journalEpoch={controller.epoch}
+            scrollRequestId={topicScrollRequest?.requestId}
+            viewStateKey={messageListViewStateKey}
+            onBranchMessage={branchMessage}
           />
         )}
       </div>
-      {prompt?.body.kind === 'approval' ? (
-        <NativeChatApprovalCard
-          approval={{
-            title: prompt.body.title,
-            ...(prompt.body.detail ? { detail: prompt.body.detail } : {}),
-            options: prompt.body.options.map((option) => ({
-              label: option.label,
-              send: option.id
-            }))
-          }}
-          onChoose={(optionId) => void controller.respond(prompt, optionId)}
-        />
-      ) : null}
-      {prompt && questionBody ? (
-        <NativeChatQuestionCard
-          key={`${prompt.itemId}:${prompt.revision}`}
-          prompt={{
-            questions: questions.map((question) => ({
-              question: question.question,
-              ...(question.header ? { header: question.header } : {}),
-              multiSelect: question.multiSelect,
-              options: question.options.map((option) => ({
-                label: option.label,
-                ...(option.description ? { description: option.description } : {})
-              }))
-            }))
-          }}
-          allowOther={questions.map((question) => Boolean(question.freeTextQuestionId))}
-          onAnswer={(answers) => {
-            if (questionBody.questions) {
-              const grouped = questions.map((question, questionIndex) => {
-                const answer = answers[questionIndex]
-                const other = answer?.other?.trim()
-                const optionIds = (answer?.indices ?? []).flatMap((optionIndex) => {
-                  const optionId = question.options[optionIndex]?.id
-                  return optionId ? [optionId] : []
-                })
-                return {
-                  questionId: question.id,
-                  optionIds: question.multiSelect || !other ? optionIds : [],
-                  ...(other ? { other } : {})
-                }
-              })
-              if (grouped.every((answer) => answer.optionIds.length > 0 || answer.other)) {
-                void controller.respond(prompt, encodeAgentSessionQuestionAnswers(grouped))
-              }
-              return
-            }
-            const index = answers[0]?.indices[0]
-            const other = answers[0]?.other?.trim()
-            const optionId =
-              typeof index === 'number'
-                ? questionBody.options[index]?.id
-                : questionBody.freeTextQuestionId && other
-                  ? encodeQuestionAnswer(questionBody.freeTextQuestionId, other)
-                  : undefined
-            if (optionId) {
-              void controller.respond(prompt, optionId)
-            }
-          }}
-          onCancel={() => {
-            if (controller.turnId) {
-              void controller.cancel(controller.turnId)
-            }
-          }}
-        />
-      ) : null}
+      <NativeChatStructuredPromptCard
+        prompt={prompt}
+        turnId={controller.turnId}
+        onRespond={(answer) => {
+          if (prompt) {
+            void controller.respond(prompt, answer)
+          }
+        }}
+        onCancel={(turnId) => {
+          void controller.cancel(turnId)
+        }}
+      />
       {retryableOutboxEntry ? (
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-1 text-xs text-muted-foreground">
           <span>

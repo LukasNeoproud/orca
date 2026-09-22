@@ -1,4 +1,4 @@
-import type { NativeChatMessage } from '../../../shared/native-chat-types'
+import type { AgentType, NativeChatMessage } from '../../../shared/native-chat-types'
 import type { OrchestrationWorkerReadFallbackReason } from '../../../shared/orchestration-worker-output'
 import { FileRangeReadUnsupportedError, type IFilesystemProvider } from '../../providers/types'
 import {
@@ -6,6 +6,7 @@ import {
   type NativeChatLineDecoder
 } from '../../native-chat/transcript-tail-reader'
 import { transcriptFallbackId } from '../../native-chat/transcript-fallback-id'
+import { nativeChatTurnLifecycleDecoderForAgent } from '../../native-chat/transcript-turn-lifecycle'
 import { sshFileStreamReadCap } from '../../ssh/ssh-file-stream-read-cap'
 import {
   boundWorkerTranscriptMessages,
@@ -17,6 +18,7 @@ import {
   WORKER_TRANSCRIPT_BOUNDARY_CHECKPOINT_BYTES,
   workerTranscriptSourceChanged
 } from './worker-transcript-source-identity'
+import { workerTranscriptAssistantCompletionCandidateId } from './worker-transcript-turn-evidence'
 import {
   readRemoteTranscriptRangedWindow,
   supportsRemoteTranscriptRangeRead,
@@ -28,13 +30,14 @@ export const MAX_REMOTE_TRANSCRIPT_SCAN_BYTES = 8 * 1024 * 1024
 const MAX_LEGACY_REMOTE_TRANSCRIPT_READ_BYTES = sshFileStreamReadCap(false)
 
 type RemoteReadArgs = {
-  agent: string
+  agent: AgentType
   sessionId: string
   transcriptPath?: string
   offset?: number
   limit?: number
   expectedBoundaryCheckpoint?: string
   filesystemProvider?: IFilesystemProvider
+  pendingAssistantMessageId?: string | null
 }
 
 type RemoteReadResult =
@@ -48,6 +51,10 @@ type RemoteReadResult =
       limited: boolean
       clipping: string[]
       warnings: string[]
+      turnEvidence: {
+        completedAssistantMessageIds: string[]
+        pendingAssistantMessageId: string | null
+      }
     }
   | {
       ok: false
@@ -160,6 +167,9 @@ function parseTranscriptWindow(
   const initialRead = args.offset === undefined
   const messages: NativeChatMessage[] = []
   const decodedMessages: NativeChatMessage[] = []
+  const completedAssistantMessageIds: string[] = []
+  let pendingAssistantMessageId = args.pendingAssistantMessageId ?? null
+  const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
   let malformed = 0
   let oversized = 0
   let relativeCursor = 0
@@ -194,10 +204,29 @@ function parseTranscriptWindow(
       try {
         JSON.parse(line)
         const absoluteLineStart = window.startOffset + relativeCursor
-        const message = decode(line, transcriptFallbackId(filePath, absoluteLineStart))
+        const fallbackId = transcriptFallbackId(filePath, absoluteLineStart)
+        const message = decode(line, fallbackId)
         if (message) {
           const destination = initialRead ? decodedMessages : messages
           destination.push(message)
+        }
+        if (message?.role === 'user') {
+          pendingAssistantMessageId = null
+        }
+        if (message?.role === 'assistant') {
+          pendingAssistantMessageId = workerTranscriptAssistantCompletionCandidateId(
+            args.agent,
+            line,
+            message,
+            filePath
+          )
+        }
+        const lifecycle = decodeLifecycle?.(line, fallbackId)
+        if (lifecycle?.state === 'completed' && pendingAssistantMessageId) {
+          completedAssistantMessageIds.push(pendingAssistantMessageId)
+          pendingAssistantMessageId = null
+        } else if (lifecycle?.state === 'working' || lifecycle?.state === 'interrupted') {
+          pendingAssistantMessageId = null
         }
       } catch {
         malformed++
@@ -241,7 +270,8 @@ function parseTranscriptWindow(
           : scanLimited
             ? ['Transcript scanning stopped at the bounded byte limit; continue with the cursor.']
             : [])
-      ]
+      ],
+      turnEvidence: { completedAssistantMessageIds, pendingAssistantMessageId }
     }
   }
 }

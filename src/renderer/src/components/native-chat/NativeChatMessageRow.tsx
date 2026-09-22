@@ -38,7 +38,8 @@ export const MessageRow = memo(function MessageRow({
   deliveryFailed = false,
   activityExpandOverride,
   structuredActivityUi = true,
-  runtimeContext
+  runtimeContext,
+  onBranchMessage
 }: {
   message: NativeChatMessage
   expandSignal: boolean
@@ -51,6 +52,7 @@ export const MessageRow = memo(function MessageRow({
   activityExpandOverride?: boolean
   structuredActivityUi?: boolean
   runtimeContext?: RuntimeFileOperationArgs | null
+  onBranchMessage?: (message: NativeChatMessage, selectedText?: string) => void
 }): React.JSX.Element | null {
   const rowRef = useRef<HTMLDivElement | null>(null)
   // One pass per block set: a streaming turn re-renders this row on every frame, and these
@@ -89,6 +91,16 @@ export const MessageRow = memo(function MessageRow({
       onScrollMessageToTop(rowRef.current)
     }
   }, [onScrollMessageToTop])
+  const branch = useCallback(() => {
+    const selection = window.getSelection()
+    const text =
+      selection &&
+      rowRef.current?.contains(selection.anchorNode) &&
+      rowRef.current.contains(selection.focusNode)
+        ? selection.toString().trim() || undefined
+        : undefined
+    onBranchMessage?.(message, text)
+  }, [message, onBranchMessage])
 
   // Skip rows with nothing renderable so the transcript shows no empty/ghost
   // bubble.
@@ -105,7 +117,7 @@ export const MessageRow = memo(function MessageRow({
     : undefined
   if (notice?.type === 'text') {
     return (
-      <div ref={rowRef}>
+      <div ref={rowRef} data-native-chat-message-id={message.id}>
         <NativeChatNoticeRow
           block={notice}
           onLinkClick={onLinkClick}
@@ -117,7 +129,7 @@ export const MessageRow = memo(function MessageRow({
 
   if (providerFrame) {
     return (
-      <div ref={rowRef}>
+      <div ref={rowRef} data-native-chat-message-id={message.id}>
         <ProviderFrameRow block={providerFrame} />
       </div>
     )
@@ -125,7 +137,11 @@ export const MessageRow = memo(function MessageRow({
 
   if (isUser) {
     return (
-      <div ref={rowRef} className="group relative flex flex-col items-end gap-0.5">
+      <div
+        ref={rowRef}
+        data-native-chat-message-id={message.id}
+        className="group relative flex flex-col items-end gap-0.5"
+      >
         {/* User turns get a distinct muted fill (not the card/canvas color) so
             the prompt reads apart from the assistant's body copy. */}
         <div className="max-w-[85%] rounded-lg rounded-tr-sm bg-muted px-3.5 py-2.5 text-sm text-foreground">
@@ -176,6 +192,7 @@ export const MessageRow = memo(function MessageRow({
   return (
     <div
       ref={rowRef}
+      data-native-chat-message-id={message.id}
       className={cn(
         'group relative max-w-full select-text text-sm leading-relaxed text-foreground',
         // Reasoning is the agent thinking aloud — quieter, italic, like an aside.
@@ -217,6 +234,7 @@ export const MessageRow = memo(function MessageRow({
           markdown={markdown}
           timestamp={message.timestamp}
           onScrollToTop={scrollToTop}
+          onBranch={!activeTurnIsWorking && onBranchMessage ? branch : undefined}
           className="mt-1 -mb-5 w-fit select-none transition-opacity can-hover:pointer-events-none can-hover:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100"
         />
       ) : null}

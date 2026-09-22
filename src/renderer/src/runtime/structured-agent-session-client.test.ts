@@ -1,7 +1,10 @@
 // @vitest-environment happy-dom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AGENT_SESSION_REWIND_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
+import {
+  AGENT_SESSION_REWIND_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY
+} from '../../../shared/protocol-version'
 
 const mocks = vi.hoisted(() => ({
   subscribe: vi.fn(),
@@ -64,6 +67,19 @@ describe('callStructuredAgentSession rewind capability', () => {
 
     await expect(callStructuredAgentSession(target, 'agentSession.rewind', params)).rejects.toThrow(
       'Host unreachable'
+    )
+    expect(mocks.call).not.toHaveBeenCalled()
+  })
+
+  it('refuses topic index mutations on an older remote host', async () => {
+    mocks.supportsCapability.mockResolvedValue(false)
+
+    await expect(
+      callStructuredAgentSession(target, 'agentSession.writeTopicIndex', params)
+    ).rejects.toThrow('Topics require a newer Orca server')
+    expect(mocks.supportsCapability).toHaveBeenCalledExactlyOnceWith(
+      'env-1',
+      STRUCTURED_AGENT_SESSION_TOPIC_INDEX_RUNTIME_CAPABILITY
     )
     expect(mocks.call).not.toHaveBeenCalled()
   })

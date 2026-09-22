@@ -32,6 +32,7 @@ import type { SshProfileOperations } from './ssh-profile-operations'
 import type { RetiredWorktreeNamePersistence } from './retired-worktree-name-persistence'
 import type { SshLeaseRecoveryOperations } from './ssh-lease-recovery-operations'
 import type { WriteFlushBarrierOperations } from './write-flush-barriers'
+import type { BacklogTaskAssociation } from '../../../shared/backlog-task-association'
 
 export type StoreOptions = StoreRuntimeOptions
 export type PtyBindingSourceExpectation = {
@@ -93,6 +94,21 @@ export class Store {
 
   getProfileStorageDirectory(): string {
     return dirname(this.runtime.dataFile)
+  }
+
+  getBacklogTaskAssociations(): BacklogTaskAssociation[] {
+    return structuredClone(this.state.backlogTaskAssociations ?? [])
+  }
+
+  persistBacklogTaskAssociations(next: readonly BacklogTaskAssociation[]): void {
+    const previous = this.state.backlogTaskAssociations
+    this.state.backlogTaskAssociations = [...structuredClone(next)]
+    try {
+      this.flushOrThrow()
+    } catch (error) {
+      this.state.backlogTaskAssociations = previous
+      throw error
+    }
   }
 
   freezeWrites(): void {
