@@ -45,17 +45,15 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
     const target = { workspaceId: worktreeId, leaseId }
     let stopped = false
     let leased = false
+    let supported = false
+    let polling = false
     let pending: Promise<void> | null = null
-    let timer: ReturnType<typeof setTimeout> | null = null
     const current = () => !stopped && generationRef.current === generation
-    const schedule = () => {
-      if (current()) {
-        timer = setTimeout(() => {
-          pending = poll()
-        }, SNAPSHOT_POLL_MS)
-      }
-    }
     const poll = async (): Promise<void> => {
+      if (polling) {
+        return
+      }
+      polling = true
       try {
         leased = true
         const response = await client.sendRequest('backlog.snapshot', target)
@@ -79,9 +77,14 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
           })
         }
       } finally {
-        schedule()
+        polling = false
       }
     }
+    const interval = setInterval(() => {
+      if (supported && current() && !polling) {
+        pending = poll()
+      }
+    }, SNAPSHOT_POLL_MS)
     pending = (async () => {
       try {
         const response = await client.sendRequest('status.get')
@@ -97,6 +100,7 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
           setScreenState({ kind: 'unsupported' })
           return
         }
+        supported = true
         await poll()
       } catch (error) {
         if (current()) {
@@ -109,9 +113,7 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
     })()
     return () => {
       stopped = true
-      if (timer) {
-        clearTimeout(timer)
-      }
+      clearInterval(interval)
       if (leased) {
         void pending?.finally(() => {
           void client.sendRequest('backlog.releaseSnapshot', target).catch(() => {})
