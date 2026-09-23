@@ -38,6 +38,7 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
     setInput,
     showToast
   } = scope
+  const nativeChatSessionId = resolveMobileNativeChatFileSessionId(activeSessionTab)
   // Tap a terminal or chat file path → resolve on host, open as file tab/preview.
   const { handleFileTap, handleNativeChatFileTap, handleFilePreview, handleNativeChatFilePreview } =
     useMobileFileTapHandlers<MobileSessionTab>({
@@ -45,7 +46,7 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
       hostId,
       worktreeId,
       worktreeName: routeWorktreeName,
-      nativeChatSessionId: resolveMobileNativeChatFileSessionId(activeSessionTab),
+      nativeChatSessionId,
       activeHandleRef,
       terminalCwdRef,
       openBrowser: (url) => void handleCreateBrowserRef.current?.(url),
@@ -128,14 +129,30 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
   const handleTerminalLinkActions = useCallback(
     (handle: string, target: TerminalLinkActionTarget) => {
       if (handle === activeHandleRef.current) {
-        setLinkActionTarget({ ...target, source: 'terminal', terminalHandle: handle })
+        const cwd = terminalCwdRef.current.get(handle)
+        setLinkActionTarget({
+          ...target,
+          source: 'terminal',
+          terminalHandle: handle,
+          ...(cwd ? { cwd } : {})
+        })
       }
     },
     []
   )
-  const handleNativeChatLinkActions = useCallback((target: MobileMarkdownLinkTarget) => {
-    setLinkActionTarget({ ...target, source: 'chat' })
-  }, [])
+  const handleNativeChatLinkActions = useCallback(
+    (target: MobileMarkdownLinkTarget) => {
+      const tabId = activeSessionTabIdRef.current
+      setLinkActionTarget({
+        ...target,
+        source: 'chat',
+        ...(nativeChatSessionId && tabId
+          ? { nativeChatContext: { tabId, sessionId: nativeChatSessionId } }
+          : {})
+      })
+    },
+    [nativeChatSessionId]
+  )
   const dismissLinkActions = useCallback(() => setLinkActionTarget(null), [])
   const openLinkActionFile = useCallback(
     (target: Extract<MobileLinkActionTarget, { kind: 'file' }>) => {

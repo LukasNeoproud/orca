@@ -11,13 +11,15 @@ export function MobileFilePreviewSourceText({
   content,
   truncated,
   byteLength,
-  initialLine
+  initialLine,
+  nestedScrollEnabled
 }: {
   relativePath: string
   content: string
   truncated?: boolean
   byteLength?: number
   initialLine?: number
+  nestedScrollEnabled?: boolean
 }) {
   const scrollRef = useRef<ScrollView>(null)
   const revealedRef = useRef(false)
@@ -47,6 +49,7 @@ export function MobileFilePreviewSourceText({
       style={styles.scroll}
       contentContainerStyle={styles.textContent}
       onContentSizeChange={revealInitialLine}
+      nestedScrollEnabled={nestedScrollEnabled}
     >
       {truncated ? (
         <MobileFilePreviewTruncatedNote byteLength={byteLength ?? content.length} />
