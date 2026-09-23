@@ -87,7 +87,9 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     sendDiffNotesAgentActions,
     handlePanelTap,
     openAgentSessionHistory,
+    openBacklog,
     showAgentSessionHistoryAction,
+    showBacklogAction,
     showChecksAction
   } = controller
   return (
@@ -95,8 +97,10 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
       <MobileSessionHeaderMoreActionsSheet
         visible={showHeaderMoreActions}
         showAgentSessionHistory={showAgentSessionHistoryAction}
+        showBacklog={showBacklogAction}
         showChecks={showChecksAction}
         onOpenAgentSessionHistory={openAgentSessionHistory}
+        onOpenBacklog={openBacklog}
         onOpenChecks={() => handlePanelTap('pr')}
         onClose={() => setShowHeaderMoreActions(false)}
       />

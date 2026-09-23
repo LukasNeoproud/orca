@@ -33,6 +33,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     createTabAgentLoadState,
     createTabAgentOptions,
     agentSessionHistorySupported,
+    backlogSupported,
     clearDeliveredDiffComments,
     handleCreateTerminal
   } = scope
@@ -158,6 +159,11 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     const params = new URLSearchParams({ name: worktreeName || '' })
     router.push(`/h/${hostId}/agent-history/${encodeURIComponent(worktreeId)}?${params.toString()}`)
   }
+  const openBacklog = () => {
+    const params = new URLSearchParams({ name: worktreeName || '' })
+    router.push(`/h/${hostId}/backlog/${encodeURIComponent(worktreeId)}?${params.toString()}`)
+  }
+  const showBacklogAction = !isFloatingWorkspaceRoute && backlogSupported === true
   const showAgentSessionHistoryAction =
     !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute && agentSessionHistorySupported === true
   const showChecksAction = shouldShowSessionHeaderChecksAction({
@@ -165,7 +171,8 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     repoContextLoaded: prRepoContextLoaded,
     hostedChecksSupported: prIsGithubRepo
   })
-  const showHeaderMoreButton = showAgentSessionHistoryAction || showChecksAction
+  const showHeaderMoreButton =
+    showAgentSessionHistoryAction || showChecksAction || showBacklogAction
   const createTabBusy = creating || creatingBrowser || creatingMarkdown
   return {
     createTabAgentActions,
@@ -173,6 +180,8 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     handleSessionContentRowLayout,
     handlePanelTap,
     openAgentSessionHistory,
+    openBacklog,
+    showBacklogAction,
     showAgentSessionHistoryAction,
     showChecksAction,
     showHeaderMoreButton,
