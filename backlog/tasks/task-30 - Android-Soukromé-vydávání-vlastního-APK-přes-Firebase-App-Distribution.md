@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-09-23 10:50'
-updated_date: '2026-09-23 12:14'
+updated_date: '2026-09-23 12:43'
 labels: []
 dependencies: []
 references:
@@ -36,3 +36,10 @@ Vlastní Android klient má být instalovatelný a aktualizovatelný pro osobní
 <!-- SECTION:PLAN:BEGIN -->
 Prepare fork-specific Android identity/signing/versioning and a private Firebase App Distribution upload path; verify against current official Expo/Firebase documentation, CI syntax and local build constraints; leave secrets outside repository and report external project prerequisites.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+
+Soukromé vydání bylo ověřeno a distribuováno určeným testerům. Osobní údaje a konkrétní distribuční odkazy nejsou součástí repozitáře.
+<!-- SECTION:NOTES:END -->
