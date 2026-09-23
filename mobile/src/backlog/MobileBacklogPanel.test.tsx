@@ -15,13 +15,23 @@ const backlog = vi.hoisted(() => ({
     retry: vi.fn()
   }
 }))
+const host = vi.hoisted(() => ({ client: { sendRequest: vi.fn() }, state: 'connected' }))
+const filePreview = vi.hoisted(() => ({ resolve: vi.fn() }))
 
 vi.mock('./use-mobile-backlog', () => ({ useMobileBacklog: () => backlog.state }))
 vi.mock('./MobileBacklogTaskAction', () => ({
   MobileBacklogTaskAction: () => createElement('MobileBacklogTaskAction')
 }))
+vi.mock('../transport/client-context', () => ({ useHostClient: () => host }))
+vi.mock('../files/mobile-contextual-file-preview', () => ({
+  resolveMobileContextualFilePreview: filePreview.resolve
+}))
+vi.mock('../session/MobileLinkActionSheet', () => ({
+  MobileLinkActionSheet: (props: { target: unknown }) =>
+    createElement('MobileLinkActionSheet', props)
+}))
 vi.mock('../components/MobileMarkdown', () => ({
-  MobileMarkdown: ({ content }: { content: string }) => createElement('Markdown', {}, content)
+  MobileMarkdown: (props: { content: string }) => createElement('Markdown', props, props.content)
 }))
 vi.mock('react-native', async () => {
   const React = await import('react')
@@ -30,6 +40,7 @@ vi.mock('react-native', async () => {
     FlatList: (props: { data: unknown[]; renderItem: (info: { item: unknown }) => unknown }) =>
       React.createElement('FlatList', {}, ...props.data.map((item) => props.renderItem({ item }))),
     Pressable: 'Pressable',
+    Linking: { openURL: vi.fn().mockResolvedValue(undefined) },
     ScrollView: 'ScrollView',
     Text: 'Text',
     TextInput: 'TextInput',
@@ -39,6 +50,7 @@ vi.mock('react-native', async () => {
 })
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ back: vi.fn() }) }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('lucide-react-native', () => ({
   Check: 'Check',
   ChevronLeft: 'ChevronLeft',
@@ -95,6 +107,41 @@ describe('MobileBacklogPanel', () => {
     expect(output).toContain('**Detail**')
     expect(output).toContain('Terminal opens')
     expect(output).toContain('Check')
+    const markdown = renderer.root.findAllByType('Markdown')
+    await act(async () =>
+      markdown[0]!.props.onShowLinkActions({ kind: 'web', url: 'https://example.com' })
+    )
+    expect(renderer.root.findByType('MobileLinkActionSheet').props).toMatchObject({
+      target: { source: 'chat', kind: 'web', url: 'https://example.com' },
+      worktreeId: 'folder:workspace',
+      showAddToMessage: false
+    })
+    await act(async () => renderer.unmount())
+  })
+
+  it('requires a separate action before opening an outside-workspace file', async () => {
+    backlog.state.selectedTaskId = 'TASK-2'
+    filePreview.resolve.mockResolvedValue({
+      status: 'resolved',
+      outsideWorkspace: true,
+      displayPath: '/tmp/example.ts',
+      line: null,
+      source: {
+        source: 'terminalArtifact',
+        worktreeId: 'folder:workspace',
+        absolutePath: '/tmp/example.ts',
+        grantId: 'grant',
+        pathText: '/tmp/example.ts'
+      }
+    })
+    const renderer = await renderPanel()
+    await act(async () =>
+      renderer.root.findAllByType('Markdown')[0]!.props.onOpenFile('/tmp/example.ts')
+    )
+    expect(renderer.root.findByType('MobileLinkActionSheet').props.target).toMatchObject({
+      kind: 'file',
+      pathText: '/tmp/example.ts'
+    })
     await act(async () => renderer.unmount())
   })
 

@@ -30,6 +30,7 @@ export function MobileLinkActionSheet(props: {
   ) => void
   onCopy: (target: MobileLinkActionTarget) => void
   onAddToMessage: (target: MobileLinkActionTarget) => void
+  showAddToMessage?: boolean
 }): React.JSX.Element {
   const { target } = props
   const actions = target
@@ -54,7 +55,8 @@ export function MobileLinkActionSheet(props: {
           }
         },
         onCopy: () => props.onCopy(target),
-        onAddToMessage: () => props.onAddToMessage(target)
+        onAddToMessage: () => props.onAddToMessage(target),
+        showAddToMessage: props.showAddToMessage
       })
     : []
   return (
@@ -76,6 +78,12 @@ export function MobileLinkActionSheet(props: {
           worktreeId={props.worktreeId}
           target={contextualFileTargetForMobileLink(target)}
         />
+      ) : null}
+      {target?.kind === 'web' ? (
+        <View style={styles.webPreview} accessibilityLabel="Web link preview">
+          <Text style={styles.webPreviewUrl}>{target.url}</Text>
+          <Text style={styles.webPreviewHint}>Open the link to view the website.</Text>
+        </View>
       ) : null}
       <ActionSheetContent actions={actions} onClose={props.onClose} />
     </BottomDrawer>

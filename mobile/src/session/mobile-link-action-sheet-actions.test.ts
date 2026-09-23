@@ -64,4 +64,15 @@ describe('getMobileLinkActionSheetActions', () => {
       'Add to Message'
     ])
   })
+
+  it('hides message composition actions on surfaces without a composer', () => {
+    const actions = getMobileLinkActionSheetActions({
+      target: { source: 'chat', kind: 'web', url: 'https://example.com' },
+      preferredWebMode: 'phone-browser',
+      canOpenOrcaBrowser: false,
+      showAddToMessage: false,
+      ...callbacks
+    })
+    expect(actions.map((action) => action.label)).toEqual(['Open in Phone Browser', 'Copy Link'])
+  })
 })

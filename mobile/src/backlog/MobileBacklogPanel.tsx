@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -11,9 +12,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Check, ChevronLeft, RefreshCw } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
 import type { BacklogTask } from '../../../src/shared/backlog-types'
 import type { BacklogTaskOrder } from '../../../src/shared/backlog-task-order'
-import { MobileMarkdown } from '../components/MobileMarkdown'
+import { MobileMarkdown, type MobileMarkdownLinkTarget } from '../components/MobileMarkdown'
+import { resolveMobileContextualFilePreview } from '../files/mobile-contextual-file-preview'
+import {
+  createMobileFilePreviewHref,
+  displayNameFromPreviewPath
+} from '../files/mobile-file-preview-route'
+import { MobileLinkActionSheet } from '../session/MobileLinkActionSheet'
+import type { MobileLinkActionTarget } from '../session/mobile-link-action-target'
+import { useHostClient } from '../transport/client-context'
 import { getWorktreeLabel } from '../session/worktree-label'
 import { colors } from '../theme/mobile-theme'
 import { mobileBacklogStatuses, selectMobileBacklogTasks } from './mobile-backlog-tasks'
@@ -38,6 +48,8 @@ export function MobileBacklogPanel({
 }) {
   const router = useRouter()
   const backlog = useMobileBacklog(hostId, worktreeId)
+  const { client, state: connectionState } = useHostClient(hostId)
+  const [linkTarget, setLinkTarget] = useState<MobileLinkActionTarget | null>(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [order, setOrder] = useState<BacklogTaskOrder>('ordinal')
@@ -50,6 +62,46 @@ export function MobileBacklogPanel({
     [tasks, query, status, order, snapshot?.priorities]
   )
   const selected = backlog.selectedTaskId !== null
+  const openFilePreview = async (pathText: string, allowOutside = false): Promise<void> => {
+    if (!client || connectionState !== 'connected') {
+      return
+    }
+    const result = await resolveMobileContextualFilePreview(client, worktreeId, {
+      pathText,
+      line: null,
+      column: null
+    })
+    if (result.status !== 'resolved') {
+      return
+    }
+    if (result.outsideWorkspace && !allowOutside) {
+      setLinkTarget({ source: 'chat', kind: 'file', pathText })
+      return
+    }
+    const source = result.source
+    const base = {
+      hostId,
+      worktreeId: source.worktreeId,
+      name: displayNameFromPreviewPath(result.displayPath),
+      ...(result.line !== null ? { line: String(result.line) } : {})
+    }
+    router.push(
+      createMobileFilePreviewHref(
+        source.source === 'worktree'
+          ? { ...base, source: 'worktree', relativePath: source.relativePath }
+          : {
+              ...base,
+              source: 'terminalArtifact',
+              absolutePath: source.absolutePath,
+              grantId: source.grantId,
+              pathText: source.pathText
+            }
+      )
+    )
+  }
+  const showLinkActions = (target: MobileMarkdownLinkTarget): void => {
+    setLinkTarget({ ...target, source: 'chat' })
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -97,6 +149,8 @@ export function MobileBacklogPanel({
           sourceWorkspaceId={worktreeId}
           taskActionsSupported={backlog.taskActionsSupported}
           onRetry={backlog.refresh}
+          onOpenFile={(pathText) => void openFilePreview(pathText)}
+          onShowLinkActions={showLinkActions}
         />
       ) : backlog.screenState.kind === 'unsupported' ? (
         <StateMessage
@@ -164,6 +218,23 @@ export function MobileBacklogPanel({
           />
         </>
       )}
+      <MobileLinkActionSheet
+        target={linkTarget}
+        client={client}
+        connectionState={connectionState}
+        worktreeId={worktreeId}
+        preferredWebMode="phone-browser"
+        canOpenOrcaBrowser={false}
+        showAddToMessage={false}
+        onClose={() => setLinkTarget(null)}
+        onOpenFile={(target) => void openFilePreview(target.pathText, true)}
+        onPreviewFile={(target) => void openFilePreview(target.pathText, true)}
+        onOpenWeb={(target) => void Linking.openURL(target.url).catch(() => {})}
+        onCopy={(target) =>
+          void Clipboard.setStringAsync(target.kind === 'web' ? target.url : target.pathText)
+        }
+        onAddToMessage={() => {}}
+      />
     </SafeAreaView>
   )
 }
@@ -212,13 +283,17 @@ function BacklogTaskDetail({
   hostId,
   sourceWorkspaceId,
   taskActionsSupported,
-  onRetry
+  onRetry,
+  onOpenFile,
+  onShowLinkActions
 }: {
   state: ReturnType<typeof useMobileBacklog>['detailState']
   hostId: string
   sourceWorkspaceId: string
   taskActionsSupported: boolean | null
   onRetry: () => void
+  onOpenFile: (pathText: string) => void
+  onShowLinkActions: (target: MobileMarkdownLinkTarget) => void
 }) {
   if (!state || state.kind === 'loading') {
     return (
@@ -239,7 +314,13 @@ function BacklogTaskDetail({
         <Text style={styles.taskStatus}>{task.status}</Text>
         {task.priority ? <Text style={styles.taskPriority}>{task.priority}</Text> : null}
       </View>
-      {task.description ? <MobileMarkdown content={task.description} /> : null}
+      {task.description ? (
+        <MobileMarkdown
+          content={task.description}
+          onOpenFile={onOpenFile}
+          onShowLinkActions={onShowLinkActions}
+        />
+      ) : null}
       {task.acceptanceCriteria?.length ? (
         <View style={styles.criteria}>
           <Text style={styles.sectionTitle}>Acceptance criteria</Text>
@@ -249,7 +330,11 @@ function BacklogTaskDetail({
                 {criterion.checked ? <Check size={13} color={colors.onAccent} /> : null}
               </View>
               <View style={styles.criterionText}>
-                <MobileMarkdown content={criterion.text} />
+                <MobileMarkdown
+                  content={criterion.text}
+                  onOpenFile={onOpenFile}
+                  onShowLinkActions={onShowLinkActions}
+                />
               </View>
             </View>
           ))}

@@ -17,6 +17,23 @@ export const contextualPreviewStyles = StyleSheet.create({
     fontFamily: typography.monoFamily,
     fontSize: typography.metaSize
   },
+  webPreview: {
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.editorSurface,
+    gap: spacing.sm
+  },
+  webPreviewUrl: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySize
+  },
+  webPreviewHint: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
   card: {
     marginBottom: spacing.md,
     borderRadius: radii.card,

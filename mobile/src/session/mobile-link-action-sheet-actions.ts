@@ -12,13 +12,16 @@ export function getMobileLinkActionSheetActions(args: {
   onOpenWeb: (mode: MobileTerminalLinkOpenMode) => void
   onCopy: () => void
   onAddToMessage: () => void
+  showAddToMessage?: boolean
 }): ActionSheetAction[] {
   if (args.target.kind === 'file') {
     return [
       { label: 'Open', icon: ExternalLink, onPress: args.onOpenFile },
       { label: 'Preview', icon: Eye, onPress: args.onPreviewFile },
       { label: 'Copy Path', icon: Copy, onPress: args.onCopy },
-      { label: 'Add to Message', icon: MessageSquarePlus, onPress: args.onAddToMessage }
+      ...(args.showAddToMessage === false
+        ? []
+        : [{ label: 'Add to Message', icon: MessageSquarePlus, onPress: args.onAddToMessage }])
     ]
   }
 
@@ -40,6 +43,8 @@ export function getMobileLinkActionSheetActions(args: {
   return [
     ...openActions,
     { label: 'Copy Link', icon: Copy, onPress: args.onCopy },
-    { label: 'Add to Message', icon: MessageSquarePlus, onPress: args.onAddToMessage }
+    ...(args.showAddToMessage === false
+      ? []
+      : [{ label: 'Add to Message', icon: MessageSquarePlus, onPress: args.onAddToMessage }])
   ]
 }
