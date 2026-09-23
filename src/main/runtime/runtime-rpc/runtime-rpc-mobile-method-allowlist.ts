@@ -1,4 +1,8 @@
+import { MOBILE_RPC_BACKLOG_METHODS } from './runtime-rpc-mobile-backlog-methods'
+
 export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
+  'agentContext.cancelStructuredPending',
+  'agentContext.inspectStructured',
   'accounts.list',
   'accounts.consumeCodexResetCredit',
   'accounts.selectClaude',
@@ -9,12 +13,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'aiVault.listSessions',
   'aiVault.resolveSessionTitles',
   'aiVault.prepareSessionResume',
-  'backlog.snapshot',
-  'backlog.releaseSnapshot',
-  'backlog.task',
-  'backlog.taskAssociations.get',
-  'backlog.taskAssociations.upsert',
-  'backlog.taskAssociations.confirm',
+  ...MOBILE_RPC_BACKLOG_METHODS,
   'browser.back',
   'browser.dialogAccept',
   'browser.dialogDismiss',

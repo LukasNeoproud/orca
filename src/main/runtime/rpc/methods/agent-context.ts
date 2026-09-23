@@ -3,7 +3,10 @@ import {
   AgentContextTransitionInputSchema,
   type AgentContextTransitionRequest
 } from '../../../../shared/agent-context-transition'
-import { AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
+import {
+  AGENT_CONTEXT_STRUCTURED_MOBILE_RUNTIME_CAPABILITY,
+  AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY
+} from '../../../../shared/protocol-version'
 import {
   AgentContextCallerSchema,
   resolveAgentContextBinding,
@@ -11,6 +14,10 @@ import {
 } from '../../agent-context-binding'
 import { captureAgentContextTarget } from '../../agent-context-boundary'
 import { conversationContinuationRuntime } from '../../conversation-continuation-runtime'
+import {
+  structuredAgentContextRequests,
+  structuredAgentContextScope
+} from './agent-context-structured-scope'
 import { defineMethod, type RpcContext, type RpcAnyMethod } from '../core'
 
 const Id = z.string().min(1).max(512)
@@ -38,6 +45,31 @@ function context(ctx: RpcContext) {
     throw new Error('agent_context_unsupported')
   }
   return conversationContinuationRuntime(ctx.runtime)
+}
+
+function structuredContext(ctx: RpcContext) {
+  if (
+    (ctx.clientKind || ctx.pairedDeviceId || ctx.clientCapabilities) &&
+    !ctx.clientCapabilities?.includes(AGENT_CONTEXT_STRUCTURED_MOBILE_RUNTIME_CAPABILITY)
+  ) {
+    throw new Error('agent_context_structured_mobile_unsupported')
+  }
+  return conversationContinuationRuntime(ctx.runtime)
+}
+
+function structuredRequests(ctx: RpcContext, sessionId: string) {
+  const { transitions } = structuredContext(ctx)
+  const identity = structuredAgentContextScope(sessionId)
+  const source = {
+    workspaceId: identity.workspaceId,
+    providerSessionId: identity.providerSessionId
+  }
+  return {
+    identity,
+    transitions,
+    source,
+    requests: structuredAgentContextRequests(transitions.listConversation(source), sessionId)
+  }
 }
 
 function view(request: AgentContextTransitionRequest | null) {
@@ -141,6 +173,28 @@ export const AGENT_CONTEXT_METHODS: readonly RpcAnyMethod[] = [
         surface.cancel(request.requestId)
       }
       return view(request)
+    }
+  }),
+  defineMethod({
+    name: 'agentContext.inspectStructured',
+    params: z.object({ sessionId: Id }).strict(),
+    handler: (params, ctx) => {
+      const { identity, requests } = structuredRequests(ctx, params.sessionId)
+      return { ...identity, requests: requests.map(view) }
+    }
+  }),
+  defineMethod({
+    name: 'agentContext.cancelStructuredPending',
+    params: z.object({ sessionId: Id, requestId: Id }).strict(),
+    handler: async (params, ctx) => {
+      const { requests, source, transitions } = structuredRequests(ctx, params.sessionId)
+      const request = requests.find((candidate) => candidate.requestId === params.requestId)
+      if (!request || !['queued', 'ready', 'preparing'].includes(request.status)) {
+        throw new Error('agent_context_request_not_pending_or_not_owned')
+      }
+      await transitions.cancelConversation(source, params.requestId)
+      const refreshed = structuredRequests(ctx, params.sessionId)
+      return { ...refreshed.identity, requests: refreshed.requests.map(view) }
     }
   }),
   defineMethod({

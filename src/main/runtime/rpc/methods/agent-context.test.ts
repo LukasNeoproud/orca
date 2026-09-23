@@ -6,7 +6,8 @@ import { RpcDispatcher } from '../dispatcher'
 const rpcMocks = vi.hoisted(() => ({
   facade: vi.fn(),
   binding: vi.fn(),
-  target: vi.fn()
+  target: vi.fn(),
+  structuredScope: vi.fn()
 }))
 vi.mock('../../conversation-continuation-runtime', () => ({
   conversationContinuationRuntime: rpcMocks.facade
@@ -16,6 +17,10 @@ vi.mock('../../agent-context-binding', async (importOriginal) => {
   return { ...actual, resolveAgentContextBinding: rpcMocks.binding }
 })
 vi.mock('../../agent-context-boundary', () => ({ captureAgentContextTarget: rpcMocks.target }))
+vi.mock('./agent-context-structured-scope', async (importOriginal) => ({
+  ...((await importOriginal()) as object),
+  structuredAgentContextScope: rpcMocks.structuredScope
+}))
 
 import { AGENT_CONTEXT_METHODS } from './agent-context'
 
@@ -84,6 +89,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   rpcMocks.binding.mockResolvedValue(binding)
   rpcMocks.target.mockResolvedValue(queued.target)
+  rpcMocks.structuredScope.mockReturnValue({
+    sessionId: 'session-1',
+    workspaceId: 'workspace-1',
+    providerSessionId: 'provider-1',
+    ownerState: 'live'
+  })
 })
 
 describe('agent context RPC methods', () => {
@@ -170,5 +181,80 @@ describe('agent context RPC methods', () => {
       ok: false,
       error: { code: 'runtime_error', message: 'agent_context_unsupported' }
     })
+  })
+
+  it('keeps structured inspection and cancellation scoped to the exact session', async () => {
+    const entry = facade()
+    entry.transitions.listConversation.mockReturnValue([
+      queued,
+      {
+        ...queued,
+        requestId: 'terminal-1',
+        target: { ...queued.target, sessionId: undefined, terminalHandle: 'pty-1' }
+      },
+      { ...queued, requestId: 'other-1', target: { ...queued.target, sessionId: 'session-2' } }
+    ])
+    rpcMocks.facade.mockReturnValue(entry)
+    const dispatcher = new RpcDispatcher({ runtime: runtime(), methods: AGENT_CONTEXT_METHODS })
+    const remote = {
+      clientKind: 'mobile' as const,
+      clientCapabilities: ['agent.context-structured-mobile.v1']
+    }
+
+    await expect(
+      dispatcher.dispatch(
+        request('agentContext.inspectStructured', {
+          sessionId: 'session-1'
+        }),
+        remote
+      )
+    ).resolves.toMatchObject({
+      ok: true,
+      result: {
+        sessionId: 'session-1',
+        ownerState: 'live',
+        requests: [{ requestId: 'operation-1' }]
+      }
+    })
+    await expect(
+      dispatcher.dispatch(
+        request('agentContext.cancelStructuredPending', {
+          sessionId: 'session-1',
+          requestId: 'terminal-1'
+        }),
+        remote
+      )
+    ).resolves.toMatchObject({ ok: false })
+    expect(entry.transitions.cancelConversation).not.toHaveBeenCalled()
+    await expect(
+      dispatcher.dispatch(
+        request('agentContext.cancelStructuredPending', {
+          sessionId: 'session-1',
+          requestId: 'operation-1'
+        }),
+        remote
+      )
+    ).resolves.toMatchObject({ ok: true })
+    expect(entry.transitions.cancelConversation).toHaveBeenCalledWith(
+      { workspaceId: 'workspace-1', providerSessionId: 'provider-1' },
+      'operation-1'
+    )
+  })
+
+  it('rejects structured inspection without its distinct mobile capability', async () => {
+    rpcMocks.facade.mockReturnValue(facade())
+    const dispatcher = new RpcDispatcher({ runtime: runtime(), methods: AGENT_CONTEXT_METHODS })
+    await expect(
+      dispatcher.dispatch(
+        request('agentContext.inspectStructured', {
+          sessionId: 'session-1'
+        }),
+        { clientKind: 'mobile', clientCapabilities: ['agent.context-transitions.v1'] }
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { message: 'agent_context_structured_mobile_unsupported' }
+    })
+    expect(rpcMocks.structuredScope).not.toHaveBeenCalled()
   })
 })
