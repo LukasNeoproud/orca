@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY } from '../../../src/shared/backlog-task-association'
 import {
   BACKLOG_RUNTIME_CAPABILITY,
   type BacklogSnapshot,
@@ -27,6 +28,7 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
   const [screenState, setScreenState] = useState<BacklogScreenState>({ kind: 'loading' })
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [detailState, setDetailState] = useState<DetailState | null>(null)
+  const [taskActionsSupported, setTaskActionsSupported] = useState<boolean | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const generationRef = useRef(0)
 
@@ -96,6 +98,9 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
         }
         const capabilities = ((response as RpcSuccess).result as { capabilities?: string[] })
           .capabilities
+        setTaskActionsSupported(
+          capabilities?.includes(BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY) ?? false
+        )
         if (!capabilities?.includes(BACKLOG_RUNTIME_CAPABILITY)) {
           setScreenState({ kind: 'unsupported' })
           return
@@ -165,5 +170,14 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
     }
     refresh()
   }, [connState, forceReconnect, hostId, refresh])
-  return { connState, screenState, selectedTaskId, setSelectedTaskId, detailState, refresh, retry }
+  return {
+    connState,
+    screenState,
+    selectedTaskId,
+    setSelectedTaskId,
+    detailState,
+    taskActionsSupported,
+    refresh,
+    retry
+  }
 }

@@ -18,8 +18,10 @@ function ok(result: unknown) {
   return { id: 'response', ok: true as const, result, _meta: { runtimeId: 'runtime' } }
 }
 
+let latest: ReturnType<typeof useMobileBacklog> | null = null
+
 function Harness({ worktreeId }: { worktreeId: string }) {
-  useMobileBacklog('paired-host', worktreeId)
+  latest = useMobileBacklog('paired-host', worktreeId)
   return null
 }
 
@@ -27,6 +29,7 @@ afterEach(() => {
   transport.client = null
   transport.state = 'connected'
   transport.reconnect.mockReset()
+  latest = null
 })
 
 describe('mobile Backlog lease', () => {
@@ -34,7 +37,7 @@ describe('mobile Backlog lease', () => {
     const sendRequest = vi.fn(async (method: string) =>
       ok(
         method === 'status.get'
-          ? { capabilities: ['backlog.v1'] }
+          ? { capabilities: ['backlog.v1', 'backlog.task-associations.v1'] }
           : {
               state: 'ready',
               tasks: [{ id: 'TASK-1', title: 'One', status: 'To Do', priority: null }]
@@ -50,6 +53,7 @@ describe('mobile Backlog lease', () => {
       workspaceId: 'folder:workspace-1',
       leaseId: expect.any(String)
     })
+    expect(latest?.taskActionsSupported).toBe(true)
     const leaseId = sendRequest.mock.calls.find(([method]) => method === 'backlog.snapshot')?.[1]
       .leaseId
     await act(async () => renderer.unmount())
@@ -67,6 +71,7 @@ describe('mobile Backlog lease', () => {
       renderer = create(createElement(Harness, { worktreeId: 'repo::/worktree' }))
     })
     expect(sendRequest.mock.calls.map(([method]) => method)).toEqual(['status.get'])
+    expect(latest?.taskActionsSupported).toBe(false)
     await act(async () => renderer.unmount())
   })
 })

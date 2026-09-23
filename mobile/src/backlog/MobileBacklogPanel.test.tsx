@@ -9,6 +9,7 @@ const backlog = vi.hoisted(() => ({
     screenState: { kind: 'ready', snapshot: { state: 'ready', tasks: [] as unknown[] } },
     selectedTaskId: null as string | null,
     detailState: null as unknown,
+    taskActionsSupported: true as boolean | null,
     setSelectedTaskId: vi.fn(),
     refresh: vi.fn(),
     retry: vi.fn()
@@ -16,6 +17,9 @@ const backlog = vi.hoisted(() => ({
 }))
 
 vi.mock('./use-mobile-backlog', () => ({ useMobileBacklog: () => backlog.state }))
+vi.mock('./MobileBacklogTaskAction', () => ({
+  MobileBacklogTaskAction: () => createElement('MobileBacklogTaskAction')
+}))
 vi.mock('../components/MobileMarkdown', () => ({
   MobileMarkdown: ({ content }: { content: string }) => createElement('Markdown', {}, content)
 }))

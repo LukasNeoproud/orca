@@ -19,6 +19,7 @@ import { colors } from '../theme/mobile-theme'
 import { mobileBacklogStatuses, selectMobileBacklogTasks } from './mobile-backlog-tasks'
 import { backlogStyles as styles } from './mobile-backlog-styles'
 import { useMobileBacklog } from './use-mobile-backlog'
+import { MobileBacklogTaskAction } from './MobileBacklogTaskAction'
 
 const ORDER_OPTIONS: { label: string; value: BacklogTaskOrder }[] = [
   { label: 'Board order', value: 'ordinal' },
@@ -90,7 +91,13 @@ export function MobileBacklogPanel({
       ) : null}
 
       {selected ? (
-        <BacklogTaskDetail state={backlog.detailState} onRetry={backlog.refresh} />
+        <BacklogTaskDetail
+          state={backlog.detailState}
+          hostId={hostId}
+          sourceWorkspaceId={worktreeId}
+          taskActionsSupported={backlog.taskActionsSupported}
+          onRetry={backlog.refresh}
+        />
       ) : backlog.screenState.kind === 'unsupported' ? (
         <StateMessage
           title="Host update required"
@@ -202,9 +209,15 @@ function BacklogTaskRow({ task, onPress }: { task: BacklogTask; onPress: () => v
 
 function BacklogTaskDetail({
   state,
+  hostId,
+  sourceWorkspaceId,
+  taskActionsSupported,
   onRetry
 }: {
   state: ReturnType<typeof useMobileBacklog>['detailState']
+  hostId: string
+  sourceWorkspaceId: string
+  taskActionsSupported: boolean | null
   onRetry: () => void
 }) {
   if (!state || state.kind === 'loading') {
@@ -242,6 +255,12 @@ function BacklogTaskDetail({
           ))}
         </View>
       ) : null}
+      <MobileBacklogTaskAction
+        hostId={hostId}
+        sourceWorkspaceId={sourceWorkspaceId}
+        task={task}
+        supported={taskActionsSupported}
+      />
     </ScrollView>
   )
 }

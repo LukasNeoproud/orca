@@ -93,5 +93,73 @@ export const backlogStyles = StyleSheet.create({
     justifyContent: 'center'
   },
   checkboxChecked: { backgroundColor: colors.accentBlue, borderColor: colors.accentBlue },
-  criterionText: { flex: 1 }
+  criterionText: { flex: 1 },
+  taskActionCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel
+  },
+  taskActionTitle: { color: colors.textPrimary, fontSize: typography.bodySize, fontWeight: '600' },
+  taskActionText: { color: colors.textSecondary, fontSize: typography.bodySize },
+  taskActionMeta: { color: colors.textMuted, fontSize: typography.metaSize },
+  taskActionWarning: { color: colors.statusAmber, fontSize: typography.metaSize },
+  taskActionError: { color: colors.statusRed, fontSize: typography.metaSize },
+  taskAssociationMeta: { gap: spacing.xs },
+  taskActionButtons: { flexDirection: 'row', gap: spacing.sm },
+  taskPrimaryButton: {
+    minHeight: 44,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.button,
+    backgroundColor: colors.surfaceBright
+  },
+  taskPrimaryButtonText: { color: colors.bgBase, fontSize: typography.bodySize, fontWeight: '600' },
+  taskSecondaryButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgRaised
+  },
+  taskSecondaryButtonText: { color: colors.textPrimary, fontSize: typography.bodySize },
+  buttonPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
+  launchTitle: { color: colors.textPrimary, fontSize: typography.titleSize, fontWeight: '600' },
+  launchSubtitle: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize,
+    marginBottom: spacing.md
+  },
+  launchLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize,
+    fontWeight: '600',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm
+  },
+  launchOptions: { gap: spacing.sm },
+  launchAgentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  launchOption: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel
+  },
+  launchOptionCompact: { flexGrow: 0 },
+  launchOptionSelected: { borderColor: colors.textSecondary, backgroundColor: colors.bgRaised },
+  launchOptionText: { color: colors.textSecondary, fontSize: typography.bodySize },
+  launchOptionTextSelected: { color: colors.textPrimary, fontWeight: '600' },
+  launchNotice: { color: colors.textMuted, fontSize: typography.metaSize, marginTop: spacing.md },
+  launchFooter: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }
 })
