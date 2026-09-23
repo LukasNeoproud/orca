@@ -33,8 +33,11 @@ export function requireLocalPublishTools({ publish }) {
 }
 
 export function runPrivateAndroidBuild({ mobileRoot, versionCode, secretPaths, secrets }) {
+  const sdkRoot = resolveAndroidSdkRoot()
   const publicEnv = {
     ...process.env,
+    ANDROID_HOME: sdkRoot,
+    ANDROID_SDK_ROOT: sdkRoot,
     ORCA_BACKGROUND_LAUNCH: '1',
     ORCA_PRIVATE_ANDROID_RELEASE: '1',
     ORCA_PRIVATE_ANDROID_PACKAGE: PRIVATE_ANDROID_PACKAGE,
@@ -170,10 +173,7 @@ function findAndroidTool(tool) {
   if (direct) {
     return direct
   }
-  const sdkRoot =
-    process.env.ANDROID_HOME ||
-    process.env.ANDROID_SDK_ROOT ||
-    path.join(os.homedir(), 'Library', 'Android', 'sdk')
+  const sdkRoot = resolveAndroidSdkRoot()
   const parent = tool === 'apksigner' ? 'build-tools' : 'cmdline-tools'
   const parentPath = path.join(sdkRoot, parent)
   if (existsSync(parentPath)) {
@@ -190,6 +190,14 @@ function findAndroidTool(tool) {
     }
   }
   throw new Error(`Required Android SDK tool is missing: ${tool}`)
+}
+
+function resolveAndroidSdkRoot() {
+  return (
+    process.env.ANDROID_HOME ||
+    process.env.ANDROID_SDK_ROOT ||
+    path.join(os.homedir(), 'Library', 'Android', 'sdk')
+  )
 }
 
 function requireExecutable(command) {
