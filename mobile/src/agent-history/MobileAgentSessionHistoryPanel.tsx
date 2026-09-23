@@ -15,6 +15,8 @@ import {
 import { triggerError, triggerSuccess } from '../platform/haptics'
 import type { AiVaultScope, AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { Worktree } from '../worktree/workspace-list-types'
+import { useMobileAgentHistoryRouteContext } from './use-mobile-agent-history-route-context'
+import { createMobileAiVaultResumeMutationId } from './agent-history-resume-mutation-id'
 import { useMobileAgentHistoryState } from './use-mobile-agent-history-state'
 import { buildMobileAgentHistorySections } from './agent-history-sections'
 import { shouldShowMobileCurrentWorktreeBadge } from './agent-history-current-worktree-badge'
@@ -54,6 +56,8 @@ export function MobileAgentSessionHistoryPanel({
   const router = useRouter()
   const { client, state: connState } = useHostClient(hostId)
   const [worktrees, setWorktrees] = useState<Worktree[]>([])
+  const { executionHostId, selectedSessionId, hostWorktrees } =
+    useMobileAgentHistoryRouteContext(worktrees)
   const [worktreesLoaded, setWorktreesLoaded] = useState(false)
   const [query, setQuery] = useState('')
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null)
@@ -110,7 +114,13 @@ export function MobileAgentSessionHistoryPanel({
     onSelectScope,
     onRefresh,
     retry
-  } = useMobileAgentHistoryState({ hostId, worktreeId, worktrees, worktreesLoaded })
+  } = useMobileAgentHistoryState({
+    hostId,
+    worktreeId,
+    executionHostId,
+    worktrees,
+    worktreesLoaded
+  })
 
   const sessions = screenState.kind === 'ready' ? screenState.sessions : EMPTY_SESSIONS
   const issues = screenState.kind === 'ready' ? screenState.issues : EMPTY_ISSUES
@@ -125,9 +135,10 @@ export function MobileAgentSessionHistoryPanel({
         scope,
         scopeFilterPaths,
         activeWorktreePath,
-        now
+        now,
+        preferredSessionId: selectedSessionId
       }),
-    [sessions, query, scope, scopeFilterPaths, activeWorktreePath, now]
+    [sessions, query, scope, scopeFilterPaths, activeWorktreePath, now, selectedSessionId]
   )
 
   const hostPlatform = useMemo(
@@ -153,13 +164,13 @@ export function MobileAgentSessionHistoryPanel({
       return routes
     }
     for (const session of sessions) {
-      const route = resolveMobilePortableConversationRoute(session, worktrees)
+      const route = resolveMobilePortableConversationRoute(session, hostWorktrees)
       if (route) {
         routes.set(session.id, route)
       }
     }
     return routes
-  }, [hostCapabilities, sessions, worktrees])
+  }, [hostCapabilities, sessions, hostWorktrees])
   const portableBranchSessionIds = useMemo(
     () => new Set(portableRoutesBySessionId.keys()),
     [portableRoutesBySessionId]
@@ -186,7 +197,7 @@ export function MobileAgentSessionHistoryPanel({
           hostPlatform,
           hostTerminalWindowsShell,
           activeWorktreeId: worktreeId,
-          worktrees,
+          worktrees: hostWorktrees,
           terminalMutationRegistry: resumeMutationRegistryRef.current
         })
         setResumeMessage(outcome.message)
@@ -217,7 +228,7 @@ export function MobileAgentSessionHistoryPanel({
       hostTerminalWindowsShell,
       router,
       worktreeId,
-      worktrees
+      hostWorktrees
     ]
   )
 
@@ -367,6 +378,7 @@ export function MobileAgentSessionHistoryPanel({
             <MobileAgentSessionHistoryList
               sections={sections}
               sessionsById={sessionsById}
+              initialExpandedId={selectedSessionId}
               refreshing={refreshing}
               showCurrentWorktreeBadges={shouldShowMobileCurrentWorktreeBadge(scope)}
               resumeActionStateBySessionId={resumeActionStateBySessionId}
@@ -388,7 +400,7 @@ export function MobileAgentSessionHistoryPanel({
         hostPlatform={hostPlatform}
         hostTerminalWindowsShell={hostTerminalWindowsShell}
         activeWorktreeId={worktreeId}
-        worktrees={worktrees}
+        worktrees={hostWorktrees}
         terminalMutationRegistry={resumeMutationRegistryRef.current}
         onClose={() => setContinuationSession(null)}
         onOpened={onContinuationOpened}
@@ -406,9 +418,3 @@ export function MobileAgentSessionHistoryPanel({
 
 const EMPTY_SESSIONS: AiVaultSession[] = []
 const EMPTY_ISSUES: { agent: AiVaultSession['agent']; path: string; message: string }[] = []
-
-function createMobileAiVaultResumeMutationId(sessionId: string): string {
-  const sessionPart = sessionId.replace(/[^a-zA-Z0-9_.:-]/g, '_').slice(0, 64) || 'session'
-  const randomPart = Math.random().toString(36).slice(2, 10)
-  return `ai-vault-resume:${sessionPart}:${Date.now().toString(36)}:${randomPart}`
-}

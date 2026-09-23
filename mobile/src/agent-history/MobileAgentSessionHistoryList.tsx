@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native'
 import { GitBranch, Play } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
@@ -17,6 +17,7 @@ const PREVIEW_TURN_LIMIT = 5
 type Props = {
   sections: MobileAgentHistorySection[]
   sessionsById: ReadonlyMap<string, AiVaultSession>
+  initialExpandedId?: string
   refreshing: boolean
   showCurrentWorktreeBadges: boolean
   resumeActionStateBySessionId?: ReadonlyMap<string, { disabled: boolean; loading: boolean }>
@@ -29,6 +30,7 @@ type Props = {
 export function MobileAgentSessionHistoryList({
   sections,
   sessionsById,
+  initialExpandedId,
   refreshing,
   showCurrentWorktreeBadges,
   resumeActionStateBySessionId,
@@ -37,7 +39,11 @@ export function MobileAgentSessionHistoryList({
   onPortableBranch,
   onRefresh
 }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId ?? null)
+
+  useEffect(() => {
+    setExpandedId(initialExpandedId ?? null)
+  }, [initialExpandedId])
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))

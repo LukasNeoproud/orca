@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { Pressable, RefreshControl, SectionList, Text, View } from 'react-native'
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react-native'
 import { AuthFailedBanner } from '../components/AuthFailedBanner'
@@ -7,6 +8,15 @@ import { MobileRepoIcon } from '../components/MobileRepoIcon'
 import { MobileSearchField } from '../components/MobileSearchField'
 import { NewWorkspaceFab, FAB_SIZE } from '../components/NewWorkspaceFab'
 import { WorktreeListRow } from '../components/WorktreeListRow'
+import { MOBILE_AI_VAULT_CAPABILITY } from '../agent-history/agent-history-capability'
+import {
+  mobileWorkspaceExecutionHostId,
+  mobileWorkspaceHistoryIdentity
+} from '../agent-history/mobile-workspace-conversation-history'
+import { useMobileWorkspaceConversationCatalog } from '../agent-history/use-mobile-workspace-conversation-catalog'
+import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type { ExecutionHostId } from '../../../src/shared/execution-host'
+import type { Worktree } from '../worktree/workspace-list-types'
 import { colors, spacing } from '../theme/mobile-theme'
 import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
@@ -20,12 +30,14 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     actions,
     activeWorktreeScroll,
     catalog,
+    client,
     connState,
     contentMaxWidth,
     displayWorktrees,
     embedded,
     forceReconnectHost,
     hostId,
+    hostCapabilities,
     insets,
     isReadOnly,
     isWideLayout,
@@ -41,6 +53,51 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     state
   } = controller
   const { rawSections, sections, uniqueRepoColors } = sectionsResult
+  const [expandedHistory, setExpandedHistory] = useState<ReadonlySet<string>>(new Set())
+  const requestedHostIds = useMemo(() => {
+    const hosts = new Set<ExecutionHostId>()
+    for (const item of displayWorktrees) {
+      if (expandedHistory.has(mobileWorkspaceHistoryIdentity(item))) {
+        hosts.add(mobileWorkspaceExecutionHostId(item))
+      }
+    }
+    return [...hosts]
+  }, [displayWorktrees, expandedHistory])
+  const historyAvailable = hostCapabilities.includes(MOBILE_AI_VAULT_CAPABILITY)
+  const history = useMobileWorkspaceConversationCatalog({
+    client,
+    connState,
+    enabled: historyAvailable,
+    requestedHostIds,
+    worktrees: displayWorktrees
+  })
+  const toggleHistory = (item: Worktree) => {
+    const identity = mobileWorkspaceHistoryIdentity(item)
+    setExpandedHistory((current) => {
+      const next = new Set(current)
+      if (next.has(identity)) {
+        next.delete(identity)
+      } else {
+        next.add(identity)
+      }
+      return next
+    })
+  }
+  const openHistory = (item: Worktree, session?: AiVaultSession) => {
+    if (!hostId) {
+      return
+    }
+    const params = new URLSearchParams({
+      name: item.displayName || item.repo,
+      executionHostId: mobileWorkspaceExecutionHostId(item)
+    })
+    if (session) {
+      params.set('session', session.id)
+    }
+    actions.navigateFromHostList(
+      `/h/${encodeURIComponent(hostId)}/agent-history/${encodeURIComponent(item.worktreeId)}?${params.toString()}`
+    )
+  }
 
   return (
     <>
@@ -178,6 +235,23 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 item.workspaceKind === 'folder-workspace' ? undefined : state.setActionTarget
               }
               onToggleLineage={settings.toggleWorktreeLineage}
+              historyAvailable={historyAvailable}
+              historyExpanded={expandedHistory.has(mobileWorkspaceHistoryIdentity(item))}
+              historyStatus={
+                connState !== 'connected'
+                  ? 'offline'
+                  : (history.catalogs.get(mobileWorkspaceExecutionHostId(item))?.status ??
+                    'loading')
+              }
+              historyError={
+                history.catalogs.get(mobileWorkspaceExecutionHostId(item))?.error ?? undefined
+              }
+              historySessions={history.sessionsByWorkspace.get(
+                mobileWorkspaceHistoryIdentity(item)
+              )}
+              onToggleHistory={toggleHistory}
+              onOpenHistory={openHistory}
+              onRetryHistory={(row) => void history.retry(mobileWorkspaceExecutionHostId(row))}
             />
           )}
         />

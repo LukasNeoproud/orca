@@ -8,6 +8,8 @@ import type {
   AiVaultSession
 } from '../../../src/shared/ai-vault-types'
 import type { Worktree } from '../worktree/workspace-list-types'
+import type { ExecutionHostId } from '../../../src/shared/execution-host'
+import { mobileWorkspaceExecutionHostId } from './mobile-workspace-conversation-history'
 import { deriveMobileAiVaultScopePaths } from './agent-history-scope-paths'
 import { MOBILE_AI_VAULT_CAPABILITY } from './agent-history-capability'
 
@@ -29,6 +31,7 @@ type StatusWithCapabilities = { capabilities?: string[] }
 export type MobileAgentHistoryStateParams = {
   hostId: string
   worktreeId: string
+  executionHostId?: ExecutionHostId
   worktrees: readonly Worktree[]
   // Why: distinguishes "worktree list not fetched yet" from "fetched, but this
   // worktree isn't in it" so a scoped tab holds loading only for the former.
@@ -36,7 +39,7 @@ export type MobileAgentHistoryStateParams = {
 }
 
 export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams) {
-  const { hostId, worktreeId, worktrees, worktreesLoaded } = params
+  const { hostId, worktreeId, executionHostId, worktrees, worktreesLoaded } = params
   const { client, state: connState } = useHostClient(hostId)
   const forceReconnect = useForceReconnect()
   const [scope, setScope] = useState<AiVaultScope>('workspace')
@@ -54,16 +57,30 @@ export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams
   }, [])
 
   const activeWorktree = useMemo(
-    () => worktrees.find((worktree) => worktree.worktreeId === worktreeId) ?? null,
-    [worktrees, worktreeId]
+    () =>
+      worktrees.find(
+        (worktree) =>
+          worktree.worktreeId === worktreeId &&
+          (!executionHostId || mobileWorkspaceExecutionHostId(worktree) === executionHostId)
+      ) ?? null,
+    [worktrees, worktreeId, executionHostId]
+  )
+  const scopedWorktrees = useMemo(
+    () =>
+      executionHostId
+        ? worktrees.filter(
+            (worktree) => mobileWorkspaceExecutionHostId(worktree) === executionHostId
+          )
+        : worktrees,
+    [worktrees, executionHostId]
   )
   const activeWorktreePath = activeWorktree?.path ?? null
   // Why: the host union only widens, so the screen narrows by these cwd
   // path-prefixes for the current scope (empty for 'all'). Same derivation the
   // RPC scopePaths use, reused client-side for the actual narrowing.
   const scopeFilterPaths = useMemo(
-    () => deriveMobileAiVaultScopePaths(scope, activeWorktree, worktrees),
-    [scope, activeWorktree, worktrees]
+    () => deriveMobileAiVaultScopePaths(scope, activeWorktree, scopedWorktrees),
+    [scope, activeWorktree, scopedWorktrees]
   )
 
   const loadSessions = useCallback(
@@ -104,20 +121,32 @@ export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams
 
         // Why: a scoped tab needs the active worktree's path to narrow. Until the
         // worktree list has loaded, hold loading rather than firing an unscoped
-        // fetch that would briefly show unrelated host history. Once loaded we
-        // proceed even if the worktree isn't found, to avoid a stuck spinner.
+        // fetch that would briefly show unrelated host history.
         if (options.scope !== 'all' && !activeWorktree && !worktreesLoaded) {
           if (isCurrent()) {
             setScreenState((prev) => (prev.kind === 'ready' ? prev : { kind: 'loading' }))
           }
           return
         }
+        if (executionHostId && options.scope !== 'all' && !activeWorktree) {
+          setScreenState({ kind: 'error', message: 'Workspace unavailable on this host.' })
+          return
+        }
 
-        const scopePaths = deriveMobileAiVaultScopePaths(options.scope, activeWorktree, worktrees)
+        const scopePaths = deriveMobileAiVaultScopePaths(
+          options.scope,
+          activeWorktree,
+          scopedWorktrees
+        )
+        if (executionHostId && options.scope !== 'all' && scopePaths.length === 0) {
+          setScreenState({ kind: 'error', message: 'Workspace path unavailable on this host.' })
+          return
+        }
         const response = await client.sendRequest('aiVault.listSessions', {
           limit: MOBILE_AI_VAULT_SESSION_LIMIT,
           force: options.force,
-          scopePaths
+          scopePaths,
+          ...(executionHostId ? { executionHostScope: executionHostId } : {})
         })
         if (!isCurrent()) {
           return
@@ -136,7 +165,7 @@ export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams
         setScreenState({ kind: 'error', message })
       }
     },
-    [activeWorktree, client, connState, worktrees, worktreesLoaded]
+    [activeWorktree, client, connState, executionHostId, scopedWorktrees, worktreesLoaded]
   )
 
   // Initial + reconnect load. Why: scope switches reuse the host's 15s cache
