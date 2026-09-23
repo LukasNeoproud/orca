@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { dispatchMobileStructuredCommand } from './mobile-structured-composer-command'
 import type {
-  AgentSessionCancelResult,
+  AgentSessionBackgroundTaskState,
   AgentSessionSendResult
 } from '../../../src/shared/agent-session-wire'
 import {
@@ -31,6 +31,7 @@ import { useMobileStructuredAgentState } from './use-mobile-structured-agent-sta
 import { useMobileStructuredPromptResponses } from './use-mobile-structured-prompt-responses'
 import { useMobileStructuredAgentOptions } from './use-mobile-structured-agent-options'
 import { useMobileConversationBranchSource } from './use-mobile-conversation-branch-source'
+import { useMobileStructuredSessionStops } from './use-mobile-structured-session-stops'
 
 type StructuredMobileAttachment = StructuredAgentSessionAttachment & { id?: string }
 
@@ -40,6 +41,9 @@ type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgentOptions
   branchableMessageIds: ReadonlySet<string>
   isWorking: boolean
   turnId: string | null
+  backgroundTasks: AgentSessionBackgroundTaskState | null
+  canStopBackgroundTasks: boolean
+  stopBackgroundTask: (taskId?: string) => Promise<boolean>
   sendWithOutcome: (
     text: string,
     images?: string[],
@@ -234,37 +238,17 @@ export function useMobileStructuredAgentSession(args: {
     onSendError
   })
 
-  const cancel = useCallback(() => {
-    const current = stateRef.current
-    const turnId = activeStructuredAgentSessionTurnId(current.items)
-    if (!client || !sessionId || !enabled || current.fence === null || !turnId) {
-      onSendError('Stop not sent')
-      return
-    }
-    const fields = { turnId }
-    const key = `${sessionKey}:agentSession.cancel:${JSON.stringify(fields)}`
-    const clientOperationId = retainOperationId(key, operationIdsRef.current.get(key))
-    void requestStructuredAgentSessionMutation<AgentSessionCancelResult>({
-      client,
-      method: 'agentSession.cancel',
-      fingerprintMethod: 'agentSession.cancel',
-      sessionId,
-      expectedRuntimeFence: current.fence,
-      fields,
-      clientOperationId
-    }).then((result) => {
-      if (result.status !== 'unknown') {
-        operationIdsRef.current.delete(key)
-      }
-      if (result.status === 'unknown') {
-        onSendError('Stop unconfirmed — check chat before retrying')
-      } else if (result.status === 'refused') {
-        onSendError(result.message)
-      } else if (result.status === 'failed') {
-        onSendError(result.message === 'Request not sent' ? 'Stop not sent' : result.message)
-      }
-    })
-  }, [client, enabled, onSendError, sessionId, sessionKey])
+  const { cancel, stopBackgroundTask } = useMobileStructuredSessionStops({
+    client,
+    connected,
+    enabled,
+    sessionId,
+    sessionKey,
+    stateRef,
+    operationIds: operationIdsRef.current,
+    mutate,
+    onSendError
+  })
 
   const { messages, branchableMessageIds } = useMobileConversationBranchSource(
     state.items,
@@ -297,6 +281,9 @@ export function useMobileStructuredAgentSession(args: {
     branchableMessageIds,
     isWorking: activeStructuredAgentSessionTurnId(state.items) !== null,
     turnId: activeStructuredAgentSessionTurnId(state.items),
+    backgroundTasks: state.backgroundTasks?.state === 'monitoring' ? state.backgroundTasks : null,
+    canStopBackgroundTasks: connected && state.fence !== null,
+    stopBackgroundTask,
     sendWithOutcome,
     cancel,
     permission: projectStructuredPermission(approvalPrompt),

@@ -26,6 +26,7 @@ import { MobileNativeChatComposer } from './MobileNativeChatComposer'
 import { MobileNativeChatPromptCard } from './MobileNativeChatPromptCard'
 import { MobileNativeChatMessage } from './MobileNativeChatMessage'
 import { MobileCodexUsageStatus } from './MobileCodexUsageStatus'
+import { MobileNativeChatBackgroundTasksStatus } from './MobileNativeChatBackgroundTasksStatus'
 import type { MobileNativeChatViewProps } from './mobile-native-chat-view-types'
 import { useMobileConversationAnchorScroll } from './use-mobile-conversation-anchor-scroll'
 
@@ -42,6 +43,9 @@ export function MobileNativeChatView({
   agentWorking,
   structuredActivityUi = false,
   codexUsage,
+  backgroundTasks,
+  canStopBackgroundTasks = false,
+  onStopBackgroundTask,
   onStop,
   streaming,
   hasMore,
@@ -332,6 +336,13 @@ export function MobileNativeChatView({
         onRespondPermission={onRespondPermission}
         question={question}
         onAnswerQuestion={onAnswerQuestion}
+      />
+      <MobileNativeChatBackgroundTasksStatus
+        key={sendSurfaceId}
+        state={backgroundTasks}
+        canStop={canStopBackgroundTasks}
+        onStop={onStopBackgroundTask}
+        activeTurn={agentWorking === true}
       />
       {/* Chrome row above the composer: the working indicator and the global
           tool-calls expand/collapse toggle on the left, Stop in the far corner. */}

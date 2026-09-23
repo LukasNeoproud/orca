@@ -74,6 +74,9 @@ export function MobileNativeChatOverlay({
         agentWorking={controller.nativeChatAgentWorking}
         structuredActivityUi={controller.nativeChatStructured}
         codexUsage={controller.nativeChatCodexUsage}
+        backgroundTasks={controller.nativeChatBackgroundTasks}
+        canStopBackgroundTasks={controller.canStopNativeChatBackgroundTasks}
+        onStopBackgroundTask={controller.stopNativeChatBackgroundTask}
         streaming={streaming}
         onStop={controller.handleNativeChatStop}
         ask={controller.nativeChatAsk}

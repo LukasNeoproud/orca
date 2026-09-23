@@ -19,6 +19,7 @@ import { useNativeChatAcceptedAction } from './use-native-chat-action-outcomes'
 import { useThrottledLatestValue } from './use-throttled-latest-value'
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { readMobileStructuredLaunchDraft } from './mobile-structured-launch-drafts'
+import { projectMobileStructuredChatState } from './mobile-native-chat-structured-state'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 
@@ -287,17 +288,16 @@ export function useMobileNativeChatController(args: {
     chatImagePreviewsByMessageId,
     nativeChatSession,
     nativeChatStructured: activeChatStructured,
-    nativeChatCodexUsage: activeChatStructured ? (structuredNativeChat.codexUsage ?? null) : null,
+    ...projectMobileStructuredChatState(
+      activeChatStructured,
+      structuredNativeChat,
+      legacyNativeChatPermission,
+      legacyNativeChatQuestion
+    ),
     nativeChatAgentWorking,
     nativeChatStreamingText,
     nativeChatStreamLive,
     nativeChatStreamScopeKey: streamScopeKey,
-    nativeChatPermission: activeChatStructured
-      ? structuredNativeChat.permission
-      : legacyNativeChatPermission,
-    nativeChatQuestion: activeChatStructured
-      ? structuredNativeChat.question
-      : legacyNativeChatQuestion,
     nativeChatAsk: !activeChatStructured && showNativeChatAsk ? nativeChatAskPrompt : null,
     nativeChatAskKey,
     dismissNativeChatAsk,

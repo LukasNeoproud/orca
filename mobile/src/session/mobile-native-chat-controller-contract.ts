@@ -12,6 +12,7 @@ import type { useMobileNativeChatSession } from './use-mobile-native-chat-sessio
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
 import type { MobileCodexSessionUsage } from './mobile-codex-session-usage'
 import type { MobileConversationBranchController } from './use-mobile-conversation-branching'
+import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
 
 export type MobileNativeChatController = {
   /** Whether a tab's effective view is chat (per-tab override, else the default). */
@@ -30,6 +31,9 @@ export type MobileNativeChatController = {
   /** Structured lane: drives the per-turn status row and live tool progress. */
   nativeChatStructured: boolean
   nativeChatCodexUsage: MobileCodexSessionUsage | null
+  nativeChatBackgroundTasks: AgentSessionBackgroundTaskState | null
+  canStopNativeChatBackgroundTasks: boolean
+  stopNativeChatBackgroundTask: (taskId?: string) => Promise<boolean>
   nativeChatAgentWorking: boolean
   nativeChatStreamingText?: string
   /** Agent mid-turn, regardless of whether chat is the visible view. */

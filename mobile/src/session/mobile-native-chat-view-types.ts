@@ -8,6 +8,7 @@ import type { MobileNativeChatPendingItem } from './mobile-native-chat-render-da
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 import type { MobileConversationAnchorRequest } from './mobile-conversation-anchor-request'
+import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
 
 /** Why the composer input is locked: the transport is disconnected, or the
  * terminal subscription has not acknowledged its input lease yet. */
@@ -22,6 +23,9 @@ export type MobileNativeChatViewProps = {
   agentWorking?: boolean
   structuredActivityUi?: boolean
   codexUsage?: MobileCodexSessionUsage | null
+  backgroundTasks?: AgentSessionBackgroundTaskState | null
+  canStopBackgroundTasks?: boolean
+  onStopBackgroundTask?: (taskId?: string) => Promise<boolean>
   onStop?: () => void
   streaming: string | null
   hasMore?: boolean
