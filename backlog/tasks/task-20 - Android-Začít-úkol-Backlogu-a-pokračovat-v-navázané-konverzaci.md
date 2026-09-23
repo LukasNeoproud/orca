@@ -1,9 +1,10 @@
 ---
 id: TASK-20
 title: 'Android: Začít úkol Backlogu a pokračovat v navázané konverzaci'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 14:42'
 labels: []
 dependencies:
   - TASK-19
@@ -24,8 +25,14 @@ Desktop dovede předat aktuální zadání úkolu agentovi a uložit vazbu na ko
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Z detailu úkolu lze zvolit workspace na stejném projektu a execution hostu a novou nebo existující podporovanou konverzaci.
-- [ ] #2 Před odesláním se načte aktuální název, popis a akceptační kritéria; vazba na konverzaci se uchová a Continue otevře správnou relaci bez opětovného poslání zadání.
-- [ ] #3 Potvrzené strukturované odeslání a neověřené terminálové doručení jsou rozlišeny; po timeoutu či reconnectu se zadání automaticky neposílá znovu.
-- [ ] #4 Starší host, folder workspace a neověřitelný SSH host mají bezpečný, srozumitelný výsledek.
+- [x] #1 Z detailu úkolu lze zvolit workspace na stejném projektu a execution hostu a novou nebo existující podporovanou konverzaci.
+- [x] #2 Před odesláním se načte aktuální název, popis a akceptační kritéria; vazba na konverzaci se uchová a Continue otevře správnou relaci bez opětovného poslání zadání.
+- [x] #3 Potvrzené strukturované odeslání a neověřené terminálové doručení jsou rozlišeny; po timeoutu či reconnectu se zadání automaticky neposílá znovu.
+- [x] #4 Starší host, folder workspace a neověřitelný SSH host mají bezpečný, srozumitelný výsledek.
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Detail úkolu nabízí bezpečné spuštění i pokračování navázané strukturované nebo terminálové konverzace. Načítá aktuální obsah zadání, ukládá vazbu a neodesílá automaticky znovu po nejistém doručení; testováno v cílené sadě.
+<!-- SECTION:FINAL_SUMMARY:END -->

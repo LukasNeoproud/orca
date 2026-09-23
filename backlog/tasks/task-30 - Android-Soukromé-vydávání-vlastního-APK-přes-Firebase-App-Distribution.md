@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-09-23 10:50'
-updated_date: '2026-09-23 12:43'
+updated_date: '2026-09-23 14:42'
 labels: []
 dependencies: []
 references:
@@ -34,7 +34,7 @@ Vlastní Android klient má být instalovatelný a aktualizovatelný pro osobní
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Prepare fork-specific Android identity/signing/versioning and a private Firebase App Distribution upload path; verify against current official Expo/Firebase documentation, CI syntax and local build constraints; leave secrets outside repository and report external project prerequisites.
+Dokončit lokální on-demand publisher pro cz.neoproud.orca.dev, ověřit podepsané APK a volitelný upload do Firebase App Distribution skupiny orca-dev-private; zachovat stabilní vývojový klíč v Keychain a zkontrolovat aktualizaci a párování s Orca Dev.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
