@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 
 import type { RpcClient } from '../transport/rpc-client'
 import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
+import type { Worktree as MobileWorktree } from '../worktree/workspace-list-types'
 import { NewWorktreeModal } from './NewWorktreeModal'
 
 export type NewWorktreeModalControllerHandle = {
@@ -13,7 +14,9 @@ type Props = {
   client: RpcClient | null
   hostId?: string
   existingWorktreePaths?: readonly string[]
-  existingWorktrees?: readonly { repoId: string; branch: string }[]
+  existingWorktrees?: readonly ({ repoId: string; branch: string } & Partial<
+    Pick<MobileWorktree, 'worktreeId' | 'displayName' | 'hostId' | 'isArchived' | 'isMainWorktree'>
+  >)[]
   onVisibleChange?: (visible: boolean) => void
   onRouteVisibleChange: (visible: boolean) => void
   onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void

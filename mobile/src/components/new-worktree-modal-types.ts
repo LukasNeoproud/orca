@@ -3,6 +3,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import type { SetupHookTrust } from '../tasks/setup-hook-trust'
 import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import { repoColor } from '../worktree/repo-color'
+import type { Worktree as MobileWorktree } from '../worktree/workspace-list-types'
 
 export type MobileWorkspaceRepo = Pick<SharedRepo, 'id' | 'displayName' | 'path'> &
   Partial<
@@ -12,6 +13,7 @@ export type MobileWorkspaceRepo = Pick<SharedRepo, 'id' | 'displayName' | 'path'
       | 'connectionId'
       | 'executionHostId'
       | 'kind'
+      | 'hookSettings'
       | 'upstream'
       | 'repoIcon'
       | 'gitRemoteIdentity'
@@ -27,7 +29,9 @@ export type NewWorktreeModalProps = {
   client: RpcClient | null
   hostId?: string
   existingWorktreePaths?: readonly string[]
-  existingWorktrees?: readonly { repoId: string; branch: string }[]
+  existingWorktrees?: readonly ({ repoId: string; branch: string } & Partial<
+    Pick<MobileWorktree, 'worktreeId' | 'displayName' | 'hostId' | 'isArchived' | 'isMainWorktree'>
+  >)[]
   onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
   onClose: () => void
 }

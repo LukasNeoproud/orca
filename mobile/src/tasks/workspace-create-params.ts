@@ -12,6 +12,30 @@ export type WorkspaceCreateSetupDecision = SetupDecision
 export type WorkspaceCreateSparseCheckout = CreateSparseCheckoutRequest
 export type WorkspaceCreateGitPushTarget = GitPushTarget
 
+export type WorkspaceCreateAdvancedOptions = {
+  displayLabel?: string
+  baseRef?: string
+  sparseCheckout?: WorkspaceCreateSparseCheckout
+  parentWorktreeId?: string | null
+}
+
+export function advancedWorkspaceCreateFields(
+  options: WorkspaceCreateAdvancedOptions
+): WorkspaceCreateParams {
+  const displayLabel = options.displayLabel?.trim()
+  const baseRef = options.baseRef?.trim()
+  return {
+    ...(displayLabel ? { displayName: displayLabel, displayNameKind: 'user' } : {}),
+    ...(baseRef ? { baseBranch: baseRef } : {}),
+    ...(options.sparseCheckout ? { sparseCheckout: options.sparseCheckout } : {}),
+    ...(options.parentWorktreeId
+      ? { parentWorkspace: `worktree:${options.parentWorktreeId}`, parentWorkspaceOrigin: 'manual' }
+      : options.parentWorktreeId === null
+        ? { noParent: true }
+        : {})
+  }
+}
+
 export type WorkspaceCreateHostedStartPoint = {
   baseBranch: string
   pushTarget?: WorkspaceCreateGitPushTarget
@@ -87,6 +111,7 @@ export function buildTaskWorkspaceCreateParams(args: {
   sparseCheckout?: WorkspaceCreateSparseCheckout
   hostedStartPoint?: WorkspaceCreateHostedStartPoint
   nameIsAutoManaged?: boolean
+  advanced?: WorkspaceCreateAdvancedOptions
 }): WorkspaceCreateParams {
   const {
     item,
@@ -135,7 +160,8 @@ export function buildTaskWorkspaceCreateParams(args: {
     ...(branchNameOverride ? { branchNameOverride } : {}),
     ...(selectedPushTarget ? { pushTarget: selectedPushTarget } : {}),
     ...(sparseCheckout ? { sparseCheckout } : {}),
-    ...(comment ? { comment } : {})
+    ...(comment ? { comment } : {}),
+    ...(args.advanced ? advancedWorkspaceCreateFields(args.advanced) : {})
   }
 
   if (item.provider === 'github') {

@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
 import { ChevronDown, ChevronUp } from 'lucide-react-native'
 import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-params'
+import type { SetupAgentStartupPolicy } from '../../../src/shared/orca-yaml-hook-types'
 import type { WorkspaceSshGate } from '../tasks/workspace-ssh-gate'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import { colors } from '../theme/mobile-theme'
@@ -15,6 +16,7 @@ import { NewWorkspaceSshConnectionField } from './NewWorkspaceSshConnectionField
 import { SmartWorkspaceAdvancedFields } from './SmartWorkspaceAdvancedFields'
 import { SmartWorkspaceSourceField } from './SmartWorkspaceSourceField'
 import { MobileWorktreeLocationFields } from './MobileWorktreeLocationFields'
+import { NewWorkspaceExtraFields } from './NewWorkspaceExtraFields'
 import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
 import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
 
@@ -34,14 +36,24 @@ export function NewWorktreeFormSheet(props: {
   selectedRepoName: string
   sshGate: WorkspaceSshGate
   composer: Composer
+  sourceIntentError: string
   worktreeLocation: MobileWorktreeLocationState
   selectedRepo: MobileWorkspaceRepo | null
   selectedAgent: NewWorktreeAgentOption
   showAdvanced: boolean
+  displayLabel: string
+  baseRef: string
+  baseRefPlaceholder: string
+  parentName: string
+  sparseName: string
+  sparseAvailable: boolean
+  sparseLoading: boolean
+  sparseError: string
   note: string
   setupCommand: string | null
   setupSource: string | null
   setupRunPolicy: SetupRunPolicy
+  setupAgentStartupPolicy: SetupAgentStartupPolicy
   setupDecisionChoice: Exclude<WorkspaceCreateSetupDecision, 'inherit'> | null
   runSetup: boolean
   error: string
@@ -55,9 +67,14 @@ export function NewWorktreeFormSheet(props: {
   onConnect: () => void
   onOpenAgent: () => void
   onShowAdvancedChange: (show: boolean) => void
+  onDisplayLabelChange: (value: string) => void
+  onBaseRefChange: (value: string) => void
+  onOpenParent: () => void
+  onOpenSparse: () => void
   onNoteChange: (note: string) => void
   onSetupDecisionChange: (decision: Exclude<WorkspaceCreateSetupDecision, 'inherit'>) => void
   onRunSetupChange: (run: boolean) => void
+  onSetupAgentStartupPolicyChange: (policy: SetupAgentStartupPolicy) => void
   onCreate: () => void
 }) {
   return (
@@ -95,6 +112,9 @@ export function NewWorktreeFormSheet(props: {
 
           {props.composer.forkPushWarning ? (
             <Text style={styles.sourceWarning}>{props.composer.forkPushWarning}</Text>
+          ) : null}
+          {props.sourceIntentError ? (
+            <Text style={styles.sourceWarning}>{props.sourceIntentError}</Text>
           ) : null}
 
           {props.selectedRepoConnectionId ? (
@@ -140,6 +160,22 @@ export function NewWorktreeFormSheet(props: {
                 composer={props.composer}
                 selectedRepoIsGit={props.selectedRepoIsGit}
               />
+              {props.selectedRepoIsGit ? (
+                <NewWorkspaceExtraFields
+                  displayLabel={props.displayLabel}
+                  onDisplayLabelChange={props.onDisplayLabelChange}
+                  baseRef={props.baseRef}
+                  baseRefPlaceholder={props.baseRefPlaceholder}
+                  onBaseRefChange={props.onBaseRefChange}
+                  parentName={props.parentName}
+                  onOpenParent={props.onOpenParent}
+                  sparseName={props.sparseName}
+                  sparseAvailable={props.sparseAvailable}
+                  sparseLoading={props.sparseLoading}
+                  sparseError={props.sparseError}
+                  onOpenSparse={props.onOpenSparse}
+                />
+              ) : null}
               <MobileWorktreeLocationFields
                 state={props.worktreeLocation}
                 repo={props.selectedRepo}
@@ -162,10 +198,12 @@ export function NewWorktreeFormSheet(props: {
                   command={props.setupCommand}
                   source={props.setupSource}
                   runPolicy={props.setupRunPolicy}
+                  startupPolicy={props.setupAgentStartupPolicy}
                   decision={props.setupDecisionChoice}
                   runSetup={props.runSetup}
                   onDecisionChange={props.onSetupDecisionChange}
                   onRunSetupChange={props.onRunSetupChange}
+                  onStartupPolicyChange={props.onSetupAgentStartupPolicyChange}
                 />
               ) : null}
             </>

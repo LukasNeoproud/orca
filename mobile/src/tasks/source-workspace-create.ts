@@ -7,14 +7,17 @@ import type {
 import { resolveMobileWorkspaceCreateName } from './mobile-workspace-name'
 import type { WorkspaceAgentChoice } from './workspace-agent-selection'
 import {
+  advancedWorkspaceCreateFields,
   agentLaunchCreateFields,
   buildTaskWorkspaceCreateParams,
+  type WorkspaceCreateAdvancedOptions,
   type WorkspaceCreateSetupDecision,
   type WorkspaceCreateTaskItem
 } from './workspace-create-params'
 import { createWorktreeWithNameRetry, type WorktreeCreateResult } from './worktree-create-retry'
 import type { WorktreeCreateIdempotencyProbe } from './worktree-create-idempotency-policy'
 import type { ExplicitWorktreeCreation } from '../../../src/shared/worktree/explicit-creation'
+import { createJiraWorkspace } from './jira-workspace-create'
 
 // The agent bundle the modal resolved: `choice` drives launch resolution — the
 // host applies the agent's launch args (permission flags) and shell quoting.
@@ -34,6 +37,7 @@ export type CreateWorkspaceFromComposerArgs = {
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
+  advanced?: WorkspaceCreateAdvancedOptions
 }
 
 export async function createWorkspaceFromComposerSource(
@@ -99,9 +103,13 @@ async function createWorkItemWorkspace(args: {
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
+  advanced?: WorkspaceCreateAdvancedOptions
 }): Promise<WorktreeCreateResult> {
   const { client, selection, targetRepoId, setupDecision, agent, workspaceName, note } = args
   const item = selection.item
+  if (item.provider === 'jira') {
+    return createJiraWorkspace({ ...args, selection })
+  }
   const taskItem = toTaskItem(item, targetRepoId)
 
   // The composer resolves PR/MR base at select time; only re-resolve as a
@@ -135,7 +143,8 @@ async function createWorkItemWorkspace(args: {
     compareBaseRef,
     branchNameOverride,
     pushTarget,
-    nameIsAutoManaged: args.nameIsAutoManaged
+    nameIsAutoManaged: args.nameIsAutoManaged,
+    advanced: args.advanced
   })
   // buildTaskWorkspaceCreateParams computes the name; reuse it as the retry base
   // so collisions still append -2, -3, ... like the blank path does.
@@ -167,6 +176,7 @@ async function createBranchWorkspace(args: {
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
+  advanced?: WorkspaceCreateAdvancedOptions
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -183,6 +193,9 @@ async function createBranchWorkspace(args: {
   const manualDisplayName = nameIsAutoManaged === true ? undefined : workspaceName?.trim()
   const applyCommon = (params: Record<string, unknown>): Record<string, unknown> => {
     Object.assign(params, agentLaunchCreateFields(createdWithAgentId))
+    if (args.advanced) {
+      Object.assign(params, advancedWorkspaceCreateFields(args.advanced))
+    }
     if (comment) {
       params.comment = comment
     }
@@ -263,6 +276,7 @@ async function createNewBranchWorkspace(args: {
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
+  advanced?: WorkspaceCreateAdvancedOptions
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -302,6 +316,9 @@ async function createNewBranchWorkspace(args: {
       }
       if (comment) {
         params.comment = comment
+      }
+      if (args.advanced) {
+        Object.assign(params, advancedWorkspaceCreateFields(args.advanced))
       }
       return params
     }

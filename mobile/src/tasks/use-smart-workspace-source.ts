@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GitHubWorkItem } from '../../../src/shared/github/work-item-types'
 import type { GitLabWorkItem } from '../../../src/shared/gitlab-types'
+import type { JiraIssue } from '../../../src/shared/jira-types'
 import {
   buildSmartWorkspaceSourceRows,
   getSmartWorkspaceEmptyHint,
@@ -40,6 +41,9 @@ export type UseSmartWorkspaceSourceArgs = {
   githubAvailable: boolean
   gitlabAvailable: boolean
   linearAvailable: boolean
+  jiraIntent?: boolean
+  jiraIssue?: JiraIssue | null
+  jiraIssues?: JiraIssue[]
   mrStateFilter: MrStateFilter
   linearWorkspaceId?: string | null
   repos: readonly PasteRepoCandidate[]
@@ -66,6 +70,9 @@ export function useSmartWorkspaceSource(args: UseSmartWorkspaceSourceArgs) {
     githubAvailable,
     gitlabAvailable,
     linearAvailable,
+    jiraIntent,
+    jiraIssue,
+    jiraIssues,
     mrStateFilter,
     linearWorkspaceId,
     repos
@@ -157,11 +164,14 @@ export function useSmartWorkspaceSource(args: UseSmartWorkspaceSourceArgs) {
         gitlabItems: paste.gitlab ? [paste.gitlab] : fan.gitlabItems,
         linearAvailable,
         linearIssues: fan.linearIssues,
+        jiraIntent,
+        jiraIssue,
+        jiraIssues,
         mode,
         resultLimit: RESULT_LIMIT,
         value: query
       }),
-    [fan, gitlabAvailable, linearAvailable, mode, paste, query]
+    [fan, gitlabAvailable, jiraIntent, jiraIssue, jiraIssues, linearAvailable, mode, paste, query]
   )
 
   const dismissCrossRepoPrompt = useCallback(() => {

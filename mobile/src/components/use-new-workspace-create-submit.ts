@@ -1,5 +1,7 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { PersistedTrustedOrcaHooks } from '../../../src/shared/orca-yaml-hook-types'
+import { parseJiraIssueUrl } from '../../../src/shared/jira-issue-url'
+import type { SetupAgentStartupPolicy } from '../../../src/shared/orca-yaml-hook-types'
 import type { RetiredNameRegistry } from '../../../src/shared/worktree/retired-name-registry'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
@@ -13,7 +15,10 @@ import {
 } from '../tasks/setup-hook-trust'
 import { createWorkspaceFromComposerSource } from '../tasks/source-workspace-create'
 import { normalizeWorkspaceAgent } from '../tasks/workspace-agent-selection'
-import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-params'
+import type {
+  WorkspaceCreateAdvancedOptions,
+  WorkspaceCreateSetupDecision
+} from '../tasks/workspace-create-params'
 import type { WorkspaceSshGate } from '../tasks/workspace-ssh-gate'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import type { WorktreeCreateIdempotencySupport } from '../tasks/worktree-create-idempotency-policy'
@@ -28,11 +33,12 @@ import type { MobileWorktreeLocationState } from './use-mobile-worktree-location
 import type { SetupTrustPrompt } from './SetupHookTrustDrawer'
 import type { NewWorktreeDrawerView } from './use-new-worktree-drawer-navigation'
 import { getSuggestedCreatureName } from './worktree-name-suggestion'
-
-type CreateOptions = {
-  setupOverride?: Exclude<WorkspaceCreateSetupDecision, 'inherit'>
-  approvedSetupContentHash?: string
-}
+import { persistNewWorkspaceSetupPolicy } from '../worktree/new-workspace-setup-policy'
+import type {
+  NewWorkspaceCreateOptions,
+  NewWorkspaceCreateSubmitResult,
+  RecoveredCheckout
+} from './new-workspace-create-submit-types'
 
 type Composer = ReturnType<typeof useMobileComposerSource>
 
@@ -49,11 +55,13 @@ export function useNewWorkspaceCreateSubmit(args: {
   composer: Composer
   worktreeLocation: MobileWorktreeLocationState
   note: string
+  advanced: WorkspaceCreateAdvancedOptions
   existingWorktreePaths?: readonly string[]
   retiredWorktreeNames: RetiredNameRegistry
   setupCommand: string | null
   setupTrust: SetupHookTrust | null
   setupRunPolicy: SetupRunPolicy
+  setupAgentStartupPolicy: SetupAgentStartupPolicy
   setupDecisionChoice: Exclude<WorkspaceCreateSetupDecision, 'inherit'> | null
   runSetup: boolean
   trustedOrcaHooks: PersistedTrustedOrcaHooks
@@ -63,35 +71,14 @@ export function useNewWorkspaceCreateSubmit(args: {
   setError: Dispatch<SetStateAction<string>>
   onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
   onClose: () => void
-}): {
-  creating: boolean
-  setupTrustPrompt: SetupTrustPrompt | null
-  recoveredCheckout: {
-    worktreeId: string
-    name: string
-    warning: WorktreeCheckoutWarning
-    prompt: string
-    note: string
-  } | null
-  create: () => Promise<void>
-  openRecoveredWorkspace: () => void
-  approveSetupTrust: (alwaysTrust: boolean) => Promise<void>
-  closeSetupTrust: () => void
-  skipSetupTrust: () => void
-} {
+}): NewWorkspaceCreateSubmitResult {
   const createInFlightRef = useRef(false)
   const setupTrustActionInFlightRef = useRef(false)
   const [creating, setCreating] = useState(false)
   const [setupTrustPrompt, setSetupTrustPrompt] = useState<SetupTrustPrompt | null>(null)
-  const [recoveredCheckout, setRecoveredCheckout] = useState<{
-    worktreeId: string
-    name: string
-    warning: WorktreeCheckoutWarning
-    prompt: string
-    note: string
-  } | null>(null)
+  const [recoveredCheckout, setRecoveredCheckout] = useState<RecoveredCheckout | null>(null)
 
-  async function create(options: CreateOptions = {}): Promise<void> {
+  async function create(options: NewWorkspaceCreateOptions = {}): Promise<void> {
     const { client, selectedRepo } = args
     if (!client || !selectedRepo || createInFlightRef.current || recoveredCheckout) {
       return
@@ -130,6 +117,10 @@ export function useNewWorkspaceCreateSubmit(args: {
       }
 
       const trimmedName = args.composer.name.trim()
+      if (parseJiraIssueUrl(trimmedName) && args.composer.linkedWorkItem?.provider !== 'jira') {
+        args.setError('Select the Jira issue before creating a workspace from its URL.')
+        return
+      }
       const baseName =
         trimmedName ||
         getSuggestedCreatureName(
@@ -184,10 +175,19 @@ export function useNewWorkspaceCreateSubmit(args: {
         return
       }
 
+      if (args.setupCommand && setupDecision === 'run') {
+        await persistNewWorkspaceSetupPolicy({
+          client,
+          repoId: selectedRepo.id,
+          policy: args.setupAgentStartupPolicy
+        })
+      }
+
       const createdWithAgentId =
         args.selectedAgent.id !== '__blank__' ? args.selectedAgent.id : undefined
       const trimmedNote = args.note.trim() || undefined
       const selection = args.composer.createSelection
+      const advanced = selectedRepo.kind === 'folder' ? undefined : args.advanced
       const result = selection
         ? await createWorkspaceFromComposerSource({
             client,
@@ -200,7 +200,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             nameIsAutoManaged: args.composer.isNameAutoManaged,
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
             recoverCompletedCheckoutFailure: true,
-            explicitCreation: explicitCreation ?? undefined
+            explicitCreation: explicitCreation ?? undefined,
+            advanced
           })
         : await createBlankWorkspace({
             client,
@@ -213,7 +214,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             setupDecision,
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
             recoverCompletedCheckoutFailure: true,
-            explicitCreation: explicitCreation ?? undefined
+            explicitCreation: explicitCreation ?? undefined,
+            advanced
           })
       if ('error' in result) {
         args.setError(result.error)

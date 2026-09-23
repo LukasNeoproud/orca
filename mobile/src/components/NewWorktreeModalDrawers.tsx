@@ -27,6 +27,7 @@ export function NewWorktreeModalDrawers(props: {
   composer: Composer
   sourceAvailability: SmartModeAvailabilityInput
   selectedRepo: MobileWorkspaceRepo | null
+  selectedProjectIdForJira: string | null
   repos: MobileWorkspaceRepo[]
   pasteRepos: PasteRepoCandidate[]
   sshReady: boolean
@@ -35,11 +36,17 @@ export function NewWorktreeModalDrawers(props: {
   runTargetPickerItems: NewWorkspaceRunTargetOption<MobileWorkspaceRepo>[]
   pickerAgentOptions: NewWorktreeAgentOption[]
   selectedAgent: NewWorktreeAgentOption
+  parentItems: { id: string; label: string; detail?: string }[]
+  selectedParentId: string | null
+  sparseItems: { id: string; label: string; detail?: string }[]
+  selectedSparseId: string | null
   setupTrustPrompt: SetupTrustPrompt | null
   creating: boolean
   onSourceRepoChange: (repo: MobileWorkspaceRepo) => void
   onRepoChange: (repo: MobileWorkspaceRepo) => void
   onAgentChange: (agent: NewWorktreeAgentOption) => void
+  onParentChange: (id: string | null) => void
+  onSparseChange: (id: string | null) => void
   onTransitionToForm: () => void
   onApproveSetupTrust: (alwaysTrust: boolean) => void
   onSkipSetupTrust: () => void
@@ -53,6 +60,8 @@ export function NewWorktreeModalDrawers(props: {
         composer={props.composer}
         availability={props.sourceAvailability}
         repoId={props.selectedRepo?.id ?? null}
+        jiraProjectId={props.selectedProjectIdForJira}
+        jiraHostId={props.selectedRepo?.executionHostId}
         repos={props.pasteRepos}
         sshReady={props.sshReady}
         onRepoChange={(repoId) => {
@@ -99,6 +108,24 @@ export function NewWorktreeModalDrawers(props: {
         onSelect={props.onAgentChange}
         onClose={props.onTransitionToForm}
         renderIcon={(agent) => <MobileAgentIcon agentId={agent.id} size={18} />}
+      />
+
+      <PickerListDrawer
+        visible={props.visible && props.drawerView === 'parent'}
+        title="Parent worktree"
+        items={props.parentItems}
+        selectedId={props.selectedParentId ?? '__none__'}
+        onSelect={(item) => props.onParentChange(item.id === '__none__' ? null : item.id)}
+        onClose={props.onTransitionToForm}
+      />
+
+      <PickerListDrawer
+        visible={props.visible && props.drawerView === 'sparse'}
+        title="Sparse checkout"
+        items={props.sparseItems}
+        selectedId={props.selectedSparseId ?? '__none__'}
+        onSelect={(item) => props.onSparseChange(item.id === '__none__' ? null : item.id)}
+        onClose={props.onTransitionToForm}
       />
 
       <SetupHookTrustDrawer

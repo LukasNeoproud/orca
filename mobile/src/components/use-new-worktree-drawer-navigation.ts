@@ -9,6 +9,8 @@ export type NewWorktreeDrawerView =
   | 'project'
   | 'runTarget'
   | 'agent'
+  | 'parent'
+  | 'sparse'
   | 'trust'
 
 // Why: iOS cannot reliably present a second native modal until the first drawer's

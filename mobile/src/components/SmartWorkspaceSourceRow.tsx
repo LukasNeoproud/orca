@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { CaseSensitive, GitBranch, Sparkles } from 'lucide-react-native'
+import { CaseSensitive, GitBranch, Sparkles, Ticket } from 'lucide-react-native'
 import type { SmartWorkspaceSourceRow as SourceRow } from '../../../src/shared/new-workspace/smart-workspace-source-results'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { TaskProviderLogo } from './TaskProviderLogo'
@@ -56,6 +56,13 @@ function resolveRowContent(row: SourceRow): RowContent {
         title: row.issue.title,
         subtitle: `${row.issue.identifier} · ${row.issue.team?.key ?? 'Linear'}`,
         status: row.issue.state?.name
+      }
+    case 'jira':
+      return {
+        icon: <Ticket size={16} color={colors.textSecondary} />,
+        title: row.issue.title,
+        subtitle: `${row.issue.key} · ${row.issue.siteName ?? 'Jira'}`,
+        status: row.issue.status?.name
       }
     default:
       return { icon: <CaseSensitive size={16} color={colors.textSecondary} />, title: '' }

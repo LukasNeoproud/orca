@@ -28,6 +28,73 @@ function fakeClient(script: (method: string, call: number) => unknown, calls: Ca
 }
 
 describe('createBlankWorkspace', () => {
+  it('keeps the label, base ref, sparse preset, and parent separate from the branch name', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ worktree: { id: 'wt-advanced' } }), calls)
+    await createBlankWorkspace({
+      client,
+      repoId: 'repo-1',
+      baseName: 'feature/api',
+      createdWithAgentId: undefined,
+      comment: undefined,
+      setupDecision: 'inherit',
+      nameWasGenerated: false,
+      worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
+      advanced: {
+        displayLabel: '  API work  ',
+        baseRef: '  origin/release  ',
+        sparseCheckout: { directories: ['mobile'], presetId: 'preset-1' },
+        parentWorktreeId: 'parent-1'
+      }
+    })
+    expect(calls[0]?.params).toMatchObject({
+      name: 'feature/api',
+      displayName: 'API work',
+      displayNameKind: 'user',
+      baseBranch: 'origin/release',
+      sparseCheckout: { directories: ['mobile'], presetId: 'preset-1' },
+      parentWorkspace: 'worktree:parent-1',
+      parentWorkspaceOrigin: 'manual'
+    })
+    expect(calls[0]?.params).not.toHaveProperty('noParent')
+  })
+
+  it('sends an explicit no-parent choice', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ worktree: { id: 'wt-root' } }), calls)
+    await createBlankWorkspace({
+      client,
+      repoId: 'repo-1',
+      baseName: 'root',
+      createdWithAgentId: undefined,
+      comment: undefined,
+      setupDecision: 'inherit',
+      nameWasGenerated: false,
+      worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
+      advanced: { parentWorktreeId: null }
+    })
+    expect(calls[0]?.params).toMatchObject({ noParent: true })
+    expect(calls[0]?.params).not.toHaveProperty('parentWorkspace')
+  })
+
+  it('leaves parent inference untouched until the user chooses a parent option', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ worktree: { id: 'wt-default' } }), calls)
+    await createBlankWorkspace({
+      client,
+      repoId: 'repo-1',
+      baseName: 'default',
+      createdWithAgentId: undefined,
+      comment: undefined,
+      setupDecision: 'inherit',
+      nameWasGenerated: false,
+      worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
+      advanced: {}
+    })
+    expect(calls[0]?.params).not.toHaveProperty('noParent')
+    expect(calls[0]?.params).not.toHaveProperty('parentWorkspace')
+  })
+
   it('pins a manually entered blank-workspace name and sends no agent-launch fields', async () => {
     const calls: Call[] = []
     const client = fakeClient(() => ({ worktree: { id: 'wt-1' } }), calls)

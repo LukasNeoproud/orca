@@ -11,11 +11,33 @@ import {
   shouldApplyWorkspaceSourceAutoName
 } from '../../../src/shared/new-workspace/workspace-source'
 import { resolveComposerBranchPick as resolveSharedComposerBranchPick } from '../../../src/shared/composer-branch-selection'
+import { resolveComposerManualBranchNameChange } from '../../../src/shared/composer-branch-selection'
 import type {
+  ComposerBaseState,
   MobileComposerCreateSelection,
   MobileLinkedWorkItem,
   SmartNameSelection
 } from './mobile-composer-source-types'
+
+export function resolveMobileComposerBranchOverride(args: {
+  value: string
+  base: ComposerBaseState
+  forkPushWarning: string | null
+}): { base: ComposerBaseState; forkPushWarning: string | null } {
+  const next = resolveComposerManualBranchNameChange({
+    value: args.value,
+    pushTarget: args.base.pushTarget,
+    forkPushWarning: args.forkPushWarning
+  })
+  return {
+    base: {
+      ...args.base,
+      branchNameOverride: next.branchNameOverride,
+      pushTarget: next.pushTarget
+    },
+    forkPushWarning: next.forkPushWarning
+  }
+}
 import type { WorkspaceCreateGitPushTarget } from './workspace-create-params'
 
 export function buildGitHubLinkedWorkItem(item: {
@@ -66,6 +88,19 @@ export function resolveWorkItemAutoName(item: {
 
 export function resolveLinearAutoName(issue: { identifier: string; title: string }): string {
   return getLinearIssueWorkspaceName(issue)
+}
+
+export function resolveSelectedLinearName(args: {
+  issue: LinearIssue
+  currentName: string
+  lastAutoName: string
+}): string | undefined {
+  const suggested = resolveLinearAutoName(args.issue)
+  return suggested &&
+    (args.currentName.trim().toLowerCase() === args.issue.identifier.toLowerCase() ||
+      shouldApplyAutoName({ currentName: args.currentName, lastAutoName: args.lastAutoName }))
+    ? suggested
+    : undefined
 }
 
 // Derives the pill descriptor from the linked item (or a plain branch base),

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Keyboard } from 'react-native'
 import { getComposerRepoWorktreeBranches } from '../../../src/shared/composer-branch-selection'
+import { parseJiraIssueUrl } from '../../../src/shared/jira-issue-url'
 import { getProjectIdentityKey } from '../../../src/shared/project-host-setup-projection'
 import { shouldPreserveWorkspaceSourceOnRepoChange } from '../../../src/shared/new-workspace/workspace-source'
 import type { SmartModeAvailabilityInput } from '../tasks/mobile-smart-source-modes'
@@ -26,6 +27,7 @@ import { NewWorktreeFormSheet } from './NewWorktreeFormSheet'
 import { NewWorktreeModalDrawers } from './NewWorktreeModalDrawers'
 import { NewWorktreeCheckoutRecoverySheet } from './NewWorktreeCheckoutRecoverySheet'
 import { useNewWorkspaceAgentSelection } from './use-new-workspace-agent-selection'
+import { useNewWorkspaceAdvancedOptions } from './use-new-workspace-advanced-options'
 import { useNewWorkspaceCreateSubmit } from './use-new-workspace-create-submit'
 import { useNewWorkspaceExecutionTarget } from './use-new-workspace-execution-target'
 import { useNewWorkspaceRepositories } from './use-new-workspace-repositories'
@@ -77,6 +79,31 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     visible
   })
   const setupScript = useNewWorkspaceSetupScript({ client, selectedRepo })
+  const advanced = useNewWorkspaceAdvancedOptions({ client, visible, repo: selectedRepo })
+  const parentItems = useMemo(
+    () => [
+      { id: '__none__', label: 'No parent' },
+      ...(existingWorktrees ?? [])
+        .filter(
+          (worktree) =>
+            worktree.worktreeId &&
+            worktree.repoId === selectedRepo?.id &&
+            !worktree.isArchived &&
+            (!selectedRepo?.executionHostId ||
+              !worktree.hostId ||
+              worktree.hostId === selectedRepo.executionHostId)
+        )
+        .map((worktree) => ({
+          id: worktree.worktreeId!,
+          label: worktree.displayName || worktree.branch,
+          detail: worktree.branch
+        }))
+    ],
+    [existingWorktrees, selectedRepo]
+  )
+  const selectedParentId = parentItems.some((item) => item.id === advanced.parentWorktreeId)
+    ? advanced.parentWorktreeId
+    : null
   const selectedRepoWorktreeBranches = useMemo(
     () => getComposerRepoWorktreeBranches(existingWorktrees ?? [], selectedRepo?.id ?? null),
     [existingWorktrees, selectedRepo]
@@ -106,6 +133,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     repo: selectedRepo,
     name: composer.name,
     branchNameOverride: composer.branchNameOverride,
+    baseRefOverride: advanced.baseRef,
     selection: composer.createSelection
   })
   const createSubmit = useNewWorkspaceCreateSubmit({
@@ -121,11 +149,18 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     composer,
     worktreeLocation,
     note,
+    advanced: {
+      displayLabel: advanced.displayLabel,
+      baseRef: advanced.baseRef,
+      sparseCheckout: advanced.sparseCheckout,
+      parentWorktreeId: advanced.parentWorktreeId === null ? null : (selectedParentId ?? undefined)
+    },
     existingWorktreePaths,
     retiredWorktreeNames,
     setupCommand: setupScript.setupCommand,
     setupTrust: setupScript.setupTrust,
     setupRunPolicy: setupScript.setupRunPolicy,
+    setupAgentStartupPolicy: setupScript.setupAgentStartupPolicy,
     setupDecisionChoice: setupScript.setupDecisionChoice,
     runSetup: setupScript.runSetup,
     trustedOrcaHooks: runtime.trustedOrcaHooks,
@@ -167,8 +202,11 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     ? getNewWorkspaceRunTarget(selectedRepo, hostPlatform)
     : null
   const needsSetupChoice = Boolean(setupScript.setupCommand) && setupScript.setupRunPolicy === 'ask'
+  const unresolvedJiraUrl =
+    parseJiraIssueUrl(composer.name) !== null && composer.linkedWorkItem?.provider !== 'jira'
   const canCreate =
     selectedRepo != null &&
+    !unresolvedJiraUrl &&
     !createSubmit.creating &&
     !executionTarget.sshGate.requiresConnection &&
     (worktreeLocation.location === 'automatic' ||
@@ -178,7 +216,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         !worktreeLocation.pending)) &&
     (!needsSetupChoice || setupScript.setupDecisionChoice != null)
 
-  function openPicker(view: 'project' | 'runTarget' | 'agent'): void {
+  function openPicker(view: 'project' | 'runTarget' | 'agent' | 'parent' | 'sparse'): void {
     Keyboard.dismiss()
     navigation.transitionDrawer(view)
   }
@@ -224,14 +262,36 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         selectedRepoName={selectedRepo?.displayName ?? 'Remote repository'}
         sshGate={executionTarget.sshGate}
         composer={composer}
+        sourceIntentError={
+          unresolvedJiraUrl ? 'Open Create From and select the Jira issue before creating.' : ''
+        }
         worktreeLocation={worktreeLocation}
         selectedRepo={selectedRepo}
         selectedAgent={agentSelection.selectedAgent}
         showAdvanced={setupScript.showAdvanced}
+        displayLabel={advanced.displayLabel}
+        baseRef={advanced.baseRef}
+        baseRefPlaceholder={
+          composer.createSelection?.kind === 'branch' ||
+          composer.createSelection?.kind === 'work-item'
+            ? composer.createSelection.baseBranch ||
+              selectedRepo?.worktreeBaseRef ||
+              'Project default'
+            : selectedRepo?.worktreeBaseRef || 'Project default'
+        }
+        parentName={parentItems.find((item) => item.id === selectedParentId)?.label ?? 'No parent'}
+        sparseName={
+          advanced.presets.find((preset) => preset.id === advanced.selectedPresetId)?.name ??
+          'Full checkout'
+        }
+        sparseAvailable={advanced.canUseSparse}
+        sparseLoading={advanced.presetsLoading}
+        sparseError={advanced.presetsError}
         note={note}
         setupCommand={setupScript.setupCommand}
         setupSource={setupScript.setupSource}
         setupRunPolicy={setupScript.setupRunPolicy}
+        setupAgentStartupPolicy={setupScript.setupAgentStartupPolicy}
         setupDecisionChoice={setupScript.setupDecisionChoice}
         runSetup={setupScript.runSetup}
         error={error}
@@ -245,9 +305,14 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         onConnect={() => void executionTarget.connect()}
         onOpenAgent={() => openPicker('agent')}
         onShowAdvancedChange={setupScript.setShowAdvanced}
+        onDisplayLabelChange={advanced.setDisplayLabel}
+        onBaseRefChange={advanced.setBaseRef}
+        onOpenParent={() => openPicker('parent')}
+        onOpenSparse={() => openPicker('sparse')}
         onNoteChange={setNote}
         onSetupDecisionChange={setupScript.setSetupDecisionChoice}
         onRunSetupChange={setupScript.setRunSetup}
+        onSetupAgentStartupPolicyChange={setupScript.setSetupAgentStartupPolicy}
         onCreate={() => void createSubmit.create()}
       />
 
@@ -258,6 +323,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         composer={composer}
         sourceAvailability={sourceAvailability}
         selectedRepo={selectedRepo}
+        selectedProjectIdForJira={selectedProjectId}
         repos={repos}
         pasteRepos={pasteRepos}
         sshReady={!executionTarget.sshGate.requiresConnection}
@@ -266,6 +332,17 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         runTargetPickerItems={runTargetPickerItems}
         pickerAgentOptions={agentSelection.pickerAgentOptions}
         selectedAgent={agentSelection.selectedAgent}
+        parentItems={parentItems}
+        selectedParentId={selectedParentId ?? null}
+        sparseItems={[
+          { id: '__none__', label: 'Full checkout' },
+          ...advanced.presets.map((preset) => ({
+            id: preset.id,
+            label: preset.name,
+            detail: preset.directories.join(', ')
+          }))
+        ]}
+        selectedSparseId={advanced.selectedPresetId}
         setupTrustPrompt={createSubmit.setupTrustPrompt}
         creating={createSubmit.creating}
         onSourceRepoChange={(repo) => selectRepo(repo, false)}
@@ -274,6 +351,8 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
           agentSelection.setAgentOverridden(true)
           agentSelection.setSelectedAgent(agent)
         }}
+        onParentChange={advanced.setParentWorktreeId}
+        onSparseChange={advanced.setSelectedPresetId}
         onTransitionToForm={() => navigation.transitionDrawer('form')}
         onApproveSetupTrust={(alwaysTrust) => void createSubmit.approveSetupTrust(alwaysTrust)}
         onSkipSetupTrust={createSubmit.skipSetupTrust}

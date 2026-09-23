@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { SetupAgentStartupPolicy } from '../../../src/shared/orca-yaml-hook-types'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
 import { normalizeSetupHookTrust } from '../tasks/setup-hook-trust'
@@ -17,6 +18,8 @@ export function useNewWorkspaceSetupScript(args: {
   setupSource: string | null
   setupTrust: SetupHookDetails['trust']
   setupRunPolicy: SetupHookDetails['runPolicy']
+  setupAgentStartupPolicy: SetupAgentStartupPolicy
+  setSetupAgentStartupPolicy: (policy: SetupAgentStartupPolicy) => void
   setupDecisionChoice: Exclude<WorkspaceCreateSetupDecision, 'inherit'> | null
   setSetupDecisionChoice: (decision: Exclude<WorkspaceCreateSetupDecision, 'inherit'>) => void
   runSetup: boolean
@@ -32,6 +35,10 @@ export function useNewWorkspaceSetupScript(args: {
   > | null>(null)
   const [runSetup, setRunSetup] = useState(true)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [startupPolicyChoice, setStartupPolicyChoice] = useState<{
+    repoId: string
+    policy: SetupAgentStartupPolicy
+  } | null>(null)
   const activeDetails = selectedRepo && details?.repoId === selectedRepo.id ? details : null
 
   useEffect(() => {
@@ -83,6 +90,15 @@ export function useNewWorkspaceSetupScript(args: {
     setupSource: activeDetails?.source ?? null,
     setupTrust: activeDetails?.trust ?? null,
     setupRunPolicy: activeDetails?.runPolicy ?? 'run-by-default',
+    setupAgentStartupPolicy:
+      startupPolicyChoice && startupPolicyChoice.repoId === selectedRepo?.id
+        ? startupPolicyChoice.policy
+        : (selectedRepo?.hookSettings?.setupAgentStartupPolicy ?? 'start-immediately'),
+    setSetupAgentStartupPolicy: (policy) => {
+      if (selectedRepo) {
+        setStartupPolicyChoice({ repoId: selectedRepo.id, policy })
+      }
+    },
     setupDecisionChoice,
     setSetupDecisionChoice,
     runSetup,

@@ -11,6 +11,11 @@ import {
 import type { RpcClient } from '../transport/rpc-client'
 import type { SmartWorkspaceSourceRow as SourceRow } from '../../../src/shared/new-workspace/smart-workspace-source-results'
 import {
+  getMatchingJiraSites,
+  isResolvedJiraIssueMatch,
+  parseJiraIssueUrl
+} from '../../../src/shared/jira-issue-url'
+import {
   MR_STATE_FILTER_OPTIONS,
   resolveAvailableSmartModes,
   resolveDefaultSmartMode,
@@ -24,6 +29,8 @@ import {
   type PasteRepoCandidate
 } from '../tasks/smart-source-paste-intent'
 import { useSmartWorkspaceSource } from '../tasks/use-smart-workspace-source'
+import { useMobileJiraSource } from '../tasks/use-mobile-jira-source'
+import { buildMobileJiraSourceContext } from '../tasks/mobile-jira-source-context'
 import type { MobileComposerSource } from '../tasks/use-mobile-composer-source'
 import { colors } from '../theme/mobile-theme'
 import { BottomDrawer } from './BottomDrawer'
@@ -41,6 +48,8 @@ type Props = {
   composer: MobileComposerSource
   availability: SmartModeAvailabilityInput
   repoId: string | null
+  jiraProjectId: string | null
+  jiraHostId?: string | null
   repos: readonly PasteRepoCandidate[]
   linearWorkspaceId?: string | null
   sshReady: boolean
@@ -54,6 +63,8 @@ export function SmartWorkspaceSourceDrawer({
   composer,
   availability,
   repoId,
+  jiraProjectId,
+  jiraHostId,
   repos,
   linearWorkspaceId,
   sshReady,
@@ -63,6 +74,7 @@ export function SmartWorkspaceSourceDrawer({
   const availableModes = useMemo(() => resolveAvailableSmartModes(availability), [availability])
   const [mode, setMode] = useState<SmartNameMode>(() => resolveDefaultSmartMode(availability))
   const [mrStateFilter, setMrStateFilter] = useState<MrStateFilter>('opened')
+  const [jiraSelectionError, setJiraSelectionError] = useState('')
   const inputRef = useRef<TextInput>(null)
   // Why: read latest availability inside the open effect without making it a
   // reactive dep (the object is recreated each render), so re-seeding happens
@@ -102,7 +114,18 @@ export function SmartWorkspaceSourceDrawer({
 
   // Linear searches without a repo; every other provider/branch search needs a
   // connected repo-backed target.
-  const searchEnabled = visible && (effectiveMode === 'linear' || sshReady)
+  const searchEnabled =
+    visible && (effectiveMode === 'linear' || effectiveMode === 'jira' || sshReady)
+  const jira = useMobileJiraSource({
+    client,
+    enabled: visible,
+    mode: effectiveMode === 'smart' || effectiveMode === 'jira' ? effectiveMode : 'other',
+    query: composer.name
+  })
+  const jiraOwnsResults = jira.intent || effectiveMode === 'jira'
+  useEffect(() => {
+    setJiraSelectionError('')
+  }, [composer.name, effectiveMode])
 
   const {
     rows,
@@ -114,13 +137,16 @@ export function SmartWorkspaceSourceDrawer({
     dismissCrossRepoPrompt
   } = useSmartWorkspaceSource({
     client,
-    enabled: searchEnabled,
+    enabled: searchEnabled && !jiraOwnsResults,
     mode: effectiveMode,
     query: composer.name,
     repoId,
     githubAvailable: availability.githubAvailable,
     gitlabAvailable: availability.gitlabAvailable,
     linearAvailable: availability.linearAvailable,
+    jiraIntent: jira.intent,
+    jiraIssue: jira.issue,
+    jiraIssues: jira.issues,
     mrStateFilter,
     linearWorkspaceId,
     repos
@@ -145,6 +171,32 @@ export function SmartWorkspaceSourceDrawer({
         break
       case 'linear':
         composer.handleSmartLinearIssueSelect(row.issue)
+        break
+      case 'jira':
+        {
+          const parsed = parseJiraIssueUrl(row.issue.url)
+          const matches = parsed ? getMatchingJiraSites(parsed, jira.sites) : []
+          const site = matches.find((candidate) => candidate.id === row.issue.siteId)
+          const context =
+            site &&
+            parsed &&
+            isResolvedJiraIssueMatch(parsed, site, row.issue) &&
+            repoId &&
+            jiraProjectId
+              ? buildMobileJiraSourceContext({
+                  projectId: jiraProjectId,
+                  hostId: jiraHostId,
+                  repoId,
+                  site,
+                  issue: row.issue
+                })
+              : null
+          if (!context) {
+            setJiraSelectionError('Jira account details are unavailable on this host.')
+            return
+          }
+          composer.handleSmartJiraIssueSelect(row.issue, context)
+        }
         break
     }
     onClose()
@@ -173,8 +225,14 @@ export function SmartWorkspaceSourceDrawer({
     }
   }
 
+  const shownLoading = loading || (jiraOwnsResults && jira.loading)
+  const shownError = jiraSelectionError || (jiraOwnsResults ? jira.error : error)
   const showEmpty =
-    !loading && !error && !needsGitHubRemote && effectiveMode !== 'text' && rows.length === 0
+    !shownLoading &&
+    !shownError &&
+    (jiraOwnsResults || !needsGitHubRemote) &&
+    effectiveMode !== 'text' &&
+    rows.length === 0
 
   const modeTabs = SMART_MODE_OPTIONS.filter((option: SmartModeOption) =>
     availableModes.includes(option.id)
@@ -225,14 +283,17 @@ export function SmartWorkspaceSourceDrawer({
             </View>
           ) : null}
 
-          {!sshReady && effectiveMode !== 'text' && effectiveMode !== 'linear' ? (
+          {!sshReady &&
+          effectiveMode !== 'text' &&
+          effectiveMode !== 'linear' &&
+          !jiraOwnsResults ? (
             <Text style={styles.notice}>Connect the repository to search sources.</Text>
-          ) : needsGitHubRemote ? (
+          ) : !jiraOwnsResults && needsGitHubRemote ? (
             <Text style={styles.notice}>
               This SSH repo needs a GitHub remote to list issues and PRs.
             </Text>
-          ) : error ? (
-            <Text style={styles.errorNotice}>{error}</Text>
+          ) : shownError ? (
+            <Text style={styles.errorNotice}>{shownError}</Text>
           ) : null}
 
           <FlatList
@@ -244,7 +305,7 @@ export function SmartWorkspaceSourceDrawer({
             keyboardDismissMode="none"
             nestedScrollEnabled
             ListFooterComponent={
-              loading ? (
+              shownLoading ? (
                 <View style={styles.loading}>
                   <ActivityIndicator size="small" color={colors.textSecondary} />
                 </View>

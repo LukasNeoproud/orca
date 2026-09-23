@@ -1,8 +1,10 @@
 import { MOBILE_RPC_BACKLOG_METHODS } from './runtime-rpc-mobile-backlog-methods'
 import { MOBILE_RPC_AGENT_CONVERSATION_METHODS } from './runtime-rpc-mobile-agent-conversation-methods'
+import { MOBILE_RPC_JIRA_SOURCE_METHODS } from './runtime-rpc-mobile-jira-methods'
 
 export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   ...MOBILE_RPC_AGENT_CONVERSATION_METHODS,
+  ...MOBILE_RPC_JIRA_SOURCE_METHODS,
   'accounts.list',
   'accounts.consumeCodexResetCredit',
   'accounts.selectClaude',

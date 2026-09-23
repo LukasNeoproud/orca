@@ -4,7 +4,7 @@ import type { MrStateFilter, SmartNameMode } from './mobile-composer-source-type
 // SVGs (TaskProviderLogo) for the provider modes since lucide dropped its brand
 // icons.
 export type SmartModeIcon =
-  | { type: 'lucide'; name: 'sparkles' | 'git-branch' | 'case-sensitive' }
+  | { type: 'lucide'; name: 'sparkles' | 'git-branch' | 'case-sensitive' | 'ticket' }
   | { type: 'provider'; provider: 'github' | 'gitlab' | 'linear' }
 
 export type SmartModeOption = {
@@ -19,6 +19,7 @@ export const SMART_MODE_OPTIONS: readonly SmartModeOption[] = [
   { id: 'smart', label: 'Smart', icon: { type: 'lucide', name: 'sparkles' } },
   { id: 'github', label: 'GitHub', icon: { type: 'provider', provider: 'github' } },
   { id: 'linear', label: 'Linear', icon: { type: 'provider', provider: 'linear' } },
+  { id: 'jira', label: 'Jira', icon: { type: 'lucide', name: 'ticket' } },
   { id: 'gitlab', label: 'GitLab', icon: { type: 'provider', provider: 'gitlab' } },
   { id: 'branches', label: 'Branch', icon: { type: 'lucide', name: 'git-branch' } },
   { id: 'text', label: 'Name', icon: { type: 'lucide', name: 'case-sensitive' } }
@@ -51,6 +52,8 @@ export function resolveAvailableSmartModes(input: SmartModeAvailabilityInput): S
         return input.tasksSupported && input.hasRepo && input.gitlabAvailable
       case 'linear':
         return input.tasksSupported && input.linearAvailable
+      case 'jira':
+        return input.tasksSupported && input.hasRepo
       case 'branches':
         return input.hasRepo
       case 'text':

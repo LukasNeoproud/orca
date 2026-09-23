@@ -22,6 +22,7 @@ describe('resolveAvailableSmartModes', () => {
       'smart',
       'github',
       'linear',
+      'jira',
       'gitlab',
       'branches',
       'text'
@@ -46,7 +47,7 @@ describe('resolveAvailableSmartModes', () => {
         githubAvailable: false,
         gitlabAvailable: false
       })
-    ).toEqual(['smart', 'linear', 'branches', 'text'])
+    ).toEqual(['smart', 'linear', 'jira', 'branches', 'text'])
     expect(resolveAvailableSmartModes({ ...fullyAvailable, hasRepo: false })).toEqual([
       'smart',
       'linear',

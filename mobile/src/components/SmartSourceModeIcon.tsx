@@ -1,4 +1,4 @@
-import { CaseSensitive, GitBranch, Sparkles } from 'lucide-react-native'
+import { CaseSensitive, GitBranch, Sparkles, Ticket } from 'lucide-react-native'
 import type { SmartModeIcon } from '../tasks/mobile-smart-source-modes'
 import { TaskProviderLogo } from './TaskProviderLogo'
 
@@ -13,6 +13,9 @@ export function SmartSourceModeIcon({ icon, color }: { icon: SmartModeIcon; colo
   }
   if (icon.name === 'git-branch') {
     return <GitBranch size={14} color={color} />
+  }
+  if (icon.name === 'ticket') {
+    return <Ticket size={14} color={color} />
   }
   return <CaseSensitive size={14} color={color} />
 }

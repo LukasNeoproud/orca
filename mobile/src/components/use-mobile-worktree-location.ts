@@ -16,6 +16,7 @@ export function useMobileWorktreeLocation(args: {
   repo: MobileWorkspaceRepo | null
   name: string
   branchNameOverride?: string
+  baseRefOverride?: string
   selection: MobileComposerCreateSelection | null
 }) {
   const [location, setLocation] = useState<MobileWorktreeLocation>('automatic')
@@ -42,7 +43,8 @@ export function useMobileWorktreeLocation(args: {
     [args.name, args.branchNameOverride, args.selection, customRoot, layout, location]
   )
   const baseBranch =
-    args.selection?.kind === 'branch' ? args.selection.baseBranch : args.repo?.worktreeBaseRef
+    args.baseRefOverride?.trim() ||
+    (args.selection?.kind === 'branch' ? args.selection.baseBranch : args.repo?.worktreeBaseRef)
   const previewKey = JSON.stringify({
     repoId: args.repo?.id,
     baseBranch,

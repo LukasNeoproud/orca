@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { createWorkspaceFromComposerSource } from './source-workspace-create'
 import type { MobileComposerCreateSelection } from './mobile-composer-source-types'
+import { normalizeTaskSourceContext } from '../../../src/shared/task-source-context'
+import { WORKTREE_LINKED_WORK_ITEM_CONTEXT_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
 import { WORKTREE_CREATE_DEDUPE_TTL_LEGACY_HOST_MS } from './worktree-create-idempotency-policy'
 
 type Call = { method: string; params: Record<string, unknown> }
@@ -39,6 +41,131 @@ const baseArgs = {
 }
 
 describe('createWorkspaceFromComposerSource', () => {
+  it('creates a Jira workspace with issue and account provenance', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(
+      (method) =>
+        method === 'status.get'
+          ? { capabilities: [WORKTREE_LINKED_WORK_ITEM_CONTEXT_RUNTIME_CAPABILITY] }
+          : { worktree: { id: 'jira-worktree' } },
+      calls
+    )
+    const sourceContext = normalizeTaskSourceContext({
+      provider: 'jira',
+      projectId: 'project-1',
+      hostId: 'local',
+      repoId: 'repo-1',
+      providerIdentity: {
+        provider: 'jira',
+        siteId: 'site-1',
+        siteUrl: 'https://acme.atlassian.net',
+        projectKey: 'ORCA'
+      }
+    })!
+    await createWorkspaceFromComposerSource({
+      client,
+      selection: {
+        kind: 'work-item',
+        item: {
+          provider: 'jira',
+          type: 'issue',
+          number: 0,
+          title: 'Fix setup',
+          url: 'https://acme.atlassian.net/browse/ORCA-7',
+          jiraIdentifier: 'ORCA-7',
+          jiraSourceContext: sourceContext
+        }
+      },
+      ...baseArgs,
+      advanced: { parentWorktreeId: null }
+    })
+    const create = calls.find((call) => call.method === 'worktree.create')!
+    expect(create.params).toMatchObject({
+      repo: 'id:repo-1',
+      name: 'orca-7',
+      linkedWorkItem: { provider: 'jira', jiraIdentifier: 'ORCA-7' },
+      linkedTaskSourceContext: sourceContext,
+      noParent: true
+    })
+    expect(create.params.linkedWorkItem).not.toHaveProperty('jiraSourceContext')
+  })
+
+  it('rejects Jira creation when the host cannot preserve issue provenance', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ capabilities: [] }), calls)
+    const result = await createWorkspaceFromComposerSource({
+      client,
+      selection: {
+        kind: 'work-item',
+        item: {
+          provider: 'jira',
+          type: 'issue',
+          number: 0,
+          title: 'Fix setup',
+          url: 'https://acme.atlassian.net/browse/ORCA-7',
+          jiraIdentifier: 'ORCA-7'
+        }
+      },
+      ...baseArgs
+    })
+    expect(result).toEqual({ error: 'Update Orca on the host to link Jira issues to worktrees.' })
+    expect(calls.map((call) => call.method)).toEqual(['status.get'])
+  })
+
+  it('applies advanced choices to linked work items while preserving source links', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ worktree: { id: 'wt-advanced' } }), calls)
+    const selection: MobileComposerCreateSelection = {
+      kind: 'work-item',
+      item: {
+        provider: 'github',
+        type: 'issue',
+        number: 12,
+        title: 'Bug',
+        url: 'u',
+        repoId: 'repo-1'
+      },
+      baseBranch: 'main'
+    }
+    await createWorkspaceFromComposerSource({
+      client,
+      selection,
+      ...baseArgs,
+      advanced: {
+        displayLabel: 'Fix checkout',
+        baseRef: 'origin/stable',
+        sparseCheckout: { directories: ['src'], presetId: 'preset-1' },
+        parentWorktreeId: 'parent-1'
+      }
+    })
+    expect(calls[0]!.params).toMatchObject({
+      linkedIssue: 12,
+      displayName: 'Fix checkout',
+      displayNameKind: 'user',
+      baseBranch: 'origin/stable',
+      sparseCheckout: { directories: ['src'], presetId: 'preset-1' },
+      parentWorkspace: 'worktree:parent-1',
+      parentWorkspaceOrigin: 'manual'
+    })
+  })
+
+  it('applies a custom base ref to a new branch without changing its branch name', async () => {
+    const calls: Call[] = []
+    const client = fakeClient(() => ({ worktree: { id: 'wt-new' } }), calls)
+    await createWorkspaceFromComposerSource({
+      client,
+      selection: { kind: 'new-branch', branchName: 'feature/login' },
+      ...baseArgs,
+      advanced: { baseRef: 'origin/develop', parentWorktreeId: null }
+    })
+    expect(calls[0]!.params).toMatchObject({
+      name: 'feature/login',
+      branchNameOverride: 'feature/login',
+      baseBranch: 'origin/develop',
+      noParent: true
+    })
+  })
+
   it('creates a GitHub issue workspace linking the issue to its own repo', async () => {
     const calls: Call[] = []
     const client = fakeClient(() => ({ worktree: { id: 'wt-1' } }), calls)

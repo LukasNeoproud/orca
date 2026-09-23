@@ -4,7 +4,9 @@ import { createWorktreeWithNameRetry, type WorktreeCreateResult } from './worktr
 import type { WorktreeCreateIdempotencyProbe } from './worktree-create-idempotency-policy'
 import type { ExplicitWorktreeCreation } from '../../../src/shared/worktree/explicit-creation'
 import {
+  advancedWorkspaceCreateFields,
   agentLaunchCreateFields,
+  type WorkspaceCreateAdvancedOptions,
   type WorkspaceCreateSetupDecision
 } from './workspace-create-params'
 
@@ -25,6 +27,7 @@ export async function createBlankWorkspace(args: {
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
+  advanced?: WorkspaceCreateAdvancedOptions
 }): Promise<WorktreeCreateResult> {
   return createWorktreeWithNameRetry({
     client: args.client,
@@ -48,6 +51,9 @@ export async function createBlankWorkspace(args: {
           : { displayName: args.baseName, displayNameKind: 'user' as const }),
         ...(args.nameWasGenerated ? { nameWasGenerated: true } : {}),
         ...agentLaunchCreateFields(args.createdWithAgentId)
+      }
+      if (args.advanced) {
+        Object.assign(params, advancedWorkspaceCreateFields(args.advanced))
       }
       if (args.comment) {
         params.comment = args.comment
