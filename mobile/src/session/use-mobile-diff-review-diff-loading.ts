@@ -40,7 +40,7 @@ export function useMobileDiffReviewDiffLoading(input: DiffLoadingInput): ReviewD
     }
     const itemKey = currentItem.key
     const keepLoadedDiff = (fallback: ReviewDiffState) => (prev: ReviewDiffState) =>
-      prev.kind === 'ready' && prev.itemKey === itemKey ? prev : fallback
+      (prev.kind === 'ready' || prev.kind === 'image') && prev.itemKey === itemKey ? prev : fallback
     if (!client || connState !== 'connected') {
       setDiffState(keepLoadedDiff({ kind: 'error', itemKey, message: 'Waiting for desktop...' }))
       return

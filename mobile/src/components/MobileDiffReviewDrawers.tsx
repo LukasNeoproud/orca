@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native'
-import { Check, Copy, FileText, Plus, Send, Trash2, X } from 'lucide-react-native'
-import type { DiffComment } from '../../../src/shared/diff-comment-types'
+import { Check, Copy, FileText, Minus, Plus, Send, Trash2, X } from 'lucide-react-native'
+import type { DiffComment, ImageReviewRegion } from '../../../src/shared/diff-comment-types'
 import { colors } from '../theme/mobile-theme'
 import type { ActionSheetAction } from './ActionSheetModal'
 import { ActionSheetModal } from './ActionSheetModal'
@@ -10,6 +10,7 @@ import { ConfirmModal } from './ConfirmModal'
 import { mobileReviewCountLabel } from '../session/mobile-diff-review-screen-model'
 import type { useMobileDiffReviewController } from '../session/use-mobile-diff-review-controller'
 import { mobileDiffReviewStyles as styles } from './mobile-diff-review-screen-styles'
+import { adjustMobileImageRegion } from '../session/mobile-image-review-region'
 
 type Props = {
   controller: ReturnType<typeof useMobileDiffReviewController>
@@ -171,9 +172,12 @@ function NoteComposerDrawer({ controller }: Props) {
               {composer?.mode === 'edit' ? 'Edit Note' : 'Add Note'}
             </Text>
             <Text style={styles.drawerSubtitle}>
-              {composer?.mode === 'create' && composer.lineNumber > 0
-                ? `Line ${composer.lineNumber}`
-                : 'File note'}
+              {composer?.mode === 'create-image' ||
+              (composer?.mode === 'edit' && composer.imageRegion)
+                ? 'Changed image area'
+                : composer?.mode === 'create' && composer.lineNumber > 0
+                  ? `Line ${composer.lineNumber}`
+                  : 'File note'}
             </Text>
           </View>
           <Pressable
@@ -195,6 +199,12 @@ function NoteComposerDrawer({ controller }: Props) {
           placeholderTextColor={colors.textMuted}
           accessibilityLabel={composerLabel(composer)}
         />
+        {composer && composer.mode !== 'create' && composer.imageRegion ? (
+          <ImageRegionControls
+            region={composer.imageRegion}
+            onChange={controller.setComposerImageRegion}
+          />
+        ) : null}
         <View style={styles.drawerButtonRow}>
           {composer?.mode === 'edit' ? (
             <DeleteNoteButton onPress={controller.deleteComment} />
@@ -207,11 +217,55 @@ function NoteComposerDrawer({ controller }: Props) {
 }
 
 function composerLabel(
-  composer: { mode: 'create'; lineNumber: number } | { mode: 'edit'; comment: DiffComment } | null
+  composer:
+    | { mode: 'create'; lineNumber: number }
+    | { mode: 'create-image'; imageRegion: ImageReviewRegion }
+    | { mode: 'edit'; comment: DiffComment; imageRegion?: ImageReviewRegion }
+    | null
 ): string {
-  return composer?.mode === 'create' && composer.lineNumber > 0
-    ? `Save note on line ${composer.lineNumber}`
+  if (composer?.mode === 'create' && composer.lineNumber > 0) {
+    return `Save note on line ${composer.lineNumber}`
+  }
+  return composer?.mode === 'create-image' || (composer?.mode === 'edit' && composer.imageRegion)
+    ? 'Save note on selected image area'
     : 'Review note'
+}
+
+function ImageRegionControls({
+  region,
+  onChange
+}: {
+  region: ImageReviewRegion
+  onChange: (region: ImageReviewRegion) => void
+}) {
+  return (
+    <View style={styles.regionControls} accessibilityLabel="Image area coordinates in percent">
+      {(['x', 'y', 'width', 'height'] as const).map((field) => (
+        <View key={field} style={styles.regionControl}>
+          <Text style={styles.regionControlLabel}>
+            {field === 'width' ? 'W' : field === 'height' ? 'H' : field.toUpperCase()}
+          </Text>
+          <Pressable
+            style={styles.regionStepButton}
+            onPress={() => onChange(adjustMobileImageRegion(region, field, -1))}
+            accessibilityRole="button"
+            accessibilityLabel={`Decrease ${field}`}
+          >
+            <Minus size={15} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.regionControlValue}>{region[field].toFixed(1)}%</Text>
+          <Pressable
+            style={styles.regionStepButton}
+            onPress={() => onChange(adjustMobileImageRegion(region, field, 1))}
+            accessibilityRole="button"
+            accessibilityLabel={`Increase ${field}`}
+          >
+            <Plus size={15} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  )
 }
 
 function DeleteNoteButton({ onPress }: { onPress: () => Promise<void> }) {

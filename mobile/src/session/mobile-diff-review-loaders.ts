@@ -7,6 +7,7 @@ import {
 import { normalizeMobileDiffComments } from './mobile-diff-comments'
 import { buildMobileDiffHunks } from './mobile-diff-hunks'
 import { highlightMobileDiffLines, resolveMobileSyntaxLanguage } from './mobile-file-syntax'
+import { mobileDiffImageSides } from '../files/mobile-diff-image-preview'
 import {
   readMobileBranchCompareResult,
   readMobileGitStatusResult,
@@ -143,6 +144,10 @@ export async function loadMobileDiffReviewDiff(input: DiffLoadInput): Promise<Re
     throw new Error('Diff response was invalid')
   }
   if (result.kind === 'binary') {
+    const image = mobileDiffImageSides(result)
+    if (image) {
+      return { kind: 'image', itemKey: item.key, ...image }
+    }
     return { kind: 'binary', itemKey: item.key }
   }
   if (result.kind === 'too-large') {

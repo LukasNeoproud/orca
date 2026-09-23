@@ -1,9 +1,11 @@
-import type { DiffComment } from '../../../src/shared/diff-comment-types'
+import type { DiffComment, ImageReviewRegion } from '../../../src/shared/diff-comment-types'
+import { normalizeMobileImageRegion } from './mobile-diff-comments'
 
 export type UpdateMobileDiffCommentInput = {
   id: string
   body: string
   updatedAt: number
+  imageRegion?: ImageReviewRegion
 }
 
 export function updateMobileDiffComment(
@@ -22,6 +24,9 @@ export function updateMobileDiffComment(
     updatedComment = {
       ...comment,
       body,
+      ...(input.imageRegion && comment.source === 'image'
+        ? { imageRegion: normalizeMobileImageRegion(input.imageRegion) ?? comment.imageRegion }
+        : {}),
       updatedAt: input.updatedAt,
       sentAt: undefined
     }

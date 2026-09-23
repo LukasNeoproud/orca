@@ -1,5 +1,9 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
-import type { DiffComment, MobileDiffReviewState } from '../../../src/shared/diff-comment-types'
+import type {
+  DiffComment,
+  ImageReviewRegion,
+  MobileDiffReviewState
+} from '../../../src/shared/diff-comment-types'
 import { triggerError, triggerSuccess } from '../platform/haptics'
 import type { ConnectionState } from '../transport/types'
 import type { RpcClient } from '../transport/rpc-client'
@@ -114,10 +118,30 @@ export function useMobileDiffReviewCommentActions(input: CommentActionsInput) {
 
   const openEditComposer = useCallback(
     (comment: DiffComment) => {
-      setComposer({ mode: 'edit', comment })
+      setComposer({ mode: 'edit', comment, imageRegion: comment.imageRegion })
       setComposerBody(comment.body)
     },
     [setComposer, setComposerBody]
+  )
+
+  const openImageComposer = useCallback(
+    (imageRegion: ImageReviewRegion) => {
+      setComposer({ mode: 'create-image', imageRegion })
+      setComposerBody('')
+    },
+    [setComposer, setComposerBody]
+  )
+
+  const setComposerImageRegion = useCallback(
+    (imageRegion: ImageReviewRegion) => {
+      setComposer((current) => {
+        if (!current || current.mode === 'create') {
+          return current
+        }
+        return { ...current, imageRegion }
+      })
+    },
+    [setComposer]
   )
 
   const closeComposer = useCallback(() => {
@@ -135,18 +159,21 @@ export function useMobileDiffReviewCommentActions(input: CommentActionsInput) {
         ? updateMobileDiffComment(screenState.comments, {
             id: composer.comment.id,
             body: composerBody,
-            updatedAt: now
+            updatedAt: now,
+            imageRegion: composer.imageRegion
           })
         : addMobileDiffComment(screenState.comments, {
             id: `mobile-${now}-${Math.random().toString(36).slice(2)}`,
             worktreeId,
             filePath: currentItem.filePath,
             oldPath: currentItem.oldPath,
-            lineNumber: composer.lineNumber,
+            lineNumber: composer.mode === 'create' ? composer.lineNumber : 0,
             body: composerBody,
             createdAt: now,
             scope: currentItem.scope,
-            diffIdentity: currentItem.diffIdentity
+            diffIdentity: currentItem.diffIdentity,
+            source: composer.mode === 'create-image' ? 'image' : 'diff',
+            imageRegion: composer.mode === 'create-image' ? composer.imageRegion : undefined
           })
     if (!result.comment) {
       return
@@ -234,7 +261,9 @@ export function useMobileDiffReviewCommentActions(input: CommentActionsInput) {
     markReviewed,
     markUnreviewed,
     openComposer,
+    openImageComposer,
     openEditComposer,
+    setComposerImageRegion,
     saveCommentsAndReviewState,
     saveComposer
   }

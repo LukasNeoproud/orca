@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mobileDiffImageDataUri } from './mobile-diff-image-preview'
+import { mobileDiffImageDataUri, mobileDiffImageSides } from './mobile-diff-image-preview'
 
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l8sm7wAAAABJRU5ErkJggg=='
@@ -122,5 +122,63 @@ describe('mobileDiffImageDataUri', () => {
         isImage: true
       })
     ).toBeNull()
+  })
+
+  it('keeps both image sides for review', () => {
+    expect(
+      mobileDiffImageSides({
+        kind: 'binary',
+        originalContent: PNG_BASE64,
+        modifiedContent: PNG_BASE64,
+        originalIsBinary: true,
+        modifiedIsBinary: true,
+        isImage: true,
+        mimeType: 'image/png'
+      })
+    ).toEqual({
+      mimeType: 'image/png',
+      original: { kind: 'ready', uri: `data:image/png;base64,${PNG_BASE64}` },
+      modified: { kind: 'ready', uri: `data:image/png;base64,${PNG_BASE64}` }
+    })
+  })
+
+  it('labels the missing side of added and deleted image diffs', () => {
+    expect(
+      mobileDiffImageSides({
+        kind: 'binary',
+        originalContent: '',
+        modifiedContent: PNG_BASE64,
+        originalIsBinary: false,
+        modifiedIsBinary: true,
+        isImage: true,
+        mimeType: 'image/png'
+      })?.original
+    ).toEqual({ kind: 'absent' })
+    expect(
+      mobileDiffImageSides({
+        kind: 'binary',
+        originalContent: PNG_BASE64,
+        modifiedContent: '',
+        originalIsBinary: true,
+        modifiedIsBinary: false,
+        modifiedDeleted: true,
+        isImage: true,
+        mimeType: 'image/png'
+      })?.modified
+    ).toEqual({ kind: 'absent' })
+  })
+
+  it('keeps an unreadable changed image unavailable instead of showing stale original bytes', () => {
+    expect(
+      mobileDiffImageSides({
+        kind: 'binary',
+        originalContent: PNG_BASE64,
+        modifiedContent: '',
+        originalIsBinary: true,
+        modifiedIsBinary: true,
+        isImage: true,
+        mimeType: 'image/png'
+      })?.modified
+    ).toEqual({ kind: 'unavailable' })
   })
 })

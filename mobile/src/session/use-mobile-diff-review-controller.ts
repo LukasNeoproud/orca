@@ -201,12 +201,20 @@ export function useMobileDiffReviewController(input: ControllerInput) {
   const commentsByLine = useMemo(() => {
     const map = new Map<number, DiffComment[]>()
     for (const comment of commentsForCurrentItem) {
+      if (comment.source === 'image') {
+        continue
+      }
       const list = map.get(comment.lineNumber) ?? []
       list.push(comment)
       map.set(comment.lineNumber, list)
     }
     return map
   }, [commentsForCurrentItem])
+
+  const imageComments = useMemo(
+    () => commentsForCurrentItem.filter((comment) => comment.source === 'image'),
+    [commentsForCurrentItem]
+  )
 
   // Head branch + SHA for the PR sidebar come from git.status (the review snapshot),
   // not the branchCompare base ref. headOid is the branch-compare fallback for the SHA.
@@ -277,6 +285,7 @@ export function useMobileDiffReviewController(input: ControllerInput) {
     fileNotes: commentsByLine.get(0) ?? [],
     filter,
     filteredQueue,
+    imageComments,
     listRef,
     queue,
     reviewedCount,

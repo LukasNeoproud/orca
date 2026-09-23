@@ -92,10 +92,12 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
             currentItem={controller.currentItem}
             diffState={controller.diffState}
             filteredCount={controller.filteredQueue.length}
+            imageComments={controller.imageComments}
             listRef={controller.listRef}
             screenState={controller.screenState}
             staleCommentIds={controller.staleCommentIds}
             onAddNote={controller.openComposer}
+            onAddImageNote={controller.openImageComposer}
             onEditNote={controller.openEditComposer}
             onRetry={controller.retryAction}
           />

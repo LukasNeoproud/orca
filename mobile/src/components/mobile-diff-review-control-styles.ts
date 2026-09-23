@@ -121,6 +121,37 @@ export const mobileDiffReviewControlStyles = StyleSheet.create({
     padding: spacing.md,
     textAlignVertical: 'top'
   },
+  regionControls: {
+    marginTop: spacing.md,
+    gap: spacing.sm
+  },
+  regionControl: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  regionControlLabel: {
+    width: 20,
+    color: colors.textMuted,
+    fontSize: typography.metaSize,
+    fontWeight: '800'
+  },
+  regionStepButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.button,
+    backgroundColor: colors.bgRaised
+  },
+  regionControlValue: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontFamily: typography.monoFamily,
+    textAlign: 'center'
+  },
   drawerButtonRow: {
     flexDirection: 'row',
     gap: spacing.sm,

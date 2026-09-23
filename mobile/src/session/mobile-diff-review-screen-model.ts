@@ -26,6 +26,11 @@ export type ReviewScreenState =
 
 export type ReviewDiffLine = MobileHighlightedDiffLine<MobileDiffLine>
 
+export type ReviewImageSide =
+  | { kind: 'ready'; uri: string }
+  | { kind: 'absent' }
+  | { kind: 'unavailable' }
+
 export type ReviewDiffState =
   | { kind: 'idle' }
   | { kind: 'loading'; itemKey: string }
@@ -36,6 +41,13 @@ export type ReviewDiffState =
       hunks: MobileDiffHunk[]
       truncated: boolean
     }
+  | {
+      kind: 'image'
+      itemKey: string
+      mimeType: string
+      original: ReviewImageSide
+      modified: ReviewImageSide
+    }
   | { kind: 'binary'; itemKey: string }
   | { kind: 'too-large'; itemKey: string; byteLength?: number }
   | { kind: 'deleted'; itemKey: string }
@@ -43,7 +55,12 @@ export type ReviewDiffState =
 
 export type ComposerState =
   | { mode: 'create'; lineNumber: number }
-  | { mode: 'edit'; comment: DiffComment }
+  | { mode: 'create-image'; imageRegion: NonNullable<DiffComment['imageRegion']> }
+  | {
+      mode: 'edit'
+      comment: DiffComment
+      imageRegion?: NonNullable<DiffComment['imageRegion']>
+    }
 
 export type SendSheetState =
   | { kind: 'loading' }

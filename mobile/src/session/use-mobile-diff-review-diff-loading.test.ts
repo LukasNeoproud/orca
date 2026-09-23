@@ -26,6 +26,16 @@ function readyDiff(firstLine: string): ReviewDiffState {
   } as unknown as ReviewDiffState
 }
 
+function imageDiff(): ReviewDiffState {
+  return {
+    kind: 'image',
+    itemKey: 'item-1',
+    mimeType: 'image/png',
+    original: { kind: 'ready', uri: 'data:image/png;base64,b2xk' },
+    modified: { kind: 'ready', uri: 'data:image/png;base64,bmV3' }
+  }
+}
+
 describe('useMobileDiffReviewDiffLoading', () => {
   let renderer: ReactTestRenderer | null = null
   let diffState: ReviewDiffState = { kind: 'idle' }
@@ -104,6 +114,23 @@ describe('useMobileDiffReviewDiffLoading', () => {
     })
     expect(diffState).toMatchObject({ kind: 'ready', lines: [{ text: 'after the drop' }] })
     expect(loadDiff).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps loaded image sides when a reconnect refetch fails', async () => {
+    loadDiff
+      .mockResolvedValueOnce(imageDiff())
+      .mockRejectedValueOnce(new Error('image fetch failed'))
+
+    await render('connected')
+    expect(diffState).toMatchObject({ kind: 'image', modified: { kind: 'ready' } })
+
+    await update('reconnecting')
+    await update('connected')
+    expect(diffState).toMatchObject({
+      kind: 'image',
+      original: { uri: 'data:image/png;base64,b2xk' },
+      modified: { uri: 'data:image/png;base64,bmV3' }
+    })
   })
 
   it('waits for the desktop when the drop lands before any diff is loaded', async () => {

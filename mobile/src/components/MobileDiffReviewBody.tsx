@@ -1,7 +1,7 @@
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import type { RefObject } from 'react'
-import type { DiffComment } from '../../../src/shared/diff-comment-types'
+import type { DiffComment, ImageReviewRegion } from '../../../src/shared/diff-comment-types'
 import { colors } from '../theme/mobile-theme'
 import { MobileDiffReviewLine } from './MobileDiffReviewLine'
 import type {
@@ -11,6 +11,7 @@ import type {
 } from '../session/mobile-diff-review-screen-model'
 import type { MobileDiffReviewQueueItem } from '../session/mobile-diff-review-queue'
 import { mobileDiffReviewStyles as styles } from './mobile-diff-review-screen-styles'
+import { MobileDiffImageReview } from './MobileDiffImageReview'
 
 type Props = {
   activeHunkIndex: number | null
@@ -18,10 +19,12 @@ type Props = {
   currentItem: MobileDiffReviewQueueItem | null
   diffState: ReviewDiffState
   filteredCount: number
+  imageComments: DiffComment[]
   listRef: RefObject<FlatList<ReviewDiffLine> | null>
   screenState: ReviewScreenState
   staleCommentIds: ReadonlySet<string>
   onAddNote: (lineNumber: number) => void
+  onAddImageNote: (region: ImageReviewRegion) => void
   onEditNote: (comment: DiffComment) => void
   onRetry: () => void
 }
@@ -32,10 +35,12 @@ export function MobileDiffReviewBody({
   currentItem,
   diffState,
   filteredCount,
+  imageComments,
   listRef,
   screenState,
   staleCommentIds,
   onAddNote,
+  onAddImageNote,
   onEditNote,
   onRetry
 }: Props) {
@@ -56,6 +61,18 @@ export function MobileDiffReviewBody({
   }
   if (diffState.kind === 'loading') {
     return <CenteredState text="Loading diff..." busy muted />
+  }
+  if (diffState.kind === 'image') {
+    return (
+      <MobileDiffImageReview
+        key={diffState.itemKey}
+        comments={imageComments}
+        diffState={diffState}
+        staleCommentIds={staleCommentIds}
+        onAddNote={onAddImageNote}
+        onEditNote={onEditNote}
+      />
+    )
   }
   if (diffState.kind !== 'ready') {
     return <DiffUnavailableState diffState={diffState} onRetry={onRetry} />

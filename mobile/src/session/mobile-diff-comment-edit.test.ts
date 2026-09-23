@@ -47,6 +47,31 @@ describe('mobile diff comment editing', () => {
     expect(getUnsentMobileDiffComments(comments)).toEqual([comment({ id: 'b' })])
   })
 
+  it('edits an image region without dropping image review metadata', () => {
+    const image = comment({
+      id: 'image',
+      source: 'image',
+      lineNumber: 0,
+      imageRegion: { x: 10, y: 20, width: 30, height: 40 },
+      scope: 'branch',
+      diffIdentity: 'image-diff'
+    })
+    const result = updateMobileDiffComment([image], {
+      id: 'image',
+      body: 'updated image note',
+      updatedAt: 220,
+      imageRegion: { x: 11, y: 21, width: 29, height: 39 }
+    })
+
+    expect(result.comment).toEqual({
+      ...image,
+      body: 'updated image note',
+      imageRegion: { x: 11, y: 21, width: 29, height: 39 },
+      updatedAt: 220,
+      sentAt: undefined
+    })
+  })
+
   it('clears sent notes without removing unsent edits', () => {
     expect(
       clearSentMobileDiffComments([comment({ id: 'a', sentAt: 1 }), comment({ id: 'b' })])

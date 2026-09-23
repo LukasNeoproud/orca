@@ -174,4 +174,103 @@ describe('mobile diff comments', () => {
       })
     ])
   })
+
+  it('round trips native and legacy image annotations without changing their regions', () => {
+    const native = comment({
+      id: 'image-native',
+      filePath: 'assets/new.png',
+      source: 'image',
+      lineNumber: 0,
+      imageRegion: { x: 12.5, y: 20, width: 30, height: 40 },
+      scope: 'staged',
+      diffIdentity: 'image-diff'
+    })
+    const legacy = {
+      ...native,
+      id: 'image-legacy',
+      source: 'diff',
+      lineNumber: 1,
+      imageRegion: undefined,
+      selectedText: 'orca:image-region:v1:{"x":12.5,"y":20,"width":30,"height":40}'
+    }
+
+    expect(normalizeMobileDiffComments([native, legacy], 'wt-1')).toEqual([
+      native,
+      { ...native, id: 'image-legacy' }
+    ])
+  })
+
+  it('preserves image annotations while adding, removing, and editing other notes', () => {
+    const image = comment({
+      id: 'image',
+      source: 'image',
+      lineNumber: 0,
+      imageRegion: { x: 10, y: 15, width: 25, height: 30 },
+      diffIdentity: 'image-diff'
+    })
+    const added = addMobileDiffComment([image], {
+      id: 'text',
+      worktreeId: 'wt-1',
+      filePath: 'src/app.ts',
+      lineNumber: 7,
+      body: 'text note',
+      createdAt: 300
+    }).comments
+
+    expect(added[0]).toEqual(image)
+    expect(removeMobileDiffComments(added, new Set(['text']))).toEqual([image])
+  })
+
+  it('keeps an image note when a delivered snapshot has a different region or diff identity', () => {
+    const image = comment({
+      id: 'image',
+      source: 'image',
+      lineNumber: 0,
+      imageRegion: { x: 10, y: 15, width: 25, height: 30 },
+      diffIdentity: 'new-diff'
+    })
+
+    expect(
+      removeDeliveredMobileDiffComments(
+        [image],
+        [
+          {
+            ...image,
+            imageRegion: { x: 11, y: 15, width: 25, height: 30 },
+            diffIdentity: 'old-diff'
+          }
+        ]
+      )
+    ).toEqual([image])
+  })
+
+  it('creates image comments only with a valid percentage region', () => {
+    const valid = addMobileDiffComment([], {
+      id: 'image',
+      worktreeId: 'wt-1',
+      filePath: 'assets/new.png',
+      lineNumber: 9,
+      body: 'Check this area',
+      createdAt: 300,
+      source: 'image',
+      imageRegion: { x: 10, y: 20, width: 30, height: 40 }
+    })
+    const invalid = addMobileDiffComment([], {
+      id: 'bad-image',
+      worktreeId: 'wt-1',
+      filePath: 'assets/new.png',
+      lineNumber: 0,
+      body: 'Outside',
+      createdAt: 300,
+      source: 'image',
+      imageRegion: { x: 90, y: 20, width: 30, height: 40 }
+    })
+
+    expect(valid.comment).toMatchObject({
+      source: 'image',
+      lineNumber: 0,
+      imageRegion: { x: 10, y: 20, width: 30, height: 40 }
+    })
+    expect(invalid.comment).toBeNull()
+  })
 })

@@ -1,5 +1,11 @@
-import type { DiffComment, DiffReviewScope } from '../../../src/shared/diff-comment-types'
+import type {
+  DiffComment,
+  DiffCommentSource,
+  DiffReviewScope,
+  ImageReviewRegion
+} from '../../../src/shared/diff-comment-types'
 import { formatDiffComment, formatDiffComments } from '../../../src/shared/diff-comments-format'
+import { decodeImageReviewCommentFromLegacyHost } from '../../../src/shared/image-review-comment-wire'
 
 export { formatDiffComment, formatDiffComments }
 
@@ -13,6 +19,8 @@ export type CreateMobileDiffCommentInput = {
   createdAt: number
   scope?: DiffReviewScope
   diffIdentity?: string
+  source?: DiffCommentSource
+  imageRegion?: ImageReviewRegion
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -21,6 +29,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeScope(value: unknown): DiffReviewScope | undefined {
   return value === 'unstaged' || value === 'staged' || value === 'branch' ? value : undefined
+}
+
+function normalizeSource(value: unknown): DiffCommentSource {
+  return value === 'markdown' || value === 'image' ? value : 'diff'
+}
+
+export function normalizeMobileImageRegion(value: unknown): ImageReviewRegion | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+  const region = {
+    x: value.x,
+    y: value.y,
+    width: value.width,
+    height: value.height
+  }
+  if (!Object.values(region).every((part) => typeof part === 'number' && Number.isFinite(part))) {
+    return undefined
+  }
+  const { x, y, width, height } = region as ImageReviewRegion
+  return x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 100 && y + height <= 100
+    ? { x, y, width, height }
+    : undefined
 }
 
 export function formatMobileDiffReviewPrompt(comments: readonly DiffComment[]): string {
@@ -52,27 +83,25 @@ export function normalizeMobileDiffComments(value: unknown, worktreeId: string):
     if (!id || !filePath || !Number.isFinite(lineNumber) || lineNumber < 0 || !body) {
       return []
     }
-    return [
-      {
-        id,
-        worktreeId: typeof candidate.worktreeId === 'string' ? candidate.worktreeId : worktreeId,
-        filePath,
-        source: candidate.source === 'markdown' ? 'markdown' : 'diff',
-        selectedText:
-          typeof candidate.selectedText === 'string' ? candidate.selectedText : undefined,
-        startLine: typeof candidate.startLine === 'number' ? candidate.startLine : undefined,
-        lineNumber,
-        body,
-        createdAt,
-        updatedAt: typeof candidate.updatedAt === 'number' ? candidate.updatedAt : undefined,
-        sentAt: typeof candidate.sentAt === 'number' ? candidate.sentAt : undefined,
-        scope: normalizeScope(candidate.scope),
-        oldPath: typeof candidate.oldPath === 'string' ? candidate.oldPath : undefined,
-        diffIdentity:
-          typeof candidate.diffIdentity === 'string' ? candidate.diffIdentity : undefined,
-        side: 'modified'
-      }
-    ]
+    const normalized = decodeImageReviewCommentFromLegacyHost({
+      id,
+      worktreeId: typeof candidate.worktreeId === 'string' ? candidate.worktreeId : worktreeId,
+      filePath,
+      source: normalizeSource(candidate.source),
+      selectedText: typeof candidate.selectedText === 'string' ? candidate.selectedText : undefined,
+      imageRegion: normalizeMobileImageRegion(candidate.imageRegion),
+      startLine: typeof candidate.startLine === 'number' ? candidate.startLine : undefined,
+      lineNumber,
+      body,
+      createdAt,
+      updatedAt: typeof candidate.updatedAt === 'number' ? candidate.updatedAt : undefined,
+      sentAt: typeof candidate.sentAt === 'number' ? candidate.sentAt : undefined,
+      scope: normalizeScope(candidate.scope),
+      oldPath: typeof candidate.oldPath === 'string' ? candidate.oldPath : undefined,
+      diffIdentity: typeof candidate.diffIdentity === 'string' ? candidate.diffIdentity : undefined,
+      side: 'modified'
+    })
+    return [normalized]
   })
 }
 
@@ -81,13 +110,19 @@ export function createMobileDiffComment(input: CreateMobileDiffCommentInput): Di
   if (!body || !Number.isFinite(input.lineNumber) || input.lineNumber < 0) {
     return null
   }
+  const source = input.source ?? 'diff'
+  const imageRegion = normalizeMobileImageRegion(input.imageRegion)
+  if (source === 'image' && !imageRegion) {
+    return null
+  }
   return {
     id: input.id,
     worktreeId: input.worktreeId,
     filePath: input.filePath,
     oldPath: input.oldPath,
-    source: 'diff',
-    lineNumber: input.lineNumber,
+    source,
+    imageRegion,
+    lineNumber: source === 'image' ? 0 : input.lineNumber,
     body,
     createdAt: input.createdAt,
     scope: input.scope,
@@ -118,14 +153,30 @@ export function removeMobileDiffComments(
 }
 
 function deliveredCommentMatches(comment: DiffComment, delivered: DiffComment): boolean {
+  const sameRegion =
+    comment.imageRegion === delivered.imageRegion ||
+    (comment.imageRegion !== undefined &&
+      delivered.imageRegion !== undefined &&
+      comment.imageRegion.x === delivered.imageRegion.x &&
+      comment.imageRegion.y === delivered.imageRegion.y &&
+      comment.imageRegion.width === delivered.imageRegion.width &&
+      comment.imageRegion.height === delivered.imageRegion.height)
   return (
     comment.id === delivered.id &&
+    comment.worktreeId === delivered.worktreeId &&
     comment.body === delivered.body &&
     comment.filePath === delivered.filePath &&
     comment.lineNumber === delivered.lineNumber &&
     comment.selectedText === delivered.selectedText &&
     comment.source === delivered.source &&
-    comment.startLine === delivered.startLine
+    comment.startLine === delivered.startLine &&
+    sameRegion &&
+    comment.scope === delivered.scope &&
+    comment.oldPath === delivered.oldPath &&
+    comment.diffIdentity === delivered.diffIdentity &&
+    comment.createdAt === delivered.createdAt &&
+    comment.updatedAt === delivered.updatedAt &&
+    comment.side === delivered.side
   )
 }
 

@@ -88,9 +88,11 @@ export function useMobileDiffReviewInteractions(input: InteractionInput) {
     markReviewed,
     markUnreviewed,
     openComposer,
+    openImageComposer,
     openEditComposer,
     saveCommentsAndReviewState,
-    saveComposer
+    saveComposer,
+    setComposerImageRegion
   } = useMobileDiffReviewCommentActions({
     client,
     connState,
@@ -177,6 +179,7 @@ export function useMobileDiffReviewInteractions(input: InteractionInput) {
       )
     },
     openComposer,
+    openImageComposer,
     openEditComposer,
     openInSession: async () => {
       if (!client || !currentItem || currentItem.scope === 'branch') {
@@ -208,6 +211,7 @@ export function useMobileDiffReviewInteractions(input: InteractionInput) {
       setCurrentIndex(0)
     },
     sendPromptToTerminal,
+    setComposerImageRegion,
     stageReviewedFiles
   }
 }

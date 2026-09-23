@@ -17,7 +17,16 @@ export type MobileReviewGitDiffResult =
       originalContent: string
       modifiedContent: string
     }
-  | { kind: 'binary' }
+  | {
+      kind: 'binary'
+      originalContent?: string
+      modifiedContent?: string
+      originalIsBinary?: boolean
+      modifiedIsBinary?: boolean
+      modifiedDeleted?: boolean
+      isImage?: boolean
+      mimeType?: string
+    }
   | { kind: 'too-large'; byteLength?: number }
 
 export type MobileReviewWorktreeMetadata = {
@@ -217,7 +226,27 @@ export function readMobileReviewGitDiffResult(value: unknown): MobileReviewGitDi
     }
   }
   if (value.kind === 'binary') {
-    return { kind: 'binary' }
+    if (
+      !(
+        typeof value.originalContent === 'string' &&
+        typeof value.modifiedContent === 'string' &&
+        typeof value.originalIsBinary === 'boolean' &&
+        typeof value.modifiedIsBinary === 'boolean' &&
+        (value.originalIsBinary || value.modifiedIsBinary)
+      )
+    ) {
+      return { kind: 'binary' }
+    }
+    return {
+      kind: 'binary',
+      originalContent: value.originalContent,
+      modifiedContent: value.modifiedContent,
+      originalIsBinary: value.originalIsBinary,
+      modifiedIsBinary: value.modifiedIsBinary,
+      modifiedDeleted: readBoolean(value.modifiedDeleted),
+      isImage: readBoolean(value.isImage),
+      mimeType: readString(value.mimeType)
+    }
   }
   if (value.kind === 'too-large') {
     return { kind: 'too-large', byteLength: readNumber(value.byteLength) }
