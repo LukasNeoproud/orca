@@ -7,7 +7,8 @@ import { isDefinitiveAgentSessionCreateRefusal } from '../../../src/shared/agent
 import {
   createStructuredAgentSessionId,
   structuredAgentSessionCreateParams,
-  type StructuredAgentSessionCreateParams
+  type StructuredAgentSessionCreateParams,
+  type StructuredAgentSessionResumeSource
 } from '../../../src/shared/structured-agent-session-create'
 import { TUI_AGENT_DISPLAY_NAMES } from '../../../src/shared/tui-agent-display-names'
 import { hasRuntimeRpcErrorCode } from '../../../src/shared/runtime-rpc-error-code'
@@ -34,12 +35,14 @@ export type MobileStructuredAgentLaunchResult =
 
 function createParamsFor(
   agent: AgentSessionHandleProvider,
-  worktree: string
+  worktree: string,
+  resumeFrom?: StructuredAgentSessionResumeSource
 ): StructuredAgentSessionCreateParams {
   return structuredAgentSessionCreateParams({
     sessionId: createStructuredAgentSessionId(agent, structuredSessionRandomUuid),
     worktree,
     agent,
+    ...(resumeFrom ? { resumeFrom } : {}),
     randomUuid: structuredSessionRandomUuid
   })
 }
@@ -76,7 +79,8 @@ function classifyCreateRefusal(
 export async function createMobileStructuredAgentSession(
   client: RpcClient,
   worktreeId: string,
-  agent: AgentSessionHandleProvider
+  agent: AgentSessionHandleProvider,
+  options: { resumeFrom?: StructuredAgentSessionResumeSource } = {}
 ): Promise<MobileStructuredAgentLaunchResult> {
   const worktree = `id:${worktreeId}`
   let supportResponse
@@ -117,7 +121,7 @@ export async function createMobileStructuredAgentSession(
     return { kind: 'unsupported', reason: support?.reason }
   }
 
-  const params = createParamsFor(agent, worktree)
+  const params = createParamsFor(agent, worktree, options.resumeFrom)
   let response
   try {
     response = await client.sendRequest('agentSession.create', params, {
@@ -172,4 +176,26 @@ export async function createMobileStructuredAgentSession(
     return unknownCreateResult(agent, new Error(unconfirmedMessage(agent)))
   }
   return { kind: 'created', sessionId: result.value.sessionId }
+}
+
+export async function revealMobileStructuredAgentSession(
+  client: Pick<RpcClient, 'sendRequest'>,
+  sessionId: string
+): Promise<void> {
+  const response = await client.sendRequest(
+    'agentSession.reveal',
+    { sessionId },
+    { timeoutMs: 15_000, budgetSpansConnect: true }
+  )
+  if (!response.ok) {
+    throw new Error(response.error?.message || 'Could not reopen this chat.')
+  }
+  const result = response.result as { ok?: unknown; refusal?: { message?: unknown } | null } | null
+  if (result?.ok === true) {
+    return
+  }
+  const message = result?.refusal?.message
+  throw new Error(
+    typeof message === 'string' && message.trim() ? message : 'Could not reopen this chat.'
+  )
 }

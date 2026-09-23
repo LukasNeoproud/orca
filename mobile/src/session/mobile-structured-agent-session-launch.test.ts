@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
-import { createMobileStructuredAgentSession } from './mobile-structured-agent-session-launch'
+import {
+  createMobileStructuredAgentSession,
+  revealMobileStructuredAgentSession
+} from './mobile-structured-agent-session-launch'
 
 function clientReturning(
   ...responses: unknown[]
@@ -94,6 +97,23 @@ describe('mobile structured agent-session launch', () => {
     }
     expect(params.agent).toBe('claude')
     expect(params.envelope.sessionId).toMatch(/^claude_[A-Za-z0-9_]{8,128}$/)
+    expect(params.envelope.payloadFingerprint).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('adopts a history conversation in the durable create identity', async () => {
+    const client = clientReturning({ ok: true, result: { supported: true } }, acceptedCreate)
+
+    await expect(
+      createMobileStructuredAgentSession(client, 'workspace-1', 'codex', {
+        resumeFrom: { providerSessionId: 'thread-1' }
+      })
+    ).resolves.toMatchObject({ kind: 'created' })
+
+    const params = client.sendRequest.mock.calls[1]?.[1] as {
+      resumeFrom?: { providerSessionId: string }
+      envelope: { payloadFingerprint: string }
+    }
+    expect(params.resumeFrom).toEqual({ providerSessionId: 'thread-1' })
     expect(params.envelope.payloadFingerprint).toMatch(/^[0-9a-f]{64}$/)
   })
 
@@ -307,4 +327,30 @@ describe('mobile structured agent-session launch', () => {
       })
     }
   )
+})
+
+describe('mobile structured agent-session reveal', () => {
+  it('asks the host to republish the existing tab without creating a terminal', async () => {
+    const client = clientReturning({ ok: true, result: { ok: true } })
+
+    await expect(
+      revealMobileStructuredAgentSession(client, 'codex_session_1')
+    ).resolves.toBeUndefined()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'agentSession.reveal',
+      { sessionId: 'codex_session_1' },
+      { timeoutMs: 15_000, budgetSpansConnect: true }
+    )
+    expect(client.sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an interrupted reveal failed instead of launching any replacement', async () => {
+    const client = clientReturning()
+    client.sendRequest.mockRejectedValueOnce(new Error('Connection interrupted'))
+
+    await expect(revealMobileStructuredAgentSession(client, 'codex_session_1')).rejects.toThrow(
+      'Connection interrupted'
+    )
+    expect(client.sendRequest).toHaveBeenCalledTimes(1)
+  })
 })
