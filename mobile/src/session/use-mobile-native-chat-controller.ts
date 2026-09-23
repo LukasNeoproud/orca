@@ -17,15 +17,11 @@ import { useMobileNativeChatPrompts } from './use-mobile-native-chat-prompts'
 import { useMobileNativeChatStop } from './use-mobile-native-chat-stop'
 import { useNativeChatAcceptedAction } from './use-native-chat-action-outcomes'
 import { useThrottledLatestValue } from './use-throttled-latest-value'
-import type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
+import { readMobileStructuredLaunchDraft } from './mobile-structured-launch-drafts'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 
-const NATIVE_CHAT_STREAM_THROTTLE_MS = 50
-
-/** Owns mobile native-chat state and teardown outside the already dense session
- *  route. The route remains responsible only for choosing and rendering the view. */
 export function useMobileNativeChatController(args: {
   client: RpcClient | null
   hostId: string
@@ -36,13 +32,11 @@ export function useMobileNativeChatController(args: {
   deviceTokenRef: MutableRefObject<string | null>
   nativeChatTranscriptIsLocalReadable: boolean
   nativeChatInputLeaseReady: boolean
-  /** Live socket state; the lease collapses on disconnect but one render later. */
   connState: ConnectionState
   onSendError: (message: string) => void
-  /** Retires a held failure banner. Any accepted chat write clears it — a delivered
-   *  answer or permission reply must not sit under a stale "not sent". */
+  /** Any accepted chat write clears the held failure banner. */
   onSendResolved: () => void
-}): MobileNativeChatController {
+}) {
   const {
     client,
     hostId,
@@ -80,10 +74,12 @@ export function useMobileNativeChatController(args: {
     activeHandleRef,
     nativeChatTranscriptIsLocalReadable
   })
+  const stagedLaunchDraft = readMobileStructuredLaunchDraft(hostId, activeChatSessionId)
 
   const { structuredSession: structuredNativeChat, session: nativeChatSession } =
     useMobileNativeChatSessionLane({
       client,
+      hostId,
       structured: activeChatStructured,
       agent: activeChatAgent,
       resolvedAgent: activeChatResolution?.agent ?? null,
@@ -113,11 +109,10 @@ export function useMobileNativeChatController(args: {
     tabId: activeSessionTabId,
     sessionId: activeChatSessionId,
     messages: nativeChatSession.messages,
-    launchDraft: activeSessionTab?.launchDraft ?? null,
-    launchDraftCreatedAt: activeSessionTab?.launchDraftCreatedAt ?? null,
-    // Why: pass the raw draft plus this flag rather than nulling it off-chat —
-    // a null is indistinguishable from a host retraction, and peeking at the
-    // terminal view would permanently decline the prefill.
+    launchDraft: activeSessionTab?.launchDraft ?? stagedLaunchDraft?.text ?? null,
+    launchDraftCreatedAt:
+      activeSessionTab?.launchDraftCreatedAt ?? stagedLaunchDraft?.createdAt ?? null,
+    // Preserve a host draft while the terminal view temporarily covers chat.
     chatActive: showNativeChat,
     transcriptLoading: nativeChatSession.transcriptLoading,
     transcriptSettled: nativeChatSession.status === 'ready'
@@ -126,18 +121,16 @@ export function useMobileNativeChatController(args: {
   const nativeChatAgentWorking = activeChatStructured
     ? structuredNativeChat.isWorking
     : activeChatResolution != null && activeTabAgentWorking
-  // Deliberately not gated on the chat view being visible: the streaming gate
-  // has to tell "hidden mid-turn" from "the turn ended".
+  // The streaming gate distinguishes a hidden live turn from a settled turn.
   const nativeChatStreamLive = activeChatStructured
     ? structuredNativeChat.isWorking
     : activeTabAgentWorking
-  // Throttle the streaming bubble: OpenCode emits a status frame per streamed
-  // part, and each one re-renders and re-parses the whole accumulated markdown.
+  // Avoid re-parsing accumulated markdown for every streamed status frame.
   const nativeChatStreamingText = useThrottledLatestValue(
     activeChatStructured
       ? undefined
       : mobileNativeChatStreamPreview(nativeChatStatus, nativeChatAgentWorking),
-    NATIVE_CHAT_STREAM_THROTTLE_MS
+    50
   )
   const {
     permission: legacyNativeChatPermission,
@@ -166,8 +159,7 @@ export function useMobileNativeChatController(args: {
     observing: showNativeChat && (nativeChatDetectedAsk != null || nativeChatTranscriptSettled)
   })
 
-  // Every chat write gates on both: the lease proves the input floor is ours, and
-  // `connState` collapses a render before the lease does on disconnect.
+  // The socket verdict collapses one render before the input lease on disconnect.
   const inputSendable = activeChatStructured
     ? client != null && activeChatSessionId != null && connState === 'connected'
     : nativeChatInputLeaseReady && connState === 'connected'
@@ -216,9 +208,7 @@ export function useMobileNativeChatController(args: {
     worktreeId
   })
 
-  // Why: the send seam reports outgoing catalog commands to session-option
-  // tracking, but the options hook needs the seam's dispatcher — a ref breaks
-  // the cycle without re-creating the send callbacks per snapshot.
+  // A ref breaks the command dispatcher/options tracking dependency cycle.
   const recordSessionOptionCommandRef = useRef<(command: string) => void>(() => {})
 
   const {
@@ -296,8 +286,8 @@ export function useMobileNativeChatController(args: {
     chatPending,
     chatImagePreviewsByMessageId,
     nativeChatSession,
-    /** Structured lane: drives the per-turn status row and live tool progress. */
     nativeChatStructured: activeChatStructured,
+    nativeChatCodexUsage: activeChatStructured ? (structuredNativeChat.codexUsage ?? null) : null,
     nativeChatAgentWorking,
     nativeChatStreamingText,
     nativeChatStreamLive,
@@ -327,6 +317,7 @@ export function useMobileNativeChatController(args: {
       ? structuredNativeChatSend.sendWithOutcome
       : handleNativeChatSendWithOutcome,
     readSeededLaunchDraft,
-    nativeChatSessionOptions
+    nativeChatSessionOptions,
+    conversationBranch: structuredNativeChat.conversationBranch
   }
 }

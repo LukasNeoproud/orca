@@ -2,12 +2,14 @@ import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import { useMobileNativeChatSession } from './use-mobile-native-chat-session'
 import { useMobileStructuredAgentSession } from './use-mobile-structured-agent-session'
+import { useMobileConversationBranching } from './use-mobile-conversation-branching'
 
 /** Mounts both transcript sources and hands back the one this tab's lane owns.
  *  Both hooks always run (hook order is fixed); the inactive lane is starved of
  *  its identity inputs rather than unmounted, so a lane flip keeps its cache. */
 export function useMobileNativeChatSessionLane({
   client,
+  hostId,
   structured,
   agent,
   resolvedAgent,
@@ -19,6 +21,7 @@ export function useMobileNativeChatSessionLane({
   onSendError
 }: {
   client: RpcClient | null
+  hostId: string
   structured: boolean
   /** Agent id for the structured provider session. */
   agent: string | null
@@ -31,7 +34,9 @@ export function useMobileNativeChatSessionLane({
   connState: ConnectionState
   onSendError: (message: string) => void
 }): {
-  structuredSession: ReturnType<typeof useMobileStructuredAgentSession>
+  structuredSession: ReturnType<typeof useMobileStructuredAgentSession> & {
+    conversationBranch: ReturnType<typeof useMobileConversationBranching>
+  }
   session: ReturnType<typeof useMobileNativeChatSession>
 } {
   const bridgeSession = useMobileNativeChatSession({
@@ -52,8 +57,17 @@ export function useMobileNativeChatSessionLane({
     agent: structured ? agent : null,
     onSendError
   })
+  const conversationBranch = useMobileConversationBranching({
+    client,
+    connected: connState === 'connected',
+    enabled: structured,
+    hostId,
+    sourceSessionId: structured ? sessionId : null,
+    epoch: structured ? structuredSession.epoch : null,
+    branchableMessageIds: structuredSession.branchableMessageIds
+  })
   return {
-    structuredSession,
+    structuredSession: { ...structuredSession, conversationBranch },
     session: structured ? structuredSession.session : bridgeSession
   }
 }

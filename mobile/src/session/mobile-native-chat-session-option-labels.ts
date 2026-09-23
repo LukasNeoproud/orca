@@ -43,6 +43,9 @@ export function mobileModelPillLabel(descriptor: SessionOptionDescriptor): strin
 }
 
 export function mobileSessionOptionSummaryValue(descriptor: SessionOptionDescriptor): string {
+  if (descriptor.currentValueLabel) {
+    return descriptor.currentValueLabel
+  }
   if (descriptor.valueSource === 'unknown') {
     return 'Not set'
   }
@@ -59,6 +62,10 @@ export function mobileSessionOptionSummaryValue(descriptor: SessionOptionDescrip
 export function mobileOptionsPillLabel(descriptors: readonly SessionOptionDescriptor[]): string {
   const labels: string[] = []
   for (const descriptor of descriptors) {
+    if (descriptor.currentValueLabel) {
+      labels.push(descriptor.currentValueLabel)
+      continue
+    }
     if (descriptor.valueSource === 'unknown') {
       continue
     }

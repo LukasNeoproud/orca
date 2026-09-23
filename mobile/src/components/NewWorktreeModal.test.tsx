@@ -9,6 +9,7 @@ const asyncStorage = vi.hoisted(() => ({
   removeItem: vi.fn().mockResolvedValue(undefined)
 }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: asyncStorage }))
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }))
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
   FlatList: 'FlatList',

@@ -31,6 +31,7 @@ vi.mock('lucide-react-native', () => ({
   ArrowUp: 'ArrowUp',
   ChevronDown: 'ChevronDown',
   Copy: 'Copy',
+  GitBranch: 'GitBranch',
   SquareChevronRight: 'SquareChevronRight',
   SquareTerminal: 'SquareTerminal',
   Wrench: 'Wrench',
@@ -69,6 +70,7 @@ describe('MobileNativeChatMessage', () => {
         workedSeconds: number | null
       } | null
       onToggleTurn?: () => void
+      onBranchMessage?: (message: NativeChatMessage) => void
     } = {}
   ): ReactTestRenderer {
     act(() => {
@@ -104,6 +106,48 @@ describe('MobileNativeChatMessage', () => {
       .findAllByType('Text' as never)
       .map((node) => String(node.children.join('')))
     expect(texts.some((text) => text.includes('/tmp/host.png'))).toBe(true)
+  })
+
+  it('renders known model, mode, and measured response speed', () => {
+    const tree = render({
+      ...toolMessage([{ type: 'text', text: 'Measured response' }]),
+      generation: {
+        model: 'gpt-5.6-sol',
+        serviceTier: 'priority',
+        method: 'stream-estimate',
+        outputTokens: 100,
+        generationDurationMs: 2_000
+      }
+    })
+    expect(textIn(tree.root)).toContain('gpt-5.6-sol · Fast mode · ≈ 50 tok/s')
+  })
+
+  it('does not invent response speed when timing metadata is missing', () => {
+    const tree = render({
+      ...toolMessage([{ type: 'text', text: 'Unmeasured response' }]),
+      generation: {
+        model: 'gpt-5.6-sol',
+        serviceTier: 'default',
+        method: 'stream-estimate',
+        outputTokens: 100
+      }
+    })
+    expect(textIn(tree.root)).toContain('gpt-5.6-sol · Standard mode · tok/s unavailable')
+    expect(textIn(tree.root).some((text) => text.includes('≈'))).toBe(false)
+  })
+
+  it('offers branching only when the caller proves an exact completed response', () => {
+    const message = toolMessage([{ type: 'text', text: 'Completed response' }])
+    const onBranchMessage = vi.fn()
+    const tree = render(message, { onBranchMessage })
+    const branch = tree.root.findByProps({ accessibilityLabel: 'Create related conversation' })
+    act(() => branch.props.onPress())
+    expect(onBranchMessage).toHaveBeenCalledWith(message)
+
+    const withoutBoundary = render(message)
+    expect(
+      withoutBoundary.root.findAllByProps({ accessibilityLabel: 'Create related conversation' })
+    ).toHaveLength(0)
   })
 
   it('labels a tool row with the target path instead of raw input JSON', () => {

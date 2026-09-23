@@ -22,8 +22,17 @@ import { MobileAgentSessionHistoryList } from './MobileAgentSessionHistoryList'
 import { buildMobileAgentHistoryResumeActionState } from './agent-history-session-card'
 import { readMobileAgentHistoryHostCapabilities } from './agent-history-open-plan'
 import { openMobileAgentHistorySession } from './open-mobile-agent-history-session'
+import { canOfferMobileAgentHistoryContinuation } from './mobile-agent-history-continuation'
+import { MobileAgentHistoryContinuationSheet } from './MobileAgentHistoryContinuationSheet'
 import { styles } from './agent-history-styles'
 import { useNow } from '../hooks/use-now'
+import { MobileStructuredContextTransitions } from '../agent-context/MobileStructuredContextTransitions'
+import { PORTABLE_CONVERSATION_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import {
+  resolveMobilePortableConversationRoute,
+  type MobilePortableConversationRoute
+} from '../portable-conversation/mobile-portable-conversation'
+import { MobilePortableConversationFlow } from '../portable-conversation/MobilePortableConversationFlow'
 
 export type MobileAgentSessionHistoryPanelProps = {
   hostId: string
@@ -49,6 +58,8 @@ export function MobileAgentSessionHistoryPanel({
   const [query, setQuery] = useState('')
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null)
   const [resumeMessage, setResumeMessage] = useState<string | null>(null)
+  const [continuationSession, setContinuationSession] = useState<AiVaultSession | null>(null)
+  const [portableRoute, setPortableRoute] = useState<MobilePortableConversationRoute | null>(null)
   const now = useNow(30_000)
   const resumeLaunchInFlightRef = useRef(false)
   const resumeMutationRegistryRef = useRef(
@@ -136,6 +147,23 @@ export function MobileAgentSessionHistoryPanel({
     () => buildMobileAgentHistoryResumeActionState(sessions, resumingSessionId),
     [resumingSessionId, sessions]
   )
+  const portableRoutesBySessionId = useMemo(() => {
+    const routes = new Map<string, MobilePortableConversationRoute>()
+    if (!hostCapabilities.includes(PORTABLE_CONVERSATION_RUNTIME_CAPABILITY)) {
+      return routes
+    }
+    for (const session of sessions) {
+      const route = resolveMobilePortableConversationRoute(session, worktrees)
+      if (route) {
+        routes.set(session.id, route)
+      }
+    }
+    return routes
+  }, [hostCapabilities, sessions, worktrees])
+  const portableBranchSessionIds = useMemo(
+    () => new Set(portableRoutesBySessionId.keys()),
+    [portableRoutesBySessionId]
+  )
 
   const onResumeSession = useCallback(
     async (session: AiVaultSession): Promise<void> => {
@@ -191,6 +219,43 @@ export function MobileAgentSessionHistoryPanel({
       worktreeId,
       worktrees
     ]
+  )
+
+  const onRequestResumeSession = useCallback(
+    (session: AiVaultSession): void => {
+      if (canOfferMobileAgentHistoryContinuation(session, hostCapabilities)) {
+        setContinuationSession(session)
+        return
+      }
+      void onResumeSession(session)
+    },
+    [hostCapabilities, onResumeSession]
+  )
+
+  const onContinuationOpened = useCallback(
+    (targetWorktreeId: string, message: string): void => {
+      triggerSuccess()
+      setResumeMessage(message)
+      router.push(
+        `/h/${encodeURIComponent(hostId)}/session/${encodeURIComponent(targetWorktreeId)}` as Parameters<
+          typeof router.push
+        >[0]
+      )
+    },
+    [hostId, router]
+  )
+
+  const onPortableTargetOpened = useCallback(
+    (targetWorktreeId: string, message: string): void => {
+      setPortableRoute(null)
+      setResumeMessage(message)
+      router.push(
+        `/h/${encodeURIComponent(hostId)}/session/${encodeURIComponent(targetWorktreeId)}` as Parameters<
+          typeof router.push
+        >[0]
+      )
+    },
+    [hostId, router]
   )
 
   return (
@@ -284,6 +349,13 @@ export function MobileAgentSessionHistoryPanel({
               <Text style={styles.resumeBannerText}>{resumeMessage}</Text>
             </View>
           ) : null}
+          <MobileStructuredContextTransitions
+            client={client}
+            connectionState={connState}
+            hostCapabilities={hostCapabilities}
+            sessions={sessions}
+            worktreeId={worktreeId}
+          />
           {sections.length === 0 ? (
             <View style={styles.state}>
               <Text style={styles.stateTitle}>No agent sessions</Text>
@@ -298,12 +370,36 @@ export function MobileAgentSessionHistoryPanel({
               refreshing={refreshing}
               showCurrentWorktreeBadges={shouldShowMobileCurrentWorktreeBadge(scope)}
               resumeActionStateBySessionId={resumeActionStateBySessionId}
-              onResume={onResumeSession}
+              onResume={onRequestResumeSession}
+              portableBranchSessionIds={portableBranchSessionIds}
+              onPortableBranch={(session) =>
+                setPortableRoute(portableRoutesBySessionId.get(session.id) ?? null)
+              }
               onRefresh={() => void onRefresh()}
             />
           )}
         </>
       )}
+      <MobileAgentHistoryContinuationSheet
+        session={continuationSession}
+        client={client}
+        hostId={hostId}
+        hostCapabilities={hostCapabilities}
+        hostPlatform={hostPlatform}
+        hostTerminalWindowsShell={hostTerminalWindowsShell}
+        activeWorktreeId={worktreeId}
+        worktrees={worktrees}
+        terminalMutationRegistry={resumeMutationRegistryRef.current}
+        onClose={() => setContinuationSession(null)}
+        onOpened={onContinuationOpened}
+        onUnavailable={(session) => void onResumeSession(session)}
+      />
+      <MobilePortableConversationFlow
+        client={client}
+        route={portableRoute}
+        onClose={() => setPortableRoute(null)}
+        onOpenTarget={onPortableTargetOpened}
+      />
     </View>
   )
 }

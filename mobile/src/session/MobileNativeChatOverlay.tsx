@@ -5,6 +5,7 @@ import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import type { MobileNativeChatImageAttachments } from './use-mobile-native-chat-image-attachments'
 import type { MobileNativeChatController } from './use-mobile-native-chat-controller'
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
+import { MobileConversationBranchDrawers } from './MobileConversationBranchDrawers'
 
 type Props = {
   controller: MobileNativeChatController
@@ -72,6 +73,7 @@ export function MobileNativeChatOverlay({
         agent={controller.nativeChatAgent}
         agentWorking={controller.nativeChatAgentWorking}
         structuredActivityUi={controller.nativeChatStructured}
+        codexUsage={controller.nativeChatCodexUsage}
         streaming={streaming}
         onStop={controller.handleNativeChatStop}
         ask={controller.nativeChatAsk}
@@ -84,6 +86,16 @@ export function MobileNativeChatOverlay({
         permission={controller.nativeChatPermission}
         onRespondPermission={controller.handleNativeChatRespondPermission}
         onOpenFile={onOpenFile}
+        canBranchMessage={controller.conversationBranch.canBranchMessage}
+        onBranchMessage={controller.conversationBranch.openBranch}
+        relatedConversationCount={controller.conversationBranch.family.branches.length}
+        onOpenRelatedConversations={
+          controller.conversationBranch.supported
+            ? () => controller.conversationBranch.setFamilyVisible(true)
+            : undefined
+        }
+        conversationAnchor={controller.conversationBranch.anchorRequest}
+        onConversationAnchorConsumed={controller.conversationBranch.consumeAnchor}
         hasMore={session.hasMore}
         loadingEarlier={session.loadingEarlier}
         onLoadEarlier={session.loadEarlier}
@@ -112,6 +124,7 @@ export function MobileNativeChatOverlay({
         sessionOptions={controller.nativeChatSessionOptions}
         keyboardInset={keyboardInset}
       />
+      <MobileConversationBranchDrawers controller={controller.conversationBranch} />
     </View>
   )
 }

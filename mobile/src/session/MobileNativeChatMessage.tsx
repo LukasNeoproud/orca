@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { ArrowUp, Copy } from 'lucide-react-native'
+import { ArrowUp, Copy, GitBranch } from 'lucide-react-native'
 import { splitNativeChatBlocks } from '../../../src/shared/native-chat-tool-fold'
 import { selectActiveToolCall } from '../../../src/shared/native-chat-tool-activity'
 import { isImageRefBlock, isTextBlock } from '../../../src/shared/native-chat-types'
@@ -14,6 +14,7 @@ import { colors } from '../theme/mobile-theme'
 import { isRenderableImageUri } from './mobile-native-chat-image-preview'
 import { styles, TEXT_SIZE } from './mobile-native-chat-message-styles'
 import { nativeChatMessageText } from './mobile-native-chat-message-text'
+import { MobileNativeChatGenerationStats } from './MobileNativeChatGenerationStats'
 
 function Prose({
   block,
@@ -67,10 +68,12 @@ function Prose({
  *  this message's top aligns to the top of the viewport. */
 function AgentControls({
   onCopy,
-  onScrollToTop
+  onScrollToTop,
+  onBranch
 }: {
   onCopy: () => void
   onScrollToTop?: () => void
+  onBranch?: () => void
 }): React.JSX.Element {
   return (
     <View style={styles.controls}>
@@ -82,6 +85,16 @@ function AgentControls({
       >
         <Copy size={14} color={colors.textMuted} strokeWidth={2} />
       </Pressable>
+      {onBranch ? (
+        <Pressable
+          style={({ pressed }) => [styles.controlButton, pressed && styles.controlPressed]}
+          onPress={onBranch}
+          hitSlop={8}
+          accessibilityLabel="Create related conversation"
+        >
+          <GitBranch size={14} color={colors.textMuted} strokeWidth={2} />
+        </Pressable>
+      ) : null}
       {onScrollToTop ? (
         <Pressable
           style={({ pressed }) => [styles.controlButton, pressed && styles.controlPressed]}
@@ -108,7 +121,8 @@ function MobileNativeChatMessageImpl({
   turnKey,
   onToggleTurn,
   activeTurnIsWorking,
-  structuredActivityUi = false
+  structuredActivityUi = false,
+  onBranchMessage
 }: {
   message: NativeChatMessage
   toolsExpanded?: boolean
@@ -131,6 +145,8 @@ function MobileNativeChatMessageImpl({
   activeTurnIsWorking?: boolean
   /** Structured lane only: live tool progress plus the turn-status disclosure. */
   structuredActivityUi?: boolean
+  /** Present only for a completed structured response with an exact journal boundary. */
+  onBranchMessage?: (message: NativeChatMessage) => void
 }): React.JSX.Element {
   const isUser = message.role === 'user'
   const isReasoning = message.role === 'reasoning'
@@ -183,6 +199,7 @@ function MobileNativeChatMessageImpl({
   const controls = isAgent ? (
     <AgentControls
       onCopy={handleCopy}
+      onBranch={onBranchMessage ? () => onBranchMessage(message) : undefined}
       onScrollToTop={
         onScrollToMessage && messageIndex !== undefined
           ? () => onScrollToMessage(messageIndex)
@@ -225,6 +242,9 @@ function MobileNativeChatMessageImpl({
             />
           ) : controls ? (
             <View style={styles.controlsRow}>{controls}</View>
+          ) : null}
+          {message.role === 'assistant' ? (
+            <MobileNativeChatGenerationStats generation={message.generation} />
           ) : null}
         </View>
       </View>

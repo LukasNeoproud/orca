@@ -221,6 +221,17 @@ export function DescriptorRows({
   const { currentValue, choices } = descriptor.kind
   return (
     <>
+      {descriptor.currentValueLabel ? (
+        <ChoiceRow
+          label={descriptor.currentValueLabel}
+          description={descriptor.currentValueDescription}
+          selected
+          disabled
+          grouped={grouped}
+          divided={grouped && choices.length > 0}
+          onPress={() => undefined}
+        />
+      ) : null}
       {choices.map((choice, index) => (
         <ChoiceRow
           key={choice.value}

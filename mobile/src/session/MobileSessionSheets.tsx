@@ -21,6 +21,7 @@ import type { MobileSessionController } from './use-mobile-session-controller'
 export function MobileSessionSheets({ controller }: { controller: MobileSessionController }) {
   const {
     worktreeId,
+    connState,
     isFolderWorkspaceRoute,
     isFloatingWorkspaceRoute,
     client,
@@ -115,6 +116,9 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
       />
       <MobileLinkActionSheet
         target={linkActionTarget}
+        client={client}
+        connectionState={connState}
+        worktreeId={worktreeId}
         preferredWebMode={terminalLinkOpenMode}
         canOpenOrcaBrowser={!isFloatingWorkspaceRoute}
         onClose={dismissLinkActions}

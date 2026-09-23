@@ -27,8 +27,11 @@ import {
   type StructuredAgentSessionMutate
 } from './mobile-structured-agent-session-rpc'
 import { persistMobileStructuredOptionPicks } from './mobile-native-chat-session-option-persistence'
+import { useMobileCodexSessionUsage } from './use-mobile-codex-session-usage'
+import type { MobileCodexSessionUsage } from './mobile-codex-session-usage'
 
 type StructuredOptionsController = {
+  codexUsage: MobileCodexSessionUsage | null
   optionPickerRequest: { id: string; sequence: number } | null
   conversationCommands: readonly AgentSessionConversationCommand[]
   optionSnapshot: SessionOptionDescriptor[]
@@ -63,6 +66,7 @@ export function useMobileStructuredAgentOptions(args: {
     () => (agent === 'claude' || agent === 'codex' ? getAgentSessionOptionCatalog(agent) : null),
     [agent]
   )
+  const codexUsage = useMobileCodexSessionUsage({ agent, client, enabled, sessionId })
 
   useEffect(() => {
     const next = createStructuredAgentSessionOptionState(agent ?? 'codex')
@@ -196,6 +200,7 @@ export function useMobileStructuredAgentOptions(args: {
   )
 
   return {
+    codexUsage,
     optionPickerRequest,
     conversationCommands:
       conversationSupport?.sessionId === sessionId ? conversationSupport.commands : [],

@@ -10,7 +10,6 @@ import {
 } from '../../../src/shared/structured-agent-session-outbox'
 import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
 import type { MobileNativeChatSendOutcome } from './mobile-native-chat-send'
-import { projectStructuredAgentSessionMessages } from '../../../src/shared/structured-agent-session-message-projection'
 import { activeStructuredAgentSessionTurnId } from '../../../src/shared/structured-agent-session-projection'
 import {
   pendingStructuredApproval,
@@ -31,11 +30,14 @@ import type { MobileNativeChatSession } from './use-mobile-native-chat-session'
 import { useMobileStructuredAgentState } from './use-mobile-structured-agent-state'
 import { useMobileStructuredPromptResponses } from './use-mobile-structured-prompt-responses'
 import { useMobileStructuredAgentOptions } from './use-mobile-structured-agent-options'
+import { useMobileConversationBranchSource } from './use-mobile-conversation-branch-source'
 
 type StructuredMobileAttachment = StructuredAgentSessionAttachment & { id?: string }
 
 type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgentOptions> & {
   session: MobileNativeChatSession
+  epoch: string | null
+  branchableMessageIds: ReadonlySet<string>
   isWorking: boolean
   turnId: string | null
   sendWithOutcome: (
@@ -103,9 +105,7 @@ export function useMobileStructuredAgentSession(args: {
         }
       }
       if (result.status === 'unknown') {
-        // Prompt/option/cancel plans cannot redispatch an unknown ledger row;
-        // issue a fresh id so a retry can be admitted after the user checks the
-        // stream. Sends opt into explicit retryUnknown below.
+        // Only sends opt into retryUnknown; other plans need a fresh id after inspection.
         operationIdsRef.current.delete(key)
         return result
       }
@@ -117,6 +117,7 @@ export function useMobileStructuredAgentSession(args: {
   )
 
   const {
+    codexUsage,
     conversationCommands,
     optionPickerRequest,
     invokeStructuredOption,
@@ -265,9 +266,9 @@ export function useMobileStructuredAgentSession(args: {
     })
   }, [client, enabled, onSendError, sessionId, sessionKey])
 
-  const messages = useMemo(
-    () => projectStructuredAgentSessionMessages(state.items, [], state.submissions),
-    [state.items, state.submissions]
+  const { messages, branchableMessageIds } = useMobileConversationBranchSource(
+    state.items,
+    state.submissions
   )
   const status = state.status === 'idle' ? 'idle' : state.status
   const approvalPrompt = useMemo(
@@ -280,6 +281,7 @@ export function useMobileStructuredAgentSession(args: {
   )
 
   return {
+    codexUsage,
     conversationCommands,
     optionPickerRequest,
     session: {
@@ -291,6 +293,8 @@ export function useMobileStructuredAgentSession(args: {
       loadingEarlier: loadingOlder,
       loadEarlier
     },
+    epoch: state.epoch,
+    branchableMessageIds,
     isWorking: activeStructuredAgentSessionTurnId(state.items) !== null,
     turnId: activeStructuredAgentSessionTurnId(state.items),
     sendWithOutcome,

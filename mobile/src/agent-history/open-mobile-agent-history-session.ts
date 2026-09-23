@@ -139,7 +139,7 @@ async function runMobileAgentHistoryOpen(
   return { kind: 'opened', message: 'Agent session queued.', worktreeId: target.worktreeId }
 }
 
-async function loadMobileResumeMetadata(client: Pick<RpcClient, 'sendRequest'>): Promise<{
+export async function loadMobileResumeMetadata(client: Pick<RpcClient, 'sendRequest'>): Promise<{
   repos: MobileAiVaultResumeRepo[]
   folderWorkspaces: MobileAiVaultResumeFolderWorkspace[]
   projectGroups: MobileAiVaultResumeProjectGroup[]

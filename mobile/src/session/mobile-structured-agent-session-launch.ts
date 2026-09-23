@@ -33,16 +33,23 @@ export type MobileStructuredAgentLaunchResult =
   | { kind: 'failed'; message: string }
   | { kind: 'unknown'; message: string }
 
+export function createMobileStructuredAgentSessionId(agent: AgentSessionHandleProvider): string {
+  return createStructuredAgentSessionId(agent, structuredSessionRandomUuid)
+}
+
 function createParamsFor(
   agent: AgentSessionHandleProvider,
   worktree: string,
-  resumeFrom?: StructuredAgentSessionResumeSource
+  options: {
+    resumeFrom?: StructuredAgentSessionResumeSource
+    sessionId?: string
+  }
 ): StructuredAgentSessionCreateParams {
   return structuredAgentSessionCreateParams({
-    sessionId: createStructuredAgentSessionId(agent, structuredSessionRandomUuid),
+    sessionId: options.sessionId ?? createMobileStructuredAgentSessionId(agent),
     worktree,
     agent,
-    ...(resumeFrom ? { resumeFrom } : {}),
+    ...(options.resumeFrom ? { resumeFrom: options.resumeFrom } : {}),
     randomUuid: structuredSessionRandomUuid
   })
 }
@@ -80,7 +87,7 @@ export async function createMobileStructuredAgentSession(
   client: RpcClient,
   worktreeId: string,
   agent: AgentSessionHandleProvider,
-  options: { resumeFrom?: StructuredAgentSessionResumeSource } = {}
+  options: { resumeFrom?: StructuredAgentSessionResumeSource; sessionId?: string } = {}
 ): Promise<MobileStructuredAgentLaunchResult> {
   const worktree = `id:${worktreeId}`
   let supportResponse
@@ -121,7 +128,7 @@ export async function createMobileStructuredAgentSession(
     return { kind: 'unsupported', reason: support?.reason }
   }
 
-  const params = createParamsFor(agent, worktree, options.resumeFrom)
+  const params = createParamsFor(agent, worktree, options)
   let response
   try {
     response = await client.sendRequest('agentSession.create', params, {

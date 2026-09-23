@@ -11,6 +11,9 @@ vi.mock('react-native', () => ({
 }))
 
 vi.mock('./MobileNativeChatView', () => ({ MobileNativeChatView: 'ChatView' }))
+vi.mock('./MobileConversationBranchDrawers', () => ({
+  MobileConversationBranchDrawers: 'ConversationBranchDrawers'
+}))
 
 function assistantTurn(id: string, text: string): NativeChatMessage {
   return { id, role: 'assistant', blocks: [{ type: 'text', text }], timestamp: 0, source: 'hook' }
@@ -38,7 +41,16 @@ function overlayElement(tick: Tick): ReturnType<typeof createElement> {
     chatPending: [],
     chatImagePreviewsByMessageId: {},
     chatComposerText: '',
-    setChatComposerText: vi.fn()
+    setChatComposerText: vi.fn(),
+    conversationBranch: {
+      supported: false,
+      family: { branches: [], returns: [] },
+      setFamilyVisible: vi.fn(),
+      canBranchMessage: () => false,
+      openBranch: vi.fn(),
+      anchorRequest: null,
+      consumeAnchor: vi.fn()
+    }
   } as unknown as MobileNativeChatController
   return createElement(MobileNativeChatOverlay, {
     controller,

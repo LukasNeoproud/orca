@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
+import {
+  clearMobileStructuredLaunchDraft,
+  stageMobileStructuredLaunchDraft
+} from './mobile-structured-launch-drafts'
 
 const acceptSend = vi.fn()
 const captureSendOrigin = vi.fn()
@@ -101,6 +105,10 @@ vi.mock('./use-mobile-structured-agent-session', () => ({
     invokeStructuredOption: structuredInvokeOption
   })
 }))
+vi.mock('./use-mobile-conversation-branching', async () => {
+  const support = await import('./mobile-conversation-branch-test-support')
+  return { useMobileConversationBranching: support.emptyMobileConversationBranchController }
+})
 vi.mock('./use-mobile-native-chat-drafts', () => ({
   useMobileNativeChatDrafts: (args: Record<string, unknown>) => {
     draftsArgs.push(args)
@@ -573,6 +581,30 @@ describe('useMobileNativeChatController launch-draft wiring', () => {
     render({ ...chatTab, launchDraft: undefined })
 
     expect(draftsArgs.at(-1)).toMatchObject({ launchDraft: null, chatActive: true })
+  })
+
+  it('seeds reference context staged before an ambiguous structured create', () => {
+    stageMobileStructuredLaunchDraft({
+      hostId: 'h',
+      sessionId: 'codex_next',
+      text: 'Reference: /context/source.md',
+      createdAt: 9
+    })
+    render({
+      type: 'agent-session',
+      id: 'agent-session:codex_next',
+      title: 'Codex',
+      sessionId: 'codex_next',
+      agent: 'codex',
+      isActive: true
+    })
+
+    expect(draftsArgs.at(-1)).toMatchObject({
+      sessionId: 'codex_next',
+      launchDraft: 'Reference: /context/source.md',
+      launchDraftCreatedAt: 9
+    })
+    clearMobileStructuredLaunchDraft('h', 'codex_next')
   })
 })
 
