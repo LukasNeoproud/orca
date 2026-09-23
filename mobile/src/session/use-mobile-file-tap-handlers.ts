@@ -2,8 +2,15 @@ import { useCallback, useLayoutEffect, useRef, type MutableRefObject } from 'rea
 import { useRouter } from 'expo-router'
 import { triggerSelection } from '../platform/haptics'
 import type { RpcClient } from '../transport/rpc-client'
-import { openMobileFileTap, type FileTapSessionTab } from './mobile-file-tap-open'
-import { openMobileNativeChatFileTap } from './mobile-native-chat-open-file'
+import {
+  openMobileFileTap,
+  previewMobileFileTap,
+  type FileTapSessionTab
+} from './mobile-file-tap-open'
+import {
+  openMobileNativeChatFileTap,
+  previewMobileNativeChatFileTap
+} from './mobile-native-chat-open-file'
 
 type MobileFileTapHandlerOptions<T extends FileTapSessionTab> = {
   client: Pick<RpcClient, 'sendRequest'> | null
@@ -40,6 +47,13 @@ export function useMobileFileTapHandlers<T extends FileTapSessionTab>(
     column: number | null
   ) => void
   handleNativeChatFileTap: (pathText: string) => void
+  handleFilePreview: (
+    handle: string,
+    pathText: string,
+    line: number | null,
+    column: number | null
+  ) => void
+  handleNativeChatFilePreview: (pathText: string) => void
 } {
   const {
     activeHandleRef,
@@ -139,6 +153,44 @@ export function useMobileFileTapHandlers<T extends FileTapSessionTab>(
     []
   )
 
+  const handleFilePreview = useCallback(
+    (handle: string, pathText: string, line: number | null, column: number | null) => {
+      const current = optionsRef.current
+      if (handle !== current.activeHandleRef.current || !current.client) {
+        return
+      }
+      const activationSeq = ++activationSeqRef.current
+      previewMobileFileTap<T>({
+        client: current.client,
+        hostId: current.hostId,
+        worktreeId: current.worktreeId,
+        worktreeName: current.worktreeName,
+        terminalHandle: handle,
+        pathText,
+        cwd: current.terminalCwdRef.current.get(handle) ?? null,
+        line,
+        column,
+        pushPreviewRoute: (href) => routerRef.current.push(href),
+        openBrowser: current.openBrowser,
+        triggerOpenFeedback: triggerSelection,
+        fetchSessionTabs: current.fetchSessionTabs,
+        getSessionTabs: current.getSessionTabs,
+        getActiveSessionTabId: current.getActiveSessionTabId,
+        getActivationState: (activated) => ({
+          activated,
+          activationSeq,
+          latestActivationSeq: activationSeqRef.current,
+          sourceTerminalHandle: handle,
+          activeTerminalHandle: current.activeHandleRef.current,
+          activeTabType: current.getActiveSessionTabType()
+        }),
+        switchSessionTab: current.switchSessionTab,
+        scheduleDelayedAction: current.scheduleDelayedAction
+      })
+    },
+    []
+  )
+
   const handleNativeChatFileTap = useCallback((pathText: string) => {
     const current = optionsRef.current
     const sourceTerminalHandle = current.activeHandleRef.current
@@ -180,5 +232,51 @@ export function useMobileFileTapHandlers<T extends FileTapSessionTab>(
     })
   }, [])
 
-  return { handleFileTap, handleNativeChatFileTap }
+  const handleNativeChatFilePreview = useCallback((pathText: string) => {
+    const current = optionsRef.current
+    const sourceTerminalHandle = current.activeHandleRef.current
+    const nativeChatSessionId = current.nativeChatSessionId
+    const nativeChatTabId = current.getActiveSessionTabId()
+    if (!current.client || (!sourceTerminalHandle && !(nativeChatSessionId && nativeChatTabId))) {
+      return
+    }
+    const activationSeq = ++activationSeqRef.current
+    previewMobileNativeChatFileTap<T>({
+      client: current.client,
+      hostId: current.hostId,
+      worktreeId: current.worktreeId,
+      worktreeName: current.worktreeName,
+      pathText,
+      nativeChatContext:
+        nativeChatSessionId && nativeChatTabId
+          ? { tabId: nativeChatTabId, sessionId: nativeChatSessionId }
+          : null,
+      pushPreviewRoute: (href) => routerRef.current.push(href),
+      openBrowser: current.openBrowser,
+      triggerOpenFeedback: triggerSelection,
+      fetchSessionTabs: current.fetchSessionTabs,
+      getSessionTabs: current.getSessionTabs,
+      getActiveSessionTabId: current.getActiveSessionTabId,
+      getActivationState: (activated) => ({
+        activated,
+        activationSeq,
+        latestActivationSeq: activationSeqRef.current,
+        sourceTerminalHandle,
+        activeTerminalHandle: current.activeHandleRef.current,
+        sourceSessionTabId: nativeChatTabId,
+        activeSessionTabId: current.getActiveSessionTabId(),
+        activeTabType: current.getActiveSessionTabType()
+      }),
+      switchSessionTab: current.switchSessionTab,
+      scheduleDelayedAction: current.scheduleDelayedAction,
+      onOpenFailed: () => current.reportChatTapFailure(`Couldn't preview ${pathText}`)
+    })
+  }, [])
+
+  return {
+    handleFileTap,
+    handleNativeChatFileTap,
+    handleFilePreview,
+    handleNativeChatFilePreview
+  }
 }

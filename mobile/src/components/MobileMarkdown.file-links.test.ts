@@ -33,6 +33,12 @@ function pressByText(renderer: ReactTestRenderer, text: string): void {
   target!.props.onPress()
 }
 
+function longPressByText(renderer: ReactTestRenderer, text: string): void {
+  const target = pressables(renderer).find((node) => flattenText(node) === text)
+  expect(target, `no pressable text ${JSON.stringify(text)}`).toBeDefined()
+  target!.props.onLongPress()
+}
+
 describe('MobileMarkdown file links', () => {
   let renderer: ReactTestRenderer | null = null
   const onOpenFile = vi.fn()
@@ -79,6 +85,49 @@ describe('MobileMarkdown file links', () => {
     pressByText(render('go to [site](https://example.com/docs)'), 'site')
     expect(openURL).toHaveBeenCalledWith('https://example.com/docs')
     expect(onOpenFile).not.toHaveBeenCalled()
+  })
+
+  it('routes web taps through the supplied mobile browser handler', () => {
+    const onOpenUrl = vi.fn()
+    act(() => {
+      renderer = create(
+        createElement(MobileMarkdown, {
+          content: '[site](https://example.com/docs)',
+          onOpenFile,
+          onOpenUrl
+        })
+      )
+    })
+
+    pressByText(renderer!, 'site')
+    expect(onOpenUrl).toHaveBeenCalledWith('https://example.com/docs')
+    expect(openURL).not.toHaveBeenCalled()
+  })
+
+  it('exposes file and web actions on long press without changing tap behavior', () => {
+    const onShowLinkActions = vi.fn()
+    act(() => {
+      renderer = create(
+        createElement(MobileMarkdown, {
+          content: 'src/app.ts and https://example.com/docs',
+          onOpenFile,
+          onShowLinkActions
+        })
+      )
+    })
+
+    longPressByText(renderer!, 'src/app.ts')
+    longPressByText(renderer!, 'https://example.com/docs')
+    expect(onShowLinkActions).toHaveBeenNthCalledWith(1, {
+      kind: 'file',
+      pathText: 'src/app.ts'
+    })
+    expect(onShowLinkActions).toHaveBeenNthCalledWith(2, {
+      kind: 'web',
+      url: 'https://example.com/docs'
+    })
+    expect(onOpenFile).not.toHaveBeenCalled()
+    expect(openURL).not.toHaveBeenCalled()
   })
 
   it('drops unknown-scheme hrefs without opening anything', () => {

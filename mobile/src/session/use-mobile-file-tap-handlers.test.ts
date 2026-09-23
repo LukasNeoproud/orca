@@ -64,6 +64,8 @@ describe('useMobileFileTapHandlers', () => {
     })
     expect(handlers!.handleFileTap).toBe(first!.handleFileTap)
     expect(handlers!.handleNativeChatFileTap).toBe(first!.handleNativeChatFileTap)
+    expect(handlers!.handleFilePreview).toBe(first!.handleFilePreview)
+    expect(handlers!.handleNativeChatFilePreview).toBe(first!.handleNativeChatFilePreview)
   })
 
   it('dispatches through the latest options after a rerender', () => {

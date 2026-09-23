@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, type ReactNode } from 'react'
+import { Fragment, createContext, memo, useContext, useMemo, type ReactNode } from 'react'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { normalizeMobileMarkdownPreviewHtml } from './mobile-markdown-preview-html'
 import { styles } from './mobile-markdown-styles'
@@ -27,6 +27,44 @@ type Props = {
    *  optional :line(:col) suffix). Omitted on screens with no file viewer, where
    *  paths render as plain text (no behavior change). */
   onOpenFile?: (pathText: string) => void
+  onOpenUrl?: (url: string) => void
+  onShowLinkActions?: (target: MobileMarkdownLinkTarget) => void
+}
+
+export type MobileMarkdownLinkTarget =
+  | { kind: 'file'; pathText: string }
+  | { kind: 'web'; url: string }
+
+type MobileMarkdownLinkHandlers = Pick<Props, 'onOpenUrl' | 'onShowLinkActions'>
+
+const MobileMarkdownLinkContext = createContext<MobileMarkdownLinkHandlers>({})
+
+export const MobileMarkdownLinkHandlerProvider = MobileMarkdownLinkContext.Provider
+
+function linkActionProps(
+  target: MobileMarkdownLinkTarget,
+  onShowLinkActions?: (target: MobileMarkdownLinkTarget) => void
+) {
+  return onShowLinkActions
+    ? {
+        onLongPress: () => onShowLinkActions(target),
+        accessibilityHint: 'Long press for link actions'
+      }
+    : {}
+}
+
+function hrefActionProps(
+  href: string,
+  onShowLinkActions?: (target: MobileMarkdownLinkTarget) => void
+) {
+  const route = routeMarkdownHref(href)
+  if (route.kind === 'web') {
+    return linkActionProps({ kind: 'web', url: route.url }, onShowLinkActions)
+  }
+  if (route.kind === 'file') {
+    return linkActionProps({ kind: 'file', pathText: route.pathText }, onShowLinkActions)
+  }
+  return {}
 }
 
 const MAX_TABLE_ROWS = 40
@@ -34,12 +72,20 @@ const MAX_TABLE_COLUMNS = 8
 /** Prose base size — passed to MermaidDiagram fallback mono text. */
 const MERMAID_BASE = 13
 
-// Web/mail hrefs open the system handler; file-target hrefs (file: URIs and
-// scheme-less paths — the entire desktop file-link contract) go to onOpenFile.
-function openMarkdownHref(href: string, onOpenFile?: (pathText: string) => void): void {
+// Web/mail hrefs use the owning surface's router when provided; file-target
+// hrefs (file: URIs and scheme-less paths) go to onOpenFile.
+function openMarkdownHref(
+  href: string,
+  onOpenFile?: (pathText: string) => void,
+  onOpenUrl?: (url: string) => void
+): void {
   const route = routeMarkdownHref(href)
   if (route.kind === 'web') {
-    void Linking.openURL(route.url).catch(() => {})
+    if (onOpenUrl) {
+      onOpenUrl(route.url)
+    } else {
+      void Linking.openURL(route.url).catch(() => {})
+    }
     return
   }
   if (route.kind === 'file' && onOpenFile) {
@@ -52,7 +98,8 @@ function openMarkdownHref(href: string, onOpenFile?: (pathText: string) => void)
 function renderTextRun(
   text: string,
   keyPrefix: string,
-  onOpenFile?: (pathText: string) => void
+  onOpenFile?: (pathText: string) => void,
+  onShowLinkActions?: (target: MobileMarkdownLinkTarget) => void
 ): ReactNode {
   if (!onOpenFile) {
     return text
@@ -68,6 +115,8 @@ function renderTextRun(
           key={`${keyPrefix}:${segmentIndex}`}
           style={styles.link}
           onPress={() => onOpenFile(segment.path)}
+          accessibilityRole="link"
+          {...linkActionProps({ kind: 'file', pathText: segment.path }, onShowLinkActions)}
         >
           {segment.value}
         </Text>
@@ -77,7 +126,12 @@ function renderTextRun(
   })
 }
 
-function renderInline(text: string, onOpenFile?: (pathText: string) => void): ReactNode[] {
+function renderInline(
+  text: string,
+  onOpenFile?: (pathText: string) => void,
+  onOpenUrl?: (url: string) => void,
+  onShowLinkActions?: (target: MobileMarkdownLinkTarget) => void
+): ReactNode[] {
   const parts: ReactNode[] = []
   const pattern =
     /(!\[[^\]]*\]\([^)]+\)|`[^`]+`|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s<]+)/g
@@ -96,7 +150,12 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
     }
     if (match.index > pendingStart) {
       parts.push(
-        renderTextRun(text.slice(pendingStart, match.index), `t${pendingStart}`, onOpenFile)
+        renderTextRun(
+          text.slice(pendingStart, match.index),
+          `t${pendingStart}`,
+          onOpenFile,
+          onShowLinkActions
+        )
       )
     }
     pendingStart = pattern.lastIndex
@@ -105,20 +164,38 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
     const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
     if (image) {
       parts.push(
-        <Text key={key} style={styles.link} onPress={() => openMarkdownHref(image[2]!, onOpenFile)}>
+        <Text
+          key={key}
+          style={styles.link}
+          onPress={() => openMarkdownHref(image[2]!, onOpenFile, onOpenUrl)}
+          accessibilityRole="link"
+          {...hrefActionProps(image[2]!, onShowLinkActions)}
+        >
           {image[1] || 'image'}
         </Text>
       )
     } else if (link) {
       parts.push(
-        <Text key={key} style={styles.link} onPress={() => openMarkdownHref(link[2]!, onOpenFile)}>
+        <Text
+          key={key}
+          style={styles.link}
+          onPress={() => openMarkdownHref(link[2]!, onOpenFile, onOpenUrl)}
+          accessibilityRole="link"
+          {...hrefActionProps(link[2]!, onShowLinkActions)}
+        >
           {link[1]}
         </Text>
       )
     } else if (/^https?:\/\//i.test(token)) {
       const { url, trailing } = trimAutolinkTrailingPunctuation(token)
       parts.push(
-        <Text key={key} style={styles.link} onPress={() => openMarkdownHref(url, onOpenFile)}>
+        <Text
+          key={key}
+          style={styles.link}
+          onPress={() => openMarkdownHref(url, onOpenFile, onOpenUrl)}
+          accessibilityRole="link"
+          {...linkActionProps({ kind: 'web', url }, onShowLinkActions)}
+        >
           {url}
         </Text>
       )
@@ -133,6 +210,11 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
             key={key}
             style={[styles.inlineCode, styles.inlineCodeLink]}
             onPress={() => onOpenFile(normalizeFilePath(code.trim()))}
+            accessibilityRole="link"
+            {...linkActionProps(
+              { kind: 'file', pathText: normalizeFilePath(code.trim()) },
+              onShowLinkActions
+            )}
           >
             {code}
           </Text>
@@ -147,31 +229,43 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
     } else if (token.startsWith('~~')) {
       parts.push(
         <Text key={key} style={styles.strike}>
-          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile, onShowLinkActions)}
         </Text>
       )
     } else if (token.startsWith('**') || token.startsWith('__')) {
       parts.push(
         <Text key={key} style={styles.bold}>
-          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile, onShowLinkActions)}
         </Text>
       )
     } else {
       parts.push(
         <Text key={key} style={styles.italic}>
-          {renderTextRun(token.slice(1, -1), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(1, -1), `${key}i`, onOpenFile, onShowLinkActions)}
         </Text>
       )
     }
   }
 
   if (pendingStart < text.length) {
-    parts.push(renderTextRun(text.slice(pendingStart), `t${pendingStart}`, onOpenFile))
+    parts.push(
+      renderTextRun(text.slice(pendingStart), `t${pendingStart}`, onOpenFile, onShowLinkActions)
+    )
   }
   return parts
 }
 
-function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile }: Props) {
+function MobileMarkdownInner({
+  content,
+  fallback = '',
+  textScale = 1,
+  onOpenFile,
+  onOpenUrl,
+  onShowLinkActions
+}: Props) {
+  const contextualLinkHandlers = useContext(MobileMarkdownLinkContext)
+  const resolvedOpenUrl = onOpenUrl ?? contextualLinkHandlers.onOpenUrl
+  const resolvedShowLinkActions = onShowLinkActions ?? contextualLinkHandlers.onShowLinkActions
   const text = content?.trim() ?? ''
   const previewText = useMemo(() => normalizeMobileMarkdownPreviewHtml(text), [text])
   const blocks = useMemo(() => parseMobileMarkdown(previewText), [previewText])
@@ -195,7 +289,7 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
               selectable
               style={[styles.heading, block.level <= 2 ? styles.headingLarge : null]}
             >
-              {renderInline(block.text, onOpenFile)}
+              {renderInline(block.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
             </Text>
           )
         }
@@ -203,7 +297,7 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
           return (
             <View key={index} style={styles.quote}>
               <Text selectable style={styles.quoteText}>
-                {renderInline(block.text, onOpenFile)}
+                {renderInline(block.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
               </Text>
             </View>
           )
@@ -237,7 +331,10 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
             <Pressable
               key={index}
               style={styles.imageFrame}
-              onPress={() => openMarkdownHref(block.url, onOpenFile)}
+              onPress={() => openMarkdownHref(block.url, onOpenFile, resolvedOpenUrl)}
+              delayLongPress={450}
+              accessibilityRole="link"
+              {...hrefActionProps(block.url, resolvedShowLinkActions)}
             >
               <Text style={styles.link}>{block.alt || 'Open image'}</Text>
               <Text style={styles.imageCaption} numberOfLines={1}>
@@ -257,7 +354,7 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
                 <View style={styles.tableRow}>
                   {visibleHeaders.map((header, cellIndex) => (
                     <Text key={cellIndex} selectable style={[styles.tableCell, styles.tableHeader]}>
-                      {renderInline(header, onOpenFile)}
+                      {renderInline(header, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
                     </Text>
                   ))}
                 </View>
@@ -265,7 +362,12 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
                   <View key={rowIndex} style={styles.tableRow}>
                     {visibleHeaders.map((_, cellIndex) => (
                       <Text key={cellIndex} selectable style={styles.tableCell}>
-                        {renderInline(row[cellIndex] ?? '', onOpenFile)}
+                        {renderInline(
+                          row[cellIndex] ?? '',
+                          onOpenFile,
+                          resolvedOpenUrl,
+                          resolvedShowLinkActions
+                        )}
                       </Text>
                     ))}
                   </View>
@@ -296,7 +398,7 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
                         : '[ ]'}
                   </Text>
                   <Text selectable style={[styles.listText, listScale]}>
-                    {renderInline(item.text, onOpenFile)}
+                    {renderInline(item.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
                   </Text>
                 </View>
               ))}
@@ -311,7 +413,7 @@ function MobileMarkdownInner({ content, fallback = '', textScale = 1, onOpenFile
             {block.text.split('\n').map((line, lineIndex) => (
               <Fragment key={lineIndex}>
                 {lineIndex > 0 ? '\n' : null}
-                {renderInline(line, onOpenFile)}
+                {renderInline(line, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
               </Fragment>
             ))}
           </Text>

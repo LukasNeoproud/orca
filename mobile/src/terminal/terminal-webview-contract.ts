@@ -44,6 +44,10 @@ function toNonNegativeInteger(value: unknown): number {
 
 export type MobileTerminalTheme = RuntimeMobileTerminalTheme
 
+export type TerminalLinkActionTarget =
+  | { kind: 'file'; pathText: string; line: number | null; column: number | null }
+  | { kind: 'web'; url: string }
+
 export type TerminalSelectionEvents = {
   onSelectionMode?: (active: boolean) => void
   onSelectionCopy?: (text: string) => void
@@ -58,6 +62,8 @@ export type TerminalSelectionEvents = {
   onFileTap?: (pathText: string, line: number | null, column: number | null) => void
   // WebView-detected URL tap; RN chooses the mobile routing destination.
   onOpenUrl?: (url: string) => void
+  // Long press keeps xterm selection active and also exposes actions for the link under it.
+  onLinkActions?: (target: TerminalLinkActionTarget) => void
   // Why: pinch-to-zoom in the terminal snaps to a text-size preset and reports it
   // here so the app persists it and keeps Settings + other panes in sync.
   onTextScaleChange?: (scale: number) => void

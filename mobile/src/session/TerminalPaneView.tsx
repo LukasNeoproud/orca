@@ -4,6 +4,7 @@ import { TerminalWebView } from '../terminal/TerminalWebView'
 import type {
   MobileTerminalTheme,
   TerminalKeyboardAvoidanceMetrics,
+  TerminalLinkActionTarget,
   TerminalModes,
   TerminalWebViewHandle
 } from '../terminal/terminal-webview-contract'
@@ -27,6 +28,7 @@ type TerminalPaneViewProps = {
   onTerminalTap: (handle: string) => void
   onFileTap: (handle: string, pathText: string, line: number | null, column: number | null) => void
   onOpenUrl: (handle: string, url: string) => void
+  onLinkActions: (handle: string, target: TerminalLinkActionTarget) => void
   onTextScaleChange: (scale: number) => void
 }
 
@@ -49,6 +51,7 @@ export function TerminalPaneView({
   onTerminalTap,
   onFileTap,
   onOpenUrl,
+  onLinkActions,
   onTextScaleChange
 }: TerminalPaneViewProps) {
   const setRef = useCallback(
@@ -86,6 +89,7 @@ export function TerminalPaneView({
         onTerminalTap={() => onTerminalTap(handle)}
         onFileTap={(pathText, line, column) => onFileTap(handle, pathText, line, column)}
         onOpenUrl={(url) => onOpenUrl(handle, url)}
+        onLinkActions={(target) => onLinkActions(handle, target)}
         onTextScaleChange={onTextScaleChange}
       />
     </View>

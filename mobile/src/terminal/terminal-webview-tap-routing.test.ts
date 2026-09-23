@@ -151,6 +151,24 @@ describe('terminal WebView tap routing', () => {
     expect(posted.find((m) => m.type === 'open-url')?.url).toBe('https://example.com/foo')
   })
 
+  it('keeps long-press selection and exposes actions for the link under it', async () => {
+    const { posted } = boot(URL_LINE)
+    await settle()
+
+    fireTouch('touchstart', [{ x: tapX, y: tapY }])
+    await new Promise((resolve) => setTimeout(resolve, 550))
+
+    expect(
+      posted.find((message) => message.type === 'set-select-mode' && message.enabled === true)
+    ).toBeDefined()
+    expect(posted.find((message) => message.type === 'link-actions')).toMatchObject({
+      kind: 'web',
+      url: 'https://example.com/foo'
+    })
+    expect(posted.find((message) => message.type === 'open-url')).toBeUndefined()
+    fireTouch('touchend', [])
+  })
+
   it('focuses native input after reporting a touch tap to a mouse-tracking TUI', async () => {
     const { posted } = boot('interactive prompt', undefined, 'drag')
     await settle()

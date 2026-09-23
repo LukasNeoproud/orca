@@ -38,6 +38,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
     onTerminalTap,
     onFileTap,
     onOpenUrl,
+    onLinkActions,
     onTextScaleChange
   },
   ref
@@ -171,6 +172,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
           onTerminalTap,
           onFileTap,
           onOpenUrl,
+          onLinkActions,
           onTextScaleChange
         })
       }
@@ -189,6 +191,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
       onTerminalTap,
       onFileTap,
       onOpenUrl,
+      onLinkActions,
       onTextScaleChange
     ]
   )

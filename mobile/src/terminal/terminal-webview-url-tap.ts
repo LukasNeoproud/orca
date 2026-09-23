@@ -205,41 +205,69 @@ export const URL_TAP_WEBVIEW_JS = `
     } catch (e) { return 0; }
   }
 
-  function notifyTerminalSurfaceTap(originX, originY, focusKeyboard) {
+  function terminalLinkAtViewportPoint(originX, originY) {
     var tappedOscLink = oscLinkAtViewportPoint(originX, originY);
     if (tappedOscLink && tappedOscLink.kind === 'file') {
-      notify({
-        type: 'terminal-file-tap',
+      return {
+        kind: 'file',
         pathText: tappedOscLink.fileTap.pathText,
         line: tappedOscLink.fileTap.line,
         column: tappedOscLink.fileTap.column
-      });
-      return;
+      };
     }
     var tappedFileUrl = fileUrlAtViewportPoint(originX, originY);
     var tappedFileUrlPath = tappedFileUrl ? resolveTerminalFileUrlTap(tappedFileUrl) : null;
     if (tappedFileUrlPath) {
-      notify({
-        type: 'terminal-file-tap',
+      return {
+        kind: 'file',
         pathText: tappedFileUrlPath.pathText,
         line: tappedFileUrlPath.line,
         column: tappedFileUrlPath.column
-      });
-      return;
+      };
     }
     var tappedUrl = tappedOscLink && tappedOscLink.kind === 'url' ? tappedOscLink.url : urlAtViewportPoint(originX, originY);
     if (tappedUrl) {
-      notify({ type: 'open-url', url: tappedUrl });
-      return;
+      return { kind: 'web', url: tappedUrl };
     }
     var tappedPath = filePathAtViewportPoint(originX, originY);
     if (tappedPath) {
-      notify({
-        type: 'terminal-file-tap',
+      return {
+        kind: 'file',
         pathText: tappedPath.pathText,
         line: tappedPath.line,
         column: tappedPath.column
+      };
+    }
+    return null;
+  }
+
+  function notifyTerminalLinkActionsAtViewportPoint(originX, originY) {
+    var target = terminalLinkAtViewportPoint(originX, originY);
+    if (!target) return;
+    notify(target.kind === 'web'
+      ? { type: 'link-actions', kind: 'web', url: target.url }
+      : {
+          type: 'link-actions',
+          kind: 'file',
+          pathText: target.pathText,
+          line: target.line,
+          column: target.column
+        });
+  }
+
+  function notifyTerminalSurfaceTap(originX, originY, focusKeyboard) {
+    var target = terminalLinkAtViewportPoint(originX, originY);
+    if (target && target.kind === 'file') {
+      notify({
+        type: 'terminal-file-tap',
+        pathText: target.pathText,
+        line: target.line,
+        column: target.column
       });
+      return;
+    }
+    if (target && target.kind === 'web') {
+      notify({ type: 'open-url', url: target.url });
       return;
     }
     var clickInput = buildMouseClickInput(originX, originY);

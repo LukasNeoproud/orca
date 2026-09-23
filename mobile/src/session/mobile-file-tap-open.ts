@@ -52,7 +52,22 @@ export type OpenMobileFileTapOptions<T extends FileTapSessionTab> = {
 export function openMobileFileTap<T extends FileTapSessionTab>(
   options: OpenMobileFileTapOptions<T>
 ): void {
-  void openMobileFileTapAsync(options).catch(() => {
+  runMobileFileTap(options, false)
+}
+
+/** Resolves the same execution-host target as a normal tap, but always opens
+ * the read-only preview route instead of creating/activating a desktop tab. */
+export function previewMobileFileTap<T extends FileTapSessionTab>(
+  options: OpenMobileFileTapOptions<T>
+): void {
+  runMobileFileTap(options, true)
+}
+
+function runMobileFileTap<T extends FileTapSessionTab>(
+  options: OpenMobileFileTapOptions<T>,
+  previewOnly: boolean
+): void {
+  void openMobileFileTapAsync(options, previewOnly).catch(() => {
     // File taps are best-effort: a failed host resolution should leave terminal
     // focus/input untouched. Surfaces that want feedback pass onOpenFailed.
     reportOpenFailure(options)
@@ -71,7 +86,8 @@ function reportOpenFailure<T extends FileTapSessionTab>(
 }
 
 async function openMobileFileTapAsync<T extends FileTapSessionTab>(
-  options: OpenMobileFileTapOptions<T>
+  options: OpenMobileFileTapOptions<T>,
+  previewOnly: boolean
 ): Promise<void> {
   const worktree = `id:${options.worktreeId}`
   const response = await options.client.sendRequest(
@@ -146,6 +162,7 @@ async function openMobileFileTapAsync<T extends FileTapSessionTab>(
   }
   options.triggerOpenFeedback()
   if (
+    previewOnly ||
     resolvedWorktreeId !== options.worktreeId ||
     options.line !== null ||
     options.column !== null

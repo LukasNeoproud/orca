@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { openMobileFileTap } from './mobile-file-tap-open'
+import { openMobileFileTap, previewMobileFileTap } from './mobile-file-tap-open'
 
 function ok(result: unknown) {
   return { ok: true, result, _meta: { runtimeId: 'runtime-1' } }
@@ -23,6 +23,68 @@ function activeTerminalState(activated: boolean) {
 }
 
 describe('openMobileFileTap', () => {
+  it('previews a worktree file after resolving it on the execution host', async () => {
+    const client = createClient([
+      ok({
+        worktree: 'wt-1',
+        relativePath: 'src/index.ts',
+        absolutePath: '/repo/src/index.ts',
+        exists: true,
+        isDirectory: false,
+        openTarget: {
+          kind: 'worktree-file',
+          provider: 'ssh',
+          relativePath: 'src/index.ts',
+          absolutePath: '/repo/src/index.ts'
+        }
+      })
+    ])
+    const pushPreviewRoute = vi.fn()
+
+    previewMobileFileTap({
+      client,
+      hostId: 'ssh-host',
+      worktreeId: 'wt-1',
+      terminalHandle: 'terminal-1',
+      cwd: '/repo',
+      pathText: 'src/index.ts',
+      line: null,
+      column: null,
+      pushPreviewRoute,
+      openBrowser: vi.fn(),
+      triggerOpenFeedback: vi.fn(),
+      fetchSessionTabs: vi.fn(),
+      getSessionTabs: () => [],
+      getActiveSessionTabId: () => 'terminal-tab',
+      getActivationState: activeTerminalState,
+      switchSessionTab: vi.fn(),
+      scheduleDelayedAction: vi.fn()
+    })
+    await Promise.resolve()
+
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'files.resolveTerminalPath',
+      {
+        worktree: 'id:wt-1',
+        pathText: 'src/index.ts',
+        crossWorkspace: true,
+        terminal: 'terminal-1',
+        cwd: '/repo'
+      },
+      { timeoutMs: 10_000 }
+    )
+    expect(pushPreviewRoute).toHaveBeenCalledWith({
+      pathname: '/h/[hostId]/files/preview/[worktreeId]',
+      params: expect.objectContaining({
+        hostId: 'ssh-host',
+        worktreeId: 'wt-1',
+        source: 'worktree',
+        relativePath: 'src/index.ts'
+      })
+    })
+    expect(client.sendRequest).not.toHaveBeenCalledWith('files.open', expect.anything())
+  })
+
   it('opens absolute terminal artifacts through the grant-backed preview route', async () => {
     const client = createClient([
       ok({

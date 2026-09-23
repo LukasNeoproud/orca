@@ -1,10 +1,19 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { Linking } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import { triggerError, triggerSuccess } from '../platform/haptics'
+import type { MobileMarkdownLinkTarget } from '../components/MobileMarkdown'
+import type { TerminalLinkActionTarget } from '../terminal/terminal-webview-contract'
+import type { MobileTerminalLinkOpenMode } from '../storage/preferences'
 import { useMobileFileTapHandlers } from './use-mobile-file-tap-handlers'
 import { resolveMobileNativeChatFileSessionId } from './mobile-native-chat-eligibility'
 import { activateOpenedSourceControlDiffTab } from './opened-mobile-session-tab'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import type { MobileSessionTerminalSendActionsModel } from './use-mobile-session-terminal-send-actions'
+import {
+  mobileLinkActionDestination,
+  type MobileLinkActionTarget
+} from './mobile-link-action-target'
 
 export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActionsModel) {
   const {
@@ -24,26 +33,30 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
     handleCreateBrowserRef,
     scheduleDelayedAction,
     nativeChatSendError,
-    fetchSessionTabs
+    fetchSessionTabs,
+    nativeChatController,
+    setInput,
+    showToast
   } = scope
   // Tap a terminal or chat file path → resolve on host, open as file tab/preview.
-  const { handleFileTap, handleNativeChatFileTap } = useMobileFileTapHandlers<MobileSessionTab>({
-    client,
-    hostId,
-    worktreeId,
-    worktreeName: routeWorktreeName,
-    nativeChatSessionId: resolveMobileNativeChatFileSessionId(activeSessionTab),
-    activeHandleRef,
-    terminalCwdRef,
-    openBrowser: (url) => void handleCreateBrowserRef.current?.(url),
-    fetchSessionTabs,
-    getSessionTabs: () => sessionTabsRef.current,
-    getActiveSessionTabId: () => activeSessionTabIdRef.current,
-    getActiveSessionTabType: () => activeSessionTabTypeRef.current,
-    switchSessionTab: (tab) => switchSessionTabRef.current?.(tab),
-    scheduleDelayedAction,
-    reportChatTapFailure: nativeChatSendError.show
-  })
+  const { handleFileTap, handleNativeChatFileTap, handleFilePreview, handleNativeChatFilePreview } =
+    useMobileFileTapHandlers<MobileSessionTab>({
+      client,
+      hostId,
+      worktreeId,
+      worktreeName: routeWorktreeName,
+      nativeChatSessionId: resolveMobileNativeChatFileSessionId(activeSessionTab),
+      activeHandleRef,
+      terminalCwdRef,
+      openBrowser: (url) => void handleCreateBrowserRef.current?.(url),
+      fetchSessionTabs,
+      getSessionTabs: () => sessionTabsRef.current,
+      getActiveSessionTabId: () => activeSessionTabIdRef.current,
+      getActiveSessionTabType: () => activeSessionTabTypeRef.current,
+      switchSessionTab: (tab) => switchSessionTabRef.current?.(tab),
+      scheduleDelayedAction,
+      reportChatTapFailure: nativeChatSendError.show
+    })
 
   const handleOpenedFileDiffActivationSeqRef = useRef(0)
   // Capture active tab at tap time; reading it after openDiff would misread a mid-RPC switch and let the retry steal focus.
@@ -84,20 +97,110 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
     [fetchSessionTabs, scheduleDelayedAction]
   )
 
-  const handleTerminalOpenUrl = useCallback(
-    (handle: string, url: string) => {
-      if (handle !== activeHandleRef.current) {
-        return
-      }
+  const openWebLink = useCallback(
+    (url: string, mode: MobileTerminalLinkOpenMode) => {
       // Why: browser.tabCreate resolves a real worktree, which the floating
       // sentinel doesn't have — open taps in the phone browser instead.
-      if (terminalLinkOpenMode === 'phone-browser' || isFloatingWorkspaceRoute) {
+      if (!/^https?:\/\//i.test(url) || mode === 'phone-browser' || isFloatingWorkspaceRoute) {
         void Linking.openURL(url).catch(() => {})
         return
       }
       void handleCreateBrowserRef.current?.(url)
     },
-    [terminalLinkOpenMode, isFloatingWorkspaceRoute]
+    [isFloatingWorkspaceRoute]
+  )
+
+  const handleTerminalOpenUrl = useCallback(
+    (handle: string, url: string) => {
+      if (handle !== activeHandleRef.current) {
+        return
+      }
+      openWebLink(url, terminalLinkOpenMode)
+    },
+    [openWebLink, terminalLinkOpenMode]
+  )
+
+  const handleNativeChatOpenUrl = useCallback(
+    (url: string) => openWebLink(url, terminalLinkOpenMode),
+    [openWebLink, terminalLinkOpenMode]
+  )
+  const [linkActionTarget, setLinkActionTarget] = useState<MobileLinkActionTarget | null>(null)
+  const handleTerminalLinkActions = useCallback(
+    (handle: string, target: TerminalLinkActionTarget) => {
+      if (handle === activeHandleRef.current) {
+        setLinkActionTarget({ ...target, source: 'terminal', terminalHandle: handle })
+      }
+    },
+    []
+  )
+  const handleNativeChatLinkActions = useCallback((target: MobileMarkdownLinkTarget) => {
+    setLinkActionTarget({ ...target, source: 'chat' })
+  }, [])
+  const dismissLinkActions = useCallback(() => setLinkActionTarget(null), [])
+  const openLinkActionFile = useCallback(
+    (target: Extract<MobileLinkActionTarget, { kind: 'file' }>) => {
+      setLinkActionTarget(null)
+      if (target.source === 'terminal') {
+        handleFileTap(target.terminalHandle, target.pathText, target.line, target.column)
+      } else {
+        handleNativeChatFileTap(target.pathText)
+      }
+    },
+    [handleFileTap, handleNativeChatFileTap]
+  )
+  const previewLinkActionFile = useCallback(
+    (target: Extract<MobileLinkActionTarget, { kind: 'file' }>) => {
+      setLinkActionTarget(null)
+      if (target.source === 'terminal') {
+        handleFilePreview(target.terminalHandle, target.pathText, target.line, target.column)
+      } else {
+        handleNativeChatFilePreview(target.pathText)
+      }
+    },
+    [handleFilePreview, handleNativeChatFilePreview]
+  )
+  const openLinkActionWeb = useCallback(
+    (
+      target: Extract<MobileLinkActionTarget, { kind: 'web' }>,
+      mode: MobileTerminalLinkOpenMode
+    ) => {
+      setLinkActionTarget(null)
+      openWebLink(target.url, mode)
+    },
+    [openWebLink]
+  )
+  const copyLinkActionDestination = useCallback(
+    (target: MobileLinkActionTarget) => {
+      setLinkActionTarget(null)
+      void Clipboard.setStringAsync(mobileLinkActionDestination(target))
+        .then(() => {
+          triggerSuccess()
+          showToast(target.kind === 'file' ? 'Path copied' : 'Link copied')
+        })
+        .catch(() => {
+          triggerError()
+          showToast("Couldn't copy", 1500)
+        })
+    },
+    [showToast]
+  )
+  const addLinkActionToMessage = useCallback(
+    (target: MobileLinkActionTarget) => {
+      setLinkActionTarget(null)
+      const destination = mobileLinkActionDestination(target)
+      const append = (current: string) =>
+        current.length === 0 || /\s$/.test(current)
+          ? `${current}${destination}`
+          : `${current} ${destination}`
+      if (target.source === 'chat' || nativeChatController.showNativeChatRef.current) {
+        nativeChatController.setChatComposerText(append)
+      } else {
+        setInput(append)
+      }
+      triggerSuccess()
+      showToast('Added to message')
+    },
+    [nativeChatController, setInput, showToast]
   )
   return {
     handleFileTap,
@@ -106,7 +209,17 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
     fileOpenStartActiveTabIdRef,
     handleFileOpenStart,
     handleOpenedFileDiff,
-    handleTerminalOpenUrl
+    handleTerminalOpenUrl,
+    handleNativeChatOpenUrl,
+    handleTerminalLinkActions,
+    handleNativeChatLinkActions,
+    linkActionTarget,
+    dismissLinkActions,
+    openLinkActionFile,
+    previewLinkActionFile,
+    openLinkActionWeb,
+    copyLinkActionDestination,
+    addLinkActionToMessage
   }
 }
 

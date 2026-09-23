@@ -10,6 +10,7 @@ import { ConfirmModal } from '../components/ConfirmModal'
 import { CustomKeyModal } from '../components/CustomKeyModal'
 import { MobileDictationSetupSheet } from '../components/MobileDictationSetupSheet'
 import { MobileBrowserTabActionSheet } from './MobileBrowserTabActionSheet'
+import { MobileLinkActionSheet } from './MobileLinkActionSheet'
 import { getMobileTerminalActionSheetActions } from './mobile-terminal-action-sheet-actions'
 import {
   getRepoIdFromMobileWorktreeId,
@@ -90,7 +91,15 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     openBacklog,
     showAgentSessionHistoryAction,
     showBacklogAction,
-    showChecksAction
+    showChecksAction,
+    terminalLinkOpenMode,
+    linkActionTarget,
+    dismissLinkActions,
+    openLinkActionFile,
+    previewLinkActionFile,
+    openLinkActionWeb,
+    copyLinkActionDestination,
+    addLinkActionToMessage
   } = controller
   return (
     <>
@@ -103,6 +112,17 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
         onOpenBacklog={openBacklog}
         onOpenChecks={() => handlePanelTap('pr')}
         onClose={() => setShowHeaderMoreActions(false)}
+      />
+      <MobileLinkActionSheet
+        target={linkActionTarget}
+        preferredWebMode={terminalLinkOpenMode}
+        canOpenOrcaBrowser={!isFloatingWorkspaceRoute}
+        onClose={dismissLinkActions}
+        onOpenFile={openLinkActionFile}
+        onPreviewFile={previewLinkActionFile}
+        onOpenWeb={openLinkActionWeb}
+        onCopy={copyLinkActionDestination}
+        onAddToMessage={addLinkActionToMessage}
       />
       <QuickCommandsSheet
         visible={showQuickCommands && quickCommandsSupported === true}

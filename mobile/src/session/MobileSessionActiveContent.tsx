@@ -1,6 +1,7 @@
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
 import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
+import { MobileMarkdownLinkHandlerProvider } from '../components/MobileMarkdown'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
 import { colors } from '../theme/mobile-theme'
@@ -59,6 +60,9 @@ export function MobileSessionActiveContent({
     handleFileTap,
     handleNativeChatFileTap,
     handleTerminalOpenUrl,
+    handleNativeChatOpenUrl,
+    handleTerminalLinkActions,
+    handleNativeChatLinkActions,
     handleTerminalInput,
     handleTerminalQueryReply,
     handleSelectionMode,
@@ -229,24 +233,32 @@ export function MobileSessionActiveContent({
           onTerminalTap={handleTerminalTap}
           onFileTap={handleFileTap}
           onOpenUrl={handleTerminalOpenUrl}
+          onLinkActions={handleTerminalLinkActions}
         />
       ))}
-      <MobileNativeChatOverlay
-        controller={nativeChatController}
-        onOpenFile={handleNativeChatFileTap}
-        images={nativeChatImages}
-        onMicPress={handleDictationToggle}
-        micActive={dictation.isRecording}
-        dictationMode={dictationMode}
-        onMicPressIn={handleDictationPressIn}
-        onMicPressOut={handleDictationPressOut}
-        inputLockReason={nativeChatOverlayInputLockReason}
-        sendErrorMessage={nativeChatSendError.message}
-        onClearSendError={nativeChatSendError.clear}
-        sendSurfaceId={controller.nativeChatScopeKey ?? ''}
-        getSendCompletionGeneration={controller.getSendCompletionGeneration}
-        keyboardInset={keyboardLift}
-      />
+      <MobileMarkdownLinkHandlerProvider
+        value={{
+          onOpenUrl: handleNativeChatOpenUrl,
+          onShowLinkActions: handleNativeChatLinkActions
+        }}
+      >
+        <MobileNativeChatOverlay
+          controller={nativeChatController}
+          onOpenFile={handleNativeChatFileTap}
+          images={nativeChatImages}
+          onMicPress={handleDictationToggle}
+          micActive={dictation.isRecording}
+          dictationMode={dictationMode}
+          onMicPressIn={handleDictationPressIn}
+          onMicPressOut={handleDictationPressOut}
+          inputLockReason={nativeChatOverlayInputLockReason}
+          sendErrorMessage={nativeChatSendError.message}
+          onClearSendError={nativeChatSendError.clear}
+          sendSurfaceId={controller.nativeChatScopeKey ?? ''}
+          getSendCompletionGeneration={controller.getSendCompletionGeneration}
+          keyboardInset={keyboardLift}
+        />
+      </MobileMarkdownLinkHandlerProvider>
       {toastMessage && (
         <Animated.View pointerEvents="none" style={[styles.toast, toastAnimatedStyle]}>
           <Text style={styles.toastText}>{toastMessage}</Text>

@@ -65,6 +65,17 @@ export function dispatchTerminalWebViewNotification(
     if (url.length > 0) {
       handlers.onOpenUrl?.(url)
     }
+  } else if (msg.type === 'link-actions') {
+    if (msg.kind === 'web' && typeof msg.url === 'string' && msg.url.length > 0) {
+      handlers.onLinkActions?.({ kind: 'web', url: msg.url })
+    } else if (msg.kind === 'file' && typeof msg.pathText === 'string' && msg.pathText.length > 0) {
+      handlers.onLinkActions?.({
+        kind: 'file',
+        pathText: msg.pathText,
+        line: typeof msg.line === 'number' ? msg.line : null,
+        column: typeof msg.column === 'number' ? msg.column : null
+      })
+    }
   } else if (msg.type === 'keyboard-avoidance-metrics') {
     handlers.onKeyboardAvoidanceMetrics?.(parseTerminalKeyboardAvoidanceMetrics(msg))
   } else if (msg.type === 'haptic') {

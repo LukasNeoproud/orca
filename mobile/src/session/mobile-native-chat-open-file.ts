@@ -1,6 +1,7 @@
 import { splitFilePathLineSuffix } from '../components/markdown-file-path-detection'
 import {
   openMobileFileTap,
+  previewMobileFileTap,
   type FileTapSessionTab,
   type OpenMobileFileTapOptions
 } from './mobile-file-tap-open'
@@ -22,6 +23,18 @@ export function openMobileNativeChatFileTap<T extends FileTapSessionTab>(
 ): void {
   const { path, line, column } = splitFilePathLineSuffix(options.pathText)
   openMobileFileTap<T>({
+    ...options,
+    pathText: path,
+    line,
+    column
+  })
+}
+
+export function previewMobileNativeChatFileTap<T extends FileTapSessionTab>(
+  options: OpenMobileNativeChatFileTapOptions<T>
+): void {
+  const { path, line, column } = splitFilePathLineSuffix(options.pathText)
+  previewMobileFileTap<T>({
     ...options,
     pathText: path,
     line,

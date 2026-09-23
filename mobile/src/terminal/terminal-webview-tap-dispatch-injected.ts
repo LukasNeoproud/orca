@@ -35,6 +35,7 @@ export const TERMINAL_TAP_DISPATCH_JS = `
       var c = viewportToCell(longPressOrigin.x, longPressOrigin.y);
       if (!c) return;
       enterSelect(c.col, c.row);
+      notifyTerminalLinkActionsAtViewportPoint(longPressOrigin.x, longPressOrigin.y);
     }, LONG_PRESS_MS);
   }
 

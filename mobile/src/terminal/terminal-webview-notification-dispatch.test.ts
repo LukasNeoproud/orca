@@ -36,4 +36,29 @@ describe('dispatchTerminalWebViewNotification', () => {
       altScreen: false
     })
   })
+
+  it('routes file and web link action requests', () => {
+    const onLinkActions = vi.fn()
+    const handlers = { onLinkActions, reportEngineError: vi.fn() }
+
+    dispatchTerminalWebViewNotification(
+      { type: 'link-actions', kind: 'file', pathText: 'src/app.ts', line: 12, column: 3 },
+      handlers
+    )
+    dispatchTerminalWebViewNotification(
+      { type: 'link-actions', kind: 'web', url: 'https://example.com' },
+      handlers
+    )
+
+    expect(onLinkActions).toHaveBeenNthCalledWith(1, {
+      kind: 'file',
+      pathText: 'src/app.ts',
+      line: 12,
+      column: 3
+    })
+    expect(onLinkActions).toHaveBeenNthCalledWith(2, {
+      kind: 'web',
+      url: 'https://example.com'
+    })
+  })
 })

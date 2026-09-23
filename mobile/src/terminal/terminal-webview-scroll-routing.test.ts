@@ -218,7 +218,7 @@ describe('TerminalWebView scroll routing', () => {
     )
 
     const tapHandlerBlock = sliceBetween(
-      'function notifyTerminalSurfaceTap(originX, originY, focusKeyboard)',
+      'function terminalLinkAtViewportPoint(originX, originY)',
       "document.addEventListener('touchstart'"
     )
     expect(tapHandlerBlock.indexOf('oscLinkAtViewportPoint')).toBeLessThan(
@@ -230,7 +230,11 @@ describe('TerminalWebView scroll routing', () => {
     expect(tapHandlerBlock.indexOf('filePathAtViewportPoint')).toBeLessThan(
       tapHandlerBlock.indexOf('var clickInput = buildMouseClickInput')
     )
-    expect(tapHandlerBlock).toContain("notify({ type: 'open-url', url: tappedUrl });")
+    expect(tapHandlerBlock).toContain("notify({ type: 'open-url', url: target.url });")
+    expect(tapHandlerBlock).toContain("type: 'link-actions'")
+    expect(tapHandlerBlock).toContain(
+      'notifyTerminalLinkActionsAtViewportPoint(longPressOrigin.x, longPressOrigin.y)'
+    )
     expect(tapHandlerBlock).toContain("notify({ type: 'terminal-input', bytes: clickInput });")
     expect(tapHandlerBlock).toContain(
       'if (focusKeyboard || !isClickMouseTrackingMode(getMouseTrackingMode()))'
