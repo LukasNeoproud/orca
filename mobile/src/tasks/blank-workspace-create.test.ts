@@ -43,7 +43,7 @@ describe('createBlankWorkspace', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT
     })
 
-    expect(result).toEqual({ worktreeId: 'wt-1', name: 'octopus' })
+    expect(result).toMatchObject({ worktreeId: 'wt-1', name: 'octopus' })
     expect(calls).toHaveLength(1)
     expect(calls[0]).toEqual({
       method: 'worktree.create',
@@ -132,7 +132,7 @@ describe('createBlankWorkspace', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT
     })
 
-    expect(result).toEqual({ worktreeId: 'wt-3', name: 'octopus-2' })
+    expect(result).toMatchObject({ worktreeId: 'wt-3', name: 'octopus-2' })
     expect(calls).toHaveLength(2)
     const retryParams = calls[1]?.params as Record<string, unknown>
     expect(retryParams.name).toBe('octopus-2')
@@ -158,7 +158,7 @@ describe('createBlankWorkspace', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT
     })
 
-    expect(result).toEqual({ worktreeId: 'wt-4', name: 'octopus-2' })
+    expect(result).toMatchObject({ worktreeId: 'wt-4', name: 'octopus-2' })
     expect(calls).toHaveLength(2)
   })
 

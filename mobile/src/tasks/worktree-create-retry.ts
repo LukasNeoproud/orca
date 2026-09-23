@@ -11,6 +11,7 @@ import {
 } from '../../../src/shared/new-workspace/worktree-create-retry-policy'
 import { WORKTREE_CREATE_TIMEOUT_MS } from './workspace-create-timeout'
 import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
+import type { CreateWorktreeResult } from '../../../src/shared/worktree/create-types'
 import {
   getWorktreeCreateReplayWindowMs,
   type WorktreeCreateIdempotencyProbe,
@@ -23,7 +24,12 @@ import {
 // worktree.ps. Retry by appending -2, -3, ... mirroring the desktop createWorktree
 // loop in src/renderer/src/store/slices/worktrees.ts.
 export type WorktreeCreateResult =
-  | { worktreeId: string; name: string; checkoutWarning?: WorktreeCheckoutWarning }
+  | {
+      worktreeId: string
+      name: string
+      createResult: CreateWorktreeResult
+      checkoutWarning?: WorktreeCheckoutWarning
+    }
   | { error: string }
 
 // Why: a create in flight when the mobile transport migrates (relay/direct
@@ -89,13 +95,11 @@ export async function createWorktreeWithNameRetry(
       : { ...candidateParams, ...recoveryOpt }
     const response = await sendWorktreeCreateResilient(client, params, worktreeCreateIdempotency)
     if (response.ok) {
-      const result = (response as RpcSuccess).result as {
-        worktree: { id: string; displayName?: string }
-        checkoutWarning?: WorktreeCheckoutWarning
-      }
+      const result = (response as RpcSuccess).result as CreateWorktreeResult
       const authoritativeName = result.worktree.displayName
       return {
         worktreeId: result.worktree.id,
+        createResult: result,
         name:
           typeof authoritativeName === 'string' && authoritativeName.trim()
             ? authoritativeName

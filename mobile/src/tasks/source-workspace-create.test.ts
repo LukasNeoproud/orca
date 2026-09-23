@@ -56,7 +56,7 @@ describe('createWorkspaceFromComposerSource', () => {
     // The composer supplies the title-derived name as workspaceName; with none,
     // buildTaskWorkspaceCreateParams falls back to the "<type>-<number>" slug.
     const result = await createWorkspaceFromComposerSource({ client, selection, ...baseArgs })
-    expect(result).toEqual({ worktreeId: 'wt-1', name: 'issue-7' })
+    expect(result).toMatchObject({ worktreeId: 'wt-1', name: 'issue-7' })
     expect(calls).toHaveLength(1)
     expect(calls[0]!.method).toBe('worktree.create')
     expect(calls[0]!.params).toMatchObject({
@@ -166,7 +166,7 @@ describe('createWorkspaceFromComposerSource', () => {
       branchName: 'feature/login'
     }
     const result = await createWorkspaceFromComposerSource({ client, selection, ...baseArgs })
-    expect(result).toEqual({ worktreeId: 'wt-nb', name: 'feature/login' })
+    expect(result).toMatchObject({ worktreeId: 'wt-nb', name: 'feature/login' })
     expect(calls[0]!.params).toMatchObject({
       repo: 'id:repo-1',
       name: 'feature/login',
@@ -273,7 +273,7 @@ describe('createWorkspaceFromComposerSource', () => {
       branchNameOverride: 'topic'
     }
     const result = await createWorkspaceFromComposerSource({ client, selection, ...baseArgs })
-    expect(result).toEqual({ worktreeId: 'wt-5', name: 'topic-2' })
+    expect(result).toMatchObject({ worktreeId: 'wt-5', name: 'topic-2' })
     expect(calls).toHaveLength(2)
     expect(calls[1]!.params).toMatchObject({
       baseBranch: 'main',

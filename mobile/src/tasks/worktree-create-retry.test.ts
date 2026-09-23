@@ -140,7 +140,12 @@ describe('createWorktreeWithNameRetry', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
       mintMutationId: () => 'key-recovered'
     })
-    expect(result).toEqual({ worktreeId: 'wt-recovered', name: 'seal', checkoutWarning: warning })
+    expect(result).toMatchObject({
+      worktreeId: 'wt-recovered',
+      name: 'seal',
+      checkoutWarning: warning,
+      createResult: { worktree: { id: 'wt-recovered' }, checkoutWarning: warning }
+    })
     expect(attempts.map((attempt) => attempt.params.clientMutationId)).toEqual([
       'key-recovered',
       'key-recovered'
@@ -168,7 +173,7 @@ describe('createWorktreeWithNameRetry', () => {
     expect(attempts).toHaveLength(0)
     resolveSupport(IDEMPOTENT_CREATE_SUPPORT)
 
-    await expect(pending).resolves.toEqual({ worktreeId: 'wt-ready', name: 'puffin' })
+    await expect(pending).resolves.toMatchObject({ worktreeId: 'wt-ready', name: 'puffin' })
     expect(attempts).toHaveLength(1)
     expect(attempts[0]!.params.clientMutationId).toBe('key-ready')
   })
@@ -183,7 +188,7 @@ describe('createWorktreeWithNameRetry', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
       mintMutationId: () => 'key-1'
     })
-    expect(result).toEqual({ worktreeId: 'wt-1', name: 'otter' })
+    expect(result).toMatchObject({ worktreeId: 'wt-1', name: 'otter' })
     expect(attempts).toHaveLength(1)
     expect(attempts[0]!.params).toMatchObject({ name: 'otter', clientMutationId: 'key-1' })
   })
@@ -201,7 +206,7 @@ describe('createWorktreeWithNameRetry', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
       mintMutationId: () => 'key-mig'
     })
-    expect(result).toEqual({ worktreeId: 'wt-2', name: 'seal' })
+    expect(result).toMatchObject({ worktreeId: 'wt-2', name: 'seal' })
     expect(attempts).toHaveLength(2)
     // Idempotency: both the interrupted send and the retry carry one key so the
     // host dedupes instead of creating a duplicate worktree.
@@ -257,7 +262,7 @@ describe('createWorktreeWithNameRetry', () => {
       worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
       mintMutationId: () => `key-${(n += 1)}`
     })
-    expect(result).toEqual({ worktreeId: 'wt-3', name: 'topic-2' })
+    expect(result).toMatchObject({ worktreeId: 'wt-3', name: 'topic-2' })
     expect(attempts).toHaveLength(2)
     // A collision is a genuinely different create, so it gets a distinct key.
     expect(attempts[0]!.params.clientMutationId).toBe('key-1')
@@ -279,7 +284,7 @@ describe('createWorktreeWithNameRetry', () => {
         buildParams: (name) => ({ repo: 'id:r', name }),
         worktreeCreateIdempotency: false
       })
-    ).resolves.toEqual({ worktreeId: 'wt-host-name', name: 'topic-3' })
+    ).resolves.toMatchObject({ worktreeId: 'wt-host-name', name: 'topic-3' })
   })
 
   it('falls back to the client candidate when an older host omits displayName', async () => {
@@ -296,7 +301,7 @@ describe('createWorktreeWithNameRetry', () => {
         buildParams: (name) => ({ repo: 'id:r', name }),
         worktreeCreateIdempotency: false
       })
-    ).resolves.toEqual({ worktreeId: 'wt-legacy', name: 'topic-2' })
+    ).resolves.toMatchObject({ worktreeId: 'wt-legacy', name: 'topic-2' })
   })
 
   it('advances generated retries without nesting suffixes', async () => {
@@ -314,7 +319,7 @@ describe('createWorktreeWithNameRetry', () => {
       worktreeCreateIdempotency: false
     })
 
-    expect(result).toEqual({ worktreeId: 'wt-generated', name: 'nautilus-3' })
+    expect(result).toMatchObject({ worktreeId: 'wt-generated', name: 'nautilus-3' })
     expect(attempts.map((attempt) => attempt.params.name)).toEqual(['nautilus-2', 'nautilus-3'])
   })
 
@@ -362,7 +367,7 @@ describe('createWorktreeWithNameRetry', () => {
     expect(attempts).toHaveLength(1)
 
     connection.set('connected')
-    await expect(pending).resolves.toEqual({ worktreeId: 'wt-drop', name: 'urchin' })
+    await expect(pending).resolves.toMatchObject({ worktreeId: 'wt-drop', name: 'urchin' })
     expect(attempts).toHaveLength(2)
     // Idempotency: the host dedupes the replay against the create it may already
     // have finished, instead of building a second worktree.
@@ -699,7 +704,7 @@ describe('createWorktreeWithNameRetry', () => {
       // Anchoring at the send would refuse this — the create outran the TTL long before it
       // went ambiguous — but the record only starts ticking when the host RESOLVES, and the
       // live socket proves our knowledge was current.
-      expect(await pending).toEqual({ worktreeId: 'wt-long', name: 'kelp' })
+      expect(await pending).toMatchObject({ worktreeId: 'wt-long', name: 'kelp' })
       expect(attempts).toHaveLength(2)
       expect(attempts[0]!.params.clientMutationId).toBe('key-long')
       expect(attempts[1]!.params.clientMutationId).toBe('key-long')
