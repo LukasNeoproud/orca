@@ -1,9 +1,11 @@
 ---
 id: TASK-26
 title: 'Android: Obrazové diff review s poznámkami k oblastem'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 12:25'
 labels: []
 dependencies:
   - TASK-15
@@ -24,8 +26,26 @@ Desktop dovoluje komentovat oblast změněného obrázku. Android v souborové z
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Review zobrazuje původní a změněný obrázek včetně nového či smazaného souboru, zoomu a čitelného stavu při nedostupném obsahu.
-- [ ] #2 Uživatel může vybrat oblast, zpřesnit souřadnice přístupným ovládáním a poznámku vytvořit, upravit a odstranit.
-- [ ] #3 Poznámka uchovává procentní oblast nezávisle na zoomu a po obnovení je viditelná na správném obrázku; odeslání agentovi uvádí přesnou oblast.
-- [ ] #4 Binární payload je omezen a testy zahrnou SSH, reconnect a kompatibilitu s poznámkami z desktopu.
+- [x] #1 Review zobrazuje původní a změněný obrázek včetně nového či smazaného souboru, zoomu a čitelného stavu při nedostupném obsahu.
+- [x] #2 Uživatel může vybrat oblast, zpřesnit souřadnice přístupným ovládáním a poznámku vytvořit, upravit a odstranit.
+- [x] #3 Poznámka uchovává procentní oblast nezávisle na zoomu a po obnovení je viditelná na správném obrázku; odeslání agentovi uvádí přesnou oblast.
+- [x] #4 Binární payload je omezen a testy zahrnou SSH, reconnect a kompatibilitu s poznámkami z desktopu.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Build image review from existing bounded binary diff RPC, preserving original/changed sides and image region comments; add zoom, coordinate selection/refinement, CRUD and prompt delivery; verify reconnect, SSH and legacy payload behavior.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Image review uses the bounded binary diff payload, supports original/changed sides, unavailable states, zoom, drag-to-select percentage regions, accessible coordinate steps, and comment CRUD through the existing review controller. Focused rendered interaction, region math, RPC compatibility, reconnect and session tests pass; mobile typecheck passes.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented mobile image diff review with stable percentage annotations and agent delivery, verified by focused tests and typecheck.
+<!-- SECTION:FINAL_SUMMARY:END -->

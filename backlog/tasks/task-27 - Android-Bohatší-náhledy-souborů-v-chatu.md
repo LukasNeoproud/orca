@@ -1,9 +1,11 @@
 ---
 id: TASK-27
 title: 'Android: Bohatší náhledy souborů v chatu'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 12:11'
 labels: []
 dependencies:
   - TASK-17
@@ -29,3 +31,9 @@ Desktop zobrazuje u odkazů inline náhled kódu, dokumentů, obrázků a dalš�
 - [ ] #3 Velké, binární, chybějící a změněné soubory mají čitelné stavy a obnovení; další formáty se přidávají jen s ověřeným rendererem.
 - [ ] #4 Náhled nepřidává neomezené čtení, stahování nebo sledování souborů přes mobilní oprávnění.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Build on TASK-17 link actions: add bounded contextual preview card for safe text/Markdown/HTML/raster, execution-host RPC reads, explicit outside-workspace load, stale/missing/large/binary states, focused UI/transport tests.
+<!-- SECTION:PLAN:END -->

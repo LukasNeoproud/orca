@@ -1,9 +1,11 @@
 ---
 id: TASK-22
 title: 'Android: Explicitní vytvoření worktree a správa větví'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 12:18'
 labels: []
 dependencies:
   - TASK-21
@@ -29,3 +31,9 @@ Desktop přidal jednodušší vytváření worktree, volbu umístění a kontrol
 - [ ] #3 Správa větve ukáže dopad akce před potvrzením a po úspěchu obnoví stav projektu a workspace.
 - [ ] #4 Zachová se současné idempotentní vytváření, práce s folder workspaces a bezpečné chování při SSH odpojení.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Reuse existing NewWorktreeModal/host RPC preview and explicit creation contracts; add capability-gated location/creation choices with conflict preview, add impact-confirmed branch actions, preserve idempotency and SSH/folder host routing; verify targeted UI and RPC tests.
+<!-- SECTION:PLAN:END -->

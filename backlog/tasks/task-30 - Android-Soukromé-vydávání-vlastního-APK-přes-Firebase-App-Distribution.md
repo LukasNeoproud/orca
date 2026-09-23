@@ -1,9 +1,11 @@
 ---
 id: TASK-30
 title: 'Android: Soukromé vydávání vlastního APK přes Firebase App Distribution'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 12:14'
 labels: []
 dependencies: []
 references:
@@ -28,3 +30,9 @@ Vlastní Android klient má být instalovatelný a aktualizovatelný pro osobní
 - [ ] #3 Tajné hodnoty nejsou v repozitáři ani logu, verze nového APK se aktualizuje před vydáním a starší instalace lze bezpečně upgradovat.
 - [ ] #4 Postup ověří párování s Orca Dev a mobilní protokol, aniž by publikoval build do veřejného release projektu.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Prepare fork-specific Android identity/signing/versioning and a private Firebase App Distribution upload path; verify against current official Expo/Firebase documentation, CI syntax and local build constraints; leave secrets outside repository and report external project prerequisites.
+<!-- SECTION:PLAN:END -->

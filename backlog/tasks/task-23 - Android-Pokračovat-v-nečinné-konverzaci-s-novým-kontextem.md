@@ -1,9 +1,11 @@
 ---
 id: TASK-23
 title: 'Android: Pokračovat v nečinné konverzaci s novým kontextem'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-23 10:50'
+updated_date: '2026-09-23 12:11'
 labels: []
 dependencies:
   - TASK-16
@@ -29,3 +31,9 @@ Desktop nabízí u dokončené nečinné Codex konverzace ponechání původní 
 - [ ] #3 SSH/WSL relace, nepodporovaný provider a starší host nedostanou nefunkční akci; původní relace zůstává dohledatelná.
 - [ ] #4 Testy pokrývají zrušení, souběžné otevření a reconnect během přípravy a vytvoření.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Extend the TASK-16 structured history flow with host-gated continuation choices, prepared resumeFrom adoption, cancellation and reconnect-safe operation identity; test unsupported and SSH/WSL cases.
+<!-- SECTION:PLAN:END -->
