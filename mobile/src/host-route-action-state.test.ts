@@ -19,6 +19,12 @@ describe('host route action state', () => {
     )
   })
 
+  it('opens a recovered workspace with its warning and without automatic startup', () => {
+    const route = hostNewWorktreeSessionRoute('host', 'workspace', 'Recovered', 'Hook failed')
+    expect(route).toContain('warning=Hook+failed')
+    expect(route).not.toContain('created=1')
+  })
+
   it('opens new worktree modal on an initial newWorktree action', () => {
     expect(createInitialHostRouteActionState('newWorktree')).toEqual({
       routeAction: 'newWorktree',

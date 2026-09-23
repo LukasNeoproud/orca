@@ -21,12 +21,14 @@ export async function createBlankWorkspace(args: {
    *  may the host retire it. */
   nameWasGenerated: boolean
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
 }): Promise<WorktreeCreateResult> {
   return createWorktreeWithNameRetry({
     client: args.client,
     baseName: args.baseName,
     nameWasGenerated: args.nameWasGenerated,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
+    recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
     buildParams: (name) => {
       const params: Record<string, unknown> = {
         repo: `id:${args.repoId}`,

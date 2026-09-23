@@ -10,9 +10,15 @@ export function hostNewWorktreeRoute(hostId: string): `/h/${string}?action=newWo
 export function hostNewWorktreeSessionRoute(
   hostId: string,
   worktreeId: string,
-  worktreeName: string
+  worktreeName: string,
+  warning?: string
 ): `/h/${string}/session/${string}?${string}` {
-  const params = new URLSearchParams({ name: worktreeName, created: '1' })
+  const params = new URLSearchParams({ name: worktreeName })
+  if (warning) {
+    params.set('warning', warning)
+  } else {
+    params.set('created', '1')
+  }
   return `/h/${encodeURIComponent(hostId)}/session/${encodeURIComponent(worktreeId)}?${params}`
 }
 

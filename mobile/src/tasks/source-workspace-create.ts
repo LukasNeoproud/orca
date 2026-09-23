@@ -31,6 +31,7 @@ export type CreateWorkspaceFromComposerArgs = {
   nameIsAutoManaged?: boolean
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
 }
 
 export async function createWorkspaceFromComposerSource(
@@ -94,6 +95,7 @@ async function createWorkItemWorkspace(args: {
   nameIsAutoManaged?: boolean
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
 }): Promise<WorktreeCreateResult> {
   const { client, selection, targetRepoId, setupDecision, agent, workspaceName, note } = args
   const item = selection.item
@@ -139,6 +141,7 @@ async function createWorkItemWorkspace(args: {
     client,
     baseName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
+    recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
     buildParams: (name) => ({ ...params, name })
   })
 }
@@ -153,6 +156,7 @@ async function createBranchWorkspace(args: {
   nameIsAutoManaged?: boolean
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -187,6 +191,7 @@ async function createBranchWorkspace(args: {
       client,
       baseName,
       worktreeCreateIdempotency: args.worktreeCreateIdempotency,
+      recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
       maxAttempts: 1,
       buildParams: (name) =>
         applyCommon({
@@ -212,6 +217,7 @@ async function createBranchWorkspace(args: {
     client,
     baseName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
+    recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
     buildParams: (candidate) => {
       const params: Record<string, unknown> = {
         repo: `id:${targetRepoId}`,
@@ -240,6 +246,7 @@ async function createNewBranchWorkspace(args: {
   nameIsAutoManaged?: boolean
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -262,6 +269,7 @@ async function createNewBranchWorkspace(args: {
     client,
     baseName: selection.branchName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
+    recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
     buildParams: (candidate) => {
       const params: Record<string, unknown> = {
         repo: `id:${targetRepoId}`,

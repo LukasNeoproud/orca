@@ -24,6 +24,7 @@ import {
 } from './new-workspace-project-targets'
 import { NewWorktreeFormSheet } from './NewWorktreeFormSheet'
 import { NewWorktreeModalDrawers } from './NewWorktreeModalDrawers'
+import { NewWorktreeCheckoutRecoverySheet } from './NewWorktreeCheckoutRecoverySheet'
 import { useNewWorkspaceAgentSelection } from './use-new-workspace-agent-selection'
 import { useNewWorkspaceCreateSubmit } from './use-new-workspace-create-submit'
 import { useNewWorkspaceExecutionTarget } from './use-new-workspace-execution-target'
@@ -181,6 +182,10 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   }
 
   function requestClose(): void {
+    if (createSubmit.recoveredCheckout) {
+      createSubmit.openRecoveredWorkspace()
+      return
+    }
     if (navigation.drawerView === 'form') {
       onClose()
     } else if (navigation.drawerView === 'trust') {
@@ -193,7 +198,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   return (
     <BottomDrawerModalHost visible={visible} onRequestClose={requestClose}>
       <NewWorktreeFormSheet
-        visible={navigation.formSheetVisible}
+        visible={navigation.formSheetVisible && !createSubmit.recoveredCheckout}
         interactive={navigation.formSheetInteractive}
         loading={loading}
         hasRepos={repos.length > 0}
@@ -258,6 +263,14 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         onSkipSetupTrust={createSubmit.skipSetupTrust}
         onCloseSetupTrust={createSubmit.closeSetupTrust}
       />
+      {createSubmit.recoveredCheckout ? (
+        <NewWorktreeCheckoutRecoverySheet
+          warning={createSubmit.recoveredCheckout.warning}
+          prompt={createSubmit.recoveredCheckout.prompt}
+          note={createSubmit.recoveredCheckout.note}
+          onOpen={createSubmit.openRecoveredWorkspace}
+        />
+      ) : null}
     </BottomDrawerModalHost>
   )
 }

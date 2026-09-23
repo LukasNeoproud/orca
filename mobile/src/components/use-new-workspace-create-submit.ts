@@ -17,6 +17,7 @@ import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-par
 import type { WorkspaceSshGate } from '../tasks/workspace-ssh-gate'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import type { WorktreeCreateIdempotencySupport } from '../tasks/worktree-create-idempotency-policy'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import {
   pickPreferredNewWorktreeAgent,
   type NewWorktreeAgentOption,
@@ -58,12 +59,20 @@ export function useNewWorkspaceCreateSubmit(args: {
   getWorktreeCreateCutoverSupport: () => Promise<WorktreeCreateIdempotencySupport | false>
   transitionDrawer: (view: Exclude<NewWorktreeDrawerView, 'transition'>) => void
   setError: Dispatch<SetStateAction<string>>
-  onCreated: (worktreeId: string, name: string) => void
+  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
   onClose: () => void
 }): {
   creating: boolean
   setupTrustPrompt: SetupTrustPrompt | null
+  recoveredCheckout: {
+    worktreeId: string
+    name: string
+    warning: WorktreeCheckoutWarning
+    prompt: string
+    note: string
+  } | null
   create: () => Promise<void>
+  openRecoveredWorkspace: () => void
   approveSetupTrust: (alwaysTrust: boolean) => Promise<void>
   closeSetupTrust: () => void
   skipSetupTrust: () => void
@@ -72,10 +81,17 @@ export function useNewWorkspaceCreateSubmit(args: {
   const setupTrustActionInFlightRef = useRef(false)
   const [creating, setCreating] = useState(false)
   const [setupTrustPrompt, setSetupTrustPrompt] = useState<SetupTrustPrompt | null>(null)
+  const [recoveredCheckout, setRecoveredCheckout] = useState<{
+    worktreeId: string
+    name: string
+    warning: WorktreeCheckoutWarning
+    prompt: string
+    note: string
+  } | null>(null)
 
   async function create(options: CreateOptions = {}): Promise<void> {
     const { client, selectedRepo } = args
-    if (!client || !selectedRepo || createInFlightRef.current) {
+    if (!client || !selectedRepo || createInFlightRef.current || recoveredCheckout) {
       return
     }
     createInFlightRef.current = true
@@ -164,7 +180,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             workspaceName: trimmedName || undefined,
             note: trimmedNote,
             nameIsAutoManaged: args.composer.isNameAutoManaged,
-            worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport()
+            worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
+            recoverCompletedCheckoutFailure: true
           })
         : await createBlankWorkspace({
             client,
@@ -174,10 +191,21 @@ export function useNewWorkspaceCreateSubmit(args: {
             createdWithAgentId,
             comment: trimmedNote,
             setupDecision,
-            worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport()
+            worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
+            recoverCompletedCheckoutFailure: true
           })
       if ('error' in result) {
         args.setError(result.error)
+        return
+      }
+      if (result.checkoutWarning) {
+        setRecoveredCheckout({
+          worktreeId: result.worktreeId,
+          name: result.name,
+          warning: result.checkoutWarning,
+          prompt: selection?.kind === 'work-item' ? selection.item.url : '',
+          note: args.note.trim()
+        })
         return
       }
       args.onClose()
@@ -240,5 +268,22 @@ export function useNewWorkspaceCreateSubmit(args: {
     void create({ setupOverride: 'skip' })
   }
 
-  return { creating, setupTrustPrompt, create, approveSetupTrust, closeSetupTrust, skipSetupTrust }
+  function openRecoveredWorkspace(): void {
+    if (!recoveredCheckout) {
+      return
+    }
+    args.onClose()
+    args.onCreated(recoveredCheckout.worktreeId, recoveredCheckout.name, recoveredCheckout.warning)
+  }
+
+  return {
+    creating,
+    setupTrustPrompt,
+    recoveredCheckout,
+    create,
+    openRecoveredWorkspace,
+    approveSetupTrust,
+    closeSetupTrust,
+    skipSetupTrust
+  }
 }

@@ -1,6 +1,7 @@
 import type { Repo as SharedRepo } from '../../../src/shared/repo-types'
 import type { RpcClient } from '../transport/rpc-client'
 import type { SetupHookTrust } from '../tasks/setup-hook-trust'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import { repoColor } from '../worktree/repo-color'
 
 export type MobileWorkspaceRepo = Pick<SharedRepo, 'id' | 'displayName' | 'path'> &
@@ -23,7 +24,7 @@ export type NewWorktreeModalProps = {
   hostId?: string
   existingWorktreePaths?: readonly string[]
   existingWorktrees?: readonly { repoId: string; branch: string }[]
-  onCreated: (worktreeId: string, name: string) => void
+  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
   onClose: () => void
 }
 

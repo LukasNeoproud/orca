@@ -10,6 +10,7 @@ import {
   isRetryableWorktreeCreateConflict
 } from '../../../src/shared/new-workspace/worktree-create-retry-policy'
 import { WORKTREE_CREATE_TIMEOUT_MS } from './workspace-create-timeout'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import {
   getWorktreeCreateReplayWindowMs,
   type WorktreeCreateIdempotencyProbe,
@@ -21,7 +22,9 @@ import {
 // branches outlive worktrees in git, and remote branches/PRs aren't visible from
 // worktree.ps. Retry by appending -2, -3, ... mirroring the desktop createWorktree
 // loop in src/renderer/src/store/slices/worktrees.ts.
-export type WorktreeCreateResult = { worktreeId: string; name: string } | { error: string }
+export type WorktreeCreateResult =
+  | { worktreeId: string; name: string; checkoutWarning?: WorktreeCheckoutWarning }
+  | { error: string }
 
 // Why: a create in flight when the mobile transport migrates (relay/direct
 // hand-off on shoddy cellular, relay lease rotation) rejects with a cutover error
@@ -49,6 +52,7 @@ export type CreateWorktreeWithNameRetryArgs = {
   nameWasGenerated?: boolean
   buildParams: (name: string) => Record<string, unknown>
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
+  recoverCompletedCheckoutFailure?: boolean
   maxAttempts?: number
   // Injected in tests; production mints a fresh idempotency key per candidate.
   mintMutationId?: () => string
@@ -77,13 +81,17 @@ export async function createWorktreeWithNameRetry(
     // Why: older hosts strip unknown fields, so only stamp and replay when the
     // host advertises idempotency. One key per candidate makes cutover retries
     // safe while a name-collision bump remains a genuinely new create.
+    const recoveryOpt = args.recoverCompletedCheckoutFailure
+      ? { recoverCompletedCheckoutFailure: true }
+      : {}
     const params = worktreeCreateIdempotency
-      ? { ...candidateParams, clientMutationId: mintMutationId() }
-      : candidateParams
+      ? { ...candidateParams, ...recoveryOpt, clientMutationId: mintMutationId() }
+      : { ...candidateParams, ...recoveryOpt }
     const response = await sendWorktreeCreateResilient(client, params, worktreeCreateIdempotency)
     if (response.ok) {
       const result = (response as RpcSuccess).result as {
         worktree: { id: string; displayName?: string }
+        checkoutWarning?: WorktreeCheckoutWarning
       }
       const authoritativeName = result.worktree.displayName
       return {
@@ -91,7 +99,8 @@ export async function createWorktreeWithNameRetry(
         name:
           typeof authoritativeName === 'string' && authoritativeName.trim()
             ? authoritativeName
-            : candidateName
+            : candidateName,
+        ...(result.checkoutWarning ? { checkoutWarning: result.checkoutWarning } : {})
       }
     }
     lastError = response.error.message

@@ -1,4 +1,6 @@
 import type { WorkspaceSshStateModel } from './use-mobile-tasks-workspace-ssh-state'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
+import { formatMobileCheckoutWarning } from './worktree-checkout-warning'
 import {
   WORKTREE_CREATE_TIMEOUT_MS,
   type WorkspaceAgentChoice,
@@ -258,23 +260,41 @@ export function useMobileTasksWorkspaceCreateActions(model: WorkspaceSshStateMod
             nameIsAutoManaged
           })
         }
-        const response = await client.sendRequest('worktree.create', params, {
-          timeoutMs: WORKTREE_CREATE_TIMEOUT_MS
-        })
+        const response = await client.sendRequest(
+          'worktree.create',
+          {
+            ...params,
+            recoverCompletedCheckoutFailure: true
+          },
+          {
+            timeoutMs: WORKTREE_CREATE_TIMEOUT_MS
+          }
+        )
         if (!isSuccess(response)) {
           throw new Error(response.error.message)
         }
         const result = response.result as {
           worktree: { id: string; displayName?: string }
           warning?: string
+          checkoutWarning?: WorktreeCheckoutWarning
         }
         setActionItem(null)
         setWorkspaceCreateDraft(null)
         setSetupPrompt(null)
         const name = result.worktree.displayName ?? item.title
-        const queryParams = new URLSearchParams({ name, created: '1' })
+        const queryParams = new URLSearchParams({ name })
+        if (!result.checkoutWarning) {
+          queryParams.set('created', '1')
+        }
         if (result.warning) {
           queryParams.set('warning', result.warning)
+        }
+        if (result.checkoutWarning) {
+          const originalPrompt = typeof params.startupDraft === 'string' ? params.startupDraft : ''
+          queryParams.set(
+            'warning',
+            `${formatMobileCheckoutWarning(result.checkoutWarning)}${originalPrompt ? `\nOriginal agent prompt: ${originalPrompt}` : ''}${comment ? '\nOriginal note was saved in workspace notes.' : ''}`
+          )
         }
         router.push(
           `/h/${hostId}/session/${encodeURIComponent(result.worktree.id)}?${queryParams.toString()}`

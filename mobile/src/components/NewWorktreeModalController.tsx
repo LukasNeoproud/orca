@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
 
 import type { RpcClient } from '../transport/rpc-client'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import { NewWorktreeModal } from './NewWorktreeModal'
 
 export type NewWorktreeModalControllerHandle = {
@@ -15,7 +16,7 @@ type Props = {
   existingWorktrees?: readonly { repoId: string; branch: string }[]
   onVisibleChange?: (visible: boolean) => void
   onRouteVisibleChange: (visible: boolean) => void
-  onCreated: (worktreeId: string, name: string) => void
+  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
 }
 
 export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerHandle, Props>(

@@ -8,6 +8,7 @@ import { NewWorktreeModalController } from '../components/NewWorktreeModalContro
 import { PickerModal } from '../components/PickerModal'
 import { colors } from '../theme/mobile-theme'
 import { hostNewWorktreeSessionRoute } from '../host-route-action-state'
+import { formatMobileCheckoutWarning } from '../tasks/worktree-checkout-warning'
 import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import {
   WORKSPACE_GROUP_OPTIONS as GROUP_OPTIONS,
@@ -218,10 +219,15 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
         onVisibleChange={(visible) => {
           state.newWorktreeModalVisibleRef.current = visible
         }}
-        onCreated={(worktreeId, worktreeName) => {
+        onCreated={(worktreeId, worktreeName, checkoutWarning) => {
           void catalog.fetchWorktrees({ allowDuringModal: true })
           actions.navigateFromHostList(
-            hostNewWorktreeSessionRoute(hostId, worktreeId, worktreeName)
+            hostNewWorktreeSessionRoute(
+              hostId,
+              worktreeId,
+              worktreeName,
+              checkoutWarning ? formatMobileCheckoutWarning(checkoutWarning) : undefined
+            )
           )
         }}
         onRouteVisibleChange={actions.setShowNewWorktreeVisible}

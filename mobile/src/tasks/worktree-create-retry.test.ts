@@ -3,6 +3,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import { LogicalClientCutoverError } from '../transport/stable-logical-rpc-client'
 import type { ConnectionState } from '../transport/types'
+import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import {
   getWorktreeCreateReplayWindowMs,
   WORKTREE_CREATE_DEDUPE_TTL_LEGACY_HOST_MS,
@@ -55,7 +56,7 @@ async function flush(): Promise<void> {
 // cutover). Records every call so tests can assert on the clientMutationId.
 function scriptedClient(
   outcomes: Array<
-    | { id: string; displayName?: string }
+    | { id: string; displayName?: string; checkoutWarning?: WorktreeCheckoutWarning }
     | { errorMessage: string }
     // takesMs models how long the ambiguity took to SURFACE — a clean close is
     // instant, a half-open socket waits out the liveness watchdog or the timeout.
@@ -107,7 +108,8 @@ function scriptedClient(
           worktree: {
             id: outcome.id,
             ...(outcome.displayName !== undefined ? { displayName: outcome.displayName } : {})
-          }
+          },
+          ...(outcome.checkoutWarning ? { checkoutWarning: outcome.checkoutWarning } : {})
         },
         _meta: { runtimeId: 'r' }
       }
@@ -116,6 +118,37 @@ function scriptedClient(
 }
 
 describe('createWorktreeWithNameRetry', () => {
+  it('preserves a recovered checkout warning through an idempotent reconnect replay', async () => {
+    const attempts: Attempt[] = []
+    const warning: WorktreeCheckoutWarning = {
+      kind: 'post-checkout-hook-failed',
+      path: '/repo/new-worktree',
+      message: 'Hook exited 1'
+    }
+    const client = scriptedClient(
+      [
+        { throws: new LogicalClientCutoverError() },
+        { id: 'wt-recovered', checkoutWarning: warning }
+      ],
+      attempts
+    )
+    const result = await createWorktreeWithNameRetry({
+      client,
+      baseName: 'seal',
+      buildParams: (name) => ({ repo: 'id:r', name }),
+      recoverCompletedCheckoutFailure: true,
+      worktreeCreateIdempotency: IDEMPOTENT_CREATE_SUPPORT,
+      mintMutationId: () => 'key-recovered'
+    })
+    expect(result).toEqual({ worktreeId: 'wt-recovered', name: 'seal', checkoutWarning: warning })
+    expect(attempts.map((attempt) => attempt.params.clientMutationId)).toEqual([
+      'key-recovered',
+      'key-recovered'
+    ])
+    expect(
+      attempts.every((attempt) => attempt.params.recoverCompletedCheckoutFailure === true)
+    ).toBe(true)
+  })
   it('waits for capability detection before sending a create', async () => {
     const attempts: Attempt[] = []
     const client = scriptedClient([{ id: 'wt-ready' }], attempts)
