@@ -115,7 +115,8 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
               <Text style={styles.confirmTitle}>Delete Worktree</Text>
               <Text style={styles.confirmMessage}>
                 Delete "{state.confirmDelete.displayName || state.confirmDelete.repo}" (
-                {state.confirmDelete.branch})?
+                {state.confirmDelete.branch})? Its workspace files and terminals will be removed.
+                The branch may be kept if it has commits that are not merged.
               </Text>
             </View>
             <View style={styles.confirmButtons}>

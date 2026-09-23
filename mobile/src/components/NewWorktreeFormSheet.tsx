@@ -14,6 +14,9 @@ import { NewWorkspaceSetupScriptField } from './NewWorkspaceSetupScriptField'
 import { NewWorkspaceSshConnectionField } from './NewWorkspaceSshConnectionField'
 import { SmartWorkspaceAdvancedFields } from './SmartWorkspaceAdvancedFields'
 import { SmartWorkspaceSourceField } from './SmartWorkspaceSourceField'
+import { MobileWorktreeLocationFields } from './MobileWorktreeLocationFields'
+import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
+import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
 
 type Composer = ReturnType<typeof useMobileComposerSource>
 type Selection = { label: string; detail?: string }
@@ -31,6 +34,8 @@ export function NewWorktreeFormSheet(props: {
   selectedRepoName: string
   sshGate: WorkspaceSshGate
   composer: Composer
+  worktreeLocation: MobileWorktreeLocationState
+  selectedRepo: MobileWorkspaceRepo | null
   selectedAgent: NewWorktreeAgentOption
   showAdvanced: boolean
   note: string
@@ -134,6 +139,11 @@ export function NewWorktreeFormSheet(props: {
               <SmartWorkspaceAdvancedFields
                 composer={props.composer}
                 selectedRepoIsGit={props.selectedRepoIsGit}
+              />
+              <MobileWorktreeLocationFields
+                state={props.worktreeLocation}
+                repo={props.selectedRepo}
+                sourceIsWorkItem={props.composer.createSelection?.kind === 'work-item'}
               />
               <View style={styles.field}>
                 <Text style={styles.label}>Note</Text>

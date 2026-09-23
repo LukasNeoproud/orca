@@ -14,6 +14,7 @@ import {
 } from './workspace-create-params'
 import { createWorktreeWithNameRetry, type WorktreeCreateResult } from './worktree-create-retry'
 import type { WorktreeCreateIdempotencyProbe } from './worktree-create-idempotency-policy'
+import type { ExplicitWorktreeCreation } from '../../../src/shared/worktree/explicit-creation'
 
 // The agent bundle the modal resolved: `choice` drives launch resolution — the
 // host applies the agent's launch args (permission flags) and shell quoting.
@@ -32,6 +33,7 @@ export type CreateWorkspaceFromComposerArgs = {
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: ExplicitWorktreeCreation
 }
 
 export async function createWorkspaceFromComposerSource(
@@ -96,6 +98,7 @@ async function createWorkItemWorkspace(args: {
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: ExplicitWorktreeCreation
 }): Promise<WorktreeCreateResult> {
   const { client, selection, targetRepoId, setupDecision, agent, workspaceName, note } = args
   const item = selection.item
@@ -142,7 +145,13 @@ async function createWorkItemWorkspace(args: {
     baseName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
     recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
-    buildParams: (name) => ({ ...params, name })
+    createMethod: args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
+    maxAttempts: args.explicitCreation ? 1 : undefined,
+    buildParams: (name) => ({
+      ...params,
+      name,
+      ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {})
+    })
   })
 }
 
@@ -157,6 +166,7 @@ async function createBranchWorkspace(args: {
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: ExplicitWorktreeCreation
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -192,6 +202,7 @@ async function createBranchWorkspace(args: {
       baseName,
       worktreeCreateIdempotency: args.worktreeCreateIdempotency,
       recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
+      createMethod: args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
       maxAttempts: 1,
       buildParams: (name) =>
         applyCommon({
@@ -202,7 +213,8 @@ async function createBranchWorkspace(args: {
             : {}),
           setupDecision,
           baseBranch: selection.refName,
-          branchNameOverride: selection.localBranchName
+          branchNameOverride: selection.localBranchName,
+          ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {})
         })
     })
   }
@@ -218,12 +230,15 @@ async function createBranchWorkspace(args: {
     baseName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
     recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
+    createMethod: args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
+    maxAttempts: args.explicitCreation ? 1 : undefined,
     buildParams: (candidate) => {
       const params: Record<string, unknown> = {
         repo: `id:${targetRepoId}`,
         name: candidate,
         setupDecision,
         baseBranch: selection.baseBranch,
+        ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {}),
         ...(manualDisplayName
           ? { displayName: manualDisplayName, displayNameKind: 'user' as const }
           : {})
@@ -247,6 +262,7 @@ async function createNewBranchWorkspace(args: {
   note: string | undefined
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
+  explicitCreation?: ExplicitWorktreeCreation
 }): Promise<WorktreeCreateResult> {
   const {
     client,
@@ -270,12 +286,15 @@ async function createNewBranchWorkspace(args: {
     baseName: selection.branchName,
     worktreeCreateIdempotency: args.worktreeCreateIdempotency,
     recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
+    createMethod: args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
+    maxAttempts: args.explicitCreation ? 1 : undefined,
     buildParams: (candidate) => {
       const params: Record<string, unknown> = {
         repo: `id:${targetRepoId}`,
         name: candidate,
         setupDecision,
         branchNameOverride: candidate,
+        ...(args.explicitCreation ? { explicitCreation: args.explicitCreation } : {}),
         ...(manualDisplayName
           ? { displayName: manualDisplayName, displayNameKind: 'user' as const }
           : {}),

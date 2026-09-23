@@ -32,6 +32,7 @@ import { useNewWorkspaceRepositories } from './use-new-workspace-repositories'
 import { useNewWorkspaceRuntimeContext } from './use-new-workspace-runtime-context'
 import { useNewWorkspaceSetupScript } from './use-new-workspace-setup-script'
 import { useNewWorktreeDrawerNavigation } from './use-new-worktree-drawer-navigation'
+import { useMobileWorktreeLocation } from './use-mobile-worktree-location'
 
 export function NewWorktreeModal(props: NewWorktreeModalProps) {
   // Why: each drawer opening is a fresh form session; remounting resets local
@@ -100,6 +101,13 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     selectedRepo?.id,
     retiredNamesRefreshKey
   )
+  const worktreeLocation = useMobileWorktreeLocation({
+    client,
+    repo: selectedRepo,
+    name: composer.name,
+    branchNameOverride: composer.branchNameOverride,
+    selection: composer.createSelection
+  })
   const createSubmit = useNewWorkspaceCreateSubmit({
     client,
     selectedRepo,
@@ -111,6 +119,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     detectedAgentIds: executionTarget.detectedAgentIds,
     sshGate: executionTarget.sshGate,
     composer,
+    worktreeLocation,
     note,
     existingWorktreePaths,
     retiredWorktreeNames,
@@ -162,6 +171,11 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     selectedRepo != null &&
     !createSubmit.creating &&
     !executionTarget.sshGate.requiresConnection &&
+    (worktreeLocation.location === 'automatic' ||
+      (worktreeLocation.preview != null &&
+        !worktreeLocation.preview.occupyingWorktree &&
+        !worktreeLocation.preview.destinationExists &&
+        !worktreeLocation.pending)) &&
     (!needsSetupChoice || setupScript.setupDecisionChoice != null)
 
   function openPicker(view: 'project' | 'runTarget' | 'agent'): void {
@@ -210,6 +224,8 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         selectedRepoName={selectedRepo?.displayName ?? 'Remote repository'}
         sshGate={executionTarget.sshGate}
         composer={composer}
+        worktreeLocation={worktreeLocation}
+        selectedRepo={selectedRepo}
         selectedAgent={agentSelection.selectedAgent}
         showAdvanced={setupScript.showAdvanced}
         note={note}

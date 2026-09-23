@@ -12,12 +12,16 @@ import { leaveHostRoute } from '../host-route-exit'
 import { getWorktreeRowIdentity, removeWorktreeRow } from '../worktree/worktree-host-row-identity'
 import { isWorktreePinned, type Worktree } from '../worktree/workspace-list-sections'
 import type { HostScreenState } from './use-host-screen-state'
+import type { FetchHostRepoMetadata } from './use-host-repo-metadata'
+import type { RpcSuccess } from '../transport/types'
+import { forceDeleteMobilePreservedBranch } from '../worktree/mobile-preserved-branch-delete'
 
 export function useHostWorktreeActions(args: {
   client: RpcClient | null
   connState: ConnectionState
   embedded: boolean
   fetchWorktrees: (options?: { allowDuringModal?: boolean }) => Promise<void>
+  fetchRepoMetadata: FetchHostRepoMetadata
   forgetHostClient: ReturnType<typeof useForgetHostClient>
   hostId: string | undefined
   pathname: string
@@ -29,6 +33,7 @@ export function useHostWorktreeActions(args: {
     connState,
     embedded,
     fetchWorktrees,
+    fetchRepoMetadata,
     forgetHostClient,
     hostId,
     pathname,
@@ -130,14 +135,52 @@ export function useHostWorktreeActions(args: {
         if (!response.ok) {
           setWorktrees((prev) => [...prev, item])
           setLastKnownWorktrees((prev) => [...prev, item])
+          Alert.alert('Could not delete worktree', response.error.message)
+        } else {
+          const result = (response as RpcSuccess).result as {
+            preservedBranch?: { branchName?: string; head?: string }
+          }
+          const branch = result.preservedBranch
+          if (branch?.branchName && branch.head) {
+            Alert.alert(
+              'Branch kept',
+              `The worktree was removed, but branch ${branch.branchName} was kept. Deleting this branch permanently removes its commits if they are not reachable elsewhere.`,
+              [
+                { text: 'Keep branch', style: 'cancel' },
+                {
+                  text: 'Delete branch permanently',
+                  style: 'destructive',
+                  onPress: () => {
+                    void forceDeleteMobilePreservedBranch({
+                      client,
+                      worktreeId: item.worktreeId,
+                      branch
+                    })
+                      .catch((error: unknown) => {
+                        Alert.alert(
+                          'Could not delete branch',
+                          error instanceof Error ? error.message : 'Reconnect and try again.'
+                        )
+                      })
+                      .finally(() => {
+                        void fetchWorktrees()
+                        void fetchRepoMetadata({ force: true })
+                      })
+                  }
+                }
+              ]
+            )
+          }
         }
         void fetchWorktrees()
+        void fetchRepoMetadata({ force: true })
       } catch {
         setWorktrees((prev) => [...prev, item])
         setLastKnownWorktrees((prev) => [...prev, item])
+        Alert.alert('Could not delete worktree', 'Reconnect to the host and try again.')
       }
     },
-    [client, fetchWorktrees]
+    [client, fetchRepoMetadata, fetchWorktrees]
   )
 
   const handleRemoveHost = useCallback(async () => {

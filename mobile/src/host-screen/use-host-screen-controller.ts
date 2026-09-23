@@ -78,6 +78,7 @@ export function useHostScreenController({
     connState,
     embedded,
     fetchWorktrees: catalog.fetchWorktrees,
+    fetchRepoMetadata,
     forgetHostClient,
     hostId,
     pathname,

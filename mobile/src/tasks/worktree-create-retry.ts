@@ -59,6 +59,7 @@ export type CreateWorktreeWithNameRetryArgs = {
   buildParams: (name: string) => Record<string, unknown>
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
   recoverCompletedCheckoutFailure?: boolean
+  createMethod?: 'worktree.create' | 'worktree.createExplicit'
   maxAttempts?: number
   // Injected in tests; production mints a fresh idempotency key per candidate.
   mintMutationId?: () => string
@@ -93,7 +94,12 @@ export async function createWorktreeWithNameRetry(
     const params = worktreeCreateIdempotency
       ? { ...candidateParams, ...recoveryOpt, clientMutationId: mintMutationId() }
       : { ...candidateParams, ...recoveryOpt }
-    const response = await sendWorktreeCreateResilient(client, params, worktreeCreateIdempotency)
+    const response = await sendWorktreeCreateResilient(
+      client,
+      params,
+      worktreeCreateIdempotency,
+      args.createMethod ?? 'worktree.create'
+    )
     if (response.ok) {
       const result = (response as RpcSuccess).result as CreateWorktreeResult
       const authoritativeName = result.worktree.displayName
@@ -108,6 +114,13 @@ export async function createWorktreeWithNameRetry(
       }
     }
     lastError = response.error.message
+    if (
+      args.createMethod === 'worktree.createExplicit' &&
+      (response.error.code === 'method_not_found' ||
+        /unknown method|method not found|not allowed/i.test(lastError))
+    ) {
+      return { error: 'Update Orca on the host to choose a worktree location.' }
+    }
     if (!isRetryableWorktreeCreateConflict(lastError ?? '')) {
       break
     }
@@ -123,7 +136,8 @@ export async function createWorktreeWithNameRetry(
 async function sendWorktreeCreateResilient(
   client: RpcClient,
   params: Record<string, unknown>,
-  worktreeCreateIdempotency: WorktreeCreateIdempotencySupport | false
+  worktreeCreateIdempotency: WorktreeCreateIdempotencySupport | false,
+  method: 'worktree.create' | 'worktree.createExplicit'
 ): Promise<RpcResponse> {
   let migrationRetry = 0
   let ambiguousRetry = 0
@@ -131,7 +145,7 @@ async function sendWorktreeCreateResilient(
   let replayDeadlineAt: number | null = null
   for (;;) {
     try {
-      return await client.sendRequest('worktree.create', params, {
+      return await client.sendRequest(method, params, {
         timeoutMs: WORKTREE_CREATE_TIMEOUT_MS
       })
     } catch (error) {

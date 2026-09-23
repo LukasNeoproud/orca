@@ -24,6 +24,7 @@ import {
   type NewWorktreeRuntimeSettings
 } from './new-worktree-agent-selection'
 import type { MobileWorkspaceRepo, SetupRunPolicy } from './new-worktree-modal-types'
+import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
 import type { SetupTrustPrompt } from './SetupHookTrustDrawer'
 import type { NewWorktreeDrawerView } from './use-new-worktree-drawer-navigation'
 import { getSuggestedCreatureName } from './worktree-name-suggestion'
@@ -46,6 +47,7 @@ export function useNewWorkspaceCreateSubmit(args: {
   detectedAgentIds: Set<string> | null
   sshGate: WorkspaceSshGate
   composer: Composer
+  worktreeLocation: MobileWorktreeLocationState
   note: string
   existingWorktreePaths?: readonly string[]
   retiredWorktreeNames: RetiredNameRegistry
@@ -135,6 +137,22 @@ export function useNewWorkspaceCreateSubmit(args: {
           undefined,
           args.retiredWorktreeNames
         )
+      const explicitCreation = args.worktreeLocation.explicitCreation
+      if (args.worktreeLocation.location !== 'automatic') {
+        if (!explicitCreation || !args.worktreeLocation.preview) {
+          args.setError('Preview the worktree location before creating it.')
+          return
+        }
+        const currentPreview = await args.worktreeLocation.previewNow()
+        if (!currentPreview) {
+          args.setError('Could not confirm the selected worktree location.')
+          return
+        }
+        if (currentPreview.occupyingWorktree || currentPreview.destinationExists) {
+          args.setError('The selected branch or destination is already in use.')
+          return
+        }
+      }
       let setupDecision: WorkspaceCreateSetupDecision = 'inherit'
       if (args.setupCommand) {
         if (options.setupOverride) {
@@ -181,7 +199,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             note: trimmedNote,
             nameIsAutoManaged: args.composer.isNameAutoManaged,
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
-            recoverCompletedCheckoutFailure: true
+            recoverCompletedCheckoutFailure: true,
+            explicitCreation: explicitCreation ?? undefined
           })
         : await createBlankWorkspace({
             client,
@@ -190,9 +209,11 @@ export function useNewWorkspaceCreateSubmit(args: {
             nameWasGenerated: !trimmedName,
             createdWithAgentId,
             comment: trimmedNote,
+            branchNameOverride: args.composer.branchNameOverride,
             setupDecision,
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
-            recoverCompletedCheckoutFailure: true
+            recoverCompletedCheckoutFailure: true,
+            explicitCreation: explicitCreation ?? undefined
           })
       if ('error' in result) {
         args.setError(result.error)
