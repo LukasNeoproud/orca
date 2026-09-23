@@ -1,0 +1,31 @@
+---
+id: TASK-28
+title: 'Android: Stav a řízení strukturovaných přechodů kontextu'
+status: To Do
+assignee: []
+created_date: '2026-09-23 10:50'
+labels: []
+dependencies:
+  - TASK-16
+references:
+  - src/main/runtime/rpc/methods/agent-context.ts
+  - src/main/runtime/orca-runtime-restore-structured-agent-session-tabs-once.ts
+  - docs/reference/ssh-execution-boundary.md
+priority: medium
+type: feature
+ordinal: 28000
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Agent může požádat runtime o přechod do nové strukturované relace. Host už umí vyměnit strukturovanou záložku, mobil ale neukazuje důvod, stav ani zrušení požadavku. Ovládání se nesmí plést s terminálovým přechodem, který zatím vyžaduje desktopový pane.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Mobil ukazuje důvod, režim a průběh požadavku v relaci, jíž se týká, a dovoluje zrušit pouze čekající požadavek.
+- [ ] #2 Po potvrzeném přechodu se zobrazí nová strukturovaná záložka a původní zůstane dohledatelná; timeout nebo odpojení neznamená chybně dokončeno.
+- [ ] #3 Přístup je omezen na vlastnící relaci a hosta, po reconnectu se stav obnoví a starší host ukáže explicitně nepodporováno.
+- [ ] #4 Terminálový přechod není na mobilu nabízen, dokud nemá bezpečný hostem řízený kontrakt.
+<!-- AC:END -->
