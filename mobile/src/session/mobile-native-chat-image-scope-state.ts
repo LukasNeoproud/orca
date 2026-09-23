@@ -16,3 +16,14 @@ export function withScopeAttachments(
   delete remaining[scope]
   return remaining
 }
+
+export function copyScopeAttachments(
+  byScope: MobileNativeChatImagesByScope,
+  sourceScope: string,
+  targetScope: string
+): MobileNativeChatImagesByScope {
+  const source = byScope[sourceScope] ?? []
+  return source.length > 0 && sourceScope !== targetScope
+    ? withScopeAttachments(byScope, targetScope, [...source])
+    : byScope
+}

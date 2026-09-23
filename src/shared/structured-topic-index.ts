@@ -83,7 +83,8 @@ function overlap(left: readonly string[], right: readonly string[]): number {
  */
 export function appendAutomaticTopicTurn(
   index: StructuredTopicIndex,
-  turn: StructuredTopicTurn
+  turn: StructuredTopicTurn,
+  createId: () => string = () => crypto.randomUUID()
 ): StructuredTopicIndex {
   if (!index.automatic || turn.start.epoch !== turn.end.epoch) {
     return index
@@ -94,7 +95,7 @@ export function appendAutomaticTopicTurn(
     return {
       ...index,
       revision: index.revision + 1,
-      chapters: [...index.chapters, chapter(turn, nextTitle)]
+      chapters: [...index.chapters, chapter(turn, nextTitle, createId)]
     }
   }
   const related = overlap(topicTerms(previous.title), topicTerms(turn.prompt)) > 0
@@ -102,7 +103,7 @@ export function appendAutomaticTopicTurn(
     return {
       ...index,
       revision: index.revision + 1,
-      chapters: [...index.chapters, chapter(turn, nextTitle)]
+      chapters: [...index.chapters, chapter(turn, nextTitle, createId)]
     }
   }
   const updated: StructuredTopicChapter = {
@@ -117,9 +118,13 @@ export function appendAutomaticTopicTurn(
   }
 }
 
-function chapter(turn: StructuredTopicTurn, title: string): StructuredTopicChapter {
+function chapter(
+  turn: StructuredTopicTurn,
+  title: string,
+  createId: () => string
+): StructuredTopicChapter {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     title,
     start: turn.start,
     end: turn.end,
@@ -158,7 +163,8 @@ export function splitStructuredTopicChapter(
   index: StructuredTopicIndex,
   chapterId: string,
   split: StructuredTopicAnchor,
-  rightTitle = 'New topic'
+  rightTitle = 'New topic',
+  createId: () => string = () => crypto.randomUUID()
 ): StructuredTopicIndex {
   const position = index.chapters.findIndex((chapter) => chapter.id === chapterId)
   const chapter = index.chapters[position]
@@ -173,7 +179,7 @@ export function splitStructuredTopicChapter(
   const left = { ...chapter, end: split, boundaryAfterManual: true }
   const right: StructuredTopicChapter = {
     ...chapter,
-    id: crypto.randomUUID(),
+    id: createId(),
     title: rightTitle.trim().slice(0, 120) || 'New topic',
     start: split,
     titleSource: 'manual',

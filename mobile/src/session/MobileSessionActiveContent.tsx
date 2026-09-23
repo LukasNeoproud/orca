@@ -9,6 +9,7 @@ import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
 import { FileReader } from './MobileSessionFileReader'
 import { MarkdownReader } from './MobileSessionMarkdownReader'
+import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
 
 export function MobileSessionActiveContent({
   controller
@@ -244,6 +245,34 @@ export function MobileSessionActiveContent({
       >
         <MobileNativeChatOverlay
           controller={nativeChatController}
+          client={client}
+          hostId={controller.hostId}
+          worktreeId={worktreeId}
+          structuredSessionId={
+            controller.activeSessionTab?.type === 'agent-session'
+              ? controller.activeSessionTab.sessionId
+              : null
+          }
+          onContinuationOpened={async (sessionId) => {
+            const tabId = `agent-session:${sessionId}`
+            const targetScope = mobileNativeChatScopeKey(controller.hostId, worktreeId, tabId)
+            if (targetScope) {
+              nativeChatImages.copyAttachmentsToScope(targetScope)
+            }
+            const previous = controller.activeHandleRef.current
+            if (previous) {
+              controller.unsubscribeTerminal(previous)
+              controller.initializedHandlesRef.current.delete(previous)
+            }
+            controller.pendingActiveSessionTabIdRef.current = tabId
+            controller.pendingActiveTerminalHandleRef.current = null
+            controller.activeSessionTabTypeRef.current = 'agent-session'
+            controller.activeSessionTabIdRef.current = tabId
+            controller.setActiveSessionTabId(tabId)
+            controller.activeHandleRef.current = null
+            controller.setActiveHandle(null)
+            controller.scheduleDelayedAction(() => void controller.fetchSessionTabs(), 500)
+          }}
           onOpenFile={handleNativeChatFileTap}
           images={nativeChatImages}
           onMicPress={handleDictationToggle}

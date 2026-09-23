@@ -29,6 +29,8 @@ import { MobileCodexUsageStatus } from './MobileCodexUsageStatus'
 import { MobileNativeChatBackgroundTasksStatus } from './MobileNativeChatBackgroundTasksStatus'
 import type { MobileNativeChatViewProps } from './mobile-native-chat-view-types'
 import { useMobileConversationAnchorScroll } from './use-mobile-conversation-anchor-scroll'
+import { mobileNativeChatComposerPlaceholder } from './mobile-native-chat-composer-placeholder'
+import { MobileStructuredSendRetryStatus } from './MobileStructuredSendRetryStatus'
 
 export type { MobileNativeChatInputLockReason } from './mobile-native-chat-view-types'
 
@@ -44,6 +46,7 @@ export function MobileNativeChatView({
   structuredActivityUi = false,
   codexUsage,
   backgroundTasks,
+  sendRetry,
   canStopBackgroundTasks = false,
   onStopBackgroundTask,
   onStop,
@@ -344,6 +347,7 @@ export function MobileNativeChatView({
         onStop={onStopBackgroundTask}
         activeTurn={agentWorking === true}
       />
+      <MobileStructuredSendRetryStatus retry={sendRetry ?? null} />
       {/* Chrome row above the composer: the working indicator and the global
           tool-calls expand/collapse toggle on the left, Stop in the far corner. */}
       <View style={styles.chromeRow}>
@@ -420,13 +424,7 @@ export function MobileNativeChatView({
         onMicPressIn={onMicPressIn}
         onMicPressOut={onMicPressOut}
         disabled={lockReason !== null}
-        placeholder={
-          lockReason === 'disconnected'
-            ? 'Reconnecting…'
-            : lockReason === 'waiting'
-              ? 'Waiting for terminal…'
-              : 'Message, @files, /commands'
-        }
+        placeholder={mobileNativeChatComposerPlaceholder(lockReason)}
         filePaths={filePaths}
         onNeedFiles={onNeedFiles}
       />

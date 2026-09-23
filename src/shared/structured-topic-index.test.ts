@@ -51,4 +51,23 @@ describe('structured topic index', () => {
     expect(index.chapters).toHaveLength(1)
     expect(index.chapters[0]?.title).toBe('Auth flow')
   })
+
+  it('accepts a supplied chapter ID generator when global crypto is unavailable', () => {
+    vi.stubGlobal('crypto', undefined)
+    let index = appendAutomaticTopicTurn(
+      emptyStructuredTopicIndex('s'),
+      turn(1, 'Review launch flow'),
+      () => 'first'
+    )
+    index = appendAutomaticTopicTurn(index, turn(3, 'Review launch retry'), () => 'unused')
+    index = splitStructuredTopicChapter(
+      index,
+      'first',
+      { epoch: 'epoch', itemId: 'u-3', sequence: 3 },
+      'Follow-up',
+      () => 'split'
+    )
+    index = appendAutomaticTopicTurn(index, turn(5, 'Plan next step'), () => 'second')
+    expect(index.chapters.map((chapter) => chapter.id)).toEqual(['first', 'split', 'second'])
+  })
 })

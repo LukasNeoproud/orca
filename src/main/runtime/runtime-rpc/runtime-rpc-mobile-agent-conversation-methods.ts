@@ -1,4 +1,9 @@
 export const MOBILE_RPC_AGENT_CONVERSATION_METHODS = [
+  'agentSession.topicIndex',
+  'agentSession.writeTopicIndex',
+  'agentSession.requestHandoff',
+  'agentContext.inspect',
+  'agentContext.cancelPending',
   'agentContext.cancelStructuredPending',
   'agentContext.inspectStructured',
   'agentSession.branchPreview',

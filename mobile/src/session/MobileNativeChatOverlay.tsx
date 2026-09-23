@@ -6,9 +6,19 @@ import type { MobileNativeChatImageAttachments } from './use-mobile-native-chat-
 import type { MobileNativeChatController } from './use-mobile-native-chat-controller'
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
 import { MobileConversationBranchDrawers } from './MobileConversationBranchDrawers'
+import { MobileStructuredTopicIndexPanel } from './MobileStructuredTopicIndexPanel'
+import { MobileStructuredHandoffStatus } from './MobileStructuredHandoffStatus'
+import { MobileStructuredContinuationPanel } from './MobileStructuredContinuationPanel'
+import type { RpcClient } from '../transport/rpc-client'
+import { requestMobileConversationAnchor } from './mobile-conversation-anchor-request'
 
 type Props = {
   controller: MobileNativeChatController
+  client?: RpcClient | null
+  hostId?: string
+  worktreeId?: string
+  structuredSessionId?: string | null
+  onContinuationOpened?: (sessionId: string) => void | Promise<void>
   /** Opens a tapped file reference (worktree-relative or absolute, optional
    *  :line(:col) suffix) through the shared tap-to-open flow. */
   onOpenFile: (pathText: string) => void
@@ -38,6 +48,11 @@ type Props = {
  *  the chat list below it does not. */
 export function MobileNativeChatOverlay({
   controller,
+  client,
+  hostId,
+  worktreeId,
+  structuredSessionId,
+  onContinuationOpened,
   onOpenFile,
   images,
   onMicPress,
@@ -65,6 +80,48 @@ export function MobileNativeChatOverlay({
   }
   return (
     <View style={styles.overlay}>
+      {controller.nativeChatHandoff ? (
+        <MobileStructuredHandoffStatus
+          status={controller.nativeChatHandoff.status}
+          pending={controller.nativeChatHandoff.pending}
+          uncertain={controller.nativeChatHandoff.uncertain}
+          error={controller.nativeChatHandoff.error}
+          isWorking={controller.nativeChatAgentWorking}
+          onRequest={controller.nativeChatHandoff.request}
+        />
+      ) : null}
+      {client && hostId && worktreeId && onContinuationOpened ? (
+        <MobileStructuredContinuationPanel
+          client={client}
+          connected={inputLockReason !== 'disconnected'}
+          hostId={hostId}
+          worktreeId={worktreeId}
+          sessionId={structuredSessionId ?? null}
+          agent={controller.nativeChatAgent}
+          busy={
+            controller.nativeChatAgentWorking ||
+            Boolean(controller.nativeChatPermission || controller.nativeChatQuestion)
+          }
+          draft={controller.chatComposerText}
+          onOpened={onContinuationOpened}
+        />
+      ) : null}
+      {controller.nativeChatTopicIndex?.supported ? (
+        <MobileStructuredTopicIndexPanel
+          index={controller.nativeChatTopicIndex.index}
+          ready={controller.nativeChatTopicIndex.ready}
+          error={controller.nativeChatTopicIndex.error}
+          epoch={controller.nativeChatEpoch}
+          items={controller.nativeChatJournalItems}
+          onNavigate={(anchor) => {
+            if (hostId && structuredSessionId && anchor.epoch === controller.nativeChatEpoch) {
+              requestMobileConversationAnchor(hostId, structuredSessionId, anchor)
+            }
+          }}
+          onSave={(index) => void controller.nativeChatTopicIndex?.save(index)}
+          onLoadOlder={() => controller.nativeChatSession.loadEarlier?.()}
+        />
+      ) : null}
       <MobileNativeChatView
         messages={session.messages}
         folded={folded}
@@ -75,6 +132,7 @@ export function MobileNativeChatOverlay({
         structuredActivityUi={controller.nativeChatStructured}
         codexUsage={controller.nativeChatCodexUsage}
         backgroundTasks={controller.nativeChatBackgroundTasks}
+        sendRetry={controller.nativeChatSendRetry}
         canStopBackgroundTasks={controller.canStopNativeChatBackgroundTasks}
         onStopBackgroundTask={controller.stopNativeChatBackgroundTask}
         streaming={streaming}
@@ -119,7 +177,11 @@ export function MobileNativeChatOverlay({
         dictationMode={dictationMode}
         onMicPressIn={onMicPressIn}
         onMicPressOut={onMicPressOut}
-        inputLockReason={inputLockReason}
+        inputLockReason={
+          controller.nativeChatHandoff && !controller.nativeChatHandoff.canSend
+            ? 'handoff'
+            : inputLockReason
+        }
         sendErrorMessage={sendErrorMessage}
         onClearSendError={onClearSendError}
         filePaths={controller.nativeChatFilePaths}

@@ -9,10 +9,11 @@ import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeCh
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 import type { MobileConversationAnchorRequest } from './mobile-conversation-anchor-request'
 import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
+import type { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
 
 /** Why the composer input is locked: the transport is disconnected, or the
  * terminal subscription has not acknowledged its input lease yet. */
-export type MobileNativeChatInputLockReason = 'disconnected' | 'waiting'
+export type MobileNativeChatInputLockReason = 'disconnected' | 'waiting' | 'handoff'
 
 export type MobileNativeChatViewProps = {
   messages: NativeChatMessage[]
@@ -24,6 +25,7 @@ export type MobileNativeChatViewProps = {
   structuredActivityUi?: boolean
   codexUsage?: MobileCodexSessionUsage | null
   backgroundTasks?: AgentSessionBackgroundTaskState | null
+  sendRetry?: ReturnType<typeof useMobileStructuredSendRetry> | null
   canStopBackgroundTasks?: boolean
   onStopBackgroundTask?: (taskId?: string) => Promise<boolean>
   onStop?: () => void

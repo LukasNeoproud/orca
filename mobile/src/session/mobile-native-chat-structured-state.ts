@@ -11,6 +11,11 @@ export function projectMobileStructuredChatState(
   return {
     nativeChatCodexUsage: structured ? (session.codexUsage ?? null) : null,
     nativeChatBackgroundTasks: structured ? session.backgroundTasks : null,
+    nativeChatTopicIndex: structured ? session.topicIndex : null,
+    nativeChatJournalItems: structured ? session.journalItems : [],
+    nativeChatEpoch: structured ? session.epoch : null,
+    nativeChatHandoff: structured ? session.handoff : null,
+    nativeChatSendRetry: structured ? session.sendRetry : null,
     canStopNativeChatBackgroundTasks: structured && session.canStopBackgroundTasks,
     stopNativeChatBackgroundTask: session.stopBackgroundTask,
     nativeChatPermission: structured ? session.permission : legacyPermission,

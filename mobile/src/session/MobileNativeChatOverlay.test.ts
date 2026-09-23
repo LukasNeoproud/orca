@@ -14,6 +14,15 @@ vi.mock('./MobileNativeChatView', () => ({ MobileNativeChatView: 'ChatView' }))
 vi.mock('./MobileConversationBranchDrawers', () => ({
   MobileConversationBranchDrawers: 'ConversationBranchDrawers'
 }))
+vi.mock('./MobileStructuredTopicIndexPanel', () => ({
+  MobileStructuredTopicIndexPanel: 'TopicPanel'
+}))
+vi.mock('./MobileStructuredHandoffStatus', () => ({
+  MobileStructuredHandoffStatus: 'HandoffStatus'
+}))
+vi.mock('./MobileStructuredContinuationPanel', () => ({
+  MobileStructuredContinuationPanel: 'ContinuationPanel'
+}))
 
 function assistantTurn(id: string, text: string): NativeChatMessage {
   return { id, role: 'assistant', blocks: [{ type: 'text', text }], timestamp: 0, source: 'hook' }

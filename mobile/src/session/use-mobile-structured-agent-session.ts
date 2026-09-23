@@ -20,8 +20,7 @@ import {
 import {
   requestStructuredAgentSessionMutation,
   retainStructuredSessionOperationId as retainStructuredOpId,
-  timeoutForDeadline,
-  type StructuredAgentSessionMutationResult
+  timeoutForDeadline
 } from './mobile-structured-agent-session-rpc'
 import type { RpcClient } from '../transport/rpc-client'
 import type { MobileChatPermission } from './mobile-native-chat-permission'
@@ -32,6 +31,10 @@ import { useMobileStructuredPromptResponses } from './use-mobile-structured-prom
 import { useMobileStructuredAgentOptions } from './use-mobile-structured-agent-options'
 import { useMobileConversationBranchSource } from './use-mobile-conversation-branch-source'
 import { useMobileStructuredSessionStops } from './use-mobile-structured-session-stops'
+import { useMobileStructuredTopicIndex } from './use-mobile-structured-topic-index'
+import { useMobileStructuredSessionHandoff } from './use-mobile-structured-session-handoff'
+import { useMobileStructuredSessionMutation } from './use-mobile-structured-session-mutation'
+import { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
 
 type StructuredMobileAttachment = StructuredAgentSessionAttachment & { id?: string }
 
@@ -42,6 +45,10 @@ type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgentOptions
   isWorking: boolean
   turnId: string | null
   backgroundTasks: AgentSessionBackgroundTaskState | null
+  topicIndex: ReturnType<typeof useMobileStructuredTopicIndex>
+  journalItems: ReturnType<typeof useMobileStructuredAgentState>['state']['items']
+  handoff: ReturnType<typeof useMobileStructuredSessionHandoff>
+  sendRetry: ReturnType<typeof useMobileStructuredSendRetry>
   canStopBackgroundTasks: boolean
   stopBackgroundTask: (taskId?: string) => Promise<boolean>
   sendWithOutcome: (
@@ -77,48 +84,25 @@ export function useMobileStructuredAgentSession(args: {
     retainStructuredOpId(operationIdsRef.current, key, operationId)
   const stateArgs = { client, sessionId, sessionKey, enabled, connected }
   const { state, stateRef, loadingOlder, loadEarlier } = useMobileStructuredAgentState(stateArgs)
+  const handoff = useMobileStructuredSessionHandoff({ ...stateArgs, state, stateRef })
+  const topicIndex = useMobileStructuredTopicIndex({
+    ...stateArgs,
+    sourceIdentity,
+    epoch: state.epoch,
+    items: state.items
+  })
+  const sendRetry = useMobileStructuredSendRetry({
+    ...stateArgs,
+    ready: state.status === 'ready' && state.fence !== null,
+    submissions: state.submissions
+  })
 
-  const mutate = useCallback(
-    async <TValue>(
-      method: string,
-      fingerprintMethod: string,
-      fields: Record<string, unknown>
-    ): Promise<StructuredAgentSessionMutationResult<TValue>> => {
-      const current = stateRef.current
-      if (!client || !sessionId || !enabled || current.fence === null) {
-        return { status: 'rejected' }
-      }
-      const targetFence = current.fence
-      const key = `${sessionKey}:${fingerprintMethod}:${JSON.stringify(fields)}`
-      const clientOperationId = retainOperationId(key, operationIdsRef.current.get(key))
-      const result = await requestStructuredAgentSessionMutation<TValue>({
-        client,
-        method,
-        fingerprintMethod,
-        sessionId,
-        expectedRuntimeFence: targetFence,
-        fields,
-        clientOperationId
-      })
-      if (result.status === 'accepted') {
-        operationIdsRef.current.delete(key)
-        return {
-          status: 'accepted',
-          value: result.value,
-          sameFence: stateRef.current.fence === targetFence
-        }
-      }
-      if (result.status === 'unknown') {
-        // Only sends opt into retryUnknown; other plans need a fresh id after inspection.
-        operationIdsRef.current.delete(key)
-        return result
-      }
-      operationIdsRef.current.delete(key)
-      onSendError(result.message)
-      return { status: 'rejected' }
-    },
-    [client, enabled, onSendError, sessionId, sessionKey]
-  )
+  const mutate = useMobileStructuredSessionMutation({
+    ...stateArgs,
+    stateRef,
+    operationIds: operationIdsRef,
+    onSendError
+  })
 
   const {
     codexUsage,
@@ -148,6 +132,10 @@ export function useMobileStructuredAgentSession(args: {
       const currentFence = stateRef.current.fence
       if (!client || !sessionId || !enabled || currentFence === null) {
         onSendError('Message not sent (disconnected)')
+        return 'rejected'
+      }
+      if (!handoff.canSend) {
+        onSendError('Message not sent while the session owner is changing or open in terminal.')
         return 'rejected'
       }
       const timeoutMs = timeoutForDeadline(deadline)
@@ -208,9 +196,17 @@ export function useMobileStructuredAgentSession(args: {
       })
       if (result.status === 'accepted') {
         operationIdsRef.current.delete(key)
+        await sendRetry.clear(clientOperationId)
         return 'accepted'
       }
       if (result.status === 'unknown') {
+        await sendRetry.rememberUnknown({
+          sessionKey,
+          sessionId,
+          operationId: clientOperationId,
+          fence: currentFence,
+          body
+        })
         return 'unknown'
       }
       operationIdsRef.current.delete(key)
@@ -222,11 +218,14 @@ export function useMobileStructuredAgentSession(args: {
       client,
       conversationCommands,
       enabled,
+      handoff.canSend,
       invokeStructuredOption,
       onSendError,
       optionSnapshot,
       sessionId,
       sessionKey,
+      sendRetry.clear,
+      sendRetry.rememberUnknown,
       setStructuredOption
     ]
   )
@@ -282,6 +281,10 @@ export function useMobileStructuredAgentSession(args: {
     isWorking: activeStructuredAgentSessionTurnId(state.items) !== null,
     turnId: activeStructuredAgentSessionTurnId(state.items),
     backgroundTasks: state.backgroundTasks?.state === 'monitoring' ? state.backgroundTasks : null,
+    topicIndex,
+    journalItems: state.items,
+    handoff,
+    sendRetry,
     canStopBackgroundTasks: connected && state.fence !== null,
     stopBackgroundTask,
     sendWithOutcome,

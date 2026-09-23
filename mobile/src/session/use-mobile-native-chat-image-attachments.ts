@@ -9,6 +9,7 @@ import {
 } from './mobile-native-chat-image-attachment'
 import {
   NO_NATIVE_CHAT_IMAGE_ATTACHMENTS,
+  copyScopeAttachments,
   withScopeAttachments,
   type MobileNativeChatImagesByScope
 } from './mobile-native-chat-image-scope-state'
@@ -81,6 +82,7 @@ export type MobileNativeChatImageAttachments = {
   readonly isAttaching: boolean
   readonly attachImage: (source: MobileImageSource) => Promise<void>
   readonly removeAttachment: (id: string) => void
+  readonly copyAttachmentsToScope: (targetScopeKey: string) => void
   /** Ride any pending images along with `text`, then submit; clears the sent
    *  chips (and only those) once the send is accepted. */
   readonly sendNativeChat: (text: string) => Promise<boolean>
@@ -149,6 +151,16 @@ export function useMobileNativeChatImageAttachments({
       )
     },
     [scopeKey]
+  )
+
+  const copyAttachmentsToScope = useCallback(
+    (targetScopeKey: string): void => {
+      if (!structuredNativeChat || !scopeKey || targetScopeKey === scopeKey) {
+        return
+      }
+      setAttachmentsByScope((previous) => copyScopeAttachments(previous, scopeKey, targetScopeKey))
+    },
+    [scopeKey, structuredNativeChat]
   )
 
   const sendNativeChat = useCallback(
@@ -327,5 +339,12 @@ export function useMobileNativeChatImageAttachments({
     ]
   )
 
-  return { attachments, isAttaching, attachImage, removeAttachment, sendNativeChat }
+  return {
+    attachments,
+    isAttaching,
+    attachImage,
+    removeAttachment,
+    copyAttachmentsToScope,
+    sendNativeChat
+  }
 }

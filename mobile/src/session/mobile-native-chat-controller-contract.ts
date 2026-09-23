@@ -13,6 +13,10 @@ import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeCh
 import type { MobileCodexSessionUsage } from './mobile-codex-session-usage'
 import type { MobileConversationBranchController } from './use-mobile-conversation-branching'
 import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
+import type { AgentJournalRenderItem } from '../../../src/shared/agent-session-journal-types'
+import type { useMobileStructuredTopicIndex } from './use-mobile-structured-topic-index'
+import type { useMobileStructuredSessionHandoff } from './use-mobile-structured-session-handoff'
+import type { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
 
 export type MobileNativeChatController = {
   /** Whether a tab's effective view is chat (per-tab override, else the default). */
@@ -32,6 +36,11 @@ export type MobileNativeChatController = {
   nativeChatStructured: boolean
   nativeChatCodexUsage: MobileCodexSessionUsage | null
   nativeChatBackgroundTasks: AgentSessionBackgroundTaskState | null
+  nativeChatTopicIndex: ReturnType<typeof useMobileStructuredTopicIndex> | null
+  nativeChatJournalItems: AgentJournalRenderItem[]
+  nativeChatEpoch: string | null
+  nativeChatHandoff: ReturnType<typeof useMobileStructuredSessionHandoff> | null
+  nativeChatSendRetry: ReturnType<typeof useMobileStructuredSendRetry> | null
   canStopNativeChatBackgroundTasks: boolean
   stopNativeChatBackgroundTask: (taskId?: string) => Promise<boolean>
   nativeChatAgentWorking: boolean
