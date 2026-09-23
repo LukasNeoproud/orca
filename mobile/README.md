@@ -77,6 +77,121 @@ If the phone has a stale host entry, remove it from the app and pair again.
 1. Install Xcode from the App Store
 2. Run `pnpm start --ios` to open in iOS Simulator
 
+## Private Android Distribution
+
+The `Mobile Android Private Distribution` workflow builds a separate Android app and sends it
+only to a configured Firebase App Distribution tester group. It is manual-only: it does not create
+a Git tag, GitHub Release, public artifact, Play Store upload, or upload to Orca's release project.
+
+The private build overlays these Expo values without changing the public defaults in `app.json`:
+
+- a distinct `android.package`, so it can be installed beside official Orca Mobile;
+- launcher name `Orca Private` and URL scheme `orca-private` by default;
+- a private `versionCode` derived as `base + workflow run number * 100 + run attempt`.
+
+Expo maps `android.package` to the Android application ID and `android.versionCode` to the native
+build version. Firebase requires the registered Android app to use that exact, case-sensitive
+package. See the official [Expo app config reference](https://docs.expo.dev/versions/latest/config/app/)
+and [Firebase CLI distribution guide](https://firebase.google.com/docs/app-distribution/android/distribute-cli).
+
+### One-time private project setup
+
+1. Pick a stable reverse-DNS package that differs from `com.stably.orca.mobile`, for example
+   `dev.example.orca.privateapp`. Do not change it after distributing the first APK.
+2. Create a private Firebase project, register an Android app with that exact package, enable App
+   Distribution, and create a tester group. Record the Firebase Android App ID and group alias.
+3. Create a dedicated service account with the `Firebase App Distribution Admin` role. Store its
+   complete JSON key in the GitHub environment secret described below. Rotate it if repository or
+   environment access changes.
+4. Create one release keystore outside the repository and back it up securely. Every upgrade for
+   this package must be signed by the same key. One suitable command is:
+
+   ```bash
+   keytool -genkeypair -v -storetype JKS -keystore "$HOME/orca-private-android.jks" \
+     -alias orca-private -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+5. Create a protected GitHub environment named `private-mobile-distribution`. Add only the people
+   allowed to publish private builds as reviewers, then configure:
+
+| Kind     | Name                                     | Value                                                                                                                        |
+| -------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Variable | `ORCA_PRIVATE_ANDROID_PACKAGE`           | The private Firebase Android app package                                                                                     |
+| Variable | `ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE` | A positive base, initially `1000000`; raise it above every previously distributed private build if workflow history is reset |
+| Variable | `ORCA_PRIVATE_APP_NAME`                  | Optional launcher name, for example `Orca Private`                                                                           |
+| Variable | `ORCA_PRIVATE_APP_SCHEME`                | Optional private scheme, for example `orca-private`                                                                          |
+| Variable | `ORCA_PRIVATE_FIREBASE_APP_ID`           | Firebase Android App ID, such as `1:1234567890:android:abc123`                                                               |
+| Variable | `ORCA_PRIVATE_FIREBASE_TESTER_GROUPS`    | One or more comma-separated Firebase tester group aliases                                                                    |
+| Secret   | `ORCA_PRIVATE_FIREBASE_CREDENTIALS_JSON` | Complete service-account JSON                                                                                                |
+| Secret   | `ORCA_PRIVATE_ANDROID_KEYSTORE_BASE64`   | Base64 of the stable keystore (`base64 < file` on macOS, `base64 -w0 file` on GNU/Linux)                                     |
+| Secret   | `ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD` | Keystore password                                                                                                            |
+| Secret   | `ORCA_PRIVATE_ANDROID_KEY_ALIAS`         | Signing key alias                                                                                                            |
+| Secret   | `ORCA_PRIVATE_ANDROID_KEY_PASSWORD`      | Signing key password                                                                                                         |
+
+The workflow authenticates after the APK is built, and the Google authentication action removes
+its temporary credentials file at job completion. Signing values are read from environment
+variables by the generated Gradle project; they are never written into Expo config, Gradle source,
+the APK artifact, or workflow output.
+
+### Publish from CI
+
+Run `Mobile Android Private Distribution` from GitHub Actions and optionally enter release notes.
+The job verifies pairing and protocol contract tests, typechecks the mobile app, builds and verifies
+the signed APK identity, then runs the pinned Firebase CLI against the configured tester groups.
+The job summary returns Firebase's `testing_uri`. Only testers assigned to the release can use it.
+
+Do not lower `ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE` or reuse a package with a different signing
+key. Android accepts an in-place update only when the package and signer match and `versionCode` is
+higher than the installed build.
+
+### Repeat the build locally
+
+Keep the keystore and Firebase service-account file outside the checkout. Load passwords from a
+password manager rather than placing them in a script or shell history, then run:
+
+```bash
+cd mobile
+export ORCA_PRIVATE_ANDROID_RELEASE=1
+export ORCA_PRIVATE_ANDROID_PACKAGE=dev.example.orca.privateapp
+export ORCA_PRIVATE_ANDROID_VERSION_CODE=2000001 # must exceed the last private build
+export ORCA_PRIVATE_APP_NAME='Orca Private'
+export ORCA_PRIVATE_APP_SCHEME=orca-private
+export ORCA_PRIVATE_ANDROID_SIGNING=true
+export ORCA_PRIVATE_ANDROID_KEYSTORE_PATH=/secure/path/orca-private-android.jks
+printf 'Keystore password: '; IFS= read -r -s ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD; export ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD; echo
+export ORCA_PRIVATE_ANDROID_KEY_ALIAS=orca-private
+printf 'Key password: '; IFS= read -r -s ORCA_PRIVATE_ANDROID_KEY_PASSWORD; export ORCA_PRIVATE_ANDROID_KEY_PASSWORD; echo
+
+pnpm install --frozen-lockfile
+pnpm test src/transport/protocol-compat.test.ts src/transport/pairing.test.ts src/transport/pair-confirm-state.test.ts
+pnpm typecheck
+pnpm exec expo prebuild --platform android --no-install
+(cd android && ./gradlew --no-daemon assembleRelease)
+```
+
+Authenticate with an App Distribution Admin service account and upload to an explicit group:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/secure/path/firebase-app-distribution.json
+npx --yes firebase-tools@15.30.2 appdistribution:distribute \
+  android/app/build/outputs/apk/release/app-release.apk \
+  --app 1:1234567890:android:abc123 \
+  --groups trusted-testers \
+  --release-notes 'Private Orca validation build'
+```
+
+The Firebase CLI prints `testing_uri` for testers, `firebase_console_uri` for project members, and a
+one-hour `binary_download_uri`. Prefer `testing_uri`; tester authorization still applies and it does
+not become a public release.
+
+### Validate with Orca Dev
+
+Install the Firebase release without removing official Orca Mobile, start an Orca Dev desktop
+build, and pair by scanning its Settings > Mobile QR code inside `Orca Private`. Confirm the private
+app can reconnect, list a worktree, open a session, and send terminal input. The CI protocol tests
+protect the static pairing and compatibility contract; only this device check verifies LAN/relay,
+Android permissions, the chosen signing identity, and the actual Orca Dev build together.
+
 ## Physical Phone Debugging
 
 The phone can be inspected through the connected device tooling:

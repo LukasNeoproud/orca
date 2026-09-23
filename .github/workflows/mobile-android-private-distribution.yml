@@ -1,0 +1,178 @@
+name: Mobile Android Private Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: 'Private tester release notes (optional)'
+        required: false
+        type: string
+
+concurrency:
+  group: mobile-android-private-distribution
+  cancel-in-progress: false
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: private-mobile-distribution
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    env:
+      ORCA_PRIVATE_ANDROID_PACKAGE: ${{ vars.ORCA_PRIVATE_ANDROID_PACKAGE }}
+      ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE: ${{ vars.ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE }}
+      ORCA_PRIVATE_APP_NAME: ${{ vars.ORCA_PRIVATE_APP_NAME }}
+      ORCA_PRIVATE_APP_SCHEME: ${{ vars.ORCA_PRIVATE_APP_SCHEME }}
+      FIREBASE_APP_ID: ${{ vars.ORCA_PRIVATE_FIREBASE_APP_ID }}
+      FIREBASE_TESTER_GROUPS: ${{ vars.ORCA_PRIVATE_FIREBASE_TESTER_GROUPS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate private distribution configuration
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.ORCA_PRIVATE_FIREBASE_CREDENTIALS_JSON }}
+          KEYSTORE_BASE64: ${{ secrets.ORCA_PRIVATE_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ORCA_PRIVATE_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ORCA_PRIVATE_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ORCA_PRIVATE_ANDROID_PACKAGE"
+          test "$ORCA_PRIVATE_ANDROID_PACKAGE" != "com.stably.orca.mobile"
+          test -n "$FIREBASE_APP_ID"
+          case "$FIREBASE_APP_ID" in
+            *:android:*) ;;
+            *) echo "ORCA_PRIVATE_FIREBASE_APP_ID must be an Android Firebase App ID" >&2; exit 1 ;;
+          esac
+          test -n "$FIREBASE_TESTER_GROUPS"
+          test -n "$FIREBASE_CREDENTIALS"
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve private identity and version
+        id: private_release
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/prepare-private-android-release.mjs
+
+      - name: Verify pairing and protocol contracts
+        run: >-
+          pnpm test
+          src/transport/protocol-compat.test.ts
+          src/transport/pairing.test.ts
+          src/transport/pair-confirm-state.test.ts
+
+      - name: Typecheck mobile app
+        run: pnpm typecheck
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Generate private Android project
+        env:
+          ORCA_PRIVATE_ANDROID_RELEASE: '1'
+          ORCA_PRIVATE_ANDROID_VERSION_CODE: ${{ steps.private_release.outputs.version_code }}
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      - name: Decode private signing keystore
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ORCA_PRIVATE_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          keystore_path="$RUNNER_TEMP/orca-private-android.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          test -s "$keystore_path"
+          echo "keystore_path=$keystore_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed private APK
+        env:
+          ORCA_PRIVATE_ANDROID_SIGNING: 'true'
+          ORCA_PRIVATE_ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD }}
+          ORCA_PRIVATE_ANDROID_KEY_ALIAS: ${{ secrets.ORCA_PRIVATE_ANDROID_KEY_ALIAS }}
+          ORCA_PRIVATE_ANDROID_KEY_PASSWORD: ${{ secrets.ORCA_PRIVATE_ANDROID_KEY_PASSWORD }}
+        run: cd android && ./gradlew --no-daemon assembleRelease
+
+      - name: Verify APK identity, version, and signature
+        id: apk
+        env:
+          EXPECTED_PACKAGE: ${{ steps.private_release.outputs.package }}
+          EXPECTED_VERSION_CODE: ${{ steps.private_release.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          apk_path="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          actual_package="$(apkanalyzer manifest application-id "$apk_path")"
+          actual_version_code="$(apkanalyzer manifest version-code "$apk_path")"
+          test "$actual_package" = "$EXPECTED_PACKAGE"
+          test "$actual_version_code" = "$EXPECTED_VERSION_CODE"
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          test -x "$apksigner_path"
+          "$apksigner_path" verify --verbose --print-certs "$apk_path"
+          echo "apk_path=$apk_path" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to private Firebase project
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.ORCA_PRIVATE_FIREBASE_CREDENTIALS_JSON }}
+
+      - name: Distribute only to private tester groups
+        id: firebase
+        env:
+          APK_PATH: ${{ steps.apk.outputs.apk_path }}
+          RELEASE_NOTES_INPUT: ${{ inputs.release_notes }}
+          RELEASE_VERSION: ${{ steps.private_release.outputs.version }}
+          RELEASE_VERSION_CODE: ${{ steps.private_release.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          notes_file="$RUNNER_TEMP/orca-private-release-notes.txt"
+          if [ -n "$RELEASE_NOTES_INPUT" ]; then
+            printf '%s\n' "$RELEASE_NOTES_INPUT" > "$notes_file"
+          else
+            printf 'Private Orca Android %s (%s), commit %s\n' \
+              "$RELEASE_VERSION" "$RELEASE_VERSION_CODE" "$GITHUB_SHA" > "$notes_file"
+          fi
+          output_file="$RUNNER_TEMP/firebase-app-distribution.txt"
+          npx --yes firebase-tools@15.30.2 appdistribution:distribute "$APK_PATH" \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$FIREBASE_TESTER_GROUPS" \
+            --release-notes-file "$notes_file" | tee "$output_file"
+          testing_uri="$(sed -n 's/.*testing_uri:[[:space:]]*\(https:\/\/[^[:space:]]*\).*/\1/p' "$output_file" | tail -1)"
+          test -n "$testing_uri"
+          echo "testing_uri=$testing_uri" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Private Android release'
+            echo
+            echo "- Package: \`$ORCA_PRIVATE_ANDROID_PACKAGE\`"
+            echo "- Version: \`$RELEASE_VERSION ($RELEASE_VERSION_CODE)\`"
+            echo "- Tester install link: $testing_uri"
+          } >> "$GITHUB_STEP_SUMMARY"
