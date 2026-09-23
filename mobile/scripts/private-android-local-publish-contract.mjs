@@ -29,6 +29,7 @@ export function privateDistributionKeychainPairs() {
 export function parseLocalPublishArgs(argv) {
   const options = {
     publish: false,
+    existingApk: false,
     groups: null,
     releaseNotes: null,
     versionCode: null,
@@ -38,6 +39,8 @@ export function parseLocalPublishArgs(argv) {
     const arg = argv[index]
     if (arg === '--publish') {
       options.publish = true
+    } else if (arg === '--existing-apk') {
+      options.existingApk = true
     } else if (arg === '--help' || arg === '-h') {
       options.help = true
     } else if (arg === '--groups') {
@@ -55,6 +58,9 @@ export function parseLocalPublishArgs(argv) {
   }
   if (options.publish && !options.groups) {
     throw new Error('--groups is required with --publish')
+  }
+  if (options.existingApk && !options.publish) {
+    throw new Error('--existing-apk requires --publish')
   }
   if (!options.publish && (options.groups || options.releaseNotes)) {
     throw new Error('--groups and --release-notes are only valid with --publish')

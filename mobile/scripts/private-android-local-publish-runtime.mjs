@@ -129,19 +129,10 @@ export async function createFirebaseAccessToken(credentials, fetchImpl = fetch) 
 }
 
 export async function readMaxFirebaseVersionCode(accessToken, fetchImpl = fetch) {
-  const parent = `projects/${PRIVATE_FIREBASE_PROJECT_NUMBER}/apps/${PRIVATE_FIREBASE_APP_ID}`
   let pageToken = null
   let maximum = 0
   for (let page = 0; page < 100; page += 1) {
-    const url = new URL(
-      `https://firebaseappdistribution.googleapis.com/v1/${parent.replaceAll(':', '%3A')}/releases`
-    )
-    url.searchParams.set('pageSize', '100')
-    url.searchParams.set('orderBy', 'createTime desc')
-    if (pageToken) {
-      url.searchParams.set('pageToken', pageToken)
-    }
-    const response = await fetchImpl(url, {
+    const response = await fetchImpl(firebaseReleaseListUrl(pageToken), {
       headers: { authorization: `Bearer ${accessToken}` }
     })
     if (!response.ok) {
@@ -159,6 +150,36 @@ export async function readMaxFirebaseVersionCode(accessToken, fetchImpl = fetch)
     pageToken = typeof payload.nextPageToken === 'string' ? payload.nextPageToken : null
     if (!pageToken) {
       return maximum
+    }
+  }
+  throw new Error('Firebase release history exceeded the bounded pagination limit')
+}
+
+export async function readFirebaseTestingUri(accessToken, versionCode, fetchImpl = fetch) {
+  let pageToken = null
+  for (let page = 0; page < 100; page += 1) {
+    const response = await fetchImpl(firebaseReleaseListUrl(pageToken), {
+      headers: { authorization: `Bearer ${accessToken}` }
+    })
+    if (!response.ok) {
+      throw new Error(`Unable to confirm Firebase release (HTTP ${response.status})`)
+    }
+    const payload = await response.json()
+    const release = (Array.isArray(payload.releases) ? payload.releases : []).find(
+      (item) => Number(item?.buildVersion) === versionCode
+    )
+    if (release) {
+      if (
+        typeof release.testingUri !== 'string' ||
+        !release.testingUri.startsWith('https://appdistribution.firebase.google.com/')
+      ) {
+        throw new Error('Firebase release has no valid testing URI')
+      }
+      return release.testingUri
+    }
+    pageToken = typeof payload.nextPageToken === 'string' ? payload.nextPageToken : null
+    if (!pageToken) {
+      throw new Error(`Firebase has no release with versionCode ${versionCode}`)
     }
   }
   throw new Error('Firebase release history exceeded the bounded pagination limit')
@@ -192,4 +213,17 @@ export function writeLocalPublishedVersionCode(statePath, versionCode) {
 
 function base64Url(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
+}
+
+function firebaseReleaseListUrl(pageToken) {
+  const parent = `projects/${PRIVATE_FIREBASE_PROJECT_NUMBER}/apps/${PRIVATE_FIREBASE_APP_ID}`
+  const url = new URL(
+    `https://firebaseappdistribution.googleapis.com/v1/${parent.replaceAll(':', '%3A')}/releases`
+  )
+  url.searchParams.set('pageSize', '100')
+  url.searchParams.set('orderBy', 'createTime desc')
+  if (pageToken) {
+    url.searchParams.set('pageToken', pageToken)
+  }
+  return url
 }

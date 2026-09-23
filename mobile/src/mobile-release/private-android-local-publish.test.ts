@@ -21,6 +21,7 @@ import {
   createPrivateTempDirectory,
   parsePrivateDistributionSecretBatch,
   readLocalPublishedVersionCode,
+  readFirebaseTestingUri,
   readMaxFirebaseVersionCode,
   readPrivateDistributionSecrets,
   writeLocalPublishedVersionCode,
@@ -135,10 +136,16 @@ describe('local private Android publishing contract', () => {
   it('never enables publishing implicitly and requires an explicit tester group', () => {
     expect(parseLocalPublishArgs([])).toMatchObject({ publish: false, groups: null })
     expect(() => parseLocalPublishArgs(['--publish'])).toThrow('--groups is required')
+    expect(() => parseLocalPublishArgs(['--existing-apk'])).toThrow(
+      '--existing-apk requires --publish'
+    )
     expect(parseLocalPublishArgs(['--publish', '--groups', 'trusted, team'])).toMatchObject({
       publish: true,
       groups: 'trusted,team'
     })
+    expect(
+      parseLocalPublishArgs(['--publish', '--existing-apk', '--groups', 'orca-dev-private'])
+    ).toMatchObject({ publish: true, existingApk: true, groups: 'orca-dev-private' })
   })
 
   it('selects a code above Firebase and local published history', () => {
@@ -207,6 +214,26 @@ describe('local private Android publishing contract', () => {
     await expect(readMaxFirebaseVersionCode('token', malformedPage as never)).rejects.toThrow(
       'invalid Android build version'
     )
+  })
+
+  it('recovers the tester link from a confirmed Firebase release', async () => {
+    const pages = [
+      { releases: [{ buildVersion: '999999' }], nextPageToken: 'next' },
+      {
+        releases: [
+          {
+            buildVersion: '1000000',
+            testingUri:
+              'https://appdistribution.firebase.google.com/testerapps/app/releases/release'
+          }
+        ]
+      }
+    ]
+    const fetchPage = vi.fn(async () => ({ ok: true, json: async () => pages.shift() }))
+    await expect(readFirebaseTestingUri('token', 1_000_000, fetchPage as never)).resolves.toBe(
+      'https://appdistribution.firebase.google.com/testerapps/app/releases/release'
+    )
+    expect(fetchPage).toHaveBeenCalledTimes(2)
   })
 
   it('creates private files and persistent version state with owner-only permissions', () => {

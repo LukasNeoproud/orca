@@ -15,6 +15,7 @@ import {
   parseLocalPublishArgs
 } from './private-android-local-publish-contract.mjs'
 import {
+  findReleaseApk,
   requireLocalPublishTools,
   runPrivateAndroidBuild,
   uploadPrivateApk,
@@ -25,6 +26,7 @@ import {
   createFirebaseAccessToken,
   createPrivateTempDirectory,
   readLocalPublishedVersionCode,
+  readFirebaseTestingUri,
   readMaxFirebaseVersionCode,
   readPrivateDistributionSecrets,
   writeLocalPublishedVersionCode,
@@ -78,13 +80,12 @@ export async function runLocalPrivateAndroidPublish(argv) {
     writePrivateFile(secretPaths.keystore, decodeKeystoreBase64(secrets.keystoreBase64))
     writePrivateFile(secretPaths.credentials, `${JSON.stringify(credentials)}\n`)
 
-    console.log(`Building ${PRIVATE_ANDROID_PACKAGE} with versionCode ${versionCode}`)
-    const apkPath = runPrivateAndroidBuild({
-      mobileRoot,
-      versionCode,
-      secretPaths,
-      secrets
-    })
+    console.log(
+      `${options.existingApk ? 'Checking existing APK for' : 'Building'} ${PRIVATE_ANDROID_PACKAGE} with versionCode ${versionCode}`
+    )
+    const apkPath = options.existingApk
+      ? findReleaseApk(mobileRoot)
+      : runPrivateAndroidBuild({ mobileRoot, versionCode, secretPaths, secrets })
     verifyPrivateApk({
       apkPath,
       expectedPackage: PRIVATE_ANDROID_PACKAGE,
@@ -115,10 +116,8 @@ export async function runLocalPrivateAndroidPublish(argv) {
       notesPath: secretPaths.releaseNotes,
       credentialsPath: secretPaths.credentials
     })
-    const testingUri = extractTestingUri(output)
-    if (!testingUri) {
-      throw new Error('Firebase upload returned no testing_uri')
-    }
+    const testingUri =
+      extractTestingUri(output) || (await readFirebaseTestingUri(uploadAccessToken, versionCode))
     writeLocalPublishedVersionCode(versionStatePath, versionCode)
     console.log(`testing_uri: ${testingUri}`)
   } finally {
@@ -136,6 +135,7 @@ Builds a signed ${PRIVATE_ANDROID_PACKAGE} APK. Upload occurs only with --publis
 
 Options:
   --publish                 Upload with firebase-tools after verification
+  --existing-apk            Reuse the last built APK with --publish after verifying it
   --groups <aliases>        Comma-separated Firebase tester group aliases
   --release-notes <text>    Release notes used with --publish
   --version-code <integer>  Explicit code above Firebase and local history

@@ -215,7 +215,7 @@ function findExecutable(command) {
   )
 }
 
-function findReleaseApk(mobileRoot) {
+export function findReleaseApk(mobileRoot) {
   const releaseDirectory = path.join(
     mobileRoot,
     'android',

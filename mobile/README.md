@@ -220,11 +220,16 @@ node scripts/publish-private-android-local.mjs \
   --release-notes 'Private Orca validation build'
 ```
 
+If the verified APK was built but a network error prevented upload, rerun the same command with
+`--existing-apk`. The publisher checks its package, version code, and signing certificate again
+before upload and rejects an APK whose version is no longer above Firebase history.
+
 The script runs the mobile protocol tests and typecheck, regenerates `mobile/android`, builds the
 signed release APK, and verifies its package, version code, APK signature, and signing certificate.
 It uses `umask 077` for temporary keystore, certificate, release-note, and service-account files and
 removes their temporary directory on success, failure, SIGINT, or SIGTERM. The upload uses pinned
-`firebase-tools@15.30.2`; only the returned `testing_uri` is printed. The publisher accepts the
+`firebase-tools@15.30.2`; only the tester link is printed. If the CLI omits the link, the publisher
+reads the confirmed release from Firebase App Distribution API. The publisher accepts the
 Keychain batch only when it contains exactly the five configured service/account pairs with no
 missing, duplicate, or extra records.
 
@@ -238,7 +243,7 @@ every already-distributed local build.
 ### Validate with Orca Dev
 
 Install the Firebase release without removing official Orca Mobile, start an Orca Dev desktop
-build, and pair by scanning its Settings > Mobile QR code inside `Orca Private`. Confirm the private
+build, and pair by scanning its Settings > Mobile QR code inside `Orca Dev`. Confirm the private
 app can reconnect, list a worktree, open a session, and send terminal input. The CI protocol tests
 protect the static pairing and compatibility contract; only this device check verifies LAN/relay,
 Android permissions, the chosen signing identity, and the actual Orca Dev build together.
