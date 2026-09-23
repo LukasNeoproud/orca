@@ -144,45 +144,96 @@ Do not lower `ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE` or reuse a package with a 
 key. Android accepts an in-place update only when the package and signer match and `versionCode` is
 higher than the installed build.
 
-### Repeat the build locally
+### Publish the Orca Dev app locally on macOS
 
-Keep the keystore and Firebase service-account file outside the checkout. Load passwords from a
-password manager rather than placing them in a script or shell history, then run:
+The local publisher is fixed to Android package `cz.neoproud.orca.dev`, Firebase App ID
+`1:100414786379:android:410ca57940be633c0676ce`, and service account
+`orca-mobile-distribution@orca-dev-447f3.iam.gserviceaccount.com`. It reads secrets from the login
+Keychain only at runtime through `$HOME/.local/bin/touchid-keychain`. The CI workflow remains
+available separately.
+
+Install Node.js 24, pnpm, JDK 17, and Android SDK command-line and build tools. Run
+`pnpm install --frozen-lockfile` in `mobile/` once. The publisher also requires the executable
+`$HOME/.local/bin/touchid-keychain`; run `touchid-keychain check` to confirm Touch ID is
+available. Create a stable release keystore with alias `orca-dev` if one does not already exist;
+keep a separate secure backup because every update of this package must use the same signing key.
+
+Create five generic password items in Keychain Access. Select the login keychain, choose
+**File > New Password Item**, set **Keychain Item Name** to the service below, set **Account Name**
+to the listed account, and put the prepared value in **Password**.
+
+| Keychain field                          | Exact value                                     |
+| --------------------------------------- | ----------------------------------------------- |
+| Service / Keychain Item Name            | `cz.neoproud.orca.dev.private-distribution`     |
+| Account `android-keystore-base64`       | Stable keystore as single-line base64           |
+| Account `android-keystore-password`     | Keystore password                               |
+| Account `android-key-alias`             | Signing alias, normally `orca-dev`              |
+| Account `android-key-password`          | Signing key password                            |
+| Account `firebase-service-account-json` | Complete JSON key for the service account above |
+
+Prepare file-backed values without printing them in the terminal by copying them directly to the
+clipboard, pasting into Keychain Access, and clearing the clipboard afterward:
+
+```bash
+base64 < /secure/path/orca-dev.jks | tr -d '\n' | pbcopy
+# Paste into android-keystore-base64, then:
+pbcopy < /dev/null
+
+pbcopy < /secure/path/orca-dev-firebase-service-account.json
+# Paste into firebase-service-account-json, then:
+pbcopy < /dev/null
+```
+
+After saving the JSON in Keychain, remove the downloaded JSON file according to the local secret
+handling policy. Authorize the helper and verify the entire batch without displaying any value:
+
+```bash
+TOUCHID_KEYCHAIN=$HOME/.local/bin/touchid-keychain
+SERVICE=cz.neoproud.orca.dev.private-distribution
+"$TOUCHID_KEYCHAIN" verify \
+  "$SERVICE" android-keystore-base64 \
+  "$SERVICE" android-keystore-password \
+  "$SERVICE" android-key-alias \
+  "$SERVICE" android-key-password \
+  "$SERVICE" firebase-service-account-json
+```
+
+Use this `verify` command once after creating or replacing the items and choose **Always Allow** for
+the helper when macOS asks for Keychain access. It authenticates with Touch ID once and discards all
+five values. Each later publisher run performs exactly one `get --json` batch, which also requires
+one Touch ID authentication. The helper has no authentication cache or bypass and returns no
+partial batch if any item is missing or access is denied.
+
+The default command builds and verifies a signed APK but does not upload it:
 
 ```bash
 cd mobile
-export ORCA_PRIVATE_ANDROID_RELEASE=1
-export ORCA_PRIVATE_ANDROID_PACKAGE=dev.example.orca.privateapp
-export ORCA_PRIVATE_ANDROID_VERSION_CODE=2000001 # must exceed the last private build
-export ORCA_PRIVATE_APP_NAME='Orca Private'
-export ORCA_PRIVATE_APP_SCHEME=orca-private
-export ORCA_PRIVATE_ANDROID_SIGNING=true
-export ORCA_PRIVATE_ANDROID_KEYSTORE_PATH=/secure/path/orca-private-android.jks
-printf 'Keystore password: '; IFS= read -r -s ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD; export ORCA_PRIVATE_ANDROID_KEYSTORE_PASSWORD; echo
-export ORCA_PRIVATE_ANDROID_KEY_ALIAS=orca-private
-printf 'Key password: '; IFS= read -r -s ORCA_PRIVATE_ANDROID_KEY_PASSWORD; export ORCA_PRIVATE_ANDROID_KEY_PASSWORD; echo
-
-pnpm install --frozen-lockfile
-pnpm test src/transport/protocol-compat.test.ts src/transport/pairing.test.ts src/transport/pair-confirm-state.test.ts
-pnpm typecheck
-pnpm exec expo prebuild --platform android --no-install
-(cd android && ./gradlew --no-daemon assembleRelease)
+node scripts/publish-private-android-local.mjs
 ```
 
-Authenticate with an App Distribution Admin service account and upload to an explicit group:
+Publishing requires both the explicit `--publish` flag and at least one Firebase tester group:
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=/secure/path/firebase-app-distribution.json
-npx --yes firebase-tools@15.30.2 appdistribution:distribute \
-  android/app/build/outputs/apk/release/app-release.apk \
-  --app 1:1234567890:android:abc123 \
-  --groups trusted-testers \
+node scripts/publish-private-android-local.mjs \
+  --publish \
+  --groups orca-dev-private \
   --release-notes 'Private Orca validation build'
 ```
 
-The Firebase CLI prints `testing_uri` for testers, `firebase_console_uri` for project members, and a
-one-hour `binary_download_uri`. Prefer `testing_uri`; tester authorization still applies and it does
-not become a public release.
+The script runs the mobile protocol tests and typecheck, regenerates `mobile/android`, builds the
+signed release APK, and verifies its package, version code, APK signature, and signing certificate.
+It uses `umask 077` for temporary keystore, certificate, release-note, and service-account files and
+removes their temporary directory on success, failure, SIGINT, or SIGTERM. The upload uses pinned
+`firebase-tools@15.30.2`; only the returned `testing_uri` is printed. The publisher accepts the
+Keychain batch only when it contains exactly the five configured service/account pairs with no
+missing, duplicate, or extra records.
+
+The next version code is one above both the Firebase release history and the last successful local
+publish stored at `~/Library/Application Support/Orca/private-android-version-code`, with a floor of
+`1000000`. The script checks Firebase again immediately before upload and refuses a stale version.
+Use `--version-code <integer>` only to select a still-higher code. If CI distributes this same
+package, keep `ORCA_PRIVATE_ANDROID_VERSION_CODE_BASE` high enough that the CI formula remains above
+every already-distributed local build.
 
 ### Validate with Orca Dev
 
