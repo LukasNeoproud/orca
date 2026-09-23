@@ -26,7 +26,11 @@ function isCandidate(value: unknown): value is ConversationContinuationCandidate
     typeof candidate.status === 'string' &&
     ['preparing', 'ready', 'unconfirmed', 'failed', 'stale', 'used'].includes(candidate.status) &&
     typeof candidate.createdAt === 'string' &&
-    typeof candidate.updatedAt === 'string'
+    typeof candidate.updatedAt === 'string' &&
+    (candidate.mode === undefined || candidate.mode === 'fresh') &&
+    (candidate.mode !== 'fresh' ||
+      (typeof candidate.handoffDigest === 'string' &&
+        /^[a-f0-9]{64}$/.test(candidate.handoffDigest)))
   )
 }
 
@@ -71,13 +75,17 @@ export class CodexContinuationStore {
   findCheckpoint(
     providerSessionId: string,
     workspaceId: string,
-    revision: string
+    revision: string,
+    handoffDigest?: string
   ): ConversationContinuationCandidate | null {
     const candidate = [...this.candidates.values()].find(
       (entry) =>
         entry.source.providerSessionId === providerSessionId &&
         entry.source.workspaceId === workspaceId &&
-        entry.checkpoint.revision === revision
+        entry.checkpoint.revision === revision &&
+        (handoffDigest
+          ? entry.mode === 'fresh' && entry.handoffDigest === handoffDigest
+          : entry.mode !== 'fresh')
     )
     return candidate ? clone(candidate) : null
   }

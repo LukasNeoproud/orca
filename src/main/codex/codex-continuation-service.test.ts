@@ -201,6 +201,11 @@ describe('CodexContinuationService', () => {
 
   it.each([
     {
+      name: 'unsupported method',
+      error: new CodexAppServerRequestError('thread/compact/start', -32601, 'Method not found'),
+      status: 'failed'
+    },
+    {
       name: 'confirmed provider refusal',
       error: new CodexAppServerRequestError('thread/compact/start', -32000, 'compact refused'),
       status: 'failed'
@@ -222,6 +227,11 @@ describe('CodexContinuationService', () => {
     })
     await service.settled()
     expect(service.status(candidate.candidateId)).toMatchObject({ status: outcome.status })
+    if (outcome.name === 'unsupported method') {
+      expect(service.status(candidate.candidateId)?.error).toBe(
+        'agent_context_provider_unsupported'
+      )
+    }
     expect(service.status(candidate.candidateId)?.status).not.toBe('ready')
     expect(calls.map((call) => call.method)).toEqual(['thread/fork', 'thread/compact/start'])
 

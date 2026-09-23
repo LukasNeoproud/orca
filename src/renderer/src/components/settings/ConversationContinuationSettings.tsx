@@ -25,6 +25,52 @@ export function ConversationContinuationSettings({
           'Choose how to continue Codex conversations after a pause. The original conversation is preserved.'
         )}
       />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <Label>
+            {translate('continuation.settings.agentAutonomy', 'Agent context management')}
+          </Label>
+          <Select
+            value={settings.agentContextAutonomy ?? 'off'}
+            onValueChange={(value) => {
+              if (value === 'off' || value === 'compact' || value === 'all') {
+                void updateSettings({ agentContextAutonomy: value })
+              }
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="w-64"
+              aria-label={translate(
+                'continuation.settings.agentAutonomy',
+                'Agent context management'
+              )}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">
+                {translate('continuation.settings.agentOff', 'Off')}
+              </SelectItem>
+              <SelectItem value="compact">
+                {translate('continuation.settings.agentCompact', 'Compaction only')}
+              </SelectItem>
+              <SelectItem value="all">
+                {translate(
+                  'continuation.settings.agentAll',
+                  'Compaction and new context with handoff'
+                )}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'continuation.settings.agentDescription',
+            'Allows the Orca context-management plugin to request a transition after a completed task or stage. Compaction uses model tokens. New user input cancels a pending transition.'
+          )}
+        </p>
+      </div>
       <Duration
         value={settings.conversationContinuationOfferAfterMs ?? 1_800_000}
         label={translate('continuation.settings.offer', 'Offer continuation after')}

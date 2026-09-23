@@ -37,6 +37,9 @@ export type ConversationContinuationCandidate = {
   error?: string
   createdAt: string
   updatedAt: string
+  /** Absent on existing compacted copies. Fresh candidates never copy source history. */
+  mode?: 'fresh'
+  handoffDigest?: string
 }
 
 export type ConversationContinuationPrepareInput = {

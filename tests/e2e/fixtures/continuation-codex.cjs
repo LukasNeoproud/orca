@@ -7,12 +7,14 @@ const fs = require('node:fs')
 const http = require('node:http')
 const path = require('node:path')
 const { randomUUID } = require('node:crypto')
+const { spawn } = require('node:child_process')
 
 const SOURCE_ID =
   process.env.ORCA_E2E_CONTINUATION_CODEX_SESSION_ID || '00000000-0000-4000-8000-000000000001'
 const READY = 'ORCA_E2E_CONTINUATION_CODEX_READY'
 const COMPACTED = 'ORCA_E2E_CONTINUATION_CODEX_COMPACTED'
 const DRAFT = 'ORCA_E2E_CONTINUATION_CODEX_DRAFT'
+const AGENT_CONTEXT = 'ORCA_E2E_AGENT_CONTEXT'
 const OLD = '2020-01-02T03:04:05.000Z'
 const SESSION_DATE = ['sessions', '2020', '01', '02']
 const PASTE_START = '\x1b[200~'
@@ -105,7 +107,7 @@ function writeRollout(threadId, cwd, label) {
 function appendCompletedTurn(threadId, cwd, turnId, prompt) {
   const target = writeRollout(threadId, cwd, 'structured')
   const existing = fs.readFileSync(target, 'utf8')
-  if (existing.includes(`"turn_id":"${turnId}"`)) {
+  if (existing.includes(`"type":"task_complete","turn_id":"${turnId}"`)) {
     return
   }
   const timestamp = new Date().toISOString()
@@ -131,6 +133,143 @@ function appendCompletedTurn(threadId, cwd, turnId, prompt) {
     }
   ]
   fs.appendFileSync(target, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`)
+}
+
+function appendContextTurnCompletion(threadId, cwd, turnId) {
+  const target = writeRollout(threadId, cwd, 'structured')
+  const existing = fs.readFileSync(target, 'utf8')
+  if (existing.includes(`"type":"task_complete","turn_id":"${turnId}"`)) {
+    return
+  }
+  const timestamp = new Date().toISOString()
+  fs.appendFileSync(
+    target,
+    `${JSON.stringify({
+      timestamp,
+      type: 'event_msg',
+      payload: { type: 'agent_message', message: 'Fixture context transition turn completed.' }
+    })}\n${JSON.stringify({
+      timestamp,
+      type: 'event_msg',
+      payload: { type: 'task_complete', turn_id: turnId, completed_at: timestamp }
+    })}\n`
+  )
+}
+
+function appendRunningTurn(threadId, cwd, turnId, prompt) {
+  const target = writeRollout(threadId, cwd, 'structured')
+  const timestamp = new Date().toISOString()
+  fs.appendFileSync(
+    target,
+    `${JSON.stringify({
+      timestamp,
+      type: 'response_item',
+      payload: { type: 'message', role: 'user', content: [{ type: 'text', text: prompt }] }
+    })}\n${JSON.stringify({
+      timestamp,
+      type: 'event_msg',
+      payload: { type: 'task_started', turn_id: turnId }
+    })}\n`
+  )
+}
+
+function contextInput(mode, continuation) {
+  return {
+    reason: 'E2E agent context transition',
+    checkpoint: {
+      goal: 'Exercise agent-requested context transition.',
+      completed: 'The active fixture turn has recorded its checkpoint.',
+      decisions: ['Use the prepared Codex candidate.'],
+      constraints: ['Do not begin work for wait-for-user.'],
+      changes: ['None.'],
+      verification: ['The replacement session marker is visible.'],
+      openQuestions: [],
+      ...(continuation === 'continue' ? { nextStep: 'Continue the fixture verification.' } : {})
+    },
+    continuation
+  }
+}
+
+function orcaCommand() {
+  const launcher = process.env.ORCA_USER_DATA_PATH
+    ? path.join(
+        process.env.ORCA_USER_DATA_PATH,
+        'cli',
+        'bin',
+        process.platform === 'win32' ? 'orca.cmd' : 'orca'
+      )
+    : null
+  return launcher && fs.existsSync(launcher) ? launcher : process.env.ORCA_CLI_COMMAND || 'orca'
+}
+
+function requestAgentContext({ mode, continuation, requestId, threadId, onSettled }) {
+  const command = orcaCommand()
+  const child = spawn(
+    command,
+    ['agent-context', 'request', '--mode', mode, '--request-id', requestId, '--json'],
+    {
+      env: process.env,
+      stdio: ['pipe', 'pipe', 'pipe']
+    }
+  )
+  let stdout = ''
+  let stderr = ''
+  let settled = false
+  const finish = (accepted) => {
+    if (settled) {
+      return
+    }
+    settled = true
+    onSettled?.(accepted)
+  }
+  child.stdout.on('data', (chunk) => {
+    stdout += String(chunk)
+  })
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk)
+  })
+  child.on('error', (error) => {
+    record('agent-context-request-failed', { threadId, requestId, message: error.message })
+    process.stdout.write(`${AGENT_CONTEXT}:FAILED:${requestId}\r\n`)
+    finish(false)
+  })
+  child.on('close', (code) => {
+    record('agent-context-request', {
+      threadId,
+      requestId,
+      mode,
+      continuation,
+      code,
+      stdout,
+      stderr
+    })
+    process.stdout.write(`${AGENT_CONTEXT}:${code === 0 ? 'QUEUED' : 'FAILED'}:${requestId}\r\n`)
+    finish(code === 0)
+  })
+  child.stdin.end(JSON.stringify(contextInput(mode, continuation)))
+}
+
+function cancelAgentContext({ requestId, threadId }) {
+  const command = orcaCommand()
+  const child = spawn(command, ['agent-context', 'cancel', '--request-id', requestId, '--json'], {
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe']
+  })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.on('data', (chunk) => {
+    stdout += String(chunk)
+  })
+  child.stderr.on('data', (chunk) => {
+    stderr += String(chunk)
+  })
+  child.on('error', (error) => {
+    record('agent-context-cancel-failed', { threadId, requestId, message: error.message })
+  })
+  child.on('close', (code) => {
+    record('agent-context-cancel', { threadId, requestId, code, stdout, stderr })
+    process.stdout.write(`${AGENT_CONTEXT}:CANCELLED:${requestId}\r\n`)
+  })
 }
 
 function readState() {
@@ -222,15 +361,71 @@ function retainedMarkerPrefix(value, marker) {
   return 0
 }
 
-function startTerminalInput(threadId) {
+function startTerminalInput(threadId, transcriptPath, cwd) {
   let buffered = ''
   let insidePaste = false
   let pastedDraft = ''
-  const submit = () => record('terminal-submit', { threadId })
+  let line = ''
+  let activeTurnId = null
+  const submit = () => {
+    const command = line.trim()
+    line = ''
+    record('terminal-submit', { threadId, command })
+    const request =
+      /^ORCA_E2E_AGENT_CONTEXT\s+(compact|fresh)\s+(wait-for-user|continue)\s+([^\s]+)$/.exec(
+        command
+      )
+    if (request) {
+      const [, mode, continuation, requestId] = request
+      activeTurnId = `agent-context-${requestId}`
+      appendRunningTurn(threadId, cwd, activeTurnId, command)
+      postHook({ hook_event_name: 'UserPromptSubmit', session_id: threadId, prompt: command })
+      requestAgentContext({ mode, continuation, requestId, threadId })
+      return
+    }
+    const complete = /^ORCA_E2E_AGENT_CONTEXT_COMPLETE\s+([^\s]+)$/.exec(command)
+    if (complete && activeTurnId) {
+      appendContextTurnCompletion(threadId, cwd, activeTurnId)
+      postHook({
+        hook_event_name: 'Stop',
+        session_id: threadId,
+        transcript_path: transcriptPath,
+        last_assistant_message: 'Fixture agent context turn completed.'
+      })
+      process.stdout.write(`${AGENT_CONTEXT}:COMPLETED:${complete[1]}\r\n`)
+      return
+    }
+    const stale = /^ORCA_E2E_AGENT_CONTEXT_STALE\s+([^\s]+)$/.exec(command)
+    if (stale && activeTurnId) {
+      const timestamp = new Date().toISOString()
+      fs.appendFileSync(
+        transcriptPath,
+        `${JSON.stringify({
+          timestamp,
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'text', text: 'New user input.' }]
+          }
+        })}\n`
+      )
+      appendContextTurnCompletion(threadId, cwd, activeTurnId)
+      postHook({ hook_event_name: 'Stop', session_id: threadId, transcript_path: transcriptPath })
+      process.stdout.write(`${AGENT_CONTEXT}:STALE:${stale[1]}\r\n`)
+      return
+    }
+    const cancel = /^ORCA_E2E_AGENT_CONTEXT_CANCEL\s+([^\s]+)$/.exec(command)
+    if (cancel) {
+      cancelAgentContext({ requestId: cancel[1], threadId })
+    }
+  }
   const consumePlain = (plain) => {
     for (const character of plain) {
       if (character === '\r') {
         submit()
+      } else if (character !== '\n') {
+        line += character
       }
     }
   }
@@ -288,7 +483,20 @@ function turnPrompt(params) {
   return text.join('\n') || 'Fixture structured prompt.'
 }
 
-function scheduleProviderTurn({ threadId, turnId, cwd, prompt, compact = false }) {
+function agentContextControl(prompt) {
+  const match =
+    /^ORCA_E2E_AGENT_CONTEXT\s+(compact|fresh)\s+(wait-for-user|continue)\s+([^\s]+)$/.exec(prompt)
+  return match ? { mode: match[1], continuation: match[2], requestId: match[3] } : null
+}
+
+function scheduleProviderTurn({
+  threadId,
+  turnId,
+  cwd,
+  prompt,
+  compact = false,
+  contextTransition = false
+}) {
   setTimeout(() => {
     const notify = (method, params) =>
       process.stdout.write(`${JSON.stringify({ method, params })}\n`)
@@ -314,7 +522,11 @@ function scheduleProviderTurn({ threadId, turnId, cwd, prompt, compact = false }
       notify('item/started', { threadId, turnId, item: { ...item, text: '' } })
       notify('item/agentMessage/delta', { threadId, turnId, itemId: item.id, delta: item.text })
       notify('item/completed', { threadId, turnId, item })
-      appendCompletedTurn(threadId, cwd, turnId, prompt)
+      if (contextTransition) {
+        appendContextTurnCompletion(threadId, cwd, turnId)
+      } else {
+        appendCompletedTurn(threadId, cwd, turnId, prompt)
+      }
     }
     notify('turn/completed', { threadId, turn: { id: turnId, status: 'completed' } })
     record(compact ? 'compact-completed' : 'structured-turn-completed', { threadId, turnId })
@@ -349,7 +561,7 @@ function startTerminal() {
     home: home()
   })
   reportTerminalSession(threadId, transcriptPath, `fixture turn for ${threadId}`)
-  startTerminalInput(threadId)
+  startTerminalInput(threadId, transcriptPath, process.cwd())
 }
 
 function appServer() {
@@ -370,7 +582,14 @@ function appServer() {
     if (message.method === 'thread/fork') {
       const id = nextThread()
       const opened = thread(id, cwd)
-      return result(message.id, { thread: opened })
+      return result(message.id, {
+        thread: opened,
+        model: 'orca-e2e-model',
+        reasoningEffort: 'medium',
+        approvalPolicy: 'never',
+        sandbox: { type: 'dangerFullAccess' },
+        activePermissionProfile: { id: ':danger-full-access' }
+      })
     }
     if (message.method === 'thread/compact/start') {
       const threadId = params.threadId || SOURCE_ID
@@ -395,6 +614,11 @@ function appServer() {
         reasoningEffort: 'medium'
       })
     }
+    if (message.method === 'thread/inject_items') {
+      const threadId = params.threadId || SOURCE_ID
+      writeRollout(threadId, cwd, 'fresh')
+      return result(message.id, {})
+    }
     if (message.method === 'thread/resume') {
       const opened = thread(params.threadId || SOURCE_ID, cwd)
       return result(message.id, {
@@ -410,8 +634,21 @@ function appServer() {
     if (message.method === 'turn/start' || message.method === 'thread/turn/start') {
       const threadId = params.threadId || SOURCE_ID
       const turnId = `turn-${threadId}-${Date.now()}`
+      const prompt = turnPrompt(params)
       result(message.id, { turn: { id: turnId } })
-      scheduleProviderTurn({ threadId, turnId, cwd, prompt: turnPrompt(params) })
+      const control = agentContextControl(prompt)
+      if (control) {
+        appendRunningTurn(threadId, cwd, turnId, prompt)
+        send({ method: 'turn/started', params: { threadId, turn: { id: turnId } } })
+        requestAgentContext({
+          ...control,
+          threadId,
+          onSettled: () =>
+            scheduleProviderTurn({ threadId, turnId, cwd, prompt, contextTransition: true })
+        })
+      } else {
+        scheduleProviderTurn({ threadId, turnId, cwd, prompt })
+      }
       return
     }
     if (message.method === 'model/list') {

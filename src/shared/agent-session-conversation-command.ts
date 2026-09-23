@@ -3,6 +3,8 @@ export type AgentSessionConversationCommand = 'clear' | 'compact'
 export type AgentSessionConversationCommandResult = {
   command: AgentSessionConversationCommand
   state: 'completed' | 'unknown'
+  /** Context-originated clears retain their requested target mode for recovery UI. */
+  contextMode?: 'compact' | 'fresh'
   replacementSessionId?: string
   error?: string
 }
@@ -24,6 +26,9 @@ export function isAgentSessionConversationCommandResult(
   return (
     (row.command === 'clear' || row.command === 'compact') &&
     (row.state === 'completed' || row.state === 'unknown') &&
+    (row.contextMode === undefined ||
+      row.contextMode === 'compact' ||
+      row.contextMode === 'fresh') &&
     (row.replacementSessionId === undefined ||
       (typeof row.replacementSessionId === 'string' &&
         /^[A-Za-z0-9_-]{8,128}$/.test(row.replacementSessionId))) &&

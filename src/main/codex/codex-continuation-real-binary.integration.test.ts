@@ -27,6 +27,7 @@ import {
   readCodexTurnId
 } from './codex-structured-thread-facts'
 import { openCodexThread } from './codex-structured-thread-open'
+import { createCodexFreshContext } from './codex-fresh-context'
 import { proveCodexTuiRollout, resolvePinnedCodexRolloutProof } from './codex-tui-rollout-proof'
 
 const RUN_REAL_BINARY = process.env.ORCA_RUN_CODEX_CONTINUATION_REAL_BINARY === '1'
@@ -241,6 +242,47 @@ describe('real Codex continuation', () => {
         expect(digest(await readFile(sourcePath))).toBe(digest(sourceBefore))
         expect((await readFile(sourceAuthPath)).equals(originalAuth)).toBe(true)
 
+        const freshMarker = `FRESH_HANDOFF_${randomUUID()}`
+        const fresh = await createCodexFreshContext({
+          connection,
+          sourceThreadId: source.threadId,
+          lastTurnId: checkpointTurnId,
+          cwd: workspace,
+          handoff: freshMarker,
+          timeoutMs: 30_000,
+          onCreated: async () => undefined
+        })
+        expect(fresh.threadId).not.toBe(candidateThreadId)
+
+        expect(await connection.close()).toBe(true)
+        connection = null
+
+        connection = await openCodexAppServerConnection(
+          {
+            command: codexCommand,
+            args: ['app-server'],
+            cwd: workspace,
+            env: { CODEX_HOME: codexHome }
+          },
+          {
+            onNotification: () => undefined,
+            onServerRequest: (request) =>
+              connection?.respondWithError(request.id, -32001, 'No test approvals'),
+            onExit: () => undefined
+          }
+        )
+        await openCodexThread(
+          connection,
+          { cwd: workspace, resumeThreadId: fresh.threadId },
+          30_000
+        )
+        const freshPath = fresh.transcriptPath ?? (await waitForRollout(codexHome, fresh.threadId))
+        const freshHistory = await readFile(freshPath, 'utf8')
+        expect(freshHistory).toContain(freshMarker)
+        expect(freshHistory).not.toContain(laterMarker)
+        expect(freshHistory).not.toContain('CHECKPOINT_OK')
+        expect(freshHistory).not.toContain('"type":"task_started"')
+        expect(digest(await readFile(sourcePath))).toBe(digest(sourceBefore))
         expect(await connection.close()).toBe(true)
         connection = null
 
@@ -278,6 +320,11 @@ describe('real Codex continuation', () => {
             }
           })
           expect(await realpath(proof.transcriptPath)).toBe(await realpath(candidatePath))
+        } catch (error) {
+          throw new Error(
+            `Headless Codex resume failed. Terminal output:\n${output.slice(-12_000)}`,
+            { cause: error }
+          )
         } finally {
           try {
             tui.kill()

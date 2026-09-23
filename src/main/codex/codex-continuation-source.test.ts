@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   inspectCodexContinuationSource,
+  inspectCodexContextSource,
   writeCodexContinuationReference,
   type ResolvedCodexContinuationSource
 } from './codex-continuation-source'
@@ -81,6 +82,44 @@ async function fixture(): Promise<{
 }
 
 describe('Codex continuation source inspection', () => {
+  it('does not treat a completed turn as proof that malformed steering was absent', async () => {
+    const { source, transcript } = await fixture()
+    await writeFile(
+      transcript,
+      `${await readFile(transcript, 'utf8')}{invalid-json}\n${line({
+        timestamp: '2026-09-22T10:01:00.000Z',
+        type: 'event_msg',
+        payload: { type: 'task_complete', turn_id: 'turn-1' }
+      })}`
+    )
+    expect(await inspectCodexContextSource(source)).toMatchObject({
+      turnState: 'completed',
+      activityReliable: false
+    })
+  })
+  it('pins the requesting turn and counts steering input independently of tool output', async () => {
+    const { source, transcript } = await fixture()
+    const append = async (payload: unknown, type = 'event_msg') =>
+      writeFile(
+        transcript,
+        `${await readFile(transcript, 'utf8')}${line({ timestamp: '2026-09-22T10:02:00.000Z', type, payload })}`
+      )
+    await append({ type: 'task_started', turn_id: 'requesting-turn' })
+    await append({ type: 'user_message', message: 'Do work' })
+    const running = await inspectCodexContextSource(source)
+    expect(running).toMatchObject({
+      turnId: 'requesting-turn',
+      turnState: 'running',
+      userMessageCount: 1,
+      checkpoint: null
+    })
+    await append({ type: 'function_call_output', output: 'queued' }, 'response_item')
+    expect((await inspectCodexContextSource(source)).userMessageCount).toBe(1)
+    await append({ type: 'user_message', message: 'Stop or change scope' })
+    expect((await inspectCodexContextSource(source)).userMessageCount).toBe(2)
+    await append({ type: 'turn_aborted', turn_id: 'requesting-turn' })
+    expect((await inspectCodexContextSource(source)).turnState).toBe('interrupted')
+  })
   it('returns only a completed turn at the current transcript frontier', async () => {
     const { source, transcript } = await fixture()
     const completed = await inspectCodexContinuationSource(source)

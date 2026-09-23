@@ -131,6 +131,7 @@ export function buildDefaultSettings(args: {
     nativeChatSessionOptions: {},
     conversationContinuationOfferAfterMs: 30 * 60_000,
     conversationContinuationAutoCompact: false,
+    agentContextAutonomy: 'off',
     conversationContinuationCompactAfterMs: 30 * 60_000,
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,

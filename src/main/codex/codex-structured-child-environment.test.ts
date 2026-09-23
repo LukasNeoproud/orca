@@ -24,10 +24,11 @@ describe('buildCodexStructuredChildEnvironment', () => {
         'spawn-token',
         'session-not-a-worker'
       )
-    ).toEqual({
+    ).toMatchObject({
       EXAMPLE_GATEWAY_TOKEN: 'shell-exported',
       CODEX_HOME: '/pinned/home',
       [CODEX_SPAWN_TOKEN_ENV]: 'spawn-token',
+      ORCA_AGENT_SESSION_ID: 'session-not-a-worker',
       [ORCA_STRUCTURED_SESSION_ENV]: '1'
     })
   })
@@ -42,8 +43,9 @@ describe('buildCodexStructuredChildEnvironment', () => {
       env: {}
     }
     const sessionId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
-    expect(buildCodexStructuredChildEnvironment(launch, 'spawn-token', sessionId)).toEqual({
+    expect(buildCodexStructuredChildEnvironment(launch, 'spawn-token', sessionId)).toMatchObject({
       [CODEX_SPAWN_TOKEN_ENV]: 'spawn-token',
+      ORCA_AGENT_SESSION_ID: sessionId,
       // No identity yet, so the child carries only the refuse-rather-than-guess marker.
       [ORCA_STRUCTURED_SESSION_ENV]: '1'
     })

@@ -35,6 +35,7 @@ export { SKILL_INSTALL_RESULT_V2_CAPABILITY } from './skill-install-capability'
 export const RUNTIME_PROTOCOL_VERSION = 3
 export const MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION = 2
 export const MIN_COMPATIBLE_RUNTIME_SERVER_VERSION = 2
+export const AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY = 'agent.context-transitions.v1' as const
 
 export const PROJECT_HOST_SETUP_RUNTIME_CAPABILITY = 'project-host-setup.v1' as const
 export const TASK_SOURCE_CONTEXT_RUNTIME_CAPABILITY = 'task-source-context.v1' as const
@@ -204,6 +205,7 @@ export const AUTOMATION_CREATE_IDEMPOTENCY_RUNTIME_CAPABILITY =
 // Generic native clients include the CLI and must not claim Electron-only page
 // placement support.
 export const NATIVE_REMOTE_RUNTIME_CLIENT_CAPABILITIES = [
+  AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY,
   SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY,
   AGENT_SESSION_BOUNDARY_RUNTIME_CAPABILITY,
   WORKTREE_VISIBILITY_DEFAULTS_RUNTIME_CAPABILITY,
@@ -224,6 +226,7 @@ export const ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES = [
 ] as const
 
 export const RUNTIME_CAPABILITIES = [
+  AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY,
   'conversation.continuation.v1',
   'runtime.status.compat.v1',
   'runtime.environments.v1',

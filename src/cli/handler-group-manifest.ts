@@ -190,8 +190,18 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'introspection',
-    keys: ['agent-context'],
-    load: async () => (await import('./handlers/introspection.js')).INTROSPECTION_HANDLERS
+    keys: [
+      'agent-context',
+      'agent-context request',
+      'agent-context status',
+      'agent-context cancel',
+      'agent-context state',
+      'agent-context mcp'
+    ],
+    load: async () => ({
+      ...(await import('./handlers/introspection.js')).INTROSPECTION_HANDLERS,
+      ...(await import('./handlers/agent-context.js')).AGENT_CONTEXT_HANDLERS
+    })
   },
   {
     name: 'environment',

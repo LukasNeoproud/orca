@@ -108,13 +108,17 @@ describe('electron-builder config', () => {
       from: 'resources/plugins/launch',
       to: 'plugins/launch'
     })
+    const codexContextPluginResources = expect.objectContaining({
+      from: 'resources/codex-plugins',
+      to: 'codex-plugins'
+    })
     for (const platform of ['mac', 'linux', 'win']) {
       expect(electronBuilderConfig[platform].extraResources).toContainEqual({
         from: 'resources/skills',
         to: 'skills'
       })
       expect(electronBuilderConfig[platform].extraResources).toEqual(
-        expect.arrayContaining([bundledPluginResources])
+        expect.arrayContaining([bundledPluginResources, codexContextPluginResources])
       )
     }
     expect(electronBuilderConfig.mac.extraResources).toEqual(

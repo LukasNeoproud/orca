@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type {
   ConversationContinuationCandidate,
   ConversationContinuationInspection,
@@ -99,7 +99,8 @@ export class CodexContinuationService {
   }
 
   async prepareInBackground(
-    input: ConversationContinuationPrepareInput
+    input: ConversationContinuationPrepareInput,
+    handoff?: string
   ): Promise<ConversationContinuationCandidate> {
     const { inspected } = await this.resolveAndInspect(input.source)
     const checkpoint = inspected.checkpoint
@@ -118,7 +119,8 @@ export class CodexContinuationService {
     const existing = this.store.findCheckpoint(
       input.source.providerSessionId,
       input.source.workspaceId,
-      checkpoint.revision
+      checkpoint.revision,
+      handoff ? createHash('sha256').update(handoff).digest('hex') : undefined
     )
     if (existing) {
       return existing
@@ -130,7 +132,13 @@ export class CodexContinuationService {
       checkpoint,
       status: 'preparing',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      ...(handoff
+        ? {
+            mode: 'fresh' as const,
+            handoffDigest: createHash('sha256').update(handoff).digest('hex')
+          }
+        : {})
     }
     await this.store.put(candidate)
     this.preparationQueue = this.preparationQueue
@@ -140,7 +148,8 @@ export class CodexContinuationService {
           store: this.store,
           deps: this.deps,
           resolveAndInspect: (source) => this.resolveAndInspect(source),
-          nowIso: () => this.nowIso()
+          nowIso: () => this.nowIso(),
+          handoff
         })
       )
       .catch((error) => console.error('Codex continuation preparation failed', error))

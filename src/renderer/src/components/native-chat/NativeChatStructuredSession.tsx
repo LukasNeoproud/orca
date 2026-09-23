@@ -22,6 +22,7 @@ import { StructuredAgentSessionHandoffChrome } from './StructuredAgentSessionHan
 import { useConversationTools } from './use-conversation-tools'
 import { NativeChatStructuredPromptCard } from './NativeChatStructuredPromptCard'
 import { ConversationContinuationPanel } from '@/components/agent-session-continuation/ConversationContinuationPanel'
+import { AgentContextRequestStatus } from '@/components/agent-session-continuation/AgentContextRequestStatus'
 import { startStructuredAgentLaunch } from '@/lib/structured-agent-session-launch'
 import {
   adoptStructuredSessionComposerDraft,
@@ -234,6 +235,7 @@ export function NativeChatStructuredSession(
           void controller.requestHandoff(direction, mode, action)
         }}
       />
+      {continuationSource ? <AgentContextRequestStatus source={continuationSource} /> : null}
       {continuationSource ? (
         <ConversationContinuationPanel
           source={continuationSource}

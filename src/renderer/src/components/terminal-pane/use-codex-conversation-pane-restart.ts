@@ -41,6 +41,10 @@ export function useCodexConversationPaneRestart(args: {
       providerSessionId: string
       transcriptPath: string | null
       reference?: string
+      /** A prepared fresh context has a provider thread to resume too. */
+      resumeCandidate?: boolean
+      /** Staged only; it must not submit a new provider turn. */
+      draftPrompt?: string
     }): Promise<void> => {
       if (input.mode === 'original') {
         return
@@ -90,7 +94,7 @@ export function useCodexConversationPaneRestart(args: {
         ...(launchConfig?.agentCommand ? { agentCommand: launchConfig.agentCommand } : {})
       }
       const resumeProviderSession: AgentProviderSessionMetadata | null =
-        input.mode === 'compacted'
+        input.mode === 'compacted' || input.resumeCandidate === true
           ? {
               key: 'session_id',
               id: input.providerSessionId,
@@ -112,8 +116,13 @@ export function useCodexConversationPaneRestart(args: {
           ? { startupCommandDelivery: plan.startupCommandDelivery }
           : {}),
         ...(resumeProviderSession ? { resumeProviderSession } : {}),
-        ...(input.mode === 'reference' && input.reference?.trim()
-          ? { draftPrompt: input.reference.trim() }
+        ...((
+          input.draftPrompt ?? (input.mode === 'reference' ? input.reference : undefined)
+        )?.trim()
+          ? {
+              draftPrompt: (input.draftPrompt ??
+                (input.mode === 'reference' ? input.reference : undefined))!.trim()
+            }
           : {})
       }
 

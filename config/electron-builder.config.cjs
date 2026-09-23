@@ -87,6 +87,12 @@ const bundledPluginResources = {
   from: 'resources/plugins/launch',
   to: 'plugins/launch'
 }
+// Why: this is a Codex plugin package, separate from Orca's own UI plugins.
+// It ships as an installable opt-in directory and startup never reads or installs it.
+const codexContextPluginResources = {
+  from: 'resources/codex-plugins',
+  to: 'codex-plugins'
+}
 // Why: the main bundle, packaged CLI, SSH paths, and speech worker all execute
 // from package directories where pnpm's symlink farm is absent. Copy the exact
 // runtime dependency closure to Resources/node_modules so bare require() calls
@@ -101,6 +107,7 @@ const emojiShortcodeDatasetResource = {
 const commonExtraResources = [
   relayExtraResource,
   bundledPluginResources,
+  codexContextPluginResources,
   skillFreshnessResources,
   emojiShortcodeDatasetResource
 ]
@@ -211,6 +218,7 @@ module.exports = {
     // Why: bundled plugins ship via extraResources to resources/plugins/launch;
     // packing the source tree into app.asar would duplicate those exact bytes.
     '!resources/plugins/launch/**',
+    '!resources/codex-plugins/**',
     // Why: speech packages are copied selectively through the platform
     // extraResources entry below; keeping them in app.asar would ship every
     // native variant (and duplicate the selected one).

@@ -8,7 +8,11 @@ import { isCodexAppServerUnsupportedError } from './codex-app-server-session'
 import { readCodexThreadId, readCodexThreadPath } from './codex-structured-thread-facts'
 import { StructuredSessionCompaction } from '../native-chat/agent-session-wire/structured-session-compaction'
 import { resolvePinnedCodexRolloutProof } from './codex-tui-rollout-proof'
-import { inspectCodexContinuationSource } from './codex-continuation-source'
+import {
+  inspectCodexContinuationSource,
+  inspectCodexContextSource
+} from './codex-continuation-source'
+import { createCodexFreshContext } from './codex-fresh-context'
 import type { CodexContinuationStore } from './codex-continuation-store'
 import type {
   CodexContinuationResolvedSource,
@@ -28,6 +32,12 @@ function definiteRequestRefusal(error: unknown): boolean {
 }
 
 function errorMessage(error: unknown): string {
+  if (
+    isCodexAppServerUnsupportedError(error) ||
+    (isCodexAppServerRequestError(error) && error.code === -32601)
+  ) {
+    return 'agent_context_provider_unsupported'
+  }
   return (error instanceof Error ? error.message : String(error)).slice(0, 2_000)
 }
 
@@ -37,6 +47,7 @@ export async function prepareCodexContinuationCandidate(input: {
   deps: CodexContinuationServiceDeps
   resolveAndInspect: ResolveAndInspect
   nowIso: () => string
+  handoff?: string
 }): Promise<void> {
   const candidate = input.store.get(input.candidateId)
   if (!candidate || candidate.status !== 'preparing') {
@@ -79,44 +90,77 @@ export async function prepareCodexContinuationCandidate(input: {
       onExit: () => compactions.ended(input.candidateId)
     })
     operation = 'fork-requested'
-    const forked = await connection.request(
-      'thread/fork',
-      {
-        threadId: candidate.source.providerSessionId,
+    if (candidate.mode === 'fresh') {
+      if (!input.handoff) {
+        throw new Error('agent_context_handoff_missing')
+      }
+      const activity = await inspectCodexContextSource(resolved)
+      const base = activity.sessionMeta?.base_instructions
+      const baseInstructions =
+        base && typeof base === 'object' && 'text' in base && typeof base.text === 'string'
+          ? base.text
+          : undefined
+      const fresh = await createCodexFreshContext({
+        connection,
+        sourceThreadId: candidate.source.providerSessionId,
         lastTurnId: candidate.checkpoint.lastTurnId,
         cwd: resolved.cwd,
-        excludeTurns: true,
-        deferGoalContinuation: true
-      },
-      { timeoutMs: input.deps.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS }
-    )
-    candidateThreadId = readCodexThreadId(forked)
-    if (!candidateThreadId || candidateThreadId === candidate.source.providerSessionId) {
-      throw new Error('conversation_continuation_fork_identity_missing')
-    }
-    candidateTranscriptPath = readCodexThreadPath(forked)
-    await input.store.update(input.candidateId, (current) => ({
-      ...current,
-      providerSessionId: candidateThreadId!,
-      ...(candidateTranscriptPath ? { transcriptPath: candidateTranscriptPath } : {}),
-      updatedAt: input.nowIso()
-    }))
-    operation = 'compact-requested'
-    let compacted: { error?: string }
-    try {
-      compacted = await compactions.run(input.candidateId, candidateThreadId, () =>
-        connection!.request(
-          'thread/compact/start',
-          { threadId: candidateThreadId! },
-          { timeoutMs: input.deps.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS }
-        )
+        handoff: input.handoff,
+        baseInstructions,
+        timeoutMs: input.deps.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+        onCreated: async (threadId, transcriptPath) => {
+          candidateThreadId = threadId
+          candidateTranscriptPath = transcriptPath
+          await input.store.update(input.candidateId, (current) => ({
+            ...current,
+            providerSessionId: threadId,
+            ...(transcriptPath ? { transcriptPath } : {}),
+            updatedAt: input.nowIso()
+          }))
+        }
+      })
+      candidateThreadId = fresh.threadId
+      candidateTranscriptPath = fresh.transcriptPath
+    } else {
+      const forked = await connection.request(
+        'thread/fork',
+        {
+          threadId: candidate.source.providerSessionId,
+          lastTurnId: candidate.checkpoint.lastTurnId,
+          cwd: resolved.cwd,
+          excludeTurns: true,
+          deferGoalContinuation: true
+        },
+        { timeoutMs: input.deps.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS }
       )
-    } catch (error) {
-      ambiguousOutcome = !definiteRequestRefusal(error)
-      throw error
-    }
-    if (compacted.error) {
-      throw new Error(compacted.error)
+      candidateThreadId = readCodexThreadId(forked)
+      if (!candidateThreadId || candidateThreadId === candidate.source.providerSessionId) {
+        throw new Error('conversation_continuation_fork_identity_missing')
+      }
+      candidateTranscriptPath = readCodexThreadPath(forked)
+      await input.store.update(input.candidateId, (current) => ({
+        ...current,
+        providerSessionId: candidateThreadId!,
+        ...(candidateTranscriptPath ? { transcriptPath: candidateTranscriptPath } : {}),
+        updatedAt: input.nowIso()
+      }))
+      operation = 'compact-requested'
+      let compacted: { error?: string }
+      try {
+        compacted = await compactions.run(input.candidateId, candidateThreadId, () =>
+          connection!.request(
+            'thread/compact/start',
+            { threadId: candidateThreadId! },
+            { timeoutMs: input.deps.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS }
+          )
+        )
+      } catch (error) {
+        ambiguousOutcome = !definiteRequestRefusal(error)
+        throw error
+      }
+      if (compacted.error) {
+        throw new Error(compacted.error)
+      }
     }
     operation = 'settling'
     candidateTranscriptPath ??= await (

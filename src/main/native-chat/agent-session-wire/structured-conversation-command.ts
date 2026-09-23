@@ -23,6 +23,9 @@ import { conversationCommandBlocked } from './structured-conversation-command-ad
 export type ConversationCommandParams = {
   envelope: AgentSessionMutationEnvelope
   command: AgentSessionConversationCommand
+  /** Host-only continuation; public command schemas do not accept replacement handles. */
+  replacement?: { providerSessionId: string; transcriptPath: string; mode: 'compact' | 'fresh' }
+  beforeRun?: () => Promise<void>
 }
 export type ConversationReplacement = {
   sourceSessionId: string
@@ -57,7 +60,7 @@ export function runStructuredConversationCommand(
       now: context.now,
       plan: {
         method: 'agentSession.conversationCommand',
-        fields: { command },
+        fields: { command, ...(params.replacement ? { replacement: params.replacement } : {}) },
         recoverUnknownFromDurableState: true,
         settledOutcome: (value) => ({ status: 'succeeded', sessionId, conversationCommand: value }),
         replay: (_ctx, outcome) => {
@@ -94,6 +97,7 @@ export function runStructuredConversationCommand(
               refusal: { code: 'agent_session_operation_invalid', message: blocked }
             }
           }
+          await params.beforeRun?.()
           const replacementSessionId =
             command === 'clear'
               ? (prior?.replacementSessionId ??
@@ -109,6 +113,7 @@ export function runStructuredConversationCommand(
             callerKey: caller.callerKey,
             phase: 'prepared' as const,
             state: 'unknown' as const,
+            ...(params.replacement ? { contextMode: params.replacement.mode } : {}),
             ...(replacementSessionId ? { replacementSessionId } : {})
           }
           let effectiveOptions = record.options
@@ -159,7 +164,18 @@ export function runStructuredConversationCommand(
               agent: record.provider,
               runtimeKind: 'native',
               launchArgs: record.launchArgs,
-              options: effectiveOptions
+              options: effectiveOptions,
+              ...(params.replacement
+                ? {
+                    adopt: {
+                      providerHandle: {
+                        kind: 'codex' as const,
+                        threadId: params.replacement.providerSessionId
+                      },
+                      transcriptPath: params.replacement.transcriptPath
+                    }
+                  }
+                : {})
             }
             attach.envelope.payloadFingerprint = computeAgentSessionPayloadFingerprint({
               method: 'agentSession.attach',

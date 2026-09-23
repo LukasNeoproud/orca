@@ -17,6 +17,22 @@ import { resolveCodexCommand } from '../codex-cli/command'
 import { activeStructuredAgentSessionTurnId } from '../../shared/structured-agent-session-projection'
 
 class OrcaRuntimeService extends OrcaRuntimeWithResolveWaiter {
+  getAgentContextPaneSnapshot(paneKey: string) {
+    const status = (this.getAgentStatusSnapshotFn?.() ?? []).find(
+      (row) => !row.connectionId && row.paneKey === paneKey
+    )
+    const provider = (this.getAgentProviderSessionSnapshotFn?.() ?? []).find(
+      (row) => !row.connectionId && row.paneKey === paneKey
+    )
+    return status || provider
+      ? {
+          ...provider,
+          ...status,
+          providerSession: provider?.providerSession ?? status?.providerSession
+        }
+      : null
+  }
+
   getConversationContinuationSettings() {
     return this.requireStore().getSettings()
   }

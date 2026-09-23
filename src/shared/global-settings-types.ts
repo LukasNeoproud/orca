@@ -227,6 +227,7 @@ export type GlobalSettings = {
   /** Opt-in preparation of a separate compacted Codex session. */
   conversationContinuationAutoCompact?: boolean
   conversationContinuationCompactAfterMs?: number
+  agentContextAutonomy?: 'off' | 'compact' | 'all'
   /** Extra launcher rows for the worktree "Open in" submenu. VS Code is always shown first. */
   openInApplications?: OpenInApplication[]
   /** Deprecated: migration/backward-compat only. Use PersistedUIState.rightSidebarOpen. */

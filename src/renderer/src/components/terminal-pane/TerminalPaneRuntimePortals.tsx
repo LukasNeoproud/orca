@@ -21,6 +21,8 @@ import {
   isCodexConversationContinuationBusy,
   type CodexConversationContinuationSource
 } from './codex-conversation-continuation-source'
+import { useAgentContextTransition } from './use-agent-context-transition'
+import { AgentContextRequestStatus } from '@/components/agent-session-continuation/AgentContextRequestStatus'
 
 function continuationSourceMatches(
   left: CodexConversationContinuationSource | null,
@@ -55,7 +57,10 @@ function CodexConversationContinuationPortal({
     useShallow((state) => ({
       status: state.agentStatusByPaneKey[paneKey],
       environmentId: getRuntimeEnvironmentIdForWorktree(state, worktreeId),
-      connectionId: getConnectionIdFromState(state, worktreeId)
+      connectionId: getConnectionIdFromState(state, worktreeId),
+      agentContextEnabled:
+        state.settings?.agentContextAutonomy === 'compact' ||
+        state.settings?.agentContextAutonomy === 'all'
     }))
   )
   const source = useMemo(
@@ -68,6 +73,11 @@ function CodexConversationContinuationPortal({
     [pane, sourceInputs, tabId, worktreeId]
   )
   const busy = useAppStore((state) => isCodexConversationContinuationBusy(state, { pane, tabId }))
+  const agentContextTransition = useAgentContextTransition({
+    source,
+    enabled: sourceInputs.agentContextEnabled,
+    restartCodexConversationPane
+  })
   const expanded =
     source !== null && continuationSourceMatches(codexConversationContinuation, source)
   const onExpandedChange = useCallback(
@@ -108,6 +118,7 @@ function CodexConversationContinuationPortal({
   const portalKey = `${source.paneKey}-${source.providerSessionId}-${source.target.kind === 'environment' ? source.target.environmentId : 'local'}`
   return createPortal(
     <div className="absolute inset-x-0 top-0 z-20">
+      <AgentContextRequestStatus source={source} />
       <ConversationContinuationPanel
         key={portalKey}
         source={source}
@@ -117,6 +128,15 @@ function CodexConversationContinuationPortal({
         onExpandedChange={onExpandedChange}
         onContinue={onContinue}
       />
+      {agentContextTransition.phase === 'switching' ? (
+        <p className="border-b border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+          {agentContextTransition.message}
+        </p>
+      ) : agentContextTransition.phase === 'failed' ? (
+        <p className="border-b border-border bg-background px-3 py-2 text-xs text-destructive">
+          {agentContextTransition.message}
+        </p>
+      ) : null}
     </div>,
     pane.container,
     `codex-conversation-continuation-${portalKey}`

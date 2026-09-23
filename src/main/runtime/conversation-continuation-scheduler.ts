@@ -20,6 +20,7 @@ type Dependencies = {
   >
   busy: (providerSessionId: string) => boolean
   now?: () => number
+  agentContextTick?: () => Promise<void>
 }
 const keyOf = (source: ConversationContinuationSource) =>
   JSON.stringify([source.workspaceId, source.providerSessionId])
@@ -68,7 +69,21 @@ export class ConversationContinuationScheduler {
         throw error
       }
     }
-    this.timer = setInterval(() => void this.tick(), 30_000)
+    let lastIdleSweep = 0
+    this.timer = setInterval(
+      () => {
+        void this.deps
+          .agentContextTick?.()
+          .catch((error) => console.warn('[agent-context] Sweep failed', error))
+        if (this.now() - lastIdleSweep >= 30_000) {
+          lastIdleSweep = this.now()
+          void this.tick().catch((error) =>
+            console.warn('[conversation-continuation] Sweep failed', error)
+          )
+        }
+      },
+      this.deps.agentContextTick ? 1_000 : 30_000
+    )
     this.timer.unref()
   }
 

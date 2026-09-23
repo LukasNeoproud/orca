@@ -18248,5 +18248,52 @@
       "saved": "Saved proposal",
       "sourceUnverified": "Re-read the selected source message before analysis."
     }
+  },
+  "continuation": {
+    "agent": {
+      "status": "Agent context request",
+      "compact": "Compact context",
+      "fresh": "New context with checkpoint",
+      "cancelFailed": "Could not cancel the request. Check the connection and try again.",
+      "cancel": "Cancel context change",
+      "queued": "Context change requested — waiting for this turn to finish",
+      "preparing": "Preparing the next context",
+      "executing": "Switching context",
+      "completed": "Context change completed",
+      "cancelled": "Context change cancelled",
+      "stale": "Conversation changed — context change cancelled",
+      "unconfirmed": "Context change could not be confirmed; it will not be repeated automatically",
+      "failed": "Context change failed"
+    },
+    "changed": "The active conversation changed. Choose how to continue again.",
+    "noCheckpoint": "Wait for the current turn to finish.",
+    "unconfirmed": "Preparation could not be confirmed. The original conversation is available.",
+    "label": "Conversation continuation",
+    "original": "Continue original",
+    "selected": "Copy selected",
+    "preparing": "Preparing…",
+    "compacted": "Continue compacted",
+    "prepare": "Compact a copy",
+    "reference": "New with reference",
+    "fresh": "New conversation",
+    "busy": "Finish or stop the current turn before switching.",
+    "draft": "Switching may discard the message being typed. The original conversation is preserved.",
+    "preserve": "The original conversation is preserved. Preparing a copy uses model tokens.",
+    "recover": "This copy has already been selected. If switching was interrupted, reopen it from Session History.",
+    "settings": {
+      "title": "Conversation continuation",
+      "description": "Choose how to continue Codex conversations after a pause. The original conversation is preserved.",
+      "agentAutonomy": "Agent context management",
+      "agentOff": "Off",
+      "agentCompact": "Compaction only",
+      "agentAll": "Compaction and new context with handoff",
+      "agentDescription": "Allows the Orca context-management plugin to request a transition after a completed task or stage. Compaction uses model tokens. New user input cancels a pending transition.",
+      "offer": "Offer continuation after",
+      "auto": "Prepare compacted copies automatically",
+      "cost": "Uses model tokens in the background. Preparation runs while the owning Orca runtime is available.",
+      "delay": "Prepare after inactivity",
+      "never": "Never",
+      "minutes": "{{minutes}} minutes"
+    }
   }
 }
