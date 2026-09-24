@@ -48,6 +48,7 @@ export class RepoUpdatePersistenceOperations {
         | 'repoIcon'
         | 'upstream'
         | 'gitRemoteIdentity'
+        | 'hostLocalProjectId'
         | 'hookSettings'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'

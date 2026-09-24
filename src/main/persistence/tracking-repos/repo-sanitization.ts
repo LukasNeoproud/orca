@@ -1,3 +1,4 @@
+import { sanitizeHostLocalProjectId } from '../../../shared/project-host-setup-projection'
 import type { RepoProjectHostSetupMethod } from '../../../shared/project-types'
 import type { Repo } from '../../../shared/repo-types'
 import type { GitRemoteIdentity } from '../../../shared/git-remote-identity'
@@ -73,6 +74,7 @@ export function sanitizeRepoUpdatesForPersistence<
       | 'repoIcon'
       | 'upstream'
       | 'gitRemoteIdentity'
+      | 'hostLocalProjectId'
       | 'worktreeBasePath'
       | 'simplifiedWorktreeLayout'
       | 'simplifiedWorktreeLocation'
@@ -101,12 +103,20 @@ export function sanitizeRepoUpdatesForPersistence<
     }
   }
   // Why: `null` is a valid "not a fork" / "no usable remote" marker; only drop malformed shapes.
-  if ('upstream' in sanitized) {
+  if ('upstream' in sanitized && sanitized.upstream !== undefined) {
     const upstream = sanitizeRepoUpstream(sanitized.upstream)
     if (upstream === undefined) {
       delete sanitized.upstream
     } else {
       sanitized.upstream = upstream
+    }
+  }
+  if ('hostLocalProjectId' in sanitized && sanitized.hostLocalProjectId !== undefined) {
+    const projectId = sanitizeHostLocalProjectId(sanitized.hostLocalProjectId)
+    if (projectId === undefined) {
+      delete sanitized.hostLocalProjectId
+    } else {
+      sanitized.hostLocalProjectId = projectId
     }
   }
   if ('gitRemoteIdentity' in sanitized) {
@@ -139,7 +149,7 @@ export function sanitizeRepoUpdatesForPersistence<
       delete sanitized.worktreeBasePath
     }
   }
-  if ('projectHostSetupMethod' in sanitized) {
+  if ('projectHostSetupMethod' in sanitized && sanitized.projectHostSetupMethod !== undefined) {
     const setupMethod = sanitizeRepoProjectHostSetupMethod(sanitized.projectHostSetupMethod)
     if (setupMethod === undefined) {
       delete sanitized.projectHostSetupMethod

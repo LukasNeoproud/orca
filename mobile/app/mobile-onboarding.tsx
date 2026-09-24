@@ -17,6 +17,7 @@ import {
   type NotificationOnboardingChoice
 } from '../src/onboarding/MobileOnboardingPage'
 import { parseMobileOnboardingSteps } from '../src/onboarding/mobile-onboarding-plan'
+import { hostNewWorktreeRoute } from '../src/host-route-action-state'
 import { mobileOnboardingStyles as styles } from '../src/onboarding/mobile-onboarding-styles'
 import {
   saveDefaultSessionView,
@@ -30,25 +31,30 @@ export default function MobileOnboardingScreen() {
   const params = useLocalSearchParams<{
     hostId?: string | string[]
     steps?: string | string[]
+    afterPair?: string | string[]
   }>()
   const hostId = firstParam(params.hostId)
   const rawSteps = firstParam(params.steps)
+  const afterPair = firstParam(params.afterPair)
 
   return (
     <MobileOnboardingFlow
-      key={`${hostId ?? 'home'}:${rawSteps ?? 'all'}`}
+      key={`${hostId ?? 'home'}:${rawSteps ?? 'all'}:${afterPair ?? ''}`}
       hostId={hostId}
       rawSteps={rawSteps}
+      afterPair={afterPair === 'newWorktree' ? 'newWorktree' : undefined}
     />
   )
 }
 
 function MobileOnboardingFlow({
   hostId,
-  rawSteps
+  rawSteps,
+  afterPair
 }: {
   hostId: string | undefined
   rawSteps: string | undefined
+  afterPair: 'newWorktree' | undefined
 }) {
   const router = useRouter()
   const steps = useMemo(() => parseMobileOnboardingSteps(rawSteps), [rawSteps])
@@ -70,8 +76,14 @@ function MobileOnboardingFlow({
   )
 
   const continueToApp = useCallback(() => {
-    router.replace(hostId ? `/h/${hostId}` : '/')
-  }, [hostId, router])
+    router.replace(
+      hostId && afterPair === 'newWorktree'
+        ? hostNewWorktreeRoute(hostId)
+        : hostId
+          ? `/h/${hostId}`
+          : '/'
+    )
+  }, [afterPair, hostId, router])
 
   const advanceOrContinue = useCallback(() => {
     const nextIndex = activeIndex + 1

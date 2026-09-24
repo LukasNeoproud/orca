@@ -5,6 +5,7 @@ import { ActionSheetContent } from '../components/ActionSheetModal'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { NewWorktreeModalController } from '../components/NewWorktreeModalController'
+import { BOTTOM_DRAWER_HIDE_DURATION_MS } from '../components/bottom-drawer-constants'
 import { PickerModal } from '../components/PickerModal'
 import { colors } from '../theme/mobile-theme'
 import { hostNewWorktreeSessionRoute } from '../host-route-action-state'
@@ -26,6 +27,7 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
     existingWorktreePaths,
     hostCapabilities,
     hostId,
+    router,
     settings,
     showNewWorktree,
     state
@@ -230,6 +232,11 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
               checkoutWarning ? formatMobileCheckoutWarning(checkoutWarning) : undefined
             )
           )
+        }}
+        onPairHost={() => {
+          setTimeout(() => {
+            router.push({ pathname: '/pair-scan', params: { afterPair: 'newWorktree' } })
+          }, BOTTOM_DRAWER_HIDE_DURATION_MS)
         }}
         onRouteVisibleChange={actions.setShowNewWorktreeVisible}
       />

@@ -168,6 +168,7 @@ export class RepoLifecycleOperations {
         | 'repoIcon'
         | 'upstream'
         | 'gitRemoteIdentity'
+        | 'hostLocalProjectId'
         | 'hookSettings'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'

@@ -1,3 +1,5 @@
+import { projectHostSetupProjectionFromRepos } from '../../shared/project-host-setup-projection'
+import type { Repo } from '../../shared/repo-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as GitRunner from '../git/runner'
 import type * as RepoModule from '../git/repo'
@@ -254,7 +256,9 @@ describe('repos:add + repos:clone', () => {
     let updatedRepo = existing
     mockStore.getRepos.mockReturnValue([existing])
     mockStore.getProjects.mockReturnValue([existingProject, selectedProject])
-    mockStore.getProjectHostSetups.mockReturnValue([setup])
+    mockStore.getProjectHostSetups.mockImplementation(() => [
+      { ...setup, projectId: 'upstream' in updatedRepo ? selectedProject.id : existingProject.id }
+    ])
     mockStore.updateRepo.mockImplementation((_repoId, updates) => {
       updatedRepo = { ...updatedRepo, ...updates }
       return updatedRepo
@@ -268,13 +272,19 @@ describe('repos:add + repos:clone', () => {
       setupMethod: 'imported-existing-folder'
     })
 
-    expect(mockStore.updateRepo).toHaveBeenNthCalledWith(1, existing.id, {
-      upstream: {
-        owner: 'acme',
-        repo: 'orca',
-        host: 'github.acme-corp.com'
-      }
-    })
+    expect(mockStore.updateRepo).toHaveBeenNthCalledWith(
+      1,
+      existing.id,
+      {
+        projectHostSetupMethod: 'imported-existing-folder',
+        upstream: {
+          owner: 'acme',
+          repo: 'orca',
+          host: 'github.acme-corp.com'
+        }
+      },
+      'local'
+    )
   })
 
   it('sets up a folder when the selected project exists only on another host', async () => {
@@ -326,6 +336,35 @@ describe('repos:add + repos:clone', () => {
       host: 'github.acme.test'
     })
     expect(result).toHaveProperty('project.id', 'github:github.acme.test/acme/orca')
+  })
+
+  it('durably links a host-local project known only on the source host', async () => {
+    const added: Repo[] = []
+    mockStore.getRepos.mockImplementation(() => added)
+    mockStore.addRepo.mockImplementation((repo: Repo) => added.push(repo))
+    mockStore.updateRepo.mockImplementation((id, updates) => {
+      const repo = added.find((entry) => entry.id === id)
+      if (!repo) {
+        return null
+      }
+      Object.assign(repo, updates)
+      return { ...repo }
+    })
+    mockStore.getProjects.mockImplementation(
+      () => projectHostSetupProjectionFromRepos(added).projects
+    )
+    mockStore.getProjectHostSetups.mockImplementation(
+      () => projectHostSetupProjectionFromRepos(added).setups
+    )
+    const result = await handlers.get('projectHostSetups:setupExistingFolder')!(null, {
+      projectId: 'repo:source-host-folder',
+      hostId: 'local',
+      path: '/tmp/linked-folder',
+      kind: 'folder'
+    })
+    expect(added[0].hostLocalProjectId).toBe('repo:source-host-folder')
+    expect(result).toHaveProperty('project.id', 'repo:source-host-folder')
+    expect(result).toHaveProperty('setup.projectId', 'repo:source-host-folder')
   })
 
   it('rolls back a new repo when the supplied identity does not match the project', async () => {

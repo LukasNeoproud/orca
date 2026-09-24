@@ -1,6 +1,7 @@
 import { MOBILE_RPC_BACKLOG_METHODS } from './runtime-rpc-mobile-backlog-methods'
 import { MOBILE_RPC_AGENT_CONVERSATION_METHODS } from './runtime-rpc-mobile-agent-conversation-methods'
 import { MOBILE_RPC_JIRA_SOURCE_METHODS } from './runtime-rpc-mobile-jira-methods'
+import { MOBILE_RPC_PROJECT_METHODS } from './runtime-rpc-mobile-project-methods'
 
 export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   ...MOBILE_RPC_AGENT_CONVERSATION_METHODS,
@@ -190,15 +191,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'preflight.check',
   'preflight.detectAgents',
   'preflight.detectRemoteAgents',
-  'projectGroup.list',
-  'repo.baseRefDefault',
-  'repo.gitAvailable',
-  'repo.hooks',
-  'repo.list',
-  'repo.saveSparsePreset',
-  'repo.searchRefs',
-  'repo.sparsePresets',
-  'repo.update',
+  ...MOBILE_RPC_PROJECT_METHODS,
   'runtime.clientCapabilities.update',
   'runtime.clientEvents.subscribe',
   'runtime.clientEvents.unsubscribe',

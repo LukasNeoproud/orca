@@ -1,3 +1,4 @@
+import { sanitizeHostLocalProjectId } from '../../../shared/project-host-setup-projection'
 import type { Repo } from '../../../shared/repo-types'
 import { getRepoExecutionHostId } from '../../../shared/execution-host'
 import { getDefaultRepoHookSettings } from '../../../shared/constants'
@@ -31,6 +32,7 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     repoIcon: rawRepoIcon,
     upstream: rawUpstream,
     gitRemoteIdentity: rawGitRemoteIdentity,
+    hostLocalProjectId: rawHostLocalProjectId,
     sourceControlAi: rawSourceControlAi,
     projectHostSetupMethod: rawProjectHostSetupMethod,
     forkSyncMode: rawForkSyncMode,
@@ -60,6 +62,9 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     ...(repoIcon !== undefined ? { repoIcon } : {}),
     ...(upstream !== undefined ? { upstream } : {}),
     ...(gitRemoteIdentity !== undefined ? { gitRemoteIdentity } : {}),
+    ...(sanitizeHostLocalProjectId(rawHostLocalProjectId)
+      ? { hostLocalProjectId: sanitizeHostLocalProjectId(rawHostLocalProjectId) }
+      : {}),
     ...(sourceControlAi !== undefined ? { sourceControlAi } : {}),
     ...(projectHostSetupMethod !== undefined ? { projectHostSetupMethod } : {}),
     ...(forkSyncMode !== undefined ? { forkSyncMode } : {}),

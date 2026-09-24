@@ -44,6 +44,9 @@ export function NewWorktreeModalDrawers(props: {
   creating: boolean
   onSourceRepoChange: (repo: MobileWorkspaceRepo) => void
   onRepoChange: (repo: MobileWorkspaceRepo) => void
+  onAddProject: () => void
+  onSetupRunTarget: () => void
+  onPairHost?: () => void
   onAgentChange: (agent: NewWorktreeAgentOption) => void
   onParentChange: (id: string | null) => void
   onSparseChange: (id: string | null) => void
@@ -80,6 +83,8 @@ export function NewWorktreeModalDrawers(props: {
         selectedId={props.selectedProjectId ?? ''}
         onSelect={(item) => props.onRepoChange(item.repo)}
         onClose={props.onTransitionToForm}
+        actionLabel="Add project"
+        onAction={props.onAddProject}
         renderIcon={(item) => (
           <View
             style={[
@@ -97,6 +102,10 @@ export function NewWorktreeModalDrawers(props: {
         selectedId={props.selectedRepo?.id ?? ''}
         onSelect={(item) => props.onRepoChange(item.repo)}
         onClose={props.onTransitionToForm}
+        actionLabel={props.selectedRepo ? 'Set up another host' : undefined}
+        onAction={props.selectedRepo ? props.onSetupRunTarget : undefined}
+        secondaryActionLabel={props.onPairHost ? 'Pair another Orca host' : undefined}
+        onSecondaryAction={props.onPairHost}
         renderIcon={() => <Monitor size={16} color={colors.textMuted} />}
       />
 

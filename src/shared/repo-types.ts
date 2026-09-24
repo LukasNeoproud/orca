@@ -75,6 +75,8 @@ export type Repo = {
   forkSyncMode?: ForkSyncMode
   /** Canonical identity for the repo remote Orca should use for provider-level grouping. */
   gitRemoteIdentity?: GitRemoteIdentity | null
+  /** Explicit cross-host link for projects without a provider or Git remote identity. */
+  hostLocalProjectId?: string
   /** Controls whether worktrees Orca did not create appear in the sidebar. */
   externalWorktreeVisibility?: ExternalWorktreeVisibility
   /** True when the repo predates hidden-by-default external worktrees. */

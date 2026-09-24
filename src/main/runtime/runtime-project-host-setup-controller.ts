@@ -18,8 +18,7 @@ import {
   parseExecutionHostId,
   type ExecutionHostId
 } from '../../shared/execution-host'
-import { getProjectIdForProviderIdentity } from '../../shared/project-host-setup-projection'
-import { getProjectHostSetupForRepo } from '../../shared/project-host-setup-lookup'
+import { linkRepoToProjectHostSetup } from '../project-host-setup-link'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
@@ -96,6 +95,9 @@ export class RuntimeProjectHostSetupController {
   ): Promise<ProjectHostSetupResult> {
     if (!this.deps.getStore()) {
       throw new Error('runtime_unavailable')
+    }
+    if (!parseExecutionHostId(args.hostId)) {
+      throw new Error(`Unsupported host: ${args.hostId}`)
     }
     const kind = args.kind === 'folder' ? 'folder' : 'git'
     const knownRepoIds = new Set(this.deps.listRepos().map((repo) => repo.id))
@@ -180,40 +182,17 @@ export class RuntimeProjectHostSetupController {
     if (!store) {
       throw new Error('runtime_unavailable')
     }
-    let repo = initialRepo
-    let setup = getProjectHostSetupForRepo(this.listSetups(), repo)
-    if (setup.projectId !== args.projectId) {
-      const existingProject = this.listProjects().find((project) => project.id === args.projectId)
-      const identity = existingProject?.providerIdentity ?? args.projectProviderIdentity
-      if (!identity || getProjectIdForProviderIdentity(identity) !== args.projectId) {
-        throw new Error('Imported folder does not match the selected project identity.')
-      }
-      const updated = store.updateRepo(repo.id, {
-        upstream: {
-          owner: identity.owner,
-          repo: identity.repo,
-          ...(identity.host ? { host: identity.host } : {})
-        }
-      })
-      if (!updated) {
-        throw new Error(`Project setup repo disappeared before it could be linked: ${repo.id}`)
-      }
-      repo = updated
-      setup = getProjectHostSetupForRepo(this.listSetups(), repo)
+    if (!store.getProjects || !store.getProjectHostSetups) {
+      throw new Error('runtime_unavailable')
     }
-    const setupMethod = args.setupMethod ?? 'imported-existing-folder'
-    const updated = store.updateRepo(repo.id, { projectHostSetupMethod: setupMethod })
-    if (!updated) {
-      throw new Error(
-        `Project setup repo disappeared before setup metadata could be linked: ${repo.id}`
-      )
-    }
-    repo = updated
-    setup = getProjectHostSetupForRepo(this.listSetups(), repo)
-    const project = this.listProjects().find((entry) => entry.id === setup.projectId)
-    if (!project) {
-      throw new Error(`Project setup was created without a project record: ${setup.projectId}`)
-    }
-    return { project, setup, repo }
+    return linkRepoToProjectHostSetup(
+      {
+        getProjects: () => this.listProjects(),
+        getProjectHostSetups: () => this.listSetups(),
+        updateRepo: store.updateRepo.bind(store)
+      },
+      initialRepo,
+      args
+    )
   }
 }

@@ -17,6 +17,7 @@ export type MobileWorkspaceRepo = Pick<SharedRepo, 'id' | 'displayName' | 'path'
       | 'upstream'
       | 'repoIcon'
       | 'gitRemoteIdentity'
+      | 'hostLocalProjectId'
       | 'worktreeBasePath'
       | 'worktreeBaseRef'
       | 'simplifiedWorktreeLayout'
@@ -33,6 +34,7 @@ export type NewWorktreeModalProps = {
     Pick<MobileWorktree, 'worktreeId' | 'displayName' | 'hostId' | 'isArchived' | 'isMainWorktree'>
   >)[]
   onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
+  onPairHost?: () => void
   onClose: () => void
 }
 

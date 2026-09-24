@@ -96,10 +96,18 @@ export function isProjectRemoteIdentityPending(
   return repo.gitRemoteIdentity === undefined && !hasProjectRemoteIdentity(repo)
 }
 
+export function sanitizeHostLocalProjectId(value: unknown): string | undefined {
+  return typeof value === 'string' &&
+    /^repo:[^\s]+$/.test(value) &&
+    [...value].every((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
+    ? value
+    : undefined
+}
+
 const HOST_LOCAL_PROJECT_ID_PREFIX = 'repo:'
 
 export function getProjectIdentityKey(
-  repo: Pick<Repo, 'id' | 'upstream' | 'repoIcon' | 'gitRemoteIdentity'>
+  repo: Pick<Repo, 'id' | 'upstream' | 'repoIcon' | 'gitRemoteIdentity' | 'hostLocalProjectId'>
 ): string {
   const identity = getProjectProviderIdentity(repo)
   if (identity) {
@@ -109,13 +117,15 @@ export function getProjectIdentityKey(
   if (gitRemoteIdentity) {
     return `git:${gitRemoteIdentity.canonicalKey}`
   }
-  return `${HOST_LOCAL_PROJECT_ID_PREFIX}${repo.id}`
+  return (
+    sanitizeHostLocalProjectId(repo.hostLocalProjectId) ??
+    `${HOST_LOCAL_PROJECT_ID_PREFIX}${repo.id}`
+  )
 }
 
 /**
  * True for the `repo:<id>` fallback above — a folder project, or a git repo with no
- * remote. The id is a per-host repo id, so the same project on another host derives a
- * different one and can never be matched there.
+ * remote. An explicit hostLocalProjectId preserves this id when another host links it.
  */
 export function isHostLocalProjectId(projectId: string): boolean {
   return projectId.startsWith(HOST_LOCAL_PROJECT_ID_PREFIX)
@@ -126,7 +136,7 @@ export function getProjectIdForProviderIdentity(identity: ProjectProviderIdentit
 }
 
 function getProjectId(
-  repo: Pick<Repo, 'id' | 'upstream' | 'repoIcon' | 'gitRemoteIdentity'>
+  repo: Pick<Repo, 'id' | 'upstream' | 'repoIcon' | 'gitRemoteIdentity' | 'hostLocalProjectId'>
 ): string {
   return getProjectIdentityKey(repo)
 }

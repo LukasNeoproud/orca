@@ -1,5 +1,6 @@
 import { shouldPresentNotificationOptIn } from '../notifications/notification-opt-in-gate'
 import { shouldPresentSessionViewOptIn } from '../session/session-view-opt-in-gate'
+import { hostNewWorktreeRoute } from '../host-route-action-state'
 
 export const MOBILE_ONBOARDING_STEPS = ['session-view', 'notifications'] as const
 export type MobileOnboardingStep = (typeof MOBILE_ONBOARDING_STEPS)[number]
@@ -8,7 +9,7 @@ export type MobileOnboardingDestination =
   | `/h/${string}`
   | {
       pathname: '/mobile-onboarding'
-      params: { steps: string; hostId?: string }
+      params: { steps: string; hostId?: string; afterPair?: 'newWorktree' }
     }
 
 /** Loads every outstanding decision in the order the wizard presents them. */
@@ -29,14 +30,22 @@ export async function loadMobileOnboardingSteps(): Promise<MobileOnboardingStep[
 /** Preserves a paired host while routing through outstanding decisions. */
 export function mobileOnboardingDestination(
   steps: readonly MobileOnboardingStep[],
-  hostId?: string
+  hostId?: string,
+  afterPair?: 'newWorktree'
 ): MobileOnboardingDestination {
   if (steps.length === 0) {
+    if (hostId && afterPair === 'newWorktree') {
+      return hostNewWorktreeRoute(hostId)
+    }
     return hostId ? `/h/${hostId}` : '/'
   }
   return {
     pathname: '/mobile-onboarding',
-    params: { steps: steps.join(','), ...(hostId ? { hostId } : {}) }
+    params: {
+      steps: steps.join(','),
+      ...(hostId ? { hostId } : {}),
+      ...(hostId && afterPair === 'newWorktree' ? { afterPair } : {})
+    }
   }
 }
 

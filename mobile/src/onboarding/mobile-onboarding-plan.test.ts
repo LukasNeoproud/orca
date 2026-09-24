@@ -60,6 +60,16 @@ describe('mobile onboarding plan', () => {
     expect(mobileOnboardingDestination(steps, hostId)).toEqual(destination)
   })
 
+  it('returns to new worktree creation after pairing another host', () => {
+    expect(mobileOnboardingDestination([], 'new-host', 'newWorktree')).toBe(
+      '/h/new-host?action=newWorktree'
+    )
+    expect(mobileOnboardingDestination(['notifications'], 'new-host', 'newWorktree')).toEqual({
+      pathname: '/mobile-onboarding',
+      params: { steps: 'notifications', hostId: 'new-host', afterPair: 'newWorktree' }
+    })
+  })
+
   it('parses route steps in canonical order without duplicates', () => {
     expect(parseMobileOnboardingSteps('notifications,unknown,session-view,notifications')).toEqual([
       'session-view',

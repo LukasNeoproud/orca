@@ -30,3 +30,19 @@ describe('mobile agent conversation RPC access', () => {
     }
   })
 })
+
+describe('mobile worktree project setup RPC access', () => {
+  it('allows project creation and setup on the paired host', () => {
+    for (const method of [
+      'repo.add',
+      'repo.create',
+      'repo.clone',
+      'project.list',
+      'projectHostSetup.list',
+      'projectHostSetup.setupExistingFolder',
+      'projectHostSetup.clone'
+    ]) {
+      expect(MOBILE_RPC_METHOD_ALLOWLIST.has(method)).toBe(true)
+    }
+  })
+})

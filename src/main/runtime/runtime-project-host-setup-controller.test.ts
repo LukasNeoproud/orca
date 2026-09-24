@@ -10,7 +10,7 @@ import type { Repo } from '../../shared/repo-types'
 const TARGET_ID = 'target-1'
 const REMOTE_PATH = '/srv/app'
 
-const remoteRepo = {
+const globalRemoteRepo = {
   id: 'repo-remote',
   path: REMOTE_PATH,
   displayName: 'app',
@@ -20,13 +20,18 @@ const remoteRepo = {
   connectionId: TARGET_ID
 } as unknown as Repo
 
-function makeController(): {
+function makeController(hostId = `ssh:${TARGET_ID}`): {
   controller: RuntimeProjectHostSetupController
   addRepo: ReturnType<typeof vi.fn>
   addRemoteRepo: ReturnType<typeof vi.fn>
   cloneRepo: ReturnType<typeof vi.fn>
   projectId: string
 } {
+  const remoteRepo = {
+    ...globalRemoteRepo,
+    connectionId: undefined,
+    executionHostId: hostId
+  } as Repo
   const store = {
     getProjects: () => projectHostSetupProjectionFromRepos([remoteRepo]).projects,
     getProjectHostSetups: () => [],
@@ -72,11 +77,11 @@ describe('RuntimeProjectHostSetupController host routing', () => {
     })
     // The local registration path validates the path against the client filesystem.
     expect(addRepo).not.toHaveBeenCalled()
-    expect(result.repo.id).toBe(remoteRepo.id)
+    expect(result.repo.id).toBe(globalRemoteRepo.id)
   })
 
   it('decodes a percent-encoded SSH target back to its connection id', async () => {
-    const { controller, addRemoteRepo, projectId } = makeController()
+    const { controller, addRemoteRepo, projectId } = makeController('ssh:my%20host')
 
     await controller.setupExistingFolder({
       projectId,
@@ -91,7 +96,7 @@ describe('RuntimeProjectHostSetupController host routing', () => {
   })
 
   it('still uses the local registration for local and runtime hosts', async () => {
-    const { controller, addRepo, addRemoteRepo, projectId } = makeController()
+    const { controller, addRepo, addRemoteRepo, projectId } = makeController('local')
 
     await controller.setupExistingFolder({
       projectId,

@@ -4,7 +4,6 @@ import { getComposerRepoWorktreeBranches } from '../../../src/shared/composer-br
 import { parseJiraIssueUrl } from '../../../src/shared/jira-issue-url'
 import { getProjectIdentityKey } from '../../../src/shared/project-host-setup-projection'
 import { shouldPreserveWorkspaceSourceOnRepoChange } from '../../../src/shared/new-workspace/workspace-source'
-import type { SmartModeAvailabilityInput } from '../tasks/mobile-smart-source-modes'
 import { deriveRepoSlug, type PasteRepoCandidate } from '../tasks/smart-source-paste-intent'
 import { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import { useNewWorktreeRuntimeCapabilities } from '../tasks/worktree-create-capability'
@@ -24,8 +23,11 @@ import {
   getNewWorkspaceRunTarget
 } from './new-workspace-project-targets'
 import { NewWorktreeFormSheet } from './NewWorktreeFormSheet'
+import { MobileAddProjectDrawer } from './MobileAddProjectDrawer'
+import { MobileRunTargetSetup } from './MobileRunTargetSetup'
 import { NewWorktreeModalDrawers } from './NewWorktreeModalDrawers'
 import { NewWorktreeCheckoutRecoverySheet } from './NewWorktreeCheckoutRecoverySheet'
+import { getNewWorktreeSourceAvailability } from './new-worktree-source-availability'
 import { useNewWorkspaceAgentSelection } from './use-new-workspace-agent-selection'
 import { useNewWorkspaceAdvancedOptions } from './use-new-workspace-advanced-options'
 import { useNewWorkspaceCreateSubmit } from './use-new-workspace-create-submit'
@@ -59,13 +61,22 @@ export function NewWorktreeModal(props: NewWorktreeModalProps) {
 }
 
 function NewWorktreeModalContent(props: NewWorktreeModalProps) {
-  const { visible, client, hostId, existingWorktreePaths, existingWorktrees, onCreated, onClose } =
-    props
-  const { repos, selectedRepo, setSelectedRepo, loading } = useNewWorkspaceRepositories({
+  const {
+    visible,
     client,
     hostId,
-    visible
-  })
+    existingWorktreePaths,
+    existingWorktrees,
+    onCreated,
+    onClose,
+    onPairHost
+  } = props
+  const { repos, selectedRepo, setSelectedRepo, loading, refreshRepos } =
+    useNewWorkspaceRepositories({
+      client,
+      hostId,
+      visible
+    })
   const navigation = useNewWorktreeDrawerNavigation(visible)
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -173,14 +184,11 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   })
 
   const selectedRepoIsGit = selectedRepo ? selectedRepo.kind !== 'folder' : true
-  const sourceAvailability: SmartModeAvailabilityInput = {
-    textOnly: selectedRepo != null && !selectedRepoIsGit,
+  const sourceAvailability = getNewWorktreeSourceAvailability(
+    selectedRepo,
     tasksSupported,
-    hasRepo: selectedRepo != null,
-    githubAvailable: runtime.availableProviders.includes('github'),
-    gitlabAvailable: runtime.availableProviders.includes('gitlab'),
-    linearAvailable: runtime.availableProviders.includes('linear')
-  }
+    runtime.availableProviders
+  )
   const pasteRepos = useMemo<PasteRepoCandidate[]>(
     () =>
       repos.map((repo) => ({
@@ -233,22 +241,18 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     }
   }
 
-  function requestClose(): void {
-    if (createSubmit.recoveredCheckout) {
-      createSubmit.openRecoveredWorkspace()
-      return
-    }
-    if (navigation.drawerView === 'form') {
-      onClose()
-    } else if (navigation.drawerView === 'trust') {
-      createSubmit.closeSetupTrust()
-    } else {
-      navigation.transitionDrawer('form')
-    }
-  }
-
   return (
-    <BottomDrawerModalHost visible={visible} onRequestClose={requestClose}>
+    <BottomDrawerModalHost
+      visible={visible}
+      onRequestClose={() =>
+        navigation.requestClose({
+          hasRecoveredCheckout: Boolean(createSubmit.recoveredCheckout),
+          openRecoveredWorkspace: createSubmit.openRecoveredWorkspace,
+          closeSetupTrust: createSubmit.closeSetupTrust,
+          onClose
+        })
+      }
+    >
       <NewWorktreeFormSheet
         visible={navigation.formSheetVisible && !createSubmit.recoveredCheckout}
         interactive={navigation.formSheetInteractive}
@@ -347,6 +351,16 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         creating={createSubmit.creating}
         onSourceRepoChange={(repo) => selectRepo(repo, false)}
         onRepoChange={(repo) => selectRepo(repo, true)}
+        onAddProject={() => navigation.transitionDrawer('addProject')}
+        onSetupRunTarget={() => navigation.transitionDrawer('setupRunTarget')}
+        onPairHost={
+          onPairHost
+            ? () => {
+                onClose()
+                onPairHost()
+              }
+            : undefined
+        }
         onAgentChange={(agent) => {
           agentSelection.setAgentOverridden(true)
           agentSelection.setSelectedAgent(agent)
@@ -357,6 +371,39 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         onApproveSetupTrust={(alwaysTrust) => void createSubmit.approveSetupTrust(alwaysTrust)}
         onSkipSetupTrust={createSubmit.skipSetupTrust}
         onCloseSetupTrust={createSubmit.closeSetupTrust}
+      />
+      <MobileAddProjectDrawer
+        visible={visible && navigation.drawerView === 'addProject'}
+        client={client}
+        hostId={hostId}
+        onClose={() => navigation.transitionDrawer('form')}
+        onCreated={async (repo) => {
+          if (
+            repo.id !== selectedRepo?.id &&
+            !shouldPreserveWorkspaceSourceOnRepoChange(composer.linkedWorkItem)
+          ) {
+            composer.handleClearSmartNameSelection()
+          }
+          await refreshRepos(repo.id)
+          navigation.transitionDrawer('form')
+        }}
+      />
+      <MobileRunTargetSetup
+        visible={visible && navigation.drawerView === 'setupRunTarget'}
+        client={client}
+        selectedRepo={selectedRepo}
+        hostPlatform={hostPlatform}
+        onClose={() => navigation.transitionDrawer('form')}
+        onReady={async (repoId) => {
+          if (
+            repoId !== selectedRepo?.id &&
+            !shouldPreserveWorkspaceSourceOnRepoChange(composer.linkedWorkItem)
+          ) {
+            composer.handleClearSmartNameSelection()
+          }
+          await refreshRepos(repoId)
+          navigation.transitionDrawer('form')
+        }}
       />
       {createSubmit.recoveredCheckout ? (
         <NewWorktreeCheckoutRecoverySheet

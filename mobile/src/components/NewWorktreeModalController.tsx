@@ -20,6 +20,7 @@ type Props = {
   onVisibleChange?: (visible: boolean) => void
   onRouteVisibleChange: (visible: boolean) => void
   onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
+  onPairHost?: () => void
 }
 
 export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerHandle, Props>(
@@ -32,7 +33,8 @@ export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerH
       existingWorktrees,
       onVisibleChange,
       onRouteVisibleChange,
-      onCreated
+      onCreated,
+      onPairHost
     },
     ref
   ) {
@@ -66,6 +68,7 @@ export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerH
         existingWorktreePaths={existingWorktreePaths}
         existingWorktrees={existingWorktrees}
         onCreated={onCreated}
+        onPairHost={onPairHost}
         onClose={close}
       />
     )

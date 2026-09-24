@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CameraView, useCameraPermissions } from 'expo-camera'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, Clipboard as ClipboardIcon, QrCode } from 'lucide-react-native'
 import { decodePairingUrl, parsePairingCode } from '../src/transport/pairing'
 import {
@@ -47,6 +47,7 @@ function Step({ number, text }: { number: number; text: string }) {
 
 export default function PairScanScreen() {
   const router = useRouter()
+  const { afterPair } = useLocalSearchParams<{ afterPair?: string | string[] }>()
   const refreshHostClient = useRefreshHostClient()
   const insets = useSafeAreaInsets()
   const [permission, requestPermission] = useCameraPermissions()
@@ -162,7 +163,13 @@ export default function PairScanScreen() {
       if (!mountedRef.current) {
         return
       }
-      router.replace(mobileOnboardingDestination(onboardingSteps, hostId))
+      router.replace(
+        mobileOnboardingDestination(
+          onboardingSteps,
+          hostId,
+          afterPair === 'newWorktree' ? 'newWorktree' : undefined
+        )
+      )
     } catch (err) {
       const timedOut = attempt.timedOut
       const attemptIsCurrent = activePairingAttemptRef.current === attempt

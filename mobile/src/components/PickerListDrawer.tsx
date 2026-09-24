@@ -16,6 +16,10 @@ type Props<T extends PickerListItem> = {
   onSelect: (item: T) => void
   onClose: () => void
   renderIcon?: (item: T) => ReactNode
+  actionLabel?: string
+  onAction?: () => void
+  secondaryActionLabel?: string
+  onSecondaryAction?: () => void
 }
 
 export function PickerListDrawer<T extends PickerListItem>({
@@ -25,7 +29,11 @@ export function PickerListDrawer<T extends PickerListItem>({
   selectedId,
   onSelect,
   onClose,
-  renderIcon
+  renderIcon,
+  actionLabel,
+  onAction,
+  secondaryActionLabel,
+  onSecondaryAction
 }: Props<T>) {
   const [closing, setClosing] = useState(false)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -62,6 +70,20 @@ export function PickerListDrawer<T extends PickerListItem>({
     },
     [onClose, onSelect]
   )
+
+  const closeThenAct = useCallback((action?: () => void) => {
+    if (!action) {
+      return
+    }
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+    }
+    setClosing(true)
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null
+      action()
+    }, BOTTOM_DRAWER_HIDE_DURATION_MS)
+  }, [])
 
   return (
     <BottomDrawer
@@ -107,6 +129,16 @@ export function PickerListDrawer<T extends PickerListItem>({
           )
         }}
       />
+      {actionLabel && onAction ? (
+        <Pressable style={styles.action} onPress={() => closeThenAct(onAction)}>
+          <Text style={styles.actionText}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+      {secondaryActionLabel && onSecondaryAction ? (
+        <Pressable style={styles.action} onPress={() => closeThenAct(onSecondaryAction)}>
+          <Text style={styles.actionText}>{secondaryActionLabel}</Text>
+        </Pressable>
+      ) : null}
     </BottomDrawer>
   )
 }
@@ -164,6 +196,15 @@ const styles = StyleSheet.create({
     marginTop: 1
   },
   itemTextSelected: {
+    fontWeight: '600'
+  },
+  action: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md + 2
+  },
+  actionText: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
     fontWeight: '600'
   }
 })

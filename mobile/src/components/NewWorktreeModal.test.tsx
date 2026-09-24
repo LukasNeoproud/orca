@@ -41,6 +41,8 @@ vi.mock(
 vi.mock('./BottomDrawer', () => ({ BottomDrawer: 'BottomDrawer' }))
 vi.mock('./bottom-drawer-modal-host', () => ({ BottomDrawerModalHost: 'BottomDrawerModalHost' }))
 vi.mock('./PickerListDrawer', () => ({ PickerListDrawer: 'PickerListDrawer' }))
+vi.mock('./MobileAddProjectDrawer', () => ({ MobileAddProjectDrawer: 'MobileAddProjectDrawer' }))
+vi.mock('./MobileRunTargetSetup', () => ({ MobileRunTargetSetup: 'MobileRunTargetSetup' }))
 vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
 vi.mock('./TaskProviderLogo', () => ({ TaskProviderLogo: 'TaskProviderLogo' }))
 
@@ -89,6 +91,132 @@ describe('NewWorktreeModal project targets', () => {
 
   beforeEach(() => {
     setCachedRepos('host-1', repos)
+  })
+
+  it('refreshes and selects a project added from the worktree dialog', async () => {
+    const addedRepo = {
+      id: 'repo-new',
+      displayName: 'new-project',
+      path: '/src/new',
+      kind: 'folder'
+    }
+    let listedRepos = repos
+    const client = {
+      sendRequest: vi.fn().mockImplementation((method: string) => {
+        if (method === 'repo.list') {
+          return Promise.resolve({ ok: true, result: { repos: listedRepos } })
+        }
+        if (method === 'status.get') {
+          return Promise.resolve({ ok: true, result: { hostPlatform: 'darwin' } })
+        }
+        return Promise.resolve({ ok: true, result: {} })
+      })
+    } as unknown as RpcClient
+    await act(async () => {
+      renderer = create(
+        createElement(NewWorktreeModal, {
+          visible: true,
+          client,
+          hostId: 'host-1',
+          onCreated: () => {},
+          onClose: () => {}
+        })
+      )
+      await Promise.resolve()
+    })
+    const projectPicker = renderer.root
+      .findAll((node) => node.type === 'PickerListDrawer')
+      .find((node) => node.props.title === 'Project')
+    expect(projectPicker?.props.actionLabel).toBe('Add project')
+    listedRepos = [...repos, addedRepo]
+    const drawer = renderer.root.find((node) => node.type === 'MobileAddProjectDrawer')
+    await act(async () => {
+      await drawer.props.onCreated(addedRepo)
+    })
+    const selectedProject = renderer.root
+      .findAll((node) => node.type === 'PickerListDrawer')
+      .find((node) => node.props.title === 'Project')
+    expect(selectedProject?.props.selectedId).toBe('repo:repo-new')
+  })
+
+  it('selects a newly configured run target after refreshing the host catalog', async () => {
+    const remoteRepo = {
+      id: 'repo-remote',
+      displayName: 'orca',
+      path: '/srv/orca',
+      kind: 'git',
+      connectionId: 'build-server',
+      upstream: { owner: 'stablyai', repo: 'orca' }
+    }
+    let listedRepos = repos
+    const client = {
+      sendRequest: vi.fn().mockImplementation((method: string) => {
+        if (method === 'repo.list') {
+          return Promise.resolve({ ok: true, result: { repos: listedRepos } })
+        }
+        if (method === 'status.get') {
+          return Promise.resolve({ ok: true, result: { hostPlatform: 'darwin' } })
+        }
+        return Promise.resolve({ ok: true, result: {} })
+      })
+    } as unknown as RpcClient
+    await act(async () => {
+      renderer = create(
+        createElement(NewWorktreeModal, {
+          visible: true,
+          client,
+          hostId: 'host-1',
+          onCreated: () => {},
+          onClose: () => {}
+        })
+      )
+      await Promise.resolve()
+    })
+    const runTargetPicker = renderer.root
+      .findAll((node) => node.type === 'PickerListDrawer')
+      .find((node) => node.props.title === 'Run on')
+    expect(runTargetPicker?.props.actionLabel).toBe('Set up another host')
+    listedRepos = [...repos, remoteRepo]
+    const setup = renderer.root.find((node) => node.type === 'MobileRunTargetSetup')
+    await act(async () => {
+      await setup.props.onReady(remoteRepo.id)
+    })
+    const selectedTarget = renderer.root
+      .findAll((node) => node.type === 'PickerListDrawer')
+      .find((node) => node.props.title === 'Run on')
+    expect(selectedTarget?.props.selectedId).toBe(remoteRepo.id)
+  })
+
+  it('opens pairing from the run target picker after closing the worktree form', async () => {
+    const onClose = vi.fn()
+    const onPairHost = vi.fn()
+    const client = {
+      sendRequest: vi
+        .fn()
+        .mockImplementation((method: string) =>
+          Promise.resolve({ ok: true, result: method === 'repo.list' ? { repos } : {} })
+        )
+    } as unknown as RpcClient
+    await act(async () => {
+      renderer = create(
+        createElement(NewWorktreeModal, {
+          visible: true,
+          client,
+          hostId: 'host-1',
+          onCreated: () => {},
+          onClose,
+          onPairHost
+        })
+      )
+      await Promise.resolve()
+    })
+    const picker = renderer.root
+      .findAll((node) => node.type === 'PickerListDrawer')
+      .find((node) => node.props.title === 'Run on')
+    expect(picker?.props.secondaryActionLabel).toBe('Pair another Orca host')
+    await act(async () => picker!.props.onSecondaryAction())
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onPairHost).toHaveBeenCalledOnce()
   })
 
   afterEach(() => {

@@ -7,7 +7,9 @@ export type NewWorktreeDrawerView =
   | 'transition'
   | 'source'
   | 'project'
+  | 'addProject'
   | 'runTarget'
+  | 'setupRunTarget'
   | 'agent'
   | 'parent'
   | 'sparse'
@@ -23,6 +25,12 @@ export function useNewWorktreeDrawerNavigation(modalVisible: boolean): {
   formSheetInteractive: boolean
   transitionDrawer: (nextView: Exclude<NewWorktreeDrawerView, 'transition'>) => void
   openSourceDrawer: () => void
+  requestClose: (actions: {
+    hasRecoveredCheckout: boolean
+    openRecoveredWorkspace: () => void
+    closeSetupTrust: () => void
+    onClose: () => void
+  }) => void
 } {
   const [drawerView, setDrawerView] = useState<NewWorktreeDrawerView>('form')
   const drawerTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -69,11 +77,29 @@ export function useNewWorktreeDrawerNavigation(modalVisible: boolean): {
     setDrawerView('source')
   }
 
+  function requestClose(actions: {
+    hasRecoveredCheckout: boolean
+    openRecoveredWorkspace: () => void
+    closeSetupTrust: () => void
+    onClose: () => void
+  }): void {
+    if (actions.hasRecoveredCheckout) {
+      actions.openRecoveredWorkspace()
+    } else if (drawerView === 'form') {
+      actions.onClose()
+    } else if (drawerView === 'trust') {
+      actions.closeSetupTrust()
+    } else {
+      transitionDrawer('form')
+    }
+  }
+
   return {
     drawerView,
     formSheetVisible: resolveNewWorktreeFormSheetVisible({ modalVisible, drawerView }),
     formSheetInteractive: drawerView === 'form',
     transitionDrawer,
-    openSourceDrawer
+    openSourceDrawer,
+    requestClose
   }
 }

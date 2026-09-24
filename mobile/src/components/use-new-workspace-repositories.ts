@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
 import { getCachedRepos, setCachedRepos } from '../cache/repo-cache'
@@ -19,6 +19,7 @@ export function useNewWorkspaceRepositories(args: {
   selectedRepo: MobileWorkspaceRepo | null
   setSelectedRepo: (repo: MobileWorkspaceRepo | null) => void
   loading: boolean
+  refreshRepos: (preferredRepoId: string) => Promise<void>
 } {
   const { client, hostId, visible } = args
   const [initialRepos] = useState(() =>
@@ -28,6 +29,29 @@ export function useNewWorkspaceRepositories(args: {
   const [selectedRepo, setSelectedRepo] = useState<MobileWorkspaceRepo | null>(null)
   const [loading, setLoading] = useState(initialRepos == null)
   const lastVisitedRepo = useLastVisitedWorktreeRepoId(hostId, visible)
+
+  const refreshRepos = useCallback(
+    async (preferredRepoId: string): Promise<void> => {
+      if (!client) {
+        return
+      }
+      const response = await client.sendRequest('repo.list')
+      if (!response.ok) {
+        throw new Error(response.error.message)
+      }
+      const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
+      setRepos(result.repos)
+      if (hostId) {
+        setCachedRepos(hostId, result.repos)
+      }
+      const preferred = result.repos.find((repo) => repo.id === preferredRepoId)
+      if (!preferred) {
+        throw new Error('The new project is not available yet. Reopen the form to retry.')
+      }
+      setSelectedRepo(preferred)
+    },
+    [client, hostId]
+  )
 
   useEffect(() => {
     if (!visible || !lastVisitedRepo.loaded || selectedRepo || repos.length === 0) {
@@ -76,5 +100,11 @@ export function useNewWorkspaceRepositories(args: {
     }
   }, [visible, client, hostId])
 
-  return { repos, selectedRepo, setSelectedRepo, loading: loading && repos.length === 0 }
+  return {
+    repos,
+    selectedRepo,
+    setSelectedRepo,
+    loading: loading && repos.length === 0,
+    refreshRepos
+  }
 }
