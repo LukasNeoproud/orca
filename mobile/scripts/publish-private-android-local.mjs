@@ -34,6 +34,11 @@ import {
   writeLocalPublishedVersionCode,
   writePrivateFile
 } from './private-android-local-publish-runtime.mjs'
+import {
+  assertAndroidPublishHeadUnchanged,
+  privateAndroidApprovalOperation,
+  readCleanAndroidPublishHead
+} from './private-android-approval.mjs'
 
 const mobileRoot = path.resolve(import.meta.dirname, '..')
 const versionStatePath = path.join(
@@ -61,7 +66,21 @@ export async function runLocalPrivateAndroidPublish(argv) {
   process.once('SIGTERM', interrupt)
   try {
     const tools = requireLocalPublishTools(options)
-    const secrets = readPrivateDistributionSecrets()
+    const approvedCommit =
+      options.approval === 'mobile' ? readCleanAndroidPublishHead(mobileRoot) : null
+    tempDirectory = createPrivateTempDirectory()
+    const approvalContextPath =
+      approvedCommit === null ? null : path.join(tempDirectory, 'mobile-approval-context.json')
+    if (approvalContextPath) {
+      writePrivateFile(
+        approvalContextPath,
+        JSON.stringify(privateAndroidApprovalOperation({ options, commit: approvedCommit }))
+      )
+    }
+    const secrets = readPrivateDistributionSecrets(undefined, approvalContextPath)
+    if (approvedCommit !== null) {
+      assertAndroidPublishHeadUnchanged(mobileRoot, approvedCommit)
+    }
     const credentials = parseFirebaseServiceAccount(secrets.firebaseJson)
     const accessToken = await createFirebaseAccessToken(credentials)
     const remoteVersionCode = await readMaxFirebaseVersionCode(accessToken)
@@ -74,7 +93,6 @@ export async function runLocalPrivateAndroidPublish(argv) {
           explicitVersionCode: options.versionCode
         })
 
-    tempDirectory = createPrivateTempDirectory()
     const secretPaths = {
       keystore: path.join(tempDirectory, 'private-release.keystore'),
       credentials: path.join(tempDirectory, 'firebase-service-account.json'),
@@ -98,6 +116,9 @@ export async function runLocalPrivateAndroidPublish(argv) {
       secrets,
       secretPaths
     })
+    if (approvedCommit !== null) {
+      assertAndroidPublishHeadUnchanged(mobileRoot, approvedCommit)
+    }
     console.log(`Verified signed APK: ${apkPath}`)
     if (options.existingApk) {
       classifyExistingPrivateApkVersion({
@@ -118,6 +139,9 @@ export async function runLocalPrivateAndroidPublish(argv) {
       options.releaseNotes ||
       `Private Orca Android ${verifiedVersionCode} (${PRIVATE_ANDROID_PACKAGE})`
     if (options.existingApk && currentRemoteVersionCode === verifiedVersionCode) {
+      if (approvedCommit !== null) {
+        assertAndroidPublishHeadUnchanged(mobileRoot, approvedCommit)
+      }
       const testingUri = await distributeExistingFirebaseRelease({
         accessToken: uploadAccessToken,
         versionCode: verifiedVersionCode,
@@ -134,6 +158,9 @@ export async function runLocalPrivateAndroidPublish(argv) {
       )
     }
     writePrivateFile(secretPaths.releaseNotes, `${notes}\n`)
+    if (approvedCommit !== null) {
+      assertAndroidPublishHeadUnchanged(mobileRoot, approvedCommit)
+    }
     const output = uploadPrivateApk({
       apkPath,
       groups: options.groups,
@@ -160,6 +187,7 @@ Builds a signed ${PRIVATE_ANDROID_PACKAGE} APK. Upload occurs only with --publis
 
 Options:
   --publish                 Upload or distribute after verification
+  --approval <method>       touch-id (default) or mobile
   --existing-apk            Reuse the last built APK with --publish after verifying it
   --groups <aliases>        Comma-separated Firebase tester group aliases
   --release-notes <text>    Release notes used with --publish

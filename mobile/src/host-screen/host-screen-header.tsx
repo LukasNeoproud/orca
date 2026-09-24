@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import {
   ChevronLeft,
   Filter,
@@ -7,6 +8,7 @@ import {
   PanelLeftClose,
   Plus,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
   SquareTerminal,
   UserCircle,
@@ -23,6 +25,7 @@ function isErrorVerdict(v: ConnectionVerdict): boolean {
 }
 
 export function HostScreenHeader({ controller }: { controller: HostScreenController }) {
+  const router = useRouter()
   const {
     actions,
     connState,
@@ -87,6 +90,16 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
             </>
           )
         })()}
+        <Pressable
+          style={styles.floatingWorkspaceHeaderButton}
+          accessibilityRole="button"
+          accessibilityLabel="Device approvals"
+          disabled={!hostId || connState !== 'connected'}
+          onPress={() => router.push(`/h/${hostId}/approvals`)}
+          hitSlop={8}
+        >
+          <ShieldCheck size={18} color={colors.textSecondary} />
+        </Pressable>
         {!embedded && floatingWorkspaceEnabled ? (
           <Pressable
             style={[

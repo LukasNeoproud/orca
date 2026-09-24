@@ -20,11 +20,16 @@ import {
   privateDistributionKeychainPairs
 } from './private-android-local-publish-contract.mjs'
 
-export function readPrivateDistributionSecrets(spawn = spawnSync) {
+export function readPrivateDistributionSecrets(spawn = spawnSync, approvalContextPath = null) {
   const pairs = privateDistributionKeychainPairs()
   const result = spawn(
     TOUCHID_KEYCHAIN_PATH,
-    ['get', '--json', ...pairs.flatMap(({ service, account }) => [service, account])],
+    [
+      ...(approvalContextPath
+        ? ['get-mobile', '--json', '--context-file', approvalContextPath]
+        : ['get', '--json']),
+      ...pairs.flatMap(({ service, account }) => [service, account])
+    ],
     { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }
   )
   if (result.error || result.status !== 0) {

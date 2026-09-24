@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,6 +30,11 @@ import {
   writeLocalPublishedVersionCode,
   writePrivateFile
 } from '../../scripts/private-android-local-publish-runtime.mjs'
+import {
+  assertAndroidPublishHeadUnchanged,
+  privateAndroidApprovalOperation,
+  readCleanAndroidPublishHead
+} from '../../scripts/private-android-approval.mjs'
 
 let tempDirectories: string[] = []
 
@@ -88,6 +94,82 @@ describe('local private Android publishing contract', () => {
       ],
       { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }
     )
+  })
+
+  it('routes mobile approval through the native verifier with the exact batch', () => {
+    const rows = Object.values(KEYCHAIN_ACCOUNTS).map((account) => ({
+      service: KEYCHAIN_SERVICE,
+      account,
+      value: `value:${account}`
+    }))
+    const spawn = vi.fn(() => ({ status: 0, stdout: JSON.stringify(rows) }))
+    readPrivateDistributionSecrets(spawn as never, '/tmp/approval-context.json')
+    expect(spawn).toHaveBeenCalledWith(
+      TOUCHID_KEYCHAIN_PATH,
+      [
+        'get-mobile',
+        '--json',
+        '--context-file',
+        '/tmp/approval-context.json',
+        ...Object.values(KEYCHAIN_ACCOUNTS).flatMap((account) => [KEYCHAIN_SERVICE, account])
+      ],
+      { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }
+    )
+  })
+
+  it('binds mobile approval to a clean commit and explicit publish intent', () => {
+    const commit = 'a'.repeat(40)
+    const cleanGit = vi.fn((args) => (args[0] === 'rev-parse' ? `${commit}\n` : ''))
+    expect(readCleanAndroidPublishHead('/repo/mobile', cleanGit as never)).toBe(commit)
+    expect(() =>
+      assertAndroidPublishHeadUnchanged('/repo/mobile', commit, cleanGit as never)
+    ).not.toThrow()
+    const dirtyGit = vi.fn((args) =>
+      args[0] === 'rev-parse' ? `${commit}\n` : ' M mobile/source.ts\n'
+    )
+    expect(() => readCleanAndroidPublishHead('/repo/mobile', dirtyGit as never)).toThrow('clean')
+    const options = parseLocalPublishArgs([
+      '--approval',
+      'mobile',
+      '--publish',
+      '--groups',
+      'zeta,alpha',
+      '--release-notes',
+      'Release'
+    ])
+    expect(privateAndroidApprovalOperation({ options, commit })).toMatchObject({
+      mode: 'publish',
+      commit,
+      groups: ['alpha', 'zeta'],
+      releaseNotesSha256: createHash('sha256').update('Release\n').digest('hex')
+    })
+    expect(
+      privateAndroidApprovalOperation({
+        options: { ...options, publish: false, groups: 'ignored', releaseNotes: null },
+        commit
+      }).groups
+    ).toEqual([])
+    expect(
+      privateAndroidApprovalOperation({
+        options: { ...options, groups: 'zeta,alpha,zeta' },
+        commit
+      }).groups
+    ).toEqual(['alpha', 'zeta'])
+    expect(() =>
+      parseLocalPublishArgs(['--approval', 'mobile', '--publish', '--groups', 'test'])
+    ).toThrow('--release-notes is required')
+    expect(() =>
+      parseLocalPublishArgs([
+        '--approval',
+        'mobile',
+        '--publish',
+        '--existing-apk',
+        '--groups',
+        'test',
+        '--release-notes',
+        'Release'
+      ])
+    ).toThrow('--existing-apk is not yet supported')
   })
 
   it('rejects missing, duplicate, and extra batch records without leaking values', () => {

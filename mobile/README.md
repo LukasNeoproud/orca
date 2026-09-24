@@ -259,9 +259,17 @@ SERVICE=cz.neoproud.orca.dev.private-distribution
 
 Use this `verify` command once after creating or replacing the items and choose **Always Allow** for
 the helper when macOS asks for Keychain access. It authenticates with Touch ID once and discards all
-five values. Each later publisher run performs exactly one `get --json` batch, which also requires
-one Touch ID authentication. The helper has no authentication cache or bypass and returns no
+five values. By default, each later publisher run performs exactly one `get --json` batch, which
+also requires one local Touch ID authentication. The helper has no authentication cache and returns no
 partial batch if any item is missing or access is denied.
+
+For an enrolled Orca Mobile device, add `--approval mobile`. This uses the vendored helper's
+`get-mobile` command and a phone signature over the exact operation request. It requires a clean
+committed worktree. Publishing through this route also requires explicit `--release-notes`, and
+`--existing-apk` is not supported. The phone shows the mode, commit, app, tester groups, and a
+release-note hash before biometric approval. The helper verifies the signature itself; an Orca
+desktop approval status cannot release the Keychain values. See
+`config/native/touchid-keychain/README.md` for enrollment and installation.
 
 The default command builds and verifies a signed APK but does not upload it:
 

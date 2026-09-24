@@ -255,8 +255,12 @@ function runChecked(command, args, options) {
   }
 }
 
-function runCaptured(command, args, label) {
-  const result = spawnSync(command, args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+export function runPrivateAndroidGit(args, cwd) {
+  return runCaptured('git', args, 'Git source check', cwd)
+}
+
+function runCaptured(command, args, label, cwd) {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
   if (result.error || result.status !== 0) {
     throw new Error(`${label} failed`)
   }

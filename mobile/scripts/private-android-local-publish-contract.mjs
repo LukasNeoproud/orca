@@ -29,6 +29,7 @@ export function privateDistributionKeychainPairs() {
 
 export function parseLocalPublishArgs(argv) {
   const options = {
+    approval: 'touch-id',
     publish: false,
     existingApk: false,
     groups: null,
@@ -40,6 +41,8 @@ export function parseLocalPublishArgs(argv) {
     const arg = argv[index]
     if (arg === '--publish') {
       options.publish = true
+    } else if (arg === '--approval') {
+      options.approval = requiredArgument(argv, ++index, '--approval')
     } else if (arg === '--existing-apk') {
       options.existingApk = true
     } else if (arg === '--help' || arg === '-h') {
@@ -62,6 +65,15 @@ export function parseLocalPublishArgs(argv) {
   }
   if (options.existingApk && !options.publish) {
     throw new Error('--existing-apk requires --publish')
+  }
+  if (!['touch-id', 'mobile'].includes(options.approval)) {
+    throw new Error('--approval must be touch-id or mobile')
+  }
+  if (options.approval === 'mobile' && options.publish && !options.releaseNotes) {
+    throw new Error('--release-notes is required with mobile approval and --publish')
+  }
+  if (options.approval === 'mobile' && options.existingApk) {
+    throw new Error('--existing-apk is not yet supported with mobile approval')
   }
   if (!options.publish && (options.groups || options.releaseNotes)) {
     throw new Error('--groups and --release-notes are only valid with --publish')

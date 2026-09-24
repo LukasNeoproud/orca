@@ -49,6 +49,7 @@ import { RUNTIME_CLIENT_CAPABILITY_METHODS } from './runtime-client-capabilities
 import { EMULATOR_METHODS } from './emulator'
 import { EMULATOR_MOBILE_METHODS } from './emulator-mobile'
 import { PAIRING_METHODS } from './pairing'
+import { DEVICE_APPROVAL_METHODS } from './device-approval'
 import { UPDATER_METHODS } from './updater'
 import { AGENT_SESSION_METHODS } from './agent-session'
 import { STRUCTURED_AGENT_SESSION_METHODS } from './structured-agent-session'
@@ -59,6 +60,7 @@ import { AGENT_HOOK_METHODS } from './agent-hooks'
 // grep-point for "what methods does the RPC server expose?" — useful when
 // auditing the security boundary or wiring new CLI commands.
 export const ALL_RPC_METHODS: readonly RpcAnyMethod[] = [
+  ...DEVICE_APPROVAL_METHODS,
   ...STATUS_METHODS,
   ...AGENT_HOOK_METHODS,
   ...AI_VAULT_METHODS,
