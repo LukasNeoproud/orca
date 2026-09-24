@@ -27,6 +27,7 @@ type TerminalLiveAccessoryInputCommitOptions = {
     composing?: boolean
   ) => Promise<boolean>
   readonly clearPendingLiveInputCommit: () => void
+  readonly captureTextRef: RefObject<string>
   readonly flushPendingLiveInputText: (expectedHandle: string | null) => Promise<boolean>
   readonly heldLiveInputTextRef: RefObject<string>
   readonly liveInputComposingRef: RefObject<boolean | undefined>
@@ -44,6 +45,7 @@ export function useTerminalLiveAccessoryInputCommit({
   activeHandle,
   applyLiveInputMirror,
   clearPendingLiveInputCommit,
+  captureTextRef,
   flushPendingLiveInputText,
   heldLiveInputTextRef,
   liveInputComposingRef,
@@ -78,6 +80,11 @@ export function useTerminalLiveAccessoryInputCommit({
         case 'send-now':
           // Why: raw accessory bytes must wait behind any in-flight mirror send
           // so composed Hangul reaches the PTY before follow-up controls.
+          if (input.resetMirrorBeforeSend) {
+            const flushed = await flushPendingLiveInputText(activeHandle)
+            captureTextRef.current = ''
+            return flushed ? { kind: 'allow-raw' } : { kind: 'suppress-raw' }
+          }
           return (await waitForPendingLiveInputFlush())
             ? { kind: 'allow-raw' }
             : { kind: 'suppress-raw' }
@@ -100,7 +107,13 @@ export function useTerminalLiveAccessoryInputCommit({
         }
         case 'commit-held-then-send': {
           const sent = await sendTerminalLiveControlAfterPendingFlush(
-            () => flushPendingLiveInputText(activeHandle),
+            async () => {
+              const flushed = await flushPendingLiveInputText(activeHandle)
+              if (input.resetMirrorBeforeSend) {
+                captureTextRef.current = ''
+              }
+              return flushed
+            },
             () => sendLiveTerminalInputRef.current(activeHandle, decision.bytes)
           )
           return sent ? { kind: 'handled' } : { kind: 'suppress-raw' }
@@ -113,6 +126,7 @@ export function useTerminalLiveAccessoryInputCommit({
     [
       activeHandle,
       applyLiveInputMirror,
+      captureTextRef,
       clearPendingLiveInputCommit,
       flushPendingLiveInputText,
       heldLiveInputTextRef,

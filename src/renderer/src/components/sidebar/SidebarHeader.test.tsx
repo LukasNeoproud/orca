@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
   const shortcutLabel: { current: string | null } = { current: '⌘N' }
 
   return {
+    createAndOpenFloatingWorkspaceTerminalTab: vi.fn(),
     openWorkspaceCreationComposerWithTourHandoff: vi.fn(),
     popoverContentProps,
     shortcutLabel,
@@ -32,6 +33,7 @@ type MockState = {
     experimentalAgentDashboardPopout?: boolean
     agentsSidebarIntroShown?: boolean
     agentsSidebarMigratedFromExperimental?: boolean
+    floatingTerminalEnabled?: boolean
   }
 }
 
@@ -73,6 +75,10 @@ vi.mock('@/components/ui/tooltip', () => ({
 
 vi.mock('../contextual-tours/workspace-creation-tour-handoff', () => ({
   openWorkspaceCreationComposerWithTourHandoff: mocks.openWorkspaceCreationComposerWithTourHandoff
+}))
+
+vi.mock('@/lib/floating-workspace-tab-creation', () => ({
+  createAndOpenFloatingWorkspaceTerminalTab: mocks.createAndOpenFloatingWorkspaceTerminalTab
 }))
 
 vi.mock('sonner', () => ({ toast: mocks.toast }))
@@ -121,6 +127,7 @@ function createMenuItem(label: string): HTMLElement {
 }
 
 beforeEach(() => {
+  mocks.createAndOpenFloatingWorkspaceTerminalTab.mockClear()
   mocks.openWorkspaceCreationComposerWithTourHandoff.mockClear()
   mocks.toast.mockClear()
   mocks.shortcutLabel.current = '⌘N'
@@ -192,6 +199,24 @@ describe('SidebarHeader', () => {
 
     expect(mockState.openModal).toHaveBeenCalledWith('add-repo')
     expect(mocks.openWorkspaceCreationComposerWithTourHandoff).not.toHaveBeenCalled()
+  })
+
+  it('offers an independent terminal with no projects when Floating Workspace is enabled', async () => {
+    mockState.settings = { floatingTerminalEnabled: true }
+    act(() => {
+      root.render(<SidebarHeader onWorkspaceBoardMenuOpenChange={vi.fn()} />)
+    })
+
+    await openCreateMenu()
+
+    const item = createMenuItem('New independent terminal')
+    expect(item.getAttribute('data-disabled')).toBeNull()
+    await act(async () => {
+      item.click()
+      await new Promise((resolve) => window.setTimeout(resolve, 0))
+    })
+
+    expect(mocks.createAndOpenFloatingWorkspaceTerminalTab).toHaveBeenCalledWith(mockState)
   })
 
   it('omits the shortcut hint when workspace creation is unassigned', async () => {

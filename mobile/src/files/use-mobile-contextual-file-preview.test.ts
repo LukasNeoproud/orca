@@ -70,6 +70,41 @@ describe('useMobileContextualFilePreview', () => {
     expect(model?.preview).toMatchObject({ status: 'ready', kind: 'markdown' })
   })
 
+  it('asks again when the same link resolves to a different outside file', async () => {
+    const resolve = (absolutePath: string, grantId: string) =>
+      ok({
+        worktree: 'wt-1',
+        exists: true,
+        isDirectory: false,
+        openTarget: {
+          kind: 'absolute-file',
+          provider: 'ssh',
+          absolutePath,
+          grantId,
+          readOnly: true
+        }
+      })
+    const responses = [
+      resolve('/tmp/first.md', 'grant-1'),
+      ok({ content: 'first', truncated: false, byteLength: 5 }),
+      resolve('/tmp/second.md', 'grant-2'),
+      ok({ content: 'second', truncated: false, byteLength: 6 })
+    ]
+    const sendRequest = vi.fn(async () => responses.shift()!)
+    const client = { sendRequest }
+    await act(async () => {
+      renderer = create(createElement(Harness, { client }))
+    })
+    await act(async () => model?.approveOutsideWorkspace())
+    expect(sendRequest).toHaveBeenCalledTimes(2)
+    await act(async () => model?.reload())
+    expect(model?.displayPath).toBe('/tmp/second.md')
+    expect(model?.needsConsent).toBe(true)
+    expect(sendRequest).toHaveBeenCalledTimes(3)
+    await act(async () => model?.approveOutsideWorkspace())
+    expect(sendRequest).toHaveBeenCalledTimes(4)
+  })
+
   it('marks refreshed current content as changed without watching the file', async () => {
     const resolution = ok({
       worktree: 'wt-1',

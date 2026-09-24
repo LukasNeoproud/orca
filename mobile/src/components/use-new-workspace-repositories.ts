@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
 import { getCachedRepos, setCachedRepos } from '../cache/repo-cache'
@@ -28,6 +28,7 @@ export function useNewWorkspaceRepositories(args: {
   const [repos, setRepos] = useState<MobileWorkspaceRepo[]>(initialRepos ?? [])
   const [selectedRepo, setSelectedRepo] = useState<MobileWorkspaceRepo | null>(null)
   const [loading, setLoading] = useState(initialRepos == null)
+  const listRequestGenerationRef = useRef(0)
   const lastVisitedRepo = useLastVisitedWorktreeRepoId(hostId, visible)
 
   const refreshRepos = useCallback(
@@ -35,20 +36,30 @@ export function useNewWorkspaceRepositories(args: {
       if (!client) {
         return
       }
-      const response = await client.sendRequest('repo.list')
-      if (!response.ok) {
-        throw new Error(response.error.message)
+      const generation = ++listRequestGenerationRef.current
+      try {
+        const response = await client.sendRequest('repo.list')
+        if (generation !== listRequestGenerationRef.current) {
+          return
+        }
+        if (!response.ok) {
+          throw new Error(response.error.message)
+        }
+        const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
+        setRepos(result.repos)
+        if (hostId) {
+          setCachedRepos(hostId, result.repos)
+        }
+        const preferred = result.repos.find((repo) => repo.id === preferredRepoId)
+        if (!preferred) {
+          throw new Error('The new project is not available yet. Reopen the form to retry.')
+        }
+        setSelectedRepo(preferred)
+      } finally {
+        if (generation === listRequestGenerationRef.current) {
+          setLoading(false)
+        }
       }
-      const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
-      setRepos(result.repos)
-      if (hostId) {
-        setCachedRepos(hostId, result.repos)
-      }
-      const preferred = result.repos.find((repo) => repo.id === preferredRepoId)
-      if (!preferred) {
-        throw new Error('The new project is not available yet. Reopen the form to retry.')
-      }
-      setSelectedRepo(preferred)
     },
     [client, hostId]
   )
@@ -73,11 +84,12 @@ export function useNewWorkspaceRepositories(args: {
       return
     }
     let stale = false
+    const generation = ++listRequestGenerationRef.current
     setLoading(true)
     void client
       .sendRequest('repo.list')
       .then((response) => {
-        if (stale || !response.ok) {
+        if (stale || generation !== listRequestGenerationRef.current || !response.ok) {
           return
         }
         const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
@@ -91,12 +103,13 @@ export function useNewWorkspaceRepositories(args: {
       })
       .catch(() => undefined)
       .finally(() => {
-        if (!stale) {
+        if (!stale && generation === listRequestGenerationRef.current) {
           setLoading(false)
         }
       })
     return () => {
       stale = true
+      listRequestGenerationRef.current += 1
     }
   }, [visible, client, hostId])
 

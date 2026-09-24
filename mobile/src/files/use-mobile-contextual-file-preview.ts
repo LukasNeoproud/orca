@@ -54,6 +54,10 @@ export function useMobileContextualFilePreview(args: {
     key: targetKey,
     signature: null
   })
+  const resolvedOutsideKey =
+    resolution?.outsideWorkspace && sourceRef.current
+      ? JSON.stringify([targetKey, sourceRef.current.worktreeId, resolution.displayPath])
+      : null
 
   useEffect(() => {
     requestGenerationRef.current += 1
@@ -103,7 +107,7 @@ export function useMobileContextualFilePreview(args: {
       !resolution ||
       resolution.generation !== reloadGeneration ||
       !sourceRef.current ||
-      (resolution.outsideWorkspace && approvedOutsideKey !== targetKey)
+      (resolution.outsideWorkspace && approvedOutsideKey !== resolvedOutsideKey)
     ) {
       return
     }
@@ -130,11 +134,11 @@ export function useMobileContextualFilePreview(args: {
           setPreview(previewError(error instanceof Error ? error.message : String(error)))
         }
       })
-  }, [approvedOutsideKey, client, reloadGeneration, resolution, targetKey])
+  }, [approvedOutsideKey, client, reloadGeneration, resolution, resolvedOutsideKey])
 
   const approveOutsideWorkspace = useCallback(() => {
-    setApprovedOutsideKey(targetKey)
-  }, [targetKey])
+    setApprovedOutsideKey(resolvedOutsideKey)
+  }, [resolvedOutsideKey])
   const reload = useCallback(() => {
     setReloadGeneration((generation) => generation + 1)
   }, [])
@@ -143,7 +147,8 @@ export function useMobileContextualFilePreview(args: {
     preview,
     displayPath: resolution?.displayPath ?? target.pathText,
     line: resolution?.line ?? target.line,
-    needsConsent: resolution?.outsideWorkspace === true && approvedOutsideKey !== targetKey,
+    needsConsent:
+      resolution?.outsideWorkspace === true && approvedOutsideKey !== resolvedOutsideKey,
     changed,
     approveOutsideWorkspace,
     reload

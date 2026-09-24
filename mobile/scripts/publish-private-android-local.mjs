@@ -8,6 +8,7 @@ import {
   KEYCHAIN_SERVICE,
   PRIVATE_ANDROID_PACKAGE,
   PRIVATE_FIREBASE_APP_ID,
+  classifyExistingPrivateApkVersion,
   decodeKeystoreBase64,
   extractTestingUri,
   nextPrivateVersionCode,
@@ -25,6 +26,7 @@ import {
   cleanupPrivateTempDirectory,
   createFirebaseAccessToken,
   createPrivateTempDirectory,
+  distributeExistingFirebaseRelease,
   readLocalPublishedVersionCode,
   readFirebaseTestingUri,
   readMaxFirebaseVersionCode,
@@ -64,11 +66,13 @@ export async function runLocalPrivateAndroidPublish(argv) {
     const accessToken = await createFirebaseAccessToken(credentials)
     const remoteVersionCode = await readMaxFirebaseVersionCode(accessToken)
     const localVersionCode = readLocalPublishedVersionCode(versionStatePath)
-    const versionCode = nextPrivateVersionCode({
-      remoteVersionCode,
-      localVersionCode,
-      explicitVersionCode: options.versionCode
-    })
+    const versionCode = options.existingApk
+      ? null
+      : nextPrivateVersionCode({
+          remoteVersionCode,
+          localVersionCode,
+          explicitVersionCode: options.versionCode
+        })
 
     tempDirectory = createPrivateTempDirectory()
     const secretPaths = {
@@ -81,12 +85,12 @@ export async function runLocalPrivateAndroidPublish(argv) {
     writePrivateFile(secretPaths.credentials, `${JSON.stringify(credentials)}\n`)
 
     console.log(
-      `${options.existingApk ? 'Checking existing APK for' : 'Building'} ${PRIVATE_ANDROID_PACKAGE} with versionCode ${versionCode}`
+      `${options.existingApk ? 'Checking existing APK for' : 'Building'} ${PRIVATE_ANDROID_PACKAGE}`
     )
     const apkPath = options.existingApk
       ? findReleaseApk(mobileRoot)
       : runPrivateAndroidBuild({ mobileRoot, versionCode, secretPaths, secrets })
-    verifyPrivateApk({
+    const verifiedVersionCode = verifyPrivateApk({
       apkPath,
       expectedPackage: PRIVATE_ANDROID_PACKAGE,
       expectedVersionCode: versionCode,
@@ -95,6 +99,14 @@ export async function runLocalPrivateAndroidPublish(argv) {
       secretPaths
     })
     console.log(`Verified signed APK: ${apkPath}`)
+    if (options.existingApk) {
+      classifyExistingPrivateApkVersion({
+        apkVersionCode: verifiedVersionCode,
+        remoteVersionCode,
+        localVersionCode,
+        explicitVersionCode: options.versionCode
+      })
+    }
     if (!options.publish) {
       console.log('Build complete. Upload was not requested; rerun with --publish and --groups.')
       return
@@ -102,13 +114,25 @@ export async function runLocalPrivateAndroidPublish(argv) {
 
     const uploadAccessToken = await createFirebaseAccessToken(credentials)
     const currentRemoteVersionCode = await readMaxFirebaseVersionCode(uploadAccessToken)
-    if (currentRemoteVersionCode >= versionCode) {
+    const notes =
+      options.releaseNotes ||
+      `Private Orca Android ${verifiedVersionCode} (${PRIVATE_ANDROID_PACKAGE})`
+    if (options.existingApk && currentRemoteVersionCode === verifiedVersionCode) {
+      const testingUri = await distributeExistingFirebaseRelease({
+        accessToken: uploadAccessToken,
+        versionCode: verifiedVersionCode,
+        groups: options.groups,
+        notes: `${notes}\n`
+      })
+      writeLocalPublishedVersionCode(versionStatePath, verifiedVersionCode)
+      console.log(`testing_uri: ${testingUri}`)
+      return
+    }
+    if (currentRemoteVersionCode >= verifiedVersionCode) {
       throw new Error(
         `Firebase already has versionCode ${currentRemoteVersionCode}; rerun to build a newer APK`
       )
     }
-    const notes =
-      options.releaseNotes || `Private Orca Android ${versionCode} (${PRIVATE_ANDROID_PACKAGE})`
     writePrivateFile(secretPaths.releaseNotes, `${notes}\n`)
     const output = uploadPrivateApk({
       apkPath,
@@ -117,8 +141,9 @@ export async function runLocalPrivateAndroidPublish(argv) {
       credentialsPath: secretPaths.credentials
     })
     const testingUri =
-      extractTestingUri(output) || (await readFirebaseTestingUri(uploadAccessToken, versionCode))
-    writeLocalPublishedVersionCode(versionStatePath, versionCode)
+      extractTestingUri(output) ||
+      (await readFirebaseTestingUri(uploadAccessToken, verifiedVersionCode))
+    writeLocalPublishedVersionCode(versionStatePath, verifiedVersionCode)
     console.log(`testing_uri: ${testingUri}`)
   } finally {
     process.removeListener('SIGINT', interrupt)
@@ -134,7 +159,7 @@ function printHelp() {
 Builds a signed ${PRIVATE_ANDROID_PACKAGE} APK. Upload occurs only with --publish.
 
 Options:
-  --publish                 Upload with firebase-tools after verification
+  --publish                 Upload or distribute after verification
   --existing-apk            Reuse the last built APK with --publish after verifying it
   --groups <aliases>        Comma-separated Firebase tester group aliases
   --release-notes <text>    Release notes used with --publish

@@ -18,6 +18,8 @@ import {
   switchFloatingWorkspaceTab
 } from './floating-workspace-terminal-actions'
 import { matchFloatingWorkspacePanelOwnedAction } from './floating-workspace-shortcut-policy'
+import { createAndOpenFloatingWorkspaceTerminalTab } from './floating-workspace-tab-creation'
+import { OPEN_FLOATING_TERMINAL_EVENT } from './floating-terminal'
 
 const activateWebRuntimeSessionTabMock = vi.hoisted(() => vi.fn())
 const createWebRuntimeSessionBrowserTabMock = vi.hoisted(() => vi.fn())
@@ -486,6 +488,30 @@ describe('createFloatingWorkspaceTerminalTab', () => {
     )
     expect(store.activateTab).toHaveBeenCalledWith('floating-tab-runtime')
     expect(focusTerminalTabSurfaceMock).toHaveBeenCalledWith('floating-tab-runtime')
+  })
+
+  it('opens the floating panel after creating an independent terminal', async () => {
+    const tab = makeTab('independent-tab')
+    const store = {
+      activeGroupIdByWorktree: {},
+      createTab: vi.fn().mockReturnValue(tab),
+      activateTab: vi.fn()
+    }
+    const onOpen = vi.fn()
+    vi.stubGlobal('window', new EventTarget())
+    window.addEventListener(OPEN_FLOATING_TERMINAL_EVENT, onOpen)
+    try {
+      await expect(createAndOpenFloatingWorkspaceTerminalTab(store as never)).resolves.toBe(tab)
+      expect(store.createTab).toHaveBeenCalledWith(
+        FLOATING_TERMINAL_WORKTREE_ID,
+        undefined,
+        undefined,
+        { activate: false }
+      )
+      expect(onOpen).toHaveBeenCalledOnce()
+    } finally {
+      window.removeEventListener(OPEN_FLOATING_TERMINAL_EVENT, onOpen)
+    }
   })
 })
 

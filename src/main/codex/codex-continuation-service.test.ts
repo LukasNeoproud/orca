@@ -257,6 +257,28 @@ describe('CodexContinuationService', () => {
     expect(service.status(candidate.candidateId)?.status).toBe('used')
   })
 
+  it('reuses one candidate for concurrent preparations of the same checkpoint', async () => {
+    const { root, source, resolved, candidatePath } = await fixture()
+    const calls: { method: string; params?: Record<string, unknown> }[] = []
+    const openConnection = fakeConnection({ candidatePath, calls })
+    const service = new CodexContinuationService({
+      userDataPath: root,
+      resolveSource: async () => resolved,
+      openConnection
+    })
+    const checkpoint = (await service.inspect(source)).checkpoint!
+    const input = { source, expectedRevision: checkpoint.revision }
+    const [first, second] = await Promise.all([
+      service.prepareInBackground(input),
+      service.prepareInBackground(input)
+    ])
+    await service.settled()
+
+    expect(second.candidateId).toBe(first.candidateId)
+    expect(calls.map((call) => call.method)).toEqual(['thread/fork', 'thread/compact/start'])
+    expect(openConnection).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a ready candidate when the source advances before claim', async () => {
     const { service, candidate, sourcePath } = await prepareReadyCandidate()
     await appendFile(

@@ -3,9 +3,10 @@ import { Animated, type ScrollView } from 'react-native'
 import type { MobileTerminalLinkOpenMode } from '../storage/preferences'
 import type { TerminalKeyboardAvoidanceMetrics } from '../terminal/terminal-webview-contract'
 import {
-  getDefaultTerminalAccessoryBuiltInIds,
+  getDefaultTerminalAccessoryLayout,
   getVisibleTerminalAccessoryKeys
 } from '../terminal/terminal-accessory-layout'
+import type { TerminalAccessoryLayout } from '../terminal/terminal-accessory-layout'
 import type { CustomKey } from '../components/CustomKeyModal'
 import type { MobileNewTabAgentOption } from './mobile-new-tab-agent-options'
 import { useTerminalLiveInputModePreference } from './use-terminal-live-input-mode-preference'
@@ -99,14 +100,14 @@ export function useMobileSessionScreenState(scope: MobileSessionFoundationModel)
   const [leaveDrafts, setLeaveDrafts] = useState<DirtyMarkdownDraft[] | null>(null)
   const [renameTarget, setRenameTarget] = useState<Terminal | null>(null)
   const [customKeys, setCustomKeys] = useState<CustomKey[]>([])
-  const [visibleBuiltInIds, setVisibleBuiltInIds] = useState<string[]>(
-    getDefaultTerminalAccessoryBuiltInIds
+  const [accessoryLayout, setAccessoryLayout] = useState<TerminalAccessoryLayout>(
+    getDefaultTerminalAccessoryLayout
   )
   const [showCustomKeyModal, setShowCustomKeyModal] = useState(false)
   const [deleteKeyTarget, setDeleteKeyTarget] = useState<CustomKey | null>(null)
   const visibleBuiltInAccessoryKeys = useMemo(
-    () => getVisibleTerminalAccessoryKeys(visibleBuiltInIds),
-    [visibleBuiltInIds]
+    () => getVisibleTerminalAccessoryKeys(accessoryLayout.visibleBuiltInIds),
+    [accessoryLayout.visibleBuiltInIds]
   )
   // Why: Expo SDK 55 edge-to-edge doesn't resize the window on IME open, so track keyboard height ourselves and lift the input without resizing the desktop PTY.
   const [keyboardHeight, setKeyboardHeight] = useState(0)
@@ -209,8 +210,8 @@ export function useMobileSessionScreenState(scope: MobileSessionFoundationModel)
     setRenameTarget,
     customKeys,
     setCustomKeys,
-    visibleBuiltInIds,
-    setVisibleBuiltInIds,
+    accessoryLayout,
+    setAccessoryLayout,
     showCustomKeyModal,
     setShowCustomKeyModal,
     deleteKeyTarget,

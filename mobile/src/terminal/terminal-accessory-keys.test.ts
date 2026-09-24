@@ -45,8 +45,12 @@ describe('TERMINAL_ACCESSORY_KEYS', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('keeps all built-in terminal keys byte-backed', () => {
-    expect(TERMINAL_ACCESSORY_KEYS.every((key) => key.bytes.length > 0)).toBe(true)
+  it('keeps modifier keys byte-free and other built-ins byte-backed', () => {
+    expect(
+      TERMINAL_ACCESSORY_KEYS.every((key) =>
+        key.modifier ? key.bytes === undefined : (key.bytes?.length ?? 0) > 0
+      )
+    ).toBe(true)
   })
 
   it('keeps repeat behavior explicit for built-in terminal keys', () => {

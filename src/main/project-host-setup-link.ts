@@ -1,12 +1,16 @@
 import { getRepoExecutionHostId, parseExecutionHostId } from '../shared/execution-host'
+import { splitGitRemoteKey, matchGitRemoteKeyParts } from '../shared/git-remote-identity'
+import { normalizeGitHubRemoteHost } from '../shared/git-remote-host-alias'
 import { getProjectHostSetupForRepo } from '../shared/project-host-setup-lookup'
 import {
   getProjectIdForProviderIdentity,
+  getProjectProviderIdentity,
   hasProjectRemoteIdentity,
   sanitizeHostLocalProjectId
 } from '../shared/project-host-setup-projection'
 import type {
   ProjectHostSetupExistingFolderArgs,
+  ProjectProviderIdentity,
   ProjectHostSetupResult
 } from '../shared/project-types'
 import type { Repo } from '../shared/repo-types'
@@ -53,6 +57,14 @@ export function linkRepoToProjectHostSetup(
       if (!identity || getProjectIdForProviderIdentity(identity) !== args.projectId) {
         throw new Error('Imported folder does not match the selected project identity.')
       }
+      if (
+        (hasProjectRemoteIdentity(initialRepo) &&
+          (getProjectProviderIdentity(initialRepo) !== null ||
+            !matchesProviderProjectRemote(initialRepo, identity))) ||
+        (initialRepo.hostLocalProjectId && initialRepo.hostLocalProjectId !== args.projectId)
+      ) {
+        throw new Error('Imported folder does not match the selected project identity.')
+      }
       updates.upstream = {
         owner: identity.owner,
         repo: identity.repo,
@@ -82,5 +94,29 @@ export function linkRepoToProjectHostSetup(
   } catch (error) {
     store.updateRepo(initialRepo.id, previous, hostId)
     throw error
+  }
+}
+
+function matchesProviderProjectRemote(repo: Repo, identity: ProjectProviderIdentity): boolean {
+  const remote = repo.gitRemoteIdentity
+  const actual = splitGitRemoteKey(remote?.canonicalKey, normalizeGitHubRemoteHost)
+  const expected = splitGitRemoteKey(
+    `${identity.host ?? 'github.com'}/${identity.owner}/${identity.repo}`,
+    normalizeGitHubRemoteHost
+  )
+  if (!actual || !expected || matchGitRemoteKeyParts(actual, expected) !== true) {
+    return false
+  }
+  if (!identity.host?.includes(':')) {
+    return true
+  }
+  try {
+    const url = new URL(remote!.remoteUrl)
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      url.host.toLowerCase() === identity.host.toLowerCase()
+    )
+  } catch {
+    return false
   }
 }

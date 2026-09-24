@@ -59,4 +59,30 @@ describe('useNewWorkspaceAdvancedOptions', () => {
     expect(sendRequest).not.toHaveBeenCalled()
     act(() => renderer.unmount())
   })
+  it('does not carry display label or base ref into another repository', async () => {
+    const client = {
+      sendRequest: vi.fn().mockResolvedValue({ ok: true, result: { presets: [] } })
+    } as unknown as RpcClient
+    let current: ReturnType<typeof useNewWorkspaceAdvancedOptions>
+    function Harness({ selectedRepo }: { selectedRepo: MobileWorkspaceRepo }) {
+      current = useNewWorkspaceAdvancedOptions({ client, visible: true, repo: selectedRepo })
+      return null
+    }
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(createElement(Harness, { selectedRepo: repo }))
+    })
+    act(() => {
+      current.setDisplayLabel('Project A')
+      current.setBaseRef('only-in-a')
+    })
+    expect(current.displayLabel).toBe('Project A')
+    expect(current.baseRef).toBe('only-in-a')
+    await act(async () => {
+      renderer.update(createElement(Harness, { selectedRepo: { ...repo, id: 'repo-2' } }))
+    })
+    expect(current.displayLabel).toBe('')
+    expect(current.baseRef).toBe('')
+    act(() => renderer.unmount())
+  })
 })

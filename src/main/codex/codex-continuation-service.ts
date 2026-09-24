@@ -88,11 +88,10 @@ export class CodexContinuationService {
   ): Promise<ConversationContinuationInspection> {
     const { inspected } = await this.resolveAndInspect(source)
     if (inspected.checkpoint) {
-      await this.store.markOtherRevisionsStale(
+      await this.store.pruneOtherRevisions(
         source.providerSessionId,
         source.workspaceId,
-        inspected.checkpoint.revision,
-        this.nowIso()
+        inspected.checkpoint.revision
       )
     }
     return { source: { ...source }, checkpoint: inspected.checkpoint }
@@ -110,11 +109,10 @@ export class CodexContinuationService {
     if (checkpoint.revision !== input.expectedRevision) {
       throw new Error('conversation_continuation_checkpoint_changed')
     }
-    await this.store.markOtherRevisionsStale(
+    await this.store.pruneOtherRevisions(
       input.source.providerSessionId,
       input.source.workspaceId,
-      checkpoint.revision,
-      this.nowIso()
+      checkpoint.revision
     )
     const existing = this.store.findCheckpoint(
       input.source.providerSessionId,

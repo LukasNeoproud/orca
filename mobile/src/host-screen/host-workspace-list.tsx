@@ -23,6 +23,7 @@ import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
 import { getWorktreeStatus } from '../worktree/workspace-list-sections'
 import { repoColor } from '../worktree/repo-color'
 import { hostScreenStyles as styles } from './host-screen-styles'
+import { HostIndependentTerminalsEntry } from './HostIndependentTerminalsEntry'
 import type { HostScreenController } from './use-host-screen-controller'
 
 export function HostWorkspaceList({ controller }: { controller: HostScreenController }) {
@@ -35,6 +36,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     contentMaxWidth,
     displayWorktrees,
     embedded,
+    floatingWorkspaceEnabled,
     forceReconnectHost,
     hostId,
     hostCapabilities,
@@ -144,6 +146,12 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
           />
         </View>
       )}
+
+      <HostIndependentTerminalsEntry
+        connected={connState === 'connected'}
+        enabled={floatingWorkspaceEnabled}
+        onPress={actions.openFloatingWorkspace}
+      />
 
       <HostWorkspaceListStates
         connState={connState}

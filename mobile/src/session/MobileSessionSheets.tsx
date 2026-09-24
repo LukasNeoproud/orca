@@ -7,7 +7,7 @@ import { triggerSuccess, triggerError } from '../platform/haptics'
 import { ActionSheetModal } from '../components/ActionSheetModal'
 import { TextInputModal } from '../components/TextInputModal'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { CustomKeyModal } from '../components/CustomKeyModal'
+import { MobileSessionCustomKeySheet } from './MobileSessionCustomKeySheet'
 import { MobileDictationSetupSheet } from '../components/MobileDictationSetupSheet'
 import { MobileBrowserTabActionSheet } from './MobileBrowserTabActionSheet'
 import { MobileLinkActionSheet } from './MobileLinkActionSheet'
@@ -53,9 +53,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     setLeaveDrafts,
     setRenameTarget,
     renameTarget,
-    setCustomKeys,
-    showCustomKeyModal,
-    setShowCustomKeyModal,
     deleteKeyTarget,
     setDeleteKeyTarget,
     terminalModes,
@@ -73,7 +70,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     discardMarkdownLocalContent,
     confirmDiscardMarkdown,
     handleDeleteCustomKey,
-    handleManageShortcuts,
     handleClearTerminal,
     handleCreateTerminal,
     launchQuickCommand,
@@ -370,12 +366,7 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
         }}
         onCancel={() => setShowCreateBrowserModal(false)}
       />
-      <CustomKeyModal
-        visible={showCustomKeyModal}
-        onClose={() => setShowCustomKeyModal(false)}
-        onKeysChanged={setCustomKeys}
-        onManageShortcuts={handleManageShortcuts}
-      />
+      <MobileSessionCustomKeySheet controller={controller} />
       <MobileDictationSetupSheet
         visible={showDictationSetup}
         client={client}

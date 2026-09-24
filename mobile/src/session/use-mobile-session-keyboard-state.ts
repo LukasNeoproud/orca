@@ -3,6 +3,10 @@ import { Keyboard, Platform, type KeyboardEvent } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTerminalViewportRefit } from '../terminal/terminal-viewport-refit'
 import { saveCustomKeys, type CustomKey } from '../components/CustomKeyModal'
+import {
+  saveTerminalAccessoryLayout,
+  createTerminalAccessoryLayoutPreference
+} from '../terminal/terminal-accessory-layout'
 import { LAST_VISITED_WORKTREE_STORAGE_KEY } from '../worktree/last-visited-worktree-repo'
 import { resolveTabStripScrollOffset } from './tab-strip-scroll'
 import type { MobileSessionLifecycleModel } from './use-mobile-session-lifecycle'
@@ -23,8 +27,11 @@ export function useMobileSessionKeyboardState(scope: MobileSessionLifecycleModel
     tabLayoutsRef,
     customKeys,
     setCustomKeys,
+    accessoryLayout,
+    setAccessoryLayout,
     setShowCustomKeyModal,
     setKeyboardHeight,
+    clearPendingModifiers,
     deviceTokenRef,
     clientRef,
     viewportRef,
@@ -65,6 +72,7 @@ export function useMobileSessionKeyboardState(scope: MobileSessionLifecycleModel
     const onHide = () => {
       notifyKeyboardVisibility(false)
       setKeyboardHeight(0)
+      clearPendingModifiers()
     }
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
@@ -74,7 +82,7 @@ export function useMobileSessionKeyboardState(scope: MobileSessionLifecycleModel
       showSub.remove()
       hideSub.remove()
     }
-  }, [notifyKeyboardVisibility])
+  }, [notifyKeyboardVisibility, clearPendingModifiers])
 
   const scrollActiveTabIntoView = useCallback((tabId: string | null, animated: boolean) => {
     if (!tabId) {
@@ -115,10 +123,20 @@ export function useMobileSessionKeyboardState(scope: MobileSessionLifecycleModel
   const handleDeleteCustomKey = useCallback(
     async (key: CustomKey) => {
       const updated = customKeys.filter((k) => k.id !== key.id)
+      const nextLayout = createTerminalAccessoryLayoutPreference(
+        accessoryLayout,
+        undefined,
+        updated.map((item) => item.id)
+      )
       setCustomKeys(updated)
+      setAccessoryLayout(nextLayout)
       await saveCustomKeys(updated)
+      await saveTerminalAccessoryLayout(
+        nextLayout,
+        updated.map((item) => item.id)
+      )
     },
-    [customKeys]
+    [customKeys, accessoryLayout]
   )
 
   const handleManageShortcuts = useCallback(() => {

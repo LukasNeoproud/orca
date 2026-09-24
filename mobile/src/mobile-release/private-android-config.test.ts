@@ -16,6 +16,21 @@ const base = {
 }
 
 describe('private Android Expo config', () => {
+  it('builds patched React Native Android sources instead of the precompiled AAR', () => {
+    const { expo } = require('../../app.json')
+    const { updateAndroidSettingsGradle } = require('expo-build-properties/build/android')
+    const [, properties] = expo.plugins.find(
+      (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-build-properties'
+    )
+    const settings = updateAndroidSettingsGradle({
+      contents: 'include ":app"\n',
+      buildFromSource: properties.android.buildReactNativeFromSource
+    })
+    expect(settings).toContain(
+      'substitute(module("com.facebook.react:react-android")).using(project(":packages:react-native:ReactAndroid"))'
+    )
+  })
+
   it('keeps the public identity when private release mode is disabled', () => {
     expect(resolvePrivateAndroidConfig(base, {})).toBe(base)
   })

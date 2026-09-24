@@ -109,6 +109,87 @@ describe('durable host-local project links', () => {
     ).toThrow('selected project identity')
     expect(store.updateRepo).not.toHaveBeenCalled()
   })
+  it('does not relabel an imported repository from another provider project', () => {
+    const source = repo('source', {
+      executionHostId: 'ssh:source',
+      upstream: { owner: 'acme', repo: 'app' }
+    })
+    const selected = {
+      ...args,
+      projectId: 'github:acme/app',
+      projectProviderIdentity: { provider: 'github', owner: 'acme', repo: 'app' } as const
+    }
+    for (const destination of [
+      repo('destination', { upstream: { owner: 'other', repo: 'app' } }),
+      repo('destination', {
+        gitRemoteIdentity: {
+          canonicalKey: 'gitlab.com/other/app',
+          remoteName: 'origin',
+          remoteUrl: 'https://gitlab.com/other/app.git'
+        }
+      }),
+      repo('destination', { hostLocalProjectId: 'repo:other' })
+    ]) {
+      const { store, repos } = fixture([source, destination])
+      expect(() => linkRepoToProjectHostSetup(store, repos()[1], selected)).toThrow(
+        'selected project identity'
+      )
+      expect(store.updateRepo).not.toHaveBeenCalled()
+      expect(repos()[1].upstream).toEqual(destination.upstream)
+    }
+  })
+  it('links an unclassified imported folder to a GitHub project', () => {
+    const { store, repos } = fixture([
+      repo('source', {
+        executionHostId: 'ssh:source',
+        upstream: { owner: 'acme', repo: 'app' }
+      }),
+      repo('destination')
+    ])
+    const result = linkRepoToProjectHostSetup(store, repos()[1], {
+      ...args,
+      projectId: 'github:acme/app',
+      projectProviderIdentity: { provider: 'github', owner: 'acme', repo: 'app' }
+    })
+    expect(result.setup.projectId).toBe('github:acme/app')
+  })
+  it('links a matching custom GitHub Enterprise remote without relabeling another remote', () => {
+    const selected = {
+      ...args,
+      projectId: 'github:code.corp.example/acme/app',
+      projectProviderIdentity: {
+        provider: 'github',
+        host: 'code.corp.example',
+        owner: 'acme',
+        repo: 'app'
+      } as const
+    }
+    const source = repo('source', {
+      executionHostId: 'ssh:source',
+      upstream: { host: 'code.corp.example', owner: 'acme', repo: 'app' }
+    })
+    const remote = (canonicalKey: string, remoteUrl: string) =>
+      repo('destination', {
+        gitRemoteIdentity: { canonicalKey, remoteName: 'origin', remoteUrl }
+      })
+    const matching = fixture([
+      source,
+      remote('code.corp.example/acme/app', 'https://code.corp.example/acme/app.git')
+    ])
+    expect(
+      linkRepoToProjectHostSetup(matching.store, matching.repos()[1], selected).setup.projectId
+    ).toBe(selected.projectId)
+    for (const destination of [
+      remote('code.corp.example/other/app', 'https://code.corp.example/other/app.git'),
+      remote('other.corp.example/acme/app', 'https://other.corp.example/acme/app.git')
+    ]) {
+      const { store, repos } = fixture([source, destination])
+      expect(() => linkRepoToProjectHostSetup(store, repos()[1], selected)).toThrow(
+        'selected project identity'
+      )
+      expect(store.updateRepo).not.toHaveBeenCalled()
+    }
+  })
   it('restores existing registration metadata if catalog projection fails', () => {
     const { store, repos } = fixture([repo('destination')])
     store.getProjects = () => []

@@ -1,5 +1,5 @@
 import { existsSync, mkdtempSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -9,6 +9,7 @@ import {
   PRIVATE_ANDROID_PACKAGE,
   PRIVATE_FIREBASE_APP_ID,
   TOUCHID_KEYCHAIN_PATH,
+  classifyExistingPrivateApkVersion,
   decodeKeystoreBase64,
   extractTestingUri,
   nextPrivateVersionCode,
@@ -19,6 +20,7 @@ import {
 import {
   cleanupPrivateTempDirectory,
   createPrivateTempDirectory,
+  distributeExistingFirebaseRelease,
   parsePrivateDistributionSecretBatch,
   readLocalPublishedVersionCode,
   readFirebaseTestingUri,
@@ -172,6 +174,30 @@ describe('local private Android publishing contract', () => {
     ).toThrow('at most')
   })
 
+  it('recovers an uploaded existing APK and rejects stale or mismatched builds', () => {
+    const existing = {
+      apkVersionCode: 1_000_004,
+      localVersionCode: 1_000_003,
+      explicitVersionCode: null
+    }
+    expect(classifyExistingPrivateApkVersion({ ...existing, remoteVersionCode: 1_000_004 })).toBe(
+      'already-published'
+    )
+    expect(classifyExistingPrivateApkVersion({ ...existing, remoteVersionCode: 1_000_003 })).toBe(
+      'upload'
+    )
+    expect(() =>
+      classifyExistingPrivateApkVersion({ ...existing, remoteVersionCode: 1_000_005 })
+    ).toThrow('older than published release history')
+    expect(() =>
+      classifyExistingPrivateApkVersion({
+        ...existing,
+        remoteVersionCode: 1_000_003,
+        explicitVersionCode: 1_000_005
+      })
+    ).toThrow('does not match')
+  })
+
   it('validates service-account identity and keystore encoding without exposing values', () => {
     const credentials = {
       type: 'service_account',
@@ -236,6 +262,60 @@ describe('local private Android publishing contract', () => {
     expect(fetchPage).toHaveBeenCalledTimes(2)
   })
 
+  it('completes notes and group distribution for an uploaded release without another APK upload', async () => {
+    const release = {
+      name: `projects/100414786379/apps/${PRIVATE_FIREBASE_APP_ID}/releases/abc123`,
+      buildVersion: '1000004',
+      testingUri: 'https://appdistribution.firebase.google.com/testerapps/app/releases/abc123'
+    }
+    const responses = [
+      { ok: true, json: async () => ({ releases: [release] }) },
+      { ok: true },
+      { ok: true }
+    ]
+    const fetchPage = vi.fn(async (_url: string | URL, _options?: RequestInit) => responses.shift())
+
+    await expect(
+      distributeExistingFirebaseRelease(
+        { accessToken: 'token', versionCode: 1_000_004, groups: 'trusted,team', notes: 'notes\n' },
+        fetchPage as never
+      )
+    ).resolves.toBe(release.testingUri)
+    expect(fetchPage).toHaveBeenCalledTimes(3)
+    const [notesUrl, notesOptions] = fetchPage.mock.calls[1]
+    expect(String(notesUrl)).toContain(`/${release.name.replaceAll(':', '%3A')}?updateMask=`)
+    expect(notesOptions).toMatchObject({
+      method: 'PATCH',
+      body: JSON.stringify({ name: release.name, releaseNotes: { text: 'notes\n' } })
+    })
+    const [groupsUrl, groupsOptions] = fetchPage.mock.calls[2]
+    expect(String(groupsUrl)).toContain(`/${release.name.replaceAll(':', '%3A')}:distribute`)
+    expect(groupsOptions).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ testerEmails: [], groupAliases: ['trusted', 'team'] })
+    })
+  })
+
+  it('rejects a failed group distribution so the release can be retried', async () => {
+    const release = {
+      name: `projects/100414786379/apps/${PRIVATE_FIREBASE_APP_ID}/releases/abc123`,
+      buildVersion: '1000004',
+      testingUri: 'https://appdistribution.firebase.google.com/testerapps/app/releases/abc123'
+    }
+    const responses = [
+      { ok: true, json: async () => ({ releases: [release] }) },
+      { ok: true },
+      { ok: false, status: 400 }
+    ]
+    const fetchPage = vi.fn(async () => responses.shift())
+    await expect(
+      distributeExistingFirebaseRelease(
+        { accessToken: 'token', versionCode: 1_000_004, groups: 'trusted', notes: 'notes\n' },
+        fetchPage as never
+      )
+    ).rejects.toThrow('Unable to distribute Firebase release (HTTP 400)')
+  })
+
   it('creates private files and persistent version state with owner-only permissions', () => {
     const privateDirectory = createPrivateTempDirectory()
     tempDirectories.push(privateDirectory)
@@ -257,5 +337,67 @@ describe('local private Android publishing contract', () => {
     expect(parseApkSignerDigests('Signer #1 certificate SHA-256 digest: AA:bb:01')).toEqual([
       'aabb01'
     ])
+  })
+
+  it('retries an uploaded APK distribution before marking its version published', async () => {
+    const distributeRelease = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('distribution failed'))
+      .mockResolvedValue(
+        'https://appdistribution.firebase.google.com/testerapps/app/releases/abc123'
+      )
+    const writeVersion = vi.fn()
+    const uploadApk = vi.fn()
+    const verifyApk = vi.fn(() => 1_000_004)
+    vi.doMock('../../scripts/private-android-local-publish-build.mjs', async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      findReleaseApk: () => '/tmp/private.apk',
+      requireLocalPublishTools: () => ({}),
+      uploadPrivateApk: uploadApk,
+      verifyPrivateApk: verifyApk
+    }))
+    vi.doMock(
+      '../../scripts/private-android-local-publish-runtime.mjs',
+      async (importOriginal) => ({
+        ...(await importOriginal<Record<string, unknown>>()),
+        cleanupPrivateTempDirectory: vi.fn(),
+        createFirebaseAccessToken: vi.fn(async () => 'token'),
+        createPrivateTempDirectory: vi.fn(() => '/tmp/private-publish-test'),
+        distributeExistingFirebaseRelease: distributeRelease,
+        readLocalPublishedVersionCode: vi.fn(() => 1_000_003),
+        readMaxFirebaseVersionCode: vi.fn(async () => 1_000_004),
+        readPrivateDistributionSecrets: vi.fn(() => ({
+          keystoreBase64: Buffer.from('keystore').toString('base64'),
+          firebaseJson: JSON.stringify({
+            type: 'service_account',
+            client_email: 'orca-mobile-distribution@orca-dev-447f3.iam.gserviceaccount.com',
+            private_key: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----',
+            token_uri: 'https://oauth2.googleapis.com/token'
+          })
+        })),
+        writeLocalPublishedVersionCode: writeVersion,
+        writePrivateFile: vi.fn()
+      })
+    )
+    vi.resetModules()
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const { runLocalPrivateAndroidPublish } =
+        await import('../../scripts/publish-private-android-local.mjs')
+      const args = ['--existing-apk', '--publish', '--groups', 'trusted']
+      await expect(runLocalPrivateAndroidPublish(args)).rejects.toThrow('distribution failed')
+      expect(writeVersion).not.toHaveBeenCalled()
+      await expect(runLocalPrivateAndroidPublish(args)).resolves.toBeUndefined()
+      expect(verifyApk).toHaveBeenCalledTimes(2)
+      expect(distributeRelease).toHaveBeenCalledTimes(2)
+      expect(uploadApk).not.toHaveBeenCalled()
+      expect(writeVersion).toHaveBeenCalledOnce()
+      expect(writeVersion).toHaveBeenCalledWith(expect.any(String), 1_000_004)
+    } finally {
+      consoleLog.mockRestore()
+      vi.doUnmock('../../scripts/private-android-local-publish-build.mjs')
+      vi.doUnmock('../../scripts/private-android-local-publish-runtime.mjs')
+      vi.resetModules()
+    }
   })
 })

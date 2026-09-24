@@ -1,5 +1,6 @@
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
+
 export const PRIVATE_ANDROID_PACKAGE = 'cz.neoproud.orca.dev'
 export const PRIVATE_FIREBASE_APP_ID = '1:100414786379:android:410ca57940be633c0676ce'
 export const PRIVATE_FIREBASE_PROJECT_NUMBER = '100414786379'
@@ -85,6 +86,32 @@ export function nextPrivateVersionCode({
     )
   }
   return next
+}
+
+export function classifyExistingPrivateApkVersion({
+  apkVersionCode,
+  remoteVersionCode,
+  localVersionCode,
+  explicitVersionCode
+}) {
+  if (
+    !Number.isSafeInteger(apkVersionCode) ||
+    apkVersionCode < PRIVATE_VERSION_CODE_FLOOR ||
+    apkVersionCode > ANDROID_VERSION_CODE_MAX ||
+    (explicitVersionCode !== null && explicitVersionCode !== apkVersionCode)
+  ) {
+    throw new Error('Existing APK versionCode does not match the requested private release')
+  }
+  if (apkVersionCode < localVersionCode || apkVersionCode < remoteVersionCode) {
+    throw new Error('Existing APK versionCode is older than published release history')
+  }
+  if (remoteVersionCode === apkVersionCode) {
+    return 'already-published'
+  }
+  if (apkVersionCode === localVersionCode) {
+    throw new Error('Existing APK versionCode is older than published release history')
+  }
+  return 'upload'
 }
 
 export function parseFirebaseServiceAccount(raw) {

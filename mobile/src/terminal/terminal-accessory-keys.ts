@@ -7,7 +7,8 @@ import {
 export type TerminalAccessoryKey = {
   id: string
   label: string
-  bytes: string
+  bytes?: string
+  modifier?: TerminalShortcutModifier
   accessibilityLabel?: string
   repeatable?: boolean
 }

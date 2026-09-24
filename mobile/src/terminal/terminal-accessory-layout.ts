@@ -5,12 +5,12 @@ import { TERMINAL_ACCESSORY_KEYS, type TerminalAccessoryKey } from './terminal-a
 export const TERMINAL_ACCESSORY_LAYOUT_STORAGE_KEY = 'orca:terminal-accessory-layout'
 
 export type TerminalAccessoryLayout = {
-  orderedBuiltInIds: string[]
+  rows: string[][]
   visibleBuiltInIds: string[]
 }
 
 export type TerminalAccessoryLayoutPreference = TerminalAccessoryLayout & {
-  version: 2
+  version: 3
 }
 
 function builtInIds(): string[] {
@@ -18,11 +18,7 @@ function builtInIds(): string[] {
 }
 
 function defaultPreference(ids = builtInIds()): TerminalAccessoryLayoutPreference {
-  return {
-    version: 2,
-    orderedBuiltInIds: [...ids],
-    visibleBuiltInIds: [...ids]
-  }
+  return { version: 3, rows: [[...ids]], visibleBuiltInIds: [...ids] }
 }
 
 function stringArray(value: unknown): string[] | null {
@@ -32,46 +28,92 @@ function stringArray(value: unknown): string[] | null {
   return value.every((item): item is string => typeof item === 'string') ? value : null
 }
 
-function dedupeKnownIds(ids: string[], builtInSet: Set<string>): string[] {
+function dedupeKnownIds(ids: string[], knownSet: Set<string>): string[] {
   const seen = new Set<string>()
-  const out: string[] = []
-  for (const id of ids) {
-    if (!builtInSet.has(id) || seen.has(id)) {
-      continue
+  return ids.filter((id) => {
+    if (!knownSet.has(id) || seen.has(id)) {
+      return false
     }
     seen.add(id)
-    out.push(id)
-  }
-  return out
+    return true
+  })
 }
 
-// Why: built-ins added after the user saved a custom order should land next
-// to their canonical neighbors, not dangle at the end of the bar.
-function insertMissingBuiltInIds(
-  ordered: string[],
-  currentBuiltInIds: string[]
-): { ordered: string[]; inserted: string[] } {
-  const present = new Set(ordered)
-  const out = [...ordered]
-  const inserted: string[] = []
+function normalizeRows(
+  rawRows: string[][],
+  currentBuiltInIds: string[],
+  customKeyIds: string[]
+): { rows: string[][]; insertedBuiltInIds: string[] } {
+  const builtInSet = new Set(currentBuiltInIds)
+  const customIds = dedupeKnownIds(customKeyIds, new Set(customKeyIds)).filter(
+    (id) => !builtInSet.has(id)
+  )
+  const known = new Set([...currentBuiltInIds, ...customIds])
+  const seen = new Set<string>()
+  const rows = rawRows.slice(0, 3).map((row) =>
+    row.filter((id) => {
+      if (!known.has(id) || seen.has(id)) {
+        return false
+      }
+      seen.add(id)
+      return true
+    })
+  )
+  if (rows.length === 0) {
+    rows.push([])
+  }
+
+  const insertedBuiltInIds: string[] = []
   for (let i = 0; i < currentBuiltInIds.length; i++) {
     const id = currentBuiltInIds[i]!
-    if (present.has(id)) {
+    if (seen.has(id)) {
       continue
     }
-    let insertAt = 0
+    let targetRow = 0
+    let targetIndex = 0
     for (let j = i - 1; j >= 0; j--) {
-      const at = out.indexOf(currentBuiltInIds[j]!)
-      if (at !== -1) {
-        insertAt = at + 1
+      const predecessor = currentBuiltInIds[j]!
+      const rowIndex = rows.findIndex((row) => row.includes(predecessor))
+      if (rowIndex !== -1) {
+        targetRow = rowIndex
+        targetIndex = rows[rowIndex]!.indexOf(predecessor) + 1
         break
       }
     }
-    out.splice(insertAt, 0, id)
-    present.add(id)
-    inserted.push(id)
+    rows[targetRow]!.splice(targetIndex, 0, id)
+    seen.add(id)
+    insertedBuiltInIds.push(id)
   }
-  return { ordered: out, inserted }
+  for (const id of customIds) {
+    if (!seen.has(id)) {
+      rows[0]!.push(id)
+    }
+  }
+  return { rows, insertedBuiltInIds }
+}
+
+function preferenceFromRows(
+  rows: string[][],
+  visibleBuiltInIds: string[],
+  currentBuiltInIds: string[],
+  customKeyIds: string[],
+  newlyVisibleBuiltInIds: string[] = []
+): TerminalAccessoryLayoutPreference {
+  const { rows: normalizedRows, insertedBuiltInIds } = normalizeRows(
+    rows,
+    currentBuiltInIds,
+    customKeyIds
+  )
+  const visible = new Set([
+    ...dedupeKnownIds(visibleBuiltInIds, new Set(currentBuiltInIds)),
+    ...newlyVisibleBuiltInIds,
+    ...insertedBuiltInIds
+  ])
+  return {
+    version: 3,
+    rows: normalizedRows,
+    visibleBuiltInIds: normalizedRows.flat().filter((id) => visible.has(id))
+  }
 }
 
 export function getDefaultTerminalAccessoryBuiltInIds(): string[] {
@@ -79,101 +121,113 @@ export function getDefaultTerminalAccessoryBuiltInIds(): string[] {
 }
 
 export function getDefaultTerminalAccessoryLayout(): TerminalAccessoryLayout {
-  const ids = builtInIds()
-  return { orderedBuiltInIds: ids, visibleBuiltInIds: [...ids] }
+  const { rows, visibleBuiltInIds } = defaultPreference()
+  return { rows, visibleBuiltInIds }
 }
 
 export function normalizeTerminalAccessoryLayoutPreference(
   value: unknown,
-  currentBuiltInIds = builtInIds()
+  currentBuiltInIds = builtInIds(),
+  customKeyIds: string[] = []
 ): TerminalAccessoryLayoutPreference {
   const fallback = defaultPreference(currentBuiltInIds)
   if (!value || typeof value !== 'object') {
-    return fallback
+    return preferenceFromRows(
+      fallback.rows,
+      fallback.visibleBuiltInIds,
+      currentBuiltInIds,
+      customKeyIds
+    )
   }
-
   const candidate = value as {
     version?: unknown
+    rows?: unknown
     orderedBuiltInIds?: unknown
     visibleBuiltInIds?: unknown
     knownBuiltInIds?: unknown
   }
-  const builtInSet = new Set(currentBuiltInIds)
-
+  const visibleInput = stringArray(candidate.visibleBuiltInIds)
+  if (!visibleInput) {
+    return preferenceFromRows(
+      fallback.rows,
+      fallback.visibleBuiltInIds,
+      currentBuiltInIds,
+      customKeyIds
+    )
+  }
+  if (candidate.version === 3) {
+    const rows = Array.isArray(candidate.rows) ? candidate.rows.map(stringArray) : null
+    if (!rows || rows.length < 1 || rows.length > 3 || rows.some((row) => row === null)) {
+      return preferenceFromRows(
+        fallback.rows,
+        fallback.visibleBuiltInIds,
+        currentBuiltInIds,
+        customKeyIds
+      )
+    }
+    return preferenceFromRows(rows as string[][], visibleInput, currentBuiltInIds, customKeyIds)
+  }
   if (candidate.version === 2) {
     const orderedInput = stringArray(candidate.orderedBuiltInIds)
-    const visibleInput = stringArray(candidate.visibleBuiltInIds)
-    if (!orderedInput || !visibleInput) {
-      return fallback
+    if (!orderedInput) {
+      return preferenceFromRows(
+        fallback.rows,
+        fallback.visibleBuiltInIds,
+        currentBuiltInIds,
+        customKeyIds
+      )
     }
-    const { ordered, inserted } = insertMissingBuiltInIds(
-      dedupeKnownIds(orderedInput, builtInSet),
-      currentBuiltInIds
-    )
-    const visibleSet = new Set(dedupeKnownIds(visibleInput, builtInSet))
-    for (const id of inserted) {
-      visibleSet.add(id)
-    }
-    return {
-      version: 2,
-      orderedBuiltInIds: ordered,
-      visibleBuiltInIds: ordered.filter((id) => visibleSet.has(id))
-    }
+    return preferenceFromRows([orderedInput], visibleInput, currentBuiltInIds, customKeyIds)
   }
-
   if (candidate.version === 1) {
-    const visibleInput = stringArray(candidate.visibleBuiltInIds)
     const knownInput = stringArray(candidate.knownBuiltInIds)
-    if (!visibleInput || !knownInput) {
-      return fallback
+    if (!knownInput) {
+      return preferenceFromRows(
+        fallback.rows,
+        fallback.visibleBuiltInIds,
+        currentBuiltInIds,
+        customKeyIds
+      )
     }
-    const knownInputSet = new Set(knownInput.filter((id) => builtInSet.has(id)))
-    const visibleSet = new Set(dedupeKnownIds(visibleInput, builtInSet))
-    for (const id of currentBuiltInIds) {
-      if (!knownInputSet.has(id)) {
-        visibleSet.add(id)
-      }
-    }
-    // Why: v1 layouts never had a custom order, so migrate to canonical order.
-    return {
-      version: 2,
-      orderedBuiltInIds: [...currentBuiltInIds],
-      visibleBuiltInIds: currentBuiltInIds.filter((id) => visibleSet.has(id))
-    }
+    const known = new Set(knownInput)
+    return preferenceFromRows(
+      [[...currentBuiltInIds]],
+      visibleInput,
+      currentBuiltInIds,
+      customKeyIds,
+      currentBuiltInIds.filter((id) => !known.has(id))
+    )
   }
-
-  return fallback
+  return preferenceFromRows(
+    fallback.rows,
+    fallback.visibleBuiltInIds,
+    currentBuiltInIds,
+    customKeyIds
+  )
 }
 
 export function createTerminalAccessoryLayoutPreference(
   layout: TerminalAccessoryLayout,
-  currentBuiltInIds = builtInIds()
+  currentBuiltInIds = builtInIds(),
+  customKeyIds: string[] = []
 ): TerminalAccessoryLayoutPreference {
-  const builtInSet = new Set(currentBuiltInIds)
-  const { ordered } = insertMissingBuiltInIds(
-    dedupeKnownIds(layout.orderedBuiltInIds, builtInSet),
-    currentBuiltInIds
-  )
-  const visibleSet = new Set(dedupeKnownIds(layout.visibleBuiltInIds, builtInSet))
-  return {
-    version: 2,
-    orderedBuiltInIds: ordered,
-    visibleBuiltInIds: ordered.filter((id) => visibleSet.has(id))
-  }
+  return preferenceFromRows(layout.rows, layout.visibleBuiltInIds, currentBuiltInIds, customKeyIds)
 }
 
 export function setTerminalAccessoryBuiltInVisible(
   layout: TerminalAccessoryLayout,
   id: string,
   visible: boolean,
-  currentBuiltInIds = builtInIds()
+  currentBuiltInIds = builtInIds(),
+  customKeyIds: string[] = []
 ): TerminalAccessoryLayout {
-  const preference = createTerminalAccessoryLayoutPreference(layout, currentBuiltInIds)
-  if (!new Set(currentBuiltInIds).has(id)) {
-    return {
-      orderedBuiltInIds: preference.orderedBuiltInIds,
-      visibleBuiltInIds: preference.visibleBuiltInIds
-    }
+  const preference = createTerminalAccessoryLayoutPreference(
+    layout,
+    currentBuiltInIds,
+    customKeyIds
+  )
+  if (!currentBuiltInIds.includes(id)) {
+    return { rows: preference.rows, visibleBuiltInIds: preference.visibleBuiltInIds }
   }
   const visibleSet = new Set(preference.visibleBuiltInIds)
   if (visible) {
@@ -182,24 +236,55 @@ export function setTerminalAccessoryBuiltInVisible(
     visibleSet.delete(id)
   }
   return {
-    orderedBuiltInIds: preference.orderedBuiltInIds,
-    visibleBuiltInIds: preference.orderedBuiltInIds.filter((builtInId) => visibleSet.has(builtInId))
+    rows: preference.rows,
+    visibleBuiltInIds: preference.rows.flat().filter((keyId) => visibleSet.has(keyId))
   }
 }
 
-export function reorderTerminalAccessoryBuiltInIds(
+export function setTerminalAccessoryRowCount(
   layout: TerminalAccessoryLayout,
-  orderedBuiltInIds: string[],
-  currentBuiltInIds = builtInIds()
+  rowCount: 1 | 2 | 3,
+  currentBuiltInIds = builtInIds(),
+  customKeyIds: string[] = []
 ): TerminalAccessoryLayout {
-  const preference = createTerminalAccessoryLayoutPreference(
-    { orderedBuiltInIds, visibleBuiltInIds: layout.visibleBuiltInIds },
-    currentBuiltInIds
-  )
-  return {
-    orderedBuiltInIds: preference.orderedBuiltInIds,
-    visibleBuiltInIds: preference.visibleBuiltInIds
+  const current = createTerminalAccessoryLayoutPreference(layout, currentBuiltInIds, customKeyIds)
+  const rows = current.rows.map((row) => [...row])
+  if (rowCount < rows.length) {
+    const removed = rows.splice(rowCount).flat()
+    rows[rowCount - 1]!.push(...removed)
+  } else {
+    while (rows.length < rowCount) {
+      rows.push([])
+    }
   }
+  return { rows, visibleBuiltInIds: current.visibleBuiltInIds }
+}
+
+export function moveTerminalAccessoryKey(
+  layout: TerminalAccessoryLayout,
+  id: string,
+  targetRow: number,
+  targetIndex: number,
+  currentBuiltInIds = builtInIds(),
+  customKeyIds: string[] = []
+): TerminalAccessoryLayout {
+  const current = createTerminalAccessoryLayoutPreference(layout, currentBuiltInIds, customKeyIds)
+  if (targetRow < 0 || targetRow >= current.rows.length || !current.rows.flat().includes(id)) {
+    return { rows: current.rows, visibleBuiltInIds: current.visibleBuiltInIds }
+  }
+  const rows = current.rows.map((row) => row.filter((keyId) => keyId !== id))
+  const index = Math.max(0, Math.min(targetIndex, rows[targetRow]!.length))
+  rows[targetRow]!.splice(index, 0, id)
+  return { rows, visibleBuiltInIds: current.visibleBuiltInIds }
+}
+
+export function getVisibleTerminalAccessoryRows(
+  layout: TerminalAccessoryLayout,
+  customKeyIds: string[] = []
+): string[][] {
+  const visible = new Set(layout.visibleBuiltInIds)
+  const custom = new Set(customKeyIds)
+  return layout.rows.map((row) => row.filter((id) => visible.has(id) || custom.has(id)))
 }
 
 export function getVisibleTerminalAccessoryKeys(
@@ -212,19 +297,25 @@ export function getVisibleTerminalAccessoryKeys(
   })
 }
 
-export async function loadTerminalAccessoryLayout(): Promise<TerminalAccessoryLayoutPreference> {
+export async function loadTerminalAccessoryLayout(
+  customKeyIds: string[] = []
+): Promise<TerminalAccessoryLayoutPreference> {
   try {
     const raw = await AsyncStorage.getItem(TERMINAL_ACCESSORY_LAYOUT_STORAGE_KEY)
-    if (!raw) {
-      return defaultPreference()
-    }
-    return normalizeTerminalAccessoryLayoutPreference(JSON.parse(raw))
+    return normalizeTerminalAccessoryLayoutPreference(
+      raw ? JSON.parse(raw) : null,
+      builtInIds(),
+      customKeyIds
+    )
   } catch {
-    return defaultPreference()
+    return normalizeTerminalAccessoryLayoutPreference(null, builtInIds(), customKeyIds)
   }
 }
 
-export async function saveTerminalAccessoryLayout(layout: TerminalAccessoryLayout): Promise<void> {
-  const preference = createTerminalAccessoryLayoutPreference(layout)
+export async function saveTerminalAccessoryLayout(
+  layout: TerminalAccessoryLayout,
+  customKeyIds: string[] = []
+): Promise<void> {
+  const preference = createTerminalAccessoryLayoutPreference(layout, builtInIds(), customKeyIds)
   await AsyncStorage.setItem(TERMINAL_ACCESSORY_LAYOUT_STORAGE_KEY, JSON.stringify(preference))
 }

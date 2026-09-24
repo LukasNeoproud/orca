@@ -6,6 +6,7 @@ import {
   readMobileRuntimeTerminalWindowsShell
 } from '../session/ai-vault-resume-launch'
 import { activateMobileSessionTab } from '../session/mobile-session-tab-activation'
+import { revealMobileStructuredAgentSession } from '../session/mobile-structured-agent-session-launch'
 import { readMobileAgentHistoryHostCapabilities } from '../agent-history/agent-history-open-plan'
 import { openMobileAgentHistorySession } from '../agent-history/open-mobile-agent-history-session'
 import { readMobileRuntimeHostPlatform } from '../transport/mobile-runtime-host-platform'
@@ -104,7 +105,7 @@ export async function continueMobileBacklogTask(args: {
       }),
       args.client.sendRequest(
         'aiVault.listSessions',
-        { limit: 500, force: true, scopePaths: [target.path] },
+        { unlimited: true, force: true, scopePaths: [target.path] },
         { timeoutMs: 30_000, budgetSpansConnect: true }
       )
     ])
@@ -161,12 +162,8 @@ async function revealStructured(
   sessionId: string
 ): Promise<boolean> {
   try {
-    const response = await client.sendRequest(
-      'agentSession.reveal',
-      { sessionId },
-      { timeoutMs: 15_000, budgetSpansConnect: true }
-    )
-    return response.ok
+    await revealMobileStructuredAgentSession(client, sessionId)
+    return true
   } catch {
     return false
   }

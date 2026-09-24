@@ -11,6 +11,7 @@ import {
 import { sendMobileNativeChatMessageWithOutcome } from '../session/mobile-native-chat-send'
 import { activateMobileSessionTab } from '../session/mobile-session-tab-activation'
 import { structuredSessionOperationId } from '../session/mobile-structured-agent-session-rpc'
+import { revealMobileStructuredAgentSession } from '../session/mobile-structured-agent-session-launch'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
 import {
@@ -211,12 +212,8 @@ async function revealStructured(
   sessionId: string
 ): Promise<boolean> {
   try {
-    const response = await client.sendRequest(
-      'agentSession.reveal',
-      { sessionId },
-      { timeoutMs: 15_000, budgetSpansConnect: true }
-    )
-    return response.ok
+    await revealMobileStructuredAgentSession(client, sessionId)
+    return true
   } catch {
     return false
   }

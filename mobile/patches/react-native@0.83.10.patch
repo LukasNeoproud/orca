@@ -58,3 +58,166 @@ index 79ee7ffe43..956f189a1c 100644
 +  _textView.layoutMetrics = EmptyLayoutMetrics;
    _accessibilityProvider = nil;
  }
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextChangedEvent.kt b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextChangedEvent.kt
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextChangedEvent.kt
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextChangedEvent.kt
+@@ -17,6 +17,7 @@ internal class ReactTextChangedEvent(
+     viewId: Int,
+     private val text: String,
+     private val eventCount: Int,
++    private val isComposing: Boolean,
+ ) : Event<ReactTextChangedEvent>(surfaceId, viewId) {
+   override fun getEventName(): String = EVENT_NAME
+
+@@ -25,6 +26,7 @@ internal class ReactTextChangedEvent(
+     return Arguments.createMap().apply {
+       putString("text", text)
+       putInt("eventCount", eventCount)
++      putBoolean("isComposing", isComposing)
+       putInt("target", viewTag)
+     }
+   }
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditText.kt b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditText.kt
+index ddebf2f..aa4bedb 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditText.kt
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditText.kt
+@@ -425,6 +425,14 @@ public open class ReactEditText public constructor(context: Context) : AppCompat
+     }
+   }
+
++  internal fun dispatchComposingEndIfNeeded() {
++    listeners?.forEach { watcher ->
++      if (watcher is ReactTextInputTextWatcher) {
++        watcher.dispatchComposingEndIfNeeded()
++      }
++    }
++  }
++
+   public fun setContentSizeWatcher(contentSizeWatcher: ContentSizeWatcher?) {
+     this.contentSizeWatcher = contentSizeWatcher
+   }
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditTextInputConnectionWrapper.kt b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditTextInputConnectionWrapper.kt
+index c80c9d5..9bf34f1 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditTextInputConnectionWrapper.kt
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactEditTextInputConnectionWrapper.kt
+@@ -53,10 +53,12 @@ internal class ReactEditTextInputConnectionWrapper(
+ ) : InputConnectionWrapper(target, false) {
+
+   private var isBatchEdit = false
++  private var compositionBatchDepth = 0
+   private var key: String? = null
+
+   override fun beginBatchEdit(): Boolean {
+     isBatchEdit = true
++    compositionBatchDepth += 1
+     return super.beginBatchEdit()
+   }
+
+@@ -66,7 +68,12 @@ internal class ReactEditTextInputConnectionWrapper(
+       dispatchKeyEvent(k)
+       key = null
+     }
+-    return super.endBatchEdit()
++    val ended = super.endBatchEdit()
++    if (compositionBatchDepth > 0) {
++      compositionBatchDepth -= 1
++    }
++    dispatchComposingEndIfReady()
++    return ended
+   }
+
+   override fun setComposingText(text: CharSequence, newCursorPosition: Int): Boolean {
+@@ -91,6 +98,7 @@ internal class ReactEditTextInputConnectionWrapper(
+         }
+
+     dispatchKeyEventOrEnqueue(inputKey)
++    dispatchComposingEndIfReady()
+     return consumed
+   }
+
+@@ -103,7 +111,15 @@ internal class ReactEditTextInputConnectionWrapper(
+       }
+       dispatchKeyEventOrEnqueue(inputKey)
+     }
+-    return super.commitText(text, newCursorPosition)
++    val committed = super.commitText(text, newCursorPosition)
++    dispatchComposingEndIfReady()
++    return committed
++  }
++
++  override fun finishComposingText(): Boolean {
++    val finished = super.finishComposingText()
++    dispatchComposingEndIfReady()
++    return finished
+   }
+
+   override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+@@ -138,6 +154,12 @@ internal class ReactEditTextInputConnectionWrapper(
+     }
+   }
+
++  private fun dispatchComposingEndIfReady() {
++    if (compositionBatchDepth == 0) {
++      editText.dispatchComposingEndIfNeeded()
++    }
++  }
++
+   private fun dispatchKeyEvent(inputKey: String) {
+     val resolvedKey = if (inputKey == NEWLINE_RAW_VALUE) ENTER_KEY_VALUE else inputKey
+     val surfaceId = UIManagerHelper.getSurfaceId(editText)
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextInputTextWatcher.kt b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextInputTextWatcher.kt
+index 887251c..47eba00 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextInputTextWatcher.kt
++++ b/ReactAndroid/src/main/java/com/facebook/react/views/textinput/ReactTextInputTextWatcher.kt
+@@ -9,6 +9,7 @@ package com.facebook.react.views.textinput
+
+ import android.text.Editable
+ import android.text.TextWatcher
++import android.view.inputmethod.BaseInputConnection
+ import com.facebook.react.bridge.ReactContext
+ import com.facebook.react.bridge.WritableMap
+ import com.facebook.react.bridge.WritableNativeMap
+@@ -23,6 +24,7 @@ internal class ReactTextInputTextWatcher(
+       UIManagerHelper.getEventDispatcherForReactTag(reactContext, editText.id)
+   private val surfaceId = UIManagerHelper.getSurfaceId(reactContext)
+   private var previousText: String? = null
++  private var lastDispatchedIsComposing = false
+
+   override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+     // Incoming charSequence gets mutated before onTextChanged() is invoked
+@@ -47,6 +49,21 @@ internal class ReactTextInputTextWatcher(
+       return
+     }
+
++    dispatchTextChanged(s.toString(), BaseInputConnection.getComposingSpanStart(editText.text) >= 0)
++  }
++
++  internal fun dispatchComposingEndIfNeeded() {
++    if (
++        !lastDispatchedIsComposing ||
++            editText.disableTextDiffing ||
++            BaseInputConnection.getComposingSpanStart(editText.text) >= 0
++    ) {
++      return
++    }
++    dispatchTextChanged(editText.text.toString(), false)
++  }
++
++  private fun dispatchTextChanged(text: String, isComposing: Boolean) {
+     val stateWrapper = editText.stateWrapper
+
+     if (stateWrapper != null) {
+@@ -61,10 +78,12 @@ internal class ReactTextInputTextWatcher(
+         ReactTextChangedEvent(
+             surfaceId,
+             editText.id,
+-            s.toString(),
++            text,
+             editText.incrementAndGetEventCounter(),
++            isComposing,
+         )
+     )
++    lastDispatchedIsComposing = isComposing
+   }
+
+   override fun afterTextChanged(s: Editable) = Unit

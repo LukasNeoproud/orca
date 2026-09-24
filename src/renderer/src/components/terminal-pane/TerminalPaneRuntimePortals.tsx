@@ -23,6 +23,7 @@ import {
 } from './codex-conversation-continuation-source'
 import { useAgentContextTransition } from './use-agent-context-transition'
 import { AgentContextRequestStatus } from '@/components/agent-session-continuation/AgentContextRequestStatus'
+import { useAgentContextOwnerAvailable } from '@/components/agent-session-continuation/use-agent-context-owner-capability'
 
 function continuationSourceMatches(
   left: CodexConversationContinuationSource | null,
@@ -73,9 +74,13 @@ function CodexConversationContinuationPortal({
     [pane, sourceInputs, tabId, worktreeId]
   )
   const busy = useAppStore((state) => isCodexConversationContinuationBusy(state, { pane, tabId }))
+  const agentContextEnabled = useAgentContextOwnerAvailable(
+    source?.target ?? null,
+    sourceInputs.agentContextEnabled
+  )
   const agentContextTransition = useAgentContextTransition({
     source,
-    enabled: sourceInputs.agentContextEnabled,
+    enabled: agentContextEnabled,
     restartCodexConversationPane
   })
   const expanded =

@@ -59,6 +59,11 @@ export function useAgentContextTransition(input: {
           providerSessionId: source.providerSessionId
         })
         if (disposed) {
+          await completeAgentContextTerminalSurface(source.target, {
+            requestId: request.requestId,
+            claimId: claim.claimId,
+            result: { status: 'failed', error: 'agent_context_surface_owner_changed' }
+          })
           return
         }
         setState({ phase: 'switching', message: 'Switching to the requested context…' })

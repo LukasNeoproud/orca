@@ -21,8 +21,11 @@ export function useNewWorkspaceAdvancedOptions(args: {
     repoId: string
     id: string | null
   } | null>(null)
-  const [displayLabel, setDisplayLabel] = useState('')
-  const [baseRef, setBaseRef] = useState('')
+  const [displayLabelChoice, setDisplayLabelChoice] = useState<{
+    repoId: string
+    value: string
+  } | null>(null)
+  const [baseRefChoice, setBaseRefChoice] = useState<{ repoId: string; value: string } | null>(null)
 
   useEffect(() => {
     if (!args.visible || !args.client || !repoId || args.repo?.kind === 'folder') {
@@ -91,9 +94,17 @@ export function useNewWorkspaceAdvancedOptions(args: {
         setParentChoice({ repoId, id })
       }
     },
-    displayLabel,
-    setDisplayLabel,
-    baseRef,
-    setBaseRef
+    displayLabel: displayLabelChoice?.repoId === repoId ? displayLabelChoice.value : '',
+    setDisplayLabel: (value: string) => {
+      if (repoId) {
+        setDisplayLabelChoice({ repoId, value })
+      }
+    },
+    baseRef: baseRefChoice?.repoId === repoId ? baseRefChoice.value : '',
+    setBaseRef: (value: string) => {
+      if (repoId) {
+        setBaseRefChoice({ repoId, value })
+      }
+    }
   }
 }

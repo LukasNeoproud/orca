@@ -109,6 +109,7 @@
             "buildReactNativeFromSource": true
           },
           "android": {
+            "buildReactNativeFromSource": true,
             "usesCleartextTraffic": true
           }
         }

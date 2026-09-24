@@ -37,6 +37,25 @@ package-lock.json
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.*.example
+!.env.template
+!.env.*.template
+
+# Local release artifacts and signing credentials, regardless of output directory.
+*.apk
+*.aab
+*.keystore
+*.jks
+*.p12
+*.p8
+*.pem
+*.key
+*.mobileprovision
+*service-account*.json
+*service_account*.json
+*-firebase-adminsdk-*.json
 
 # IDE
 .vscode/

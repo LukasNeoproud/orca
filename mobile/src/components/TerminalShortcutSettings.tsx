@@ -1,63 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  AppState,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Switch,
-  type AppStateStatus
-} from 'react-native'
+import { AppState, View, Text, Pressable, type AppStateStatus } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { ChevronRight, X } from 'lucide-react-native'
+import { ChevronRight } from 'lucide-react-native'
 import type Animated from 'react-native-reanimated'
 import type { AnimatedRef, SharedValue } from 'react-native-reanimated'
 import { CustomKeyModal, loadCustomKeys, saveCustomKeys, type CustomKey } from './CustomKeyModal'
 import { DragReorderList } from './DragReorderList'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { AccessoryRow, type AccessoryItem } from './TerminalShortcutSettingsRow'
+import { colors } from '../theme/mobile-theme'
+import { styles } from './TerminalShortcutSettings.styles'
+import { TERMINAL_ACCESSORY_KEYS } from '../terminal/terminal-accessory-keys'
 import {
-  TERMINAL_ACCESSORY_KEYS,
-  type TerminalAccessoryKey
-} from '../terminal/terminal-accessory-keys'
-import {
+  createTerminalAccessoryLayoutPreference,
   getDefaultTerminalAccessoryLayout,
   loadTerminalAccessoryLayout,
-  reorderTerminalAccessoryBuiltInIds,
+  moveTerminalAccessoryKey,
   saveTerminalAccessoryLayout,
   setTerminalAccessoryBuiltInVisible,
+  setTerminalAccessoryRowCount,
   type TerminalAccessoryLayout
 } from '../terminal/terminal-accessory-layout'
 
-// Why: DragReorderList absolutely positions rows, so every row in a
-// reorderable section must share one fixed height.
 const REORDER_ROW_HEIGHT = 56
-
-function ShortcutBarRow({
-  shortcutKey,
-  visible,
-  onToggle
-}: {
-  shortcutKey: TerminalAccessoryKey
-  visible: boolean
-  onToggle: (visible: boolean) => void
-}): React.JSX.Element {
-  return (
-    <View style={styles.reorderRowContent}>
-      <View style={styles.keycap}>
-        <Text style={styles.keycapText}>{shortcutKey.label}</Text>
-      </View>
-      <View style={styles.rowContent}>
-        <Text style={styles.rowLabel}>{shortcutKey.accessibilityLabel ?? shortcutKey.label}</Text>
-      </View>
-      <Switch
-        value={visible}
-        onValueChange={onToggle}
-        trackColor={{ false: colors.borderSubtle, true: colors.textSecondary }}
-        thumbColor={colors.textPrimary}
-      />
-    </View>
-  )
-}
 
 type Props = {
   scrollRef: AnimatedRef<Animated.ScrollView>
@@ -77,230 +41,311 @@ export function TerminalShortcutSettings({
   const [shortcutLayout, setShortcutLayout] = useState<TerminalAccessoryLayout>(
     getDefaultTerminalAccessoryLayout
   )
-  const layoutWriteChainRef = useRef<Promise<void>>(Promise.resolve())
-  const layoutWriteSeqRef = useRef(0)
-  const pendingLayoutWritesRef = useRef(0)
+  const shortcutLayoutRef = useRef(shortcutLayout)
+  const [activeDragRow, setActiveDragRow] = useState<number | null>(null)
+  const rowTargetsRef = useRef<Map<number, View>>(new Map())
+  const writeChainRef = useRef<Promise<void>>(Promise.resolve())
+  const writeSeqRef = useRef(0)
+  const pendingWritesRef = useRef(0)
+  const customKeyIds = useMemo(() => customKeys.map((key) => key.id), [customKeys])
 
-  const persistLayout = useCallback((next: TerminalAccessoryLayout) => {
-    layoutWriteSeqRef.current += 1
-    pendingLayoutWritesRef.current += 1
-    layoutWriteChainRef.current = layoutWriteChainRef.current
+  const persist = useCallback((layout: TerminalAccessoryLayout, keys: CustomKey[]) => {
+    writeSeqRef.current += 1
+    pendingWritesRef.current += 1
+    writeChainRef.current = writeChainRef.current
       .catch(() => {})
-      .then(() => saveTerminalAccessoryLayout(next))
-      .catch(() => {})
-      .finally(() => {
-        pendingLayoutWritesRef.current -= 1
-      })
-  }, [])
-
-  const refreshShortcutLayout = useCallback(() => {
-    const refreshSeq = layoutWriteSeqRef.current
-    void loadTerminalAccessoryLayout().then((layout) => {
-      if (pendingLayoutWritesRef.current > 0 || refreshSeq !== layoutWriteSeqRef.current) {
-        return
-      }
-      setShortcutLayout({
-        orderedBuiltInIds: layout.orderedBuiltInIds,
-        visibleBuiltInIds: layout.visibleBuiltInIds
-      })
-    })
-  }, [])
-
-  const customKeysWriteChainRef = useRef<Promise<void>>(Promise.resolve())
-  const customKeysWriteSeqRef = useRef(0)
-  const pendingCustomKeysWritesRef = useRef(0)
-
-  // Why: same stale-snapshot guard as persistLayout — a focus/AppState refresh
-  // racing an in-flight save must not overwrite the optimistic state.
-  const persistCustomKeys = useCallback((next: CustomKey[]) => {
-    customKeysWriteSeqRef.current += 1
-    pendingCustomKeysWritesRef.current += 1
-    customKeysWriteChainRef.current = customKeysWriteChainRef.current
-      .catch(() => {})
-      .then(() => saveCustomKeys(next))
+      .then(() =>
+        saveTerminalAccessoryLayout(
+          layout,
+          keys.map((key) => key.id)
+        )
+      )
       .catch(() => {})
       .finally(() => {
-        pendingCustomKeysWritesRef.current -= 1
+        pendingWritesRef.current -= 1
       })
   }, [])
 
-  const refreshCustomKeys = useCallback(() => {
-    const refreshSeq = customKeysWriteSeqRef.current
-    void loadCustomKeys().then((keys) => {
-      if (pendingCustomKeysWritesRef.current > 0 || refreshSeq !== customKeysWriteSeqRef.current) {
+  const refresh = useCallback(() => {
+    const seq = writeSeqRef.current
+    void loadCustomKeys().then(async (keys) => {
+      const layout = await loadTerminalAccessoryLayout(keys.map((key) => key.id))
+      if (pendingWritesRef.current > 0 || seq !== writeSeqRef.current) {
         return
       }
       setCustomKeys(keys)
+      shortcutLayoutRef.current = layout
+      setShortcutLayout(layout)
     })
   }, [])
 
-  const handleDeleteCustomKey = useCallback(
-    (key: CustomKey) => {
-      setCustomKeys((current) => {
-        const updated = current.filter((k) => k.id !== key.id)
-        persistCustomKeys(updated)
-        return updated
-      })
-    },
-    [persistCustomKeys]
-  )
-
-  useFocusEffect(
-    useCallback(() => {
-      refreshShortcutLayout()
-      refreshCustomKeys()
-    }, [refreshShortcutLayout, refreshCustomKeys])
-  )
-
+  useFocusEffect(useCallback(() => refresh(), [refresh]))
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s: AppStateStatus) => {
       if (s === 'active') {
-        refreshShortcutLayout()
-        refreshCustomKeys()
+        refresh()
       }
     })
     return () => sub.remove()
-  }, [refreshShortcutLayout, refreshCustomKeys])
+  }, [refresh])
 
   const toggleBuiltInKey = useCallback(
     (id: string, visible: boolean) => {
-      setShortcutLayout((current) => {
-        const next = setTerminalAccessoryBuiltInVisible(current, id, visible)
-        persistLayout(next)
-        return next
-      })
+      const next = setTerminalAccessoryBuiltInVisible(
+        shortcutLayoutRef.current,
+        id,
+        visible,
+        undefined,
+        customKeyIds
+      )
+      shortcutLayoutRef.current = next
+      setShortcutLayout(next)
+      persist(next, customKeys)
     },
-    [persistLayout]
+    [customKeyIds, customKeys, persist]
   )
 
-  const reorderBuiltInKeys = useCallback(
-    (orderedKeys: string[]) => {
-      setShortcutLayout((current) => {
-        const next = reorderTerminalAccessoryBuiltInIds(current, orderedKeys)
-        persistLayout(next)
-        return next
-      })
+  const setRowCount = useCallback(
+    (count: 1 | 2 | 3) => {
+      const next = setTerminalAccessoryRowCount(
+        shortcutLayoutRef.current,
+        count,
+        undefined,
+        customKeyIds
+      )
+      shortcutLayoutRef.current = next
+      setShortcutLayout(next)
+      persist(next, customKeys)
     },
-    [persistLayout]
+    [customKeyIds, customKeys, persist]
   )
 
-  const resetBuiltInKeys = useCallback(() => {
-    const next = getDefaultTerminalAccessoryLayout()
-    setShortcutLayout(next)
-    persistLayout(next)
-  }, [persistLayout])
+  const moveKey = useCallback(
+    (id: string, targetRow: number, targetIndex: number) => {
+      const next = moveTerminalAccessoryKey(
+        shortcutLayoutRef.current,
+        id,
+        targetRow,
+        targetIndex,
+        undefined,
+        customKeyIds
+      )
+      shortcutLayoutRef.current = next
+      setShortcutLayout(next)
+      persist(next, customKeys)
+    },
+    [customKeyIds, customKeys, persist]
+  )
 
-  const reorderCustomKeys = useCallback(
-    (orderedKeys: string[]) => {
-      setCustomKeys((current) => {
-        const byId = new Map(current.map((key) => [key.id, key]))
-        const reordered = orderedKeys.flatMap((id) => {
-          const key = byId.get(id)
-          return key ? [key] : []
-        })
-        if (reordered.length !== current.length) {
-          return current
+  const reorderRow = useCallback(
+    (rowIndex: number, orderedKeys: string[]) => {
+      const current = shortcutLayoutRef.current
+      if (orderedKeys.join('\u0000') === current.rows[rowIndex]?.join('\u0000')) {
+        return
+      }
+      const rows = current.rows.map((row, index) => (index === rowIndex ? orderedKeys : row))
+      const next = createTerminalAccessoryLayoutPreference(
+        { rows, visibleBuiltInIds: current.visibleBuiltInIds },
+        undefined,
+        customKeyIds
+      )
+      shortcutLayoutRef.current = next
+      setShortcutLayout(next)
+      persist(next, customKeys)
+    },
+    [customKeyIds, customKeys, persist]
+  )
+
+  const handleDrop = useCallback(
+    (sourceRow: number, id: string, absoluteY: number, orderedKeys: string[]) => {
+      const targets = [...rowTargetsRef.current.entries()]
+      void Promise.all(
+        targets.map(
+          ([rowIndex, view]) =>
+            new Promise<{ rowIndex: number; y: number; height: number }>((resolve) => {
+              view.measureInWindow((_x, y, _width, height) => resolve({ rowIndex, y, height }))
+            })
+        )
+      ).then((bounds) => {
+        const target = bounds.find(
+          ({ y, height }) => absoluteY >= y - 16 && absoluteY <= y + height + 16
+        )
+        if (!target || target.rowIndex === sourceRow) {
+          reorderRow(sourceRow, orderedKeys)
+          return
         }
-        persistCustomKeys(reordered)
-        return reordered
+        const targetIndex = Math.round((absoluteY - target.y) / REORDER_ROW_HEIGHT)
+        moveKey(id, target.rowIndex, targetIndex)
       })
     },
-    [persistCustomKeys]
+    [moveKey, reorderRow]
   )
+
+  const handleDeleteCustomKey = useCallback(
+    (key: CustomKey) => {
+      const updated = customKeys.filter((item) => item.id !== key.id)
+      const next = createTerminalAccessoryLayoutPreference(
+        shortcutLayoutRef.current,
+        undefined,
+        updated.map((item) => item.id)
+      )
+      setCustomKeys(updated)
+      shortcutLayoutRef.current = next
+      setShortcutLayout(next)
+      writeSeqRef.current += 1
+      pendingWritesRef.current += 1
+      writeChainRef.current = writeChainRef.current
+        .catch(() => {})
+        .then(async () => {
+          await saveCustomKeys(updated)
+          await saveTerminalAccessoryLayout(
+            next,
+            updated.map((item) => item.id)
+          )
+        })
+        .catch(() => {})
+        .finally(() => {
+          pendingWritesRef.current -= 1
+        })
+    },
+    [customKeys]
+  )
+
+  const reset = useCallback(() => {
+    const next = createTerminalAccessoryLayoutPreference(
+      getDefaultTerminalAccessoryLayout(),
+      undefined,
+      customKeyIds
+    )
+    setShortcutLayout(next)
+    shortcutLayoutRef.current = next
+    persist(next, customKeys)
+  }, [customKeyIds, customKeys, persist])
 
   const visibleBuiltInSet = useMemo(
     () => new Set(shortcutLayout.visibleBuiltInIds),
     [shortcutLayout.visibleBuiltInIds]
   )
-  const orderedAccessoryKeys = useMemo(() => {
-    const byId = new Map(TERMINAL_ACCESSORY_KEYS.map((key) => [key.id, key]))
-    return shortcutLayout.orderedBuiltInIds.flatMap((id) => {
-      const key = byId.get(id)
-      return key ? [key] : []
-    })
-  }, [shortcutLayout.orderedBuiltInIds])
+  const itemsById = useMemo(() => {
+    const items = new Map<string, AccessoryItem>()
+    for (const key of TERMINAL_ACCESSORY_KEYS) {
+      items.set(key.id, { kind: 'built-in', key })
+    }
+    for (const key of customKeys) {
+      items.set(key.id, { kind: 'custom', key })
+    }
+    return items
+  }, [customKeys])
 
   return (
     <>
       <Text style={[styles.groupHeading, styles.groupTopGap]}>SHORTCUT BAR</Text>
       <Text style={styles.groupDescription}>
-        Toggle keys to show or hide them, and hold the grip to drag a key into the order you want on
-        the terminal shortcut bar.
+        Choose one to three rows. Hold a grip to reorder or drag a key to another row.
       </Text>
+      <View
+        style={styles.rowCountGroup}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Shortcut bar rows"
+      >
+        {([1, 2, 3] as const).map((count) => (
+          <Pressable
+            key={count}
+            style={({ pressed }) => [
+              styles.rowCountButton,
+              shortcutLayout.rows.length === count && styles.rowCountSelected,
+              pressed && styles.rowPressed
+            ]}
+            onPress={() => setRowCount(count)}
+            accessibilityRole="radio"
+            accessibilityLabel={`${count} ${count === 1 ? 'row' : 'rows'}`}
+            accessibilityState={{ checked: shortcutLayout.rows.length === count }}
+          >
+            <Text
+              style={[
+                styles.rowCountText,
+                shortcutLayout.rows.length === count && styles.rowCountTextSelected
+              ]}
+            >
+              {count}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {shortcutLayout.rows.map((row, rowIndex) => {
+        const items = row.flatMap((id) => {
+          const item = itemsById.get(id)
+          return item ? [item] : []
+        })
+        return (
+          <View
+            key={rowIndex}
+            style={[
+              styles.section,
+              styles.sectionTopGap,
+              activeDragRow === rowIndex && styles.dragSection
+            ]}
+          >
+            <Text style={styles.rowHeading}>ROW {rowIndex + 1}</Text>
+            <View
+              collapsable={false}
+              ref={(view) => {
+                if (view) {
+                  rowTargetsRef.current.set(rowIndex, view)
+                } else {
+                  rowTargetsRef.current.delete(rowIndex)
+                }
+              }}
+              style={items.length === 0 && styles.emptyDropTarget}
+            >
+              {items.length === 0 ? <Text style={styles.emptyText}>Drop a key here</Text> : null}
+              <DragReorderList
+                items={items}
+                itemKey={(item) => item.key.id}
+                itemAccessibilityLabel={(item) =>
+                  item.kind === 'built-in'
+                    ? (item.key.accessibilityLabel ?? item.key.label)
+                    : item.key.label
+                }
+                rowHeight={REORDER_ROW_HEIGHT}
+                scrollRef={scrollRef}
+                scrollOffsetY={scrollOffsetY}
+                scrollContentHeight={scrollContentHeight}
+                onDragActiveChange={(active) => {
+                  setActiveDragRow(active ? rowIndex : null)
+                  onDragActiveChange(active)
+                }}
+                onReorder={(keys) => reorderRow(rowIndex, keys)}
+                onDrop={(id, y, keys) => handleDrop(rowIndex, id, y, keys)}
+                rowIndex={rowIndex}
+                rowCount={shortcutLayout.rows.length}
+                onMoveToRow={(id, targetRow) =>
+                  moveKey(id, targetRow, shortcutLayout.rows[targetRow]?.length ?? 0)
+                }
+                renderRow={(item) => (
+                  <AccessoryRow
+                    item={item}
+                    visible={visibleBuiltInSet.has(item.key.id)}
+                    onToggle={(visible) => toggleBuiltInKey(item.key.id, visible)}
+                    onDelete={() => handleDeleteCustomKey(item.key as CustomKey)}
+                  />
+                )}
+              />
+            </View>
+          </View>
+        )
+      })}
       <View style={[styles.section, styles.sectionTopGap]}>
-        <DragReorderList
-          items={orderedAccessoryKeys}
-          itemKey={(shortcutKey) => shortcutKey.id}
-          rowHeight={REORDER_ROW_HEIGHT}
-          scrollRef={scrollRef}
-          scrollOffsetY={scrollOffsetY}
-          scrollContentHeight={scrollContentHeight}
-          onDragActiveChange={onDragActiveChange}
-          onReorder={reorderBuiltInKeys}
-          renderRow={(shortcutKey) => (
-            <ShortcutBarRow
-              shortcutKey={shortcutKey}
-              visible={visibleBuiltInSet.has(shortcutKey.id)}
-              onToggle={(visible) => toggleBuiltInKey(shortcutKey.id, visible)}
-            />
-          )}
-        />
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          onPress={resetBuiltInKeys}
+          onPress={reset}
         >
           <View style={styles.rowContent}>
             <Text style={styles.rowLabel}>Reset Defaults</Text>
-            <Text style={styles.rowSublabel}>
-              Show every built-in shortcut key in the original order
-            </Text>
+            <Text style={styles.rowSublabel}>Show every built-in key in one row</Text>
           </View>
         </Pressable>
-      </View>
-
-      <Text style={[styles.groupHeading, styles.groupTopGap]}>CUSTOM SHORTCUTS</Text>
-      <View style={[styles.section, styles.sectionTopGap]}>
-        {customKeys.length === 0 ? (
-          <>
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No custom shortcuts defined yet.</Text>
-            </View>
-            <View style={styles.separator} />
-          </>
-        ) : (
-          <DragReorderList
-            items={customKeys}
-            itemKey={(key) => key.id}
-            rowHeight={REORDER_ROW_HEIGHT}
-            scrollRef={scrollRef}
-            scrollOffsetY={scrollOffsetY}
-            scrollContentHeight={scrollContentHeight}
-            onDragActiveChange={onDragActiveChange}
-            onReorder={reorderCustomKeys}
-            renderRow={(key) => (
-              <View style={styles.reorderRowContent}>
-                <View style={styles.keycap}>
-                  <Text style={styles.keycapText}>{key.label}</Text>
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>{key.label}</Text>
-                  <Text style={styles.rowSublabel} numberOfLines={1} ellipsizeMode="tail">
-                    {key.bytes.replace(/\r/g, ' ↵')}
-                  </Text>
-                </View>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.deleteButton,
-                    pressed && styles.deleteButtonPressed
-                  ]}
-                  onPress={() => handleDeleteCustomKey(key)}
-                >
-                  <X size={16} color={colors.statusRed} />
-                </Pressable>
-              </View>
-            )}
-          />
-        )}
+        <View style={styles.separator} />
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           onPress={() => setShowCustomKeyModal(true)}
@@ -312,117 +357,21 @@ export function TerminalShortcutSettings({
           <ChevronRight size={16} color={colors.textMuted} />
         </Pressable>
       </View>
-
       <CustomKeyModal
         visible={showCustomKeyModal}
         onClose={() => setShowCustomKeyModal(false)}
         onKeysChanged={(keys) => {
-          // Why: the modal already persisted this list; bumping the sequence
-          // discards refreshes that read storage before its save landed.
-          customKeysWriteSeqRef.current += 1
+          const next = createTerminalAccessoryLayoutPreference(
+            shortcutLayoutRef.current,
+            undefined,
+            keys.map((key) => key.id)
+          )
           setCustomKeys(keys)
+          shortcutLayoutRef.current = next
+          setShortcutLayout(next)
+          persist(next, keys)
         }}
       />
     </>
   )
 }
-
-const styles = StyleSheet.create({
-  groupHeading: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: spacing.xs,
-    paddingHorizontal: spacing.xs
-  },
-  groupTopGap: {
-    marginTop: spacing.xl
-  },
-  groupDescription: {
-    fontSize: typography.bodySize - 1,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    paddingHorizontal: spacing.xs
-  },
-  section: {
-    backgroundColor: colors.bgPanel,
-    borderRadius: radii.card,
-    overflow: 'hidden'
-  },
-  sectionTopGap: {
-    marginTop: spacing.sm
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm + 2,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md + 2
-  },
-  rowPressed: {
-    backgroundColor: colors.bgRaised
-  },
-  // Why: rows inside DragReorderList get a fixed height and a trailing grip
-  // handle from the list itself, so content only pads on the left.
-  reorderRowContent: {
-    flex: 1,
-    height: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm + 2,
-    paddingLeft: spacing.md + 2
-  },
-  rowContent: {
-    flex: 1
-  },
-  rowLabel: {
-    fontSize: typography.bodySize,
-    fontWeight: '500',
-    color: colors.textPrimary
-  },
-  rowSublabel: {
-    fontSize: typography.bodySize - 2,
-    color: colors.textSecondary,
-    marginTop: 2
-  },
-  keycap: {
-    minWidth: 62,
-    alignItems: 'center',
-    backgroundColor: colors.bgRaised,
-    borderRadius: radii.button,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
-  },
-  keycapText: {
-    color: colors.textSecondary,
-    fontSize: typography.metaSize,
-    fontFamily: typography.monoFamily
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.borderSubtle,
-    marginHorizontal: spacing.md
-  },
-  emptyContainer: {
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  emptyText: {
-    fontSize: typography.bodySize,
-    color: colors.textSecondary,
-    padding: spacing.md
-  },
-  deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)'
-  },
-  deleteButtonPressed: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)'
-  }
-})

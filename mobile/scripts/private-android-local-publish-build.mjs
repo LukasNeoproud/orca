@@ -104,7 +104,12 @@ export function verifyPrivateApk({
       'APK version verification'
     ).trim()
   )
-  if (actualPackage !== expectedPackage || actualVersionCode !== expectedVersionCode) {
+  if (
+    actualPackage !== expectedPackage ||
+    !Number.isSafeInteger(actualVersionCode) ||
+    actualVersionCode <= 0 ||
+    (expectedVersionCode !== null && actualVersionCode !== expectedVersionCode)
+  ) {
     throw new Error('Built APK identity does not match the requested package and versionCode')
   }
   runChecked(
@@ -139,6 +144,7 @@ export function verifyPrivateApk({
   if (signerDigests.length !== 1 || signerDigests[0] !== expectedDigest) {
     throw new Error('Built APK signer does not match the private release keystore')
   }
+  return actualVersionCode
 }
 
 export function uploadPrivateApk({ apkPath, groups, notesPath, credentialsPath }) {

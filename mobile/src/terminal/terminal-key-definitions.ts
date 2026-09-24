@@ -95,6 +95,9 @@ export const TERMINAL_SHORTCUT_SPECIAL_KEY_DEFINITIONS: TerminalShortcutSpecialK
 }))
 
 export const TERMINAL_ACCESSORY_KEY_DEFINITIONS: TerminalAccessoryKey[] = [
+  { id: 'ctrl', label: 'Ctrl', modifier: 'ctrl', accessibilityLabel: 'Control modifier' },
+  { id: 'alt', label: 'Alt', modifier: 'alt', accessibilityLabel: 'Alt modifier' },
+  { id: 'shift', label: 'Shift', modifier: 'shift', accessibilityLabel: 'Shift modifier' },
   { id: 'escape', label: 'Esc', bytes: '\x1b', accessibilityLabel: 'Escape' },
   { id: 'tab', label: 'Tab', bytes: '\t', accessibilityLabel: 'Tab' },
   { id: 'enter', label: 'Enter', bytes: '\r', accessibilityLabel: 'Enter' },

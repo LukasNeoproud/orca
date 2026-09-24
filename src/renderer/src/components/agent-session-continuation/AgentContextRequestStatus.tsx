@@ -7,6 +7,7 @@ import type { ConversationContinuationSource } from '../../../../shared/conversa
 import type { AgentContextTransitionStatus } from '../../../../shared/agent-context-transition'
 import { Button } from '../ui/button'
 import { translate } from '@/i18n/i18n'
+import { useAgentContextOwnerAvailable } from './use-agent-context-owner-capability'
 
 type RequestView = {
   requestId: string
@@ -20,11 +21,12 @@ export function AgentContextRequestStatus({
 }: {
   source: ConversationContinuationSource & { target: RuntimeClientTarget }
 }): React.JSX.Element | null {
-  const enabled = useAppStore(
+  const localEnabled = useAppStore(
     (state) =>
       state.settings?.agentContextAutonomy === 'compact' ||
       state.settings?.agentContextAutonomy === 'all'
   )
+  const enabled = useAgentContextOwnerAvailable(source.target, localEnabled)
   const [request, setRequest] = useState<RequestView | null>(null)
   const [error, setError] = useState(false)
   const { workspaceId, providerSessionId, target } = source

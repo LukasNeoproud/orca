@@ -49,6 +49,10 @@ export class CodexContinuationStore {
     const recoveredAt = new Date(now()).toISOString()
     let recovered = false
     for (const candidate of this.load()) {
+      if (candidate.status === 'stale') {
+        recovered = true
+        continue
+      }
       if (candidate.status === 'preparing') {
         candidate.status = 'unconfirmed'
         candidate.error = 'Preparation outcome is unknown because Orca restarted.'
@@ -112,11 +116,10 @@ export class CodexContinuationStore {
     return clone(next)
   }
 
-  async markOtherRevisionsStale(
+  async pruneOtherRevisions(
     providerSessionId: string,
     workspaceId: string,
-    revision: string,
-    updatedAt: string
+    revision: string
   ): Promise<void> {
     let changed = false
     for (const [candidateId, candidate] of this.candidates) {
@@ -124,12 +127,12 @@ export class CodexContinuationStore {
         candidate.source.providerSessionId !== providerSessionId ||
         candidate.source.workspaceId !== workspaceId ||
         candidate.checkpoint.revision === revision ||
-        candidate.status === 'stale' ||
-        candidate.status === 'used'
+        candidate.status === 'preparing'
       ) {
         continue
       }
-      this.candidates.set(candidateId, { ...candidate, status: 'stale', updatedAt })
+      // The newer checkpoint makes this record ineligible for claim or retry.
+      this.candidates.delete(candidateId)
       changed = true
     }
     if (changed) {

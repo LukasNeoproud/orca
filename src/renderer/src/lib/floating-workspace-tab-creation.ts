@@ -8,6 +8,7 @@ import type { AppState } from '@/store/types'
 import { focusTerminalTabSurface } from './focus-terminal-tab-surface'
 import { translate } from '@/i18n/i18n'
 import { assertClientCreationActionAvailable } from './client-creation-action-policy'
+import { OPEN_FLOATING_TERMINAL_EVENT } from './floating-terminal'
 
 type FloatingWorkspaceTerminalStore = Pick<
   AppState,
@@ -34,6 +35,16 @@ export async function createFloatingWorkspaceTerminalTab(
   })
   store.activateTab(tab.id)
   focusTerminalTabSurface(tab.id)
+  return tab
+}
+
+export async function createAndOpenFloatingWorkspaceTerminalTab(
+  store: FloatingWorkspaceTerminalStore
+): Promise<TerminalTab | null> {
+  const tab = await createFloatingWorkspaceTerminalTab(store)
+  if (tab) {
+    window.dispatchEvent(new Event(OPEN_FLOATING_TERMINAL_EVENT))
+  }
   return tab
 }
 

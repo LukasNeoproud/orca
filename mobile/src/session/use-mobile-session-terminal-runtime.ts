@@ -7,6 +7,7 @@ import type { TerminalModes, TerminalWebViewHandle } from '../terminal/terminal-
 import { useTerminalLiveInputFocus } from '../terminal/use-terminal-live-input-focus'
 import type { TerminalLiveInputSender } from '../terminal/terminal-live-input-sender'
 import { useTerminalLiveInputCommit } from '../terminal/use-terminal-live-input-commit'
+import { triggerError } from '../platform/haptics'
 import { resolveMobileTerminalInputGate } from '../terminal/terminal-input-connection-gate'
 import { createInitialSessionAutoCreateState } from './use-initial-session-terminal-autocreate'
 import { TerminalViewportResubscribeBudget } from './mobile-terminal-viewport-resubscribe'
@@ -29,6 +30,7 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     client,
     clientId,
     sessionTabs,
+    liveInputCapture,
     setLiveInputCapture,
     liveInputTerminalHandles,
     liveInputTerminalHandlesRef,
@@ -113,7 +115,11 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     handleLiveInputAccessoryBytes,
     handleLiveInputChange,
     handleLiveInputKeyPress,
-    handleLiveInputSubmit
+    handleLiveInputSubmit,
+    pendingModifiers,
+    togglePendingModifier,
+    consumePendingAccessoryKey,
+    clearPendingModifiers
   } = useTerminalLiveInputCommit({
     activeHandle,
     activeHandleRef,
@@ -121,10 +127,13 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     activeSessionTabTypeRef,
     connected: connState === 'connected',
     liveInputRef,
+    liveInputCapture,
     liveInputTerminalHandles,
+    liveInputEnabled: activeHandle ? liveInputTerminalHandles.has(activeHandle) : false,
     liveInputTerminalHandlesRef,
     sendLiveTerminalInputRef,
-    setLiveInputCapture
+    setLiveInputCapture,
+    onModifierFallback: triggerError
   })
   const inputGate = resolveMobileTerminalInputGate({
     connState,
@@ -148,8 +157,11 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
   useFocusEffect(
     useCallback(() => {
       // Expo retains this route while pushed screens are visible.
-      return resetLiveInputFocus
-    }, [resetLiveInputFocus])
+      return () => {
+        resetLiveInputFocus()
+        clearPendingModifiers()
+      }
+    }, [resetLiveInputFocus, clearPendingModifiers])
   )
   return {
     ptyModesRef,
@@ -205,6 +217,10 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     handleLiveInputChange,
     handleLiveInputKeyPress,
     handleLiveInputSubmit,
+    pendingModifiers,
+    togglePendingModifier,
+    consumePendingAccessoryKey,
+    clearPendingModifiers,
     canCompose,
     canSend,
     liveInputEnabled,

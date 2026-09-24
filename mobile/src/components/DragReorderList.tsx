@@ -46,10 +46,15 @@ type DragSharedState = {
 export type DragReorderListProps<ItemT> = {
   items: ItemT[]
   itemKey: (item: ItemT) => string
+  itemAccessibilityLabel?: (item: ItemT) => string
   rowHeight: number
   renderRow: (item: ItemT) => ReactNode
   /** Called with every item key in the new order after a drop changes it. */
   onReorder: (orderedKeys: string[]) => void
+  onDrop?: (key: string, absoluteY: number, orderedKeys: string[]) => void
+  rowIndex?: number
+  rowCount?: number
+  onMoveToRow?: (key: string, targetRow: number) => void
   /** Lets the owning screen disable its ScrollView while a row is held. */
   onDragActiveChange?: (active: boolean) => void
   scrollRef: AnimatedRef<Animated.ScrollView>
@@ -60,9 +65,14 @@ export type DragReorderListProps<ItemT> = {
 export function DragReorderList<ItemT>({
   items,
   itemKey,
+  itemAccessibilityLabel,
   rowHeight,
   renderRow,
   onReorder,
+  onDrop,
+  rowIndex,
+  rowCount,
+  onMoveToRow,
   onDragActiveChange,
   scrollRef,
   scrollOffsetY,
@@ -77,6 +87,7 @@ export function DragReorderList<ItemT>({
   const dragStartScrollY = useSharedValue(0)
   const dragTranslationY = useSharedValue(0)
   const dragPointerAbsY = useSharedValue(0)
+  const allowExternalDrop = Boolean(onDrop)
 
   // Why: rows can be added, removed, or reordered by the owning screen;
   // rebuild the position map whenever the rendered key order changes.
@@ -92,7 +103,7 @@ export function DragReorderList<ItemT>({
     const rawTop =
       dragStartTop.value + dragTranslationY.value + (scrollOffsetY.value - dragStartScrollY.value)
     const top = Math.min(Math.max(rawTop, 0), Math.max(0, (count - 1) * rowHeight))
-    activeTop.value = top
+    activeTop.value = allowExternalDrop ? rawTop : top
     const target = clampDragReorderIndex(Math.round(top / rowHeight), count)
     if (positions.value[key] !== target) {
       positions.value = moveDragReorderKey(positions.value, key, target)
@@ -146,13 +157,17 @@ export function DragReorderList<ItemT>({
   )
 
   const commitReorder = useCallback(
-    (orderedKeys: string[]) => {
+    (key: string, absoluteY: number, orderedKeys: string[]) => {
+      if (onDrop) {
+        onDrop(key, absoluteY, orderedKeys)
+        return
+      }
       // Why: a cancelled or no-op drag should not trigger a persisted write.
       if (orderedKeys.join(KEY_SEPARATOR) !== keySignature) {
         onReorder(orderedKeys)
       }
     },
-    [onReorder, keySignature]
+    [onReorder, onDrop, keySignature]
   )
 
   // Why: screen-reader users can't long-press-drag; the handle exposes
@@ -191,6 +206,7 @@ export function DragReorderList<ItemT>({
         <DragReorderRow
           key={itemKey(item)}
           rowKey={itemKey(item)}
+          accessibilityLabel={itemAccessibilityLabel?.(item)}
           rowHeight={rowHeight}
           shared={shared}
           scrollOffsetY={scrollOffsetY}
@@ -198,6 +214,9 @@ export function DragReorderList<ItemT>({
           onDragActiveChange={handleDragActiveChange}
           onCommit={commitReorder}
           onAccessibilityMove={moveRowByAccessibilityAction}
+          rowIndex={rowIndex}
+          rowCount={rowCount}
+          onMoveToRow={onMoveToRow}
         >
           {renderRow(item)}
         </DragReorderRow>
@@ -208,6 +227,7 @@ export function DragReorderList<ItemT>({
 
 function DragReorderRow({
   rowKey,
+  accessibilityLabel,
   rowHeight,
   shared,
   scrollOffsetY,
@@ -215,16 +235,23 @@ function DragReorderRow({
   onDragActiveChange,
   onCommit,
   onAccessibilityMove,
+  rowIndex,
+  rowCount,
+  onMoveToRow,
   children
 }: {
   rowKey: string
+  accessibilityLabel?: string
   rowHeight: number
   shared: DragSharedState
   scrollOffsetY: SharedValue<number>
   updateDragPosition: (key: string) => void
   onDragActiveChange: (active: boolean) => void
-  onCommit: (orderedKeys: string[]) => void
+  onCommit: (key: string, absoluteY: number, orderedKeys: string[]) => void
   onAccessibilityMove: (key: string, delta: number) => void
+  rowIndex?: number
+  rowCount?: number
+  onMoveToRow?: (key: string, targetRow: number) => void
   children: ReactNode
 }): React.JSX.Element {
   const {
@@ -262,7 +289,7 @@ function DragReorderRow({
       }
       activeKey.value = null
       const orderedKeys = orderedKeysFromDragReorderPositions(positions.value)
-      runOnJS(onCommit)(orderedKeys)
+      runOnJS(onCommit)(rowKey, dragPointerAbsY.value, orderedKeys)
       runOnJS(onDragActiveChange)(false)
     })
 
@@ -296,17 +323,28 @@ function DragReorderRow({
           style={styles.handle}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Drag to reorder"
-          accessibilityHint="Use the move up and move down actions to reorder without dragging"
+          accessibilityLabel={accessibilityLabel ? `Move ${accessibilityLabel}` : 'Drag to reorder'}
+          accessibilityHint="Use move actions to reorder or change rows without dragging"
           accessibilityActions={[
             { name: 'moveUp', label: 'Move up' },
-            { name: 'moveDown', label: 'Move down' }
+            { name: 'moveDown', label: 'Move down' },
+            ...(onMoveToRow && rowCount !== undefined
+              ? Array.from({ length: rowCount }, (_, index) => ({
+                  name: `moveToRow${index + 1}`,
+                  label: `Move to row ${index + 1}`
+                })).filter((_, index) => index !== rowIndex)
+              : [])
           ]}
           onAccessibilityAction={(event) => {
             if (event.nativeEvent.actionName === 'moveUp') {
               onAccessibilityMove(rowKey, -1)
             } else if (event.nativeEvent.actionName === 'moveDown') {
               onAccessibilityMove(rowKey, 1)
+            } else if (event.nativeEvent.actionName.startsWith('moveToRow')) {
+              const targetRow = Number(event.nativeEvent.actionName.slice('moveToRow'.length)) - 1
+              if (Number.isInteger(targetRow) && targetRow >= 0 && targetRow < (rowCount ?? 0)) {
+                onMoveToRow?.(rowKey, targetRow)
+              }
             }
           }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

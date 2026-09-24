@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { FolderPlus, GitBranchPlus, Plus } from 'lucide-react'
+import { FolderPlus, GitBranchPlus, Plus, SquareTerminal } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatOptionalPrimaryShortcutLabel } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
 import { openWorkspaceCreationComposerWithTourHandoff } from '../contextual-tours/workspace-creation-tour-handoff'
+import { createAndOpenFloatingWorkspaceTerminalTab } from '@/lib/floating-workspace-tab-creation'
 import SidebarWorkspaceOptionsMenu from './SidebarWorkspaceOptionsMenu'
 
 function SidebarCreateMenu({
@@ -22,6 +23,7 @@ function SidebarCreateMenu({
 }): React.JSX.Element {
   const openModal = useAppStore((s) => s.openModal)
   const keybindings = useAppStore((s) => s.keybindings)
+  const floatingWorkspaceEnabled = useAppStore((s) => s.settings?.floatingTerminalEnabled === true)
   const [open, setOpen] = useState(false)
   const menuContentRef = useRef<HTMLDivElement | null>(null)
   // Why primary: workspace.create binds both Mod+N and Mod+Shift+N, and listing
@@ -52,6 +54,12 @@ function SidebarCreateMenu({
     // Why: opening after Radix tears down the menu prevents its focus restoration
     // from treating the new dialog as an outside interaction.
     window.setTimeout(openWorkspaceCreationComposerWithTourHandoff, 0)
+  }, [])
+
+  const handleCreateIndependentTerminal = useCallback(() => {
+    window.setTimeout(() => {
+      void createAndOpenFloatingWorkspaceTerminalTab(useAppStore.getState())
+    }, 0)
   }, [])
 
   return (
@@ -97,6 +105,14 @@ function SidebarCreateMenu({
           {newWorktreeShortcutLabel ? (
             <DropdownMenuShortcut>{newWorktreeShortcutLabel}</DropdownMenuShortcut>
           ) : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="cursor-pointer gap-2.5 py-1.5"
+          onSelect={handleCreateIndependentTerminal}
+          disabled={!floatingWorkspaceEnabled}
+        >
+          <SquareTerminal className="size-3.5" strokeWidth={2.25} />
+          {translate('sidebar.create.independentTerminal', 'New independent terminal')}
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer gap-2.5 py-1.5"

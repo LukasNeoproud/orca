@@ -123,6 +123,107 @@ describe('terminal live input commit hook', () => {
     vi.useRealTimers()
   })
 
+  it('uses a queued modifier for one soft-keyboard character and restores the field', async () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('ctrl'))
+    act(() => changeLiveInput(harness.getHandlers(), 'c', false))
+    await vi.waitFor(() => expect(harness.sent).toEqual(['\x03']))
+    expect(harness.captures.at(-1)).toBe('')
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
+  it('keeps a modifier through IME preedit, then clears it for unsupported committed text', async () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('alt'))
+    act(() => changeLiveInput(harness.getHandlers(), 'か', true))
+    expect(harness.getHandlers().pendingModifiers).toEqual(['alt'])
+    act(() => changeLiveInput(harness.getHandlers(), '漢字', false))
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    await vi.waitFor(() => expect(harness.sent).toContain('漢字'))
+    harness.unmount()
+  })
+
+  it.each(['', 'foo'])('applies a modifier to committed preedit after %j', async (prefix) => {
+    const harness = createTerminalLiveInputCommitHarness()
+    if (prefix) {
+      act(() => changeLiveInput(harness.getHandlers(), prefix, false))
+      await vi.waitFor(() => expect(harness.sent).toEqual([prefix]))
+    }
+    act(() => harness.getHandlers().togglePendingModifier('alt'))
+    act(() => changeLiveInput(harness.getHandlers(), `${prefix}c`, true))
+    expect(harness.sent).toEqual(prefix ? [prefix] : [])
+    act(() => changeLiveInput(harness.getHandlers(), `${prefix}c`, false))
+    await vi.waitFor(() => expect(harness.sent).toEqual(prefix ? [prefix, '\x1bc'] : ['\x1bc']))
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
+  it('consumes modifiers on a literal macro and clears on disconnect', () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('shift'))
+    act(() => {
+      expect(harness.getHandlers().consumePendingAccessoryKey('ctrlC', '\x03')).toBe('\x03')
+    })
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    act(() => harness.getHandlers().togglePendingModifier('ctrl'))
+    harness.setConnected(false)
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.setConnected(true)
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
+  it('does not restore a pending modifier when the software keyboard reopens', () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('alt'))
+    act(() => harness.getHandlers().clearPendingModifiers())
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
+  it('sends a modified Enter once through submit and a modified Backspace once through key press', async () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('alt'))
+    act(() => harness.getHandlers().handleLiveInputKeyPress({ nativeEvent: { key: 'Enter' } }))
+    expect(harness.sent).toEqual([])
+    expect(harness.getHandlers().pendingModifiers).toEqual(['alt'])
+    await act(async () => {
+      await harness.getHandlers().handleLiveInputSubmit()
+    })
+    expect(harness.sent).toEqual(['\x1b\r'])
+    act(() => harness.getHandlers().togglePendingModifier('ctrl'))
+    act(() => harness.getHandlers().handleLiveInputKeyPress({ nativeEvent: { key: 'Backspace' } }))
+    await vi.waitFor(() => expect(harness.sent).toEqual(['\x1b\r', '\b']))
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
+  it('starts a fresh input mirror before a modified accessory edit', async () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => changeLiveInput(harness.getHandlers(), 'foo', false))
+    await vi.waitFor(() => expect(harness.sent).toEqual(['foo']))
+    const result = await harness.getHandlers().handleLiveInputAccessoryBytes({
+      bytes: '\x17',
+      resetMirrorBeforeSend: true
+    })
+    expect(result).toEqual({ kind: 'allow-raw' })
+    expect(harness.captures.at(-1)).toBe('')
+    act(() => changeLiveInput(harness.getHandlers(), 'x', false))
+    await vi.waitFor(() => expect(harness.sent).toEqual(['foo', 'x']))
+    harness.unmount()
+  })
+
+  it('sends a multi-character insertion literally and cancels the modifier', async () => {
+    const harness = createTerminalLiveInputCommitHarness()
+    act(() => harness.getHandlers().togglePendingModifier('shift'))
+    act(() => changeLiveInput(harness.getHandlers(), 'paste', false))
+    await vi.waitFor(() => expect(harness.sent).toEqual(['paste']))
+    expect(harness.getHandlers().pendingModifiers).toEqual([])
+    harness.unmount()
+  })
+
   it('Given Hangul composition and no marked-text report When steps arrive Then no jamo leaks', async () => {
     // Given
     vi.useFakeTimers()

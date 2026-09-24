@@ -15,7 +15,7 @@ export function useMobileSessionLifecycle(scope: MobileSessionTabReconciliationM
     hostId,
     connState,
     setCustomKeys,
-    setVisibleBuiltInIds,
+    setAccessoryLayout,
     setHostEndpoint,
     connStateRef,
     terminalRefs,
@@ -45,16 +45,14 @@ export function useMobileSessionLifecycle(scope: MobileSessionTabReconciliationM
     }
   }, [hostId])
 
-  useEffect(() => {
-    void loadCustomKeys().then(setCustomKeys)
-  }, [])
-
   useFocusEffect(
     useCallback(() => {
       let stale = false
-      void loadTerminalAccessoryLayout().then((layout) => {
+      void loadCustomKeys().then(async (keys) => {
+        const layout = await loadTerminalAccessoryLayout(keys.map((key) => key.id))
         if (!stale) {
-          setVisibleBuiltInIds(layout.visibleBuiltInIds)
+          setCustomKeys(keys)
+          setAccessoryLayout(layout)
         }
       })
       return () => {
@@ -66,9 +64,11 @@ export function useMobileSessionLifecycle(scope: MobileSessionTabReconciliationM
   useEffect(() => {
     let mounted = true
     const refresh = () => {
-      void loadTerminalAccessoryLayout().then((layout) => {
+      void loadCustomKeys().then(async (keys) => {
+        const layout = await loadTerminalAccessoryLayout(keys.map((key) => key.id))
         if (mounted) {
-          setVisibleBuiltInIds(layout.visibleBuiltInIds)
+          setCustomKeys(keys)
+          setAccessoryLayout(layout)
         }
       })
     }

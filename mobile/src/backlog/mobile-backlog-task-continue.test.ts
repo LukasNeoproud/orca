@@ -90,6 +90,44 @@ describe('continueMobileBacklogTask', () => {
     expect(sendRequest.mock.calls.some(([method]) => method === 'backlog.task')).toBe(false)
   })
 
+  it('does not claim a structured conversation opened when the host refuses reveal', async () => {
+    const association: BacklogTaskAssociation = {
+      ...savedAssociation(),
+      session: { ...savedAssociation().session, structuredSessionId: 'structured-1' }
+    }
+    const sendRequest = vi.fn(async (method: string) => {
+      if (method === 'backlog.taskAssociations.get') {
+        return ok({ association })
+      }
+      if (method === 'worktree.ps') {
+        return worktrees()
+      }
+      if (method === 'session.tabs.list') {
+        return ok({
+          tabs: [
+            {
+              type: 'agent-session',
+              id: 'agent-session:structured-1',
+              sessionId: 'structured-1',
+              agent: 'codex',
+              isActive: false
+            }
+          ]
+        })
+      }
+      if (method === 'agentSession.reveal') {
+        return ok({ ok: false, refusal: { message: 'This chat is no longer on this host.' } })
+      }
+      throw new Error(`Unexpected ${method}`)
+    })
+    const outcome = await continueMobileBacklogTask({
+      client: { sendRequest } as never,
+      sourceWorkspaceId: 'wt-1',
+      association
+    })
+    expect(outcome.status).toBe('unverifiable')
+  })
+
   it('keeps a missing SSH conversation unverifiable without local history fallback', async () => {
     const association = savedAssociation('ssh:builder')
     const sendRequest = vi.fn(async (method: string) => {
@@ -163,6 +201,11 @@ describe('continueMobileBacklogTask', () => {
 
     expect(outcome.status).toBe('restored')
     expect(mocks.openHistory).toHaveBeenCalledOnce()
+    expect(sendRequest).toHaveBeenCalledWith(
+      'aiVault.listSessions',
+      { unlimited: true, force: true, scopePaths: ['/repo/two'] },
+      { timeoutMs: 30_000, budgetSpansConnect: true }
+    )
     expect(sendRequest.mock.calls.some(([method]) => method === 'terminal.send')).toBe(false)
   })
 })

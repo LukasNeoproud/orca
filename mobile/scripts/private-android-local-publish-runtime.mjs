@@ -156,6 +156,52 @@ export async function readMaxFirebaseVersionCode(accessToken, fetchImpl = fetch)
 }
 
 export async function readFirebaseTestingUri(accessToken, versionCode, fetchImpl = fetch) {
+  const release = await readFirebaseRelease(accessToken, versionCode, fetchImpl)
+  return release.testingUri
+}
+
+export async function distributeExistingFirebaseRelease(
+  { accessToken, versionCode, groups, notes },
+  fetchImpl = fetch
+) {
+  const release = await readFirebaseRelease(accessToken, versionCode, fetchImpl)
+  const parent = `projects/${PRIVATE_FIREBASE_PROJECT_NUMBER}/apps/${PRIVATE_FIREBASE_APP_ID}/releases/`
+  if (
+    typeof release.name !== 'string' ||
+    !release.name.startsWith(parent) ||
+    !/^[a-zA-Z0-9_-]+$/.test(release.name.slice(parent.length))
+  ) {
+    throw new Error('Firebase release has no valid name')
+  }
+  const releaseUrl = new URL(
+    `https://firebaseappdistribution.googleapis.com/v1/${release.name.replaceAll(':', '%3A')}`
+  )
+  releaseUrl.searchParams.set('updateMask', 'release_notes.text')
+  const headers = {
+    authorization: `Bearer ${accessToken}`,
+    'content-type': 'application/json'
+  }
+  const notesResponse = await fetchImpl(releaseUrl.toString(), {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ name: release.name, releaseNotes: { text: notes } })
+  })
+  if (!notesResponse.ok) {
+    throw new Error(`Unable to update Firebase release notes (HTTP ${notesResponse.status})`)
+  }
+  releaseUrl.search = ''
+  const distributionResponse = await fetchImpl(`${releaseUrl}:distribute`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ testerEmails: [], groupAliases: groups.split(',') })
+  })
+  if (!distributionResponse.ok) {
+    throw new Error(`Unable to distribute Firebase release (HTTP ${distributionResponse.status})`)
+  }
+  return release.testingUri
+}
+
+async function readFirebaseRelease(accessToken, versionCode, fetchImpl) {
   let pageToken = null
   for (let page = 0; page < 100; page += 1) {
     const response = await fetchImpl(firebaseReleaseListUrl(pageToken), {
@@ -175,7 +221,7 @@ export async function readFirebaseTestingUri(accessToken, versionCode, fetchImpl
       ) {
         throw new Error('Firebase release has no valid testing URI')
       }
-      return release.testingUri
+      return release
     }
     pageToken = typeof payload.nextPageToken === 'string' ? payload.nextPageToken : null
     if (!pageToken) {
