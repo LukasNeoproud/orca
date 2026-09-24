@@ -1,0 +1,21 @@
+apply plugin: 'com.android.library'
+
+group = 'expo.modules.emulatorvideo'
+version = '0.0.1'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.emulatorvideo"
+  compileSdkVersion 36
+  defaultConfig {
+    minSdkVersion 24
+    targetSdkVersion 36
+    versionCode 1
+    versionName "0.0.1"
+  }
+}

@@ -31,6 +31,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
     pendingBrowserFocusPageIdRef,
     switchSessionTabRef,
     setBrowserScreencastSupported,
+    setEmulatorStreamSupported,
     setAgentSessionHistorySupported,
     setBacklogSupported,
     setQuickCommandsSupported,
@@ -149,6 +150,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
   useEffect(() => {
     if (!client || connState !== 'connected') {
       setBrowserScreencastSupported(null)
+      setEmulatorStreamSupported(null)
       setAgentSessionHistorySupported(null)
       setBacklogSupported(null)
       setQuickCommandsSupported(null)
@@ -159,6 +161,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
     // Why: a client swap can keep the route connected while moving to an older
     // host; clear the prior capability before exposing host-specific actions.
     setBrowserScreencastSupported(null)
+    setEmulatorStreamSupported(null)
     setAgentSessionHistorySupported(null)
     setBacklogSupported(null)
     setQuickCommandsSupported(null)
@@ -168,6 +171,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
     // status.get without changing connState, which used to latch these hidden.
     return startRuntimeCapabilityProbe(client, (capabilities) => {
       setBrowserScreencastSupported(capabilities.includes('browser.screencast.v1'))
+      setEmulatorStreamSupported(capabilities.includes('emulator.mobile-stream.v1'))
       setAgentSessionHistorySupported(capabilities.includes(MOBILE_AI_VAULT_CAPABILITY))
       setBacklogSupported(capabilities.includes(BACKLOG_RUNTIME_CAPABILITY))
       setQuickCommandsSupported(supportsMobileQuickCommands(capabilities))

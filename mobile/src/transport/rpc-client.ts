@@ -1,4 +1,5 @@
 import type { BrowserScreencastFrame } from './browser-screencast-protocol'
+import type { EmulatorVideoFrame } from '../../../src/shared/emulator-video-protocol'
 import { DirectRpcClient } from './direct-rpc-client'
 import type {
   ConnectionLogSink,
@@ -17,6 +18,7 @@ export type SendRequestOptions = {
 
 type SubscribeOptions = {
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
+  onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
 }
 
 type StreamingListener = (result: unknown) => void

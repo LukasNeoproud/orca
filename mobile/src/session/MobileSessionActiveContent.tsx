@@ -1,6 +1,7 @@
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
 import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
+import { MobileEmulatorPane } from '../emulator/MobileEmulatorPane'
 import { MobileMarkdownLinkHandlerProvider } from '../components/MobileMarkdown'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
@@ -76,6 +77,8 @@ export function MobileSessionActiveContent({
     activeMarkdownTab,
     activeFileTab,
     activeBrowserTab,
+    activeEmulatorTab,
+    appActive,
     activePendingTerminalTab,
     isPendingTerminalRecoveryParked,
     retryPendingTerminalRecovery,
@@ -112,6 +115,13 @@ export function MobileSessionActiveContent({
         </Pressable>
       </View>
     </View>
+  ) : activeEmulatorTab ? (
+    <MobileEmulatorPane
+      key={activeEmulatorTab.id}
+      client={client}
+      device={activeEmulatorTab.device}
+      appActive={appActive}
+    />
   ) : activeMarkdownTab ? (
     <View style={styles.markdownFrame}>
       <MarkdownReader

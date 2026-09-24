@@ -44,12 +44,18 @@ import {
   type StartAndroidStream
 } from '../android/android-stream-session-starter'
 import { AndroidStreamController } from '../android/android-stream-controller'
+import { removeOrphanedAndroidForwards } from '../android/android-helper-forward-cleanup'
+import { checkAndroidBackendAvailability } from '../android/android-backend-availability'
+import type { ScrcpyStreamSession } from '../android/scrcpy-stream-session'
+import {
+  startAndroidMobileVideoSession,
+  type AndroidMobileVideoSessionRequest
+} from '../android/android-mobile-video-session'
 import { scrcpyVideoRegistry } from '../scrcpy-video-registry'
 import type { EmulatorGesturePoint } from '../emulator-gesture-sender'
 
 export type AndroidEmulatorBackendOptions = {
   runner?: AndroidCommandRunner
-  // Inject discovered SDK paths (tests); undefined means auto-discover, null means "no SDK".
   sdk?: AndroidSdkPaths | null
   bootTimeoutMs?: number
   pollIntervalMs?: number
@@ -62,9 +68,7 @@ export type AndroidEmulatorBackendOptions = {
 const DEFAULT_BOOT_TIMEOUT_MS = 180_000
 const DEFAULT_POLL_INTERVAL_MS = 2_000
 
-// The Android backend. Device discovery + lifecycle + input run through `adb`
-// and the `emulator` binary; the live H.264 pane streams via scrcpy. Input uses
-// `adb shell input`, so it works without sending on the scrcpy control socket.
+// Android device lifecycle, input, and desktop scrcpy streaming.
 export class AndroidEmulatorBackend implements EmulatorBackend {
   readonly kind = 'android' as const
   readonly streamCodec = 'h264' as const
@@ -110,31 +114,7 @@ export class AndroidEmulatorBackend implements EmulatorBackend {
   }
 
   async checkAvailability(): Promise<BackendAvailability> {
-    const sdk = this.sdkState.resolve()
-    if (!sdk) {
-      return {
-        available: false,
-        devices: [],
-        message: 'Android SDK not found. Install Android Studio and set ANDROID_HOME.'
-      }
-    }
-    const sdkPath = sdk.sdkRoot
-    let devices: EmulatorDevice[] = []
-    try {
-      devices = await this.listDevices()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'adb is unavailable.'
-      return { available: false, devices: [], message, sdkPath }
-    }
-    if (devices.length === 0) {
-      return {
-        available: false,
-        devices,
-        message: 'No Android devices or AVDs found. Create one in Android Studio.',
-        sdkPath
-      }
-    }
-    return { available: true, devices, message: 'Ready', sdkPath }
+    return checkAndroidBackendAvailability(this.sdkState.resolve(), () => this.listDevices())
   }
 
   async listDevices(): Promise<EmulatorDevice[]> {
@@ -170,25 +150,26 @@ export class AndroidEmulatorBackend implements EmulatorBackend {
     return this.streams.start(await this.ensureBooted(deviceId))
   }
 
+  async startMobileVideoSession(
+    request: AndroidMobileVideoSessionRequest
+  ): Promise<ScrcpyStreamSession> {
+    return startAndroidMobileVideoSession({
+      ...request,
+      runner: this.runner,
+      sdk: this.requireSdk(),
+      jarPath: await this.ensureJar()
+    })
+  }
+
   async stopHelperForDevice(
     deviceId: string,
     options: { helperPid?: number; includeOrphaned?: boolean } = {}
   ): Promise<void> {
     this.streams.stop(deviceId)
-    // Reap a port-forward leaked by an unclean exit: the in-memory handle is gone
-    // after a crash, so streams.stop can't remove it. Best-effort, serial-scoped,
-    // and must never throw on this teardown path.
     if (options.includeOrphaned) {
-      const sdk = this.sdkState.resolve()
-      if (!sdk) {
-        return
-      }
-      const serial = await this.resolveDeviceId(deviceId).catch(() => null)
-      if (!serial) {
-        return
-      }
-      // `-s <serial>` scopes --remove-all to this device's adb forwards only.
-      await this.runner(sdk.adb, ['-s', serial, 'forward', '--remove-all']).catch(() => {})
+      await removeOrphanedAndroidForwards(deviceId, this.runner, this.sdkState.resolve(), (id) =>
+        this.resolveDeviceId(id)
+      )
     }
   }
 
@@ -200,8 +181,7 @@ export class AndroidEmulatorBackend implements EmulatorBackend {
   }
 
   async isSessionReusable(info: EmulatorSessionInfo): Promise<boolean> {
-    // Reuse a live scrcpy stream so a renderer remount reconnects to it (the
-    // registry replays meta + config + GOP) instead of respawning the server.
+    // The registry replays config and the current GOP to new viewers.
     return scrcpyVideoRegistry.has(info.deviceUdid)
   }
 
@@ -302,7 +282,6 @@ export class AndroidEmulatorBackend implements EmulatorBackend {
     return run(this.requireSdk(), await this.resolveDeviceId(deviceId))
   }
 
-  // Boots an AVD (by name) when not running and waits for boot; returns the serial.
   async ensureBooted(deviceOrName: string): Promise<string> {
     return bootAndroidDevice(this.runner, this.requireSdk(), deviceOrName, {
       bootTimeoutMs: this.bootTimeoutMs,

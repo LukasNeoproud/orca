@@ -1,6 +1,11 @@
 import type { ConnectionState, RpcResponse } from './types'
 import type { RpcClient } from './rpc-client'
 import {
+  fenceBinarySubscription,
+  fenceStreamListener,
+  notifyEmulatorCutover
+} from './logical-rpc-subscription-fence'
+import {
   forwardMigrationDialState,
   type MigrationDialStateForwarder
 } from './migration-dial-state-forwarder'
@@ -256,6 +261,7 @@ export function createStableLogicalRpcClient(
       // session, but fence callbacks until the generation becomes current.
       for (const record of subscriptions.values()) {
         const disposePrevious = record.disposePhysical
+        notifyEmulatorCutover(record.method, record.cancelled, record.listener)
         attachSubscription(record, nextSession, nextGeneration)
         disposePrevious?.()
       }
@@ -310,15 +316,12 @@ export function createStableLogicalRpcClient(
     session: RpcClient,
     subscriptionGeneration: number
   ): void {
+    const isCurrent = () => !closed && !record.cancelled && generation === subscriptionGeneration
     record.disposePhysical = session.subscribe(
       record.method,
       record.params,
-      (result) => {
-        if (!closed && !record.cancelled && generation === subscriptionGeneration) {
-          record.listener(result)
-        }
-      },
-      record.options
+      fenceStreamListener(record.listener, isCurrent),
+      fenceBinarySubscription(record.options, isCurrent)
     )
   }
 

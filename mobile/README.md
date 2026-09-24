@@ -63,6 +63,65 @@ For the Android emulator, use `ws://10.0.2.2:6768`. For a physical phone, use th
 
 If the phone has a stale host entry, remove it from the app and pair again.
 
+## View and control emulators
+
+In a mobile workspace, tap **+** beside the tabs, then **Mobile Emulator** and select
+an existing Android AVD or iOS simulator on the paired Orca host. A shut-down device
+is booted on selection. Orca does not create devices or match their configuration
+to your phone; configure the appropriate device in Android Studio or Xcode first.
+Physical Android devices are excluded from this picker.
+
+The emulator opens in a mobile tab with touch/drag, Home, Android Back, text input,
+and a fullscreen toggle. Stream settings offer **Quality**, **Responsive** (default),
+and **Save data**, changing resolution, bitrate and frame rate. **Video format** offers
+Automatic, H.264, HEVC/H.265, AV1 and JPEG. The phone advertises its native decoder
+support; the host tries encoders in preference order and echoes the selected format.
+Unsupported encoders or failed phone decoders fall back to another format, then JPEG.
+Automatic prefers H.264 for responsiveness and AV1/HEVC for quality or data saving.
+
+Android uses a separate scrcpy encoder for each mobile subscription, leaving desktop
+viewers untouched. iOS simulator JPEG frames are encoded on the host with WebCodecs
+when supported. Compressed video is rendered by native MediaCodec/VideoToolbox views
+on the phone. A new native mobile build is required; Expo Go or an older mobile binary
+uses JPEG. AV1 availability depends on the device, particularly on iOS.
+
+Streams use
+the existing encrypted direct or relay connection; helper ports are not exposed to
+the phone. Backgrounding or leaving the tab stops its stream and releases held touch
+input without shutting down the emulator. Emulator tabs are local to the current
+mobile workspace visit.
+
+Both mobile and the paired Electron host need this feature. Node-only hosts do not
+advertise streaming support. Devices belong to the paired host, including when the
+workspace itself uses SSH; the mobile viewer does not silently start a device on an
+SSH workspace host. iOS simulators require a macOS host with Xcode. Android uses the
+host's configured Android SDK and the existing scrcpy backend.
+
+Run the host codec smoke check without showing or focusing a window:
+
+```sh
+ORCA_BACKGROUND_LAUNCH=1 pnpm --dir mobile exec tsx ../config/scripts/run-mobile-emulator-codec-smoke.ts
+```
+
+It verifies that a single real-time H.264 keyframe becomes a JPEG through the actual
+Electron decoder. Add `--all-codecs` to test the host's H.264, HEVC and AV1 encoders and
+decoders with a keyframe, continuing frames and an orientation change. Set `ORCA_CODEC_FIXTURE_DIR` to a
+temporary directory to save synthetic keyframes for native decoder tests. On macOS, run `config/scripts/run-emulator-video-toolbox-smoke.sh` to verify the actual
+Swift bitstream parser and VideoToolbox decoding. The reproducible Android MediaCodec
+check is documented in `config/scripts/android-emulator-codec-smoke/README.md`.
+Phone touch interaction and complete Android/iOS device sessions
+still require integration testing with configured devices.
+
+Compare the production host encoding paths with synthetic terminal/chat content:
+
+```sh
+ORCA_BACKGROUND_LAUNCH=1 pnpm --dir mobile exec tsx ../config/scripts/run-emulator-codec-benchmark.ts
+```
+
+The report and raw measurements are saved under `config/scripts/emulator-codec-benchmark-results/`. They cover host
+bandwidth, achieved frame rate, startup and feed-to-packet latency; they do not
+measure equal visual quality, phone battery use or end-to-end network latency.
+
 ## Development Paths
 
 ### Android Phone

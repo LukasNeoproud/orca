@@ -10,6 +10,7 @@ export function useMobileSessionCloseActions(scope: MobileSessionContentCreateAc
     terminalsRef,
     setSessionTabs,
     sessionTabsRef,
+    localEmulatorTabsRef,
     reconcileBufferedDraftsRef,
     closedTabTombstonesRef,
     clearTerminalLiveInputDefault,
@@ -124,7 +125,12 @@ export function useMobileSessionCloseActions(scope: MobileSessionContentCreateAc
         // Why: bulk close re-activates the anchor before awaiting each close;
         // the render-synced ref sees that switch while this closure would not,
         // so comparing against the ref keeps the anchor from being nulled out.
-        if (activeSessionTabIdRef.current === tab.id || remainingTabs.length === 0) {
+        if (
+          (activeSessionTabIdRef.current === tab.id || remainingTabs.length === 0) &&
+          !localEmulatorTabsRef.current.some(
+            (localTab) => localTab.id === activeSessionTabIdRef.current
+          )
+        ) {
           activeSessionTabTypeRef.current = null
           selectedSessionTabIdRef.current = null
           activeSessionTabIdRef.current = null

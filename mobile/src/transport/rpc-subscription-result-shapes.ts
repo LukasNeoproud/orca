@@ -19,3 +19,14 @@ export function isStreamingSubscriptionReadyResult(
     typeof (value as { subscriptionId?: unknown }).subscriptionId === 'string'
   )
 }
+
+export function isEmulatorStartingResult(
+  value: unknown
+): value is { type: 'starting'; subscriptionId: string } {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'starting' &&
+    typeof (value as { subscriptionId?: unknown }).subscriptionId === 'string'
+  )
+}

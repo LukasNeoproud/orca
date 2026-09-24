@@ -93,4 +93,49 @@ describe('scrcpyVideoRegistry', () => {
     expect(frames).toEqual([])
     scrcpyVideoRegistry.stop('predelta')
   })
+
+  it('waits for the next keyframe when a cached GOP exceeds its replay budget', () => {
+    scrcpyVideoRegistry.register('large-gop', () => {})
+    scrcpyVideoRegistry.pushFrame('large-gop', {
+      config: true,
+      keyFrame: false,
+      pts: 'config',
+      bytes: new ArrayBuffer(2)
+    })
+    scrcpyVideoRegistry.pushFrame('large-gop', {
+      config: false,
+      keyFrame: true,
+      pts: 'key',
+      bytes: new ArrayBuffer(2)
+    })
+    for (let index = 0; index < 120; index += 1) {
+      scrcpyVideoRegistry.pushFrame('large-gop', {
+        config: false,
+        keyFrame: false,
+        pts: String(index),
+        bytes: new ArrayBuffer(2)
+      })
+    }
+    const late: string[] = []
+    scrcpyVideoRegistry.subscribe('large-gop', (event) => {
+      if (event.type === 'frame') {
+        late.push(event.frame.pts)
+      }
+    })()
+    expect(late).toEqual(['config'])
+    scrcpyVideoRegistry.pushFrame('large-gop', {
+      config: false,
+      keyFrame: true,
+      pts: 'next-key',
+      bytes: new ArrayBuffer(2)
+    })
+    const next: string[] = []
+    scrcpyVideoRegistry.subscribe('large-gop', (event) => {
+      if (event.type === 'frame') {
+        next.push(event.frame.pts)
+      }
+    })()
+    expect(next).toEqual(['config', 'next-key'])
+    scrcpyVideoRegistry.stop('large-gop')
+  })
 })

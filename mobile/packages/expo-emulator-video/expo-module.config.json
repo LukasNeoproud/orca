@@ -1,0 +1,5 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": { "modules": ["ExpoEmulatorVideoModule"] },
+  "android": { "modules": ["expo.modules.emulatorvideo.ExpoEmulatorVideoModule"] }
+}

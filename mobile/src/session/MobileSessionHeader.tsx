@@ -8,7 +8,8 @@ import {
   GitBranch,
   Globe,
   MoreHorizontal,
-  Plus
+  Plus,
+  Smartphone
 } from 'lucide-react-native'
 import { MobileSessionHeaderIconButton } from './MobileSessionHeaderIconButton'
 import { triggerMediumImpact } from '../platform/haptics'
@@ -53,6 +54,10 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
     switchSessionTab,
     openSessionTabActionSheetAfterKeyboardDismiss,
     visibleTabs,
+    localEmulatorTabs,
+    switchEmulatorTab,
+    closeEmulatorTab,
+    setEmulatorActionTarget,
     showConnectionRetry,
     terminalSummary,
     handlePanelTap,
@@ -117,7 +122,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
         ) : null}
       </View>
 
-      {visibleTabs.length > 0 && (
+      {visibleTabs.length + localEmulatorTabs.length > 0 && (
         <View style={styles.tabBar}>
           {/* Why: tab taps must register on first press with the keyboard open instead of being eaten by dismissal (#5106). */}
           <ScrollView
@@ -179,6 +184,44 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
                     numberOfLines={1}
                   >
                     {getMobileSessionTabTitle(t)}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+            {localEmulatorTabs.map((tab) => (
+              <Pressable
+                key={tab.id}
+                style={[styles.tab, tab.id === activeSessionTabId && styles.tabActive]}
+                onLayout={(e) => {
+                  const { x, width } = e.nativeEvent.layout
+                  tabLayoutsRef.current.set(tab.id, { x, width })
+                  if (tab.id === activeSessionTabIdRef.current) {
+                    scrollActiveTabIntoView(tab.id, false)
+                  }
+                }}
+                onPress={() => switchEmulatorTab(tab)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab.id === activeSessionTabId }}
+                accessibilityLabel={tab.title}
+                accessibilityActions={[{ name: 'escape', label: 'Close tab' }]}
+                onAccessibilityAction={(event) => {
+                  if (event.nativeEvent.actionName === 'escape') {
+                    closeEmulatorTab(tab)
+                  }
+                }}
+                onLongPress={() => {
+                  triggerMediumImpact()
+                  setEmulatorActionTarget(tab)
+                }}
+                delayLongPress={400}
+              >
+                <View style={styles.tabLabelRow}>
+                  <Smartphone size={13} color={colors.textSecondary} strokeWidth={2.1} />
+                  <Text
+                    style={[styles.tabText, tab.id === activeSessionTabId && styles.tabTextActive]}
+                    numberOfLines={1}
+                  >
+                    {tab.title}
                   </Text>
                 </View>
               </Pressable>

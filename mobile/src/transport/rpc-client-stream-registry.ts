@@ -1,14 +1,17 @@
-import {
-  decodeBrowserScreencastFrame,
-  type BrowserScreencastFrame
-} from './browser-screencast-protocol'
+import type { BrowserScreencastFrame } from './browser-screencast-protocol'
+import type {
+  EmulatorVideoCodec,
+  EmulatorVideoFrame
+} from '../../../src/shared/emulator-video-protocol'
+import { emulatorVideoCodec, routeMobileImageFrame } from './mobile-image-stream-routing'
 import {
   buildStreamUnsubscribe,
   buildTerminalUnsubscribeParams,
   updateTerminalSubscriptionViewport
 } from './rpc-client-terminal-subscription'
-import { buildReadyStreamUnsubscribe } from './rpc-client-server-subscription'
+import { buildReadyStreamUnsubscribe, isImageStreamMethod } from './rpc-client-server-subscription'
 import {
+  isEmulatorStartingResult,
   isStreamingSubscriptionReadyResult,
   isTerminalSubscribedResult
 } from './rpc-subscription-result-shapes'
@@ -19,6 +22,7 @@ export type RpcStreamingListener = (result: unknown) => void
 
 export type RpcStreamSubscribeOptions = {
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
+  onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
 }
 
 type StreamRequest = {
@@ -26,7 +30,9 @@ type StreamRequest = {
   params: unknown
   listener: RpcStreamingListener
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
+  onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
   subscriptionId?: string
+  videoCodec?: EmulatorVideoCodec
   cancelled?: boolean
   sent?: boolean
 }
@@ -41,8 +47,8 @@ type StreamRegistryOptions = {
 export class RpcClientStreamRegistry {
   private readonly streams = new Map<string, StreamRequest>()
   private readonly terminalRouter = new RpcClientTerminalStreamRouter()
-  private activeBrowserRequestId: string | null = null
-  private pendingBrowserRequestId: string | null = null
+  private activeImageRequestId: string | null = null
+  private pendingImageRequestId: string | null = null
 
   constructor(private readonly options: StreamRegistryOptions) {}
 
@@ -57,11 +63,12 @@ export class RpcClientStreamRegistry {
       method,
       params,
       listener,
-      onBinaryFrame: subscribeOptions?.onBinaryFrame
+      onBinaryFrame: subscribeOptions?.onBinaryFrame,
+      onEmulatorVideoFrame: subscribeOptions?.onEmulatorVideoFrame
     }
     this.streams.set(id, stream)
-    if (method === 'browser.screencast') {
-      this.replaceBrowserStream(id)
+    if (isImageStreamMethod(method)) {
+      this.replaceImageStream(id)
     }
     if (this.options.getState() === 'connected') {
       if (this.send(id, stream)) {
@@ -88,11 +95,11 @@ export class RpcClientStreamRegistry {
       if (stream.sent) {
         continue
       }
-      if (stream.method === 'browser.screencast') {
-        this.pendingBrowserRequestId = id
-        this.activeBrowserRequestId = null
+      if (isImageStreamMethod(stream.method)) {
+        this.pendingImageRequestId = id
+        this.activeImageRequestId = null
       }
-      this.resetTerminalRouting(id)
+      this.terminalRouter.reset(id)
       if (this.send(id, stream)) {
         stream.sent = true
       } else {
@@ -103,11 +110,15 @@ export class RpcClientStreamRegistry {
   }
 
   markForReplay(): void {
-    this.activeBrowserRequestId = null
-    this.pendingBrowserRequestId = null
+    this.activeImageRequestId = null
+    this.pendingImageRequestId = null
     for (const [id, stream] of this.streams) {
       stream.sent = false
-      this.resetTerminalRouting(id)
+      if (isImageStreamMethod(stream.method)) {
+        stream.subscriptionId = undefined
+        stream.videoCodec = undefined
+      }
+      this.terminalRouter.reset(id)
     }
   }
 
@@ -144,9 +155,12 @@ export class RpcClientStreamRegistry {
   }
 
   handleBinary(bytes: Uint8Array): void {
-    const browserFrame = decodeBrowserScreencastFrame(bytes)
-    if (browserFrame) {
-      this.handleBrowserFrame(browserFrame)
+    if (
+      routeMobileImageFrame(
+        bytes,
+        this.activeImageRequestId ? this.streams.get(this.activeImageRequestId) : undefined
+      )
+    ) {
       return
     }
     this.terminalRouter.handle(bytes)
@@ -166,24 +180,35 @@ export class RpcClientStreamRegistry {
       return
     }
     const result = response.result
-    if (isStreamingSubscriptionReadyResult(result)) {
+    if (stream.method === 'emulator.mobile.stream' && isEmulatorStartingResult(result)) {
       stream.subscriptionId = result.subscriptionId
+      stream.videoCodec = undefined
       if (stream.cancelled) {
         this.sendServerSubscriptionUnsubscribe(stream)
         this.remove(response.id)
         return
       }
-      if (stream.method === 'browser.screencast') {
+    }
+    if (isStreamingSubscriptionReadyResult(result)) {
+      stream.subscriptionId = result.subscriptionId
+      stream.videoCodec =
+        stream.method === 'emulator.mobile.stream' ? emulatorVideoCodec(result) : undefined
+      if (stream.cancelled) {
+        this.sendServerSubscriptionUnsubscribe(stream)
+        this.remove(response.id)
+        return
+      }
+      if (isImageStreamMethod(stream.method)) {
         if (
-          this.pendingBrowserRequestId !== response.id &&
-          this.activeBrowserRequestId !== response.id
+          this.pendingImageRequestId !== response.id &&
+          this.activeImageRequestId !== response.id
         ) {
-          this.sendBrowserUnsubscribe(result.subscriptionId)
+          this.sendServerSubscriptionUnsubscribe(stream)
           this.remove(response.id)
           return
         }
-        this.pendingBrowserRequestId = null
-        this.activeBrowserRequestId = response.id
+        this.pendingImageRequestId = null
+        this.activeImageRequestId = response.id
       }
     }
     if (isTerminalSubscribedResult(result)) {
@@ -196,9 +221,9 @@ export class RpcClientStreamRegistry {
 
   private dispose(id: string): void {
     const stream = this.streams.get(id)
-    if (stream?.method === 'browser.screencast') {
+    if (stream && isImageStreamMethod(stream.method)) {
       stream.cancelled = true
-      this.clearBrowserRequest(id)
+      this.clearImageRequest(id)
       this.disposeServerSubscription(id, stream)
       return
     }
@@ -220,15 +245,15 @@ export class RpcClientStreamRegistry {
     this.remove(id)
   }
 
-  private replaceBrowserStream(id: string): void {
-    if (this.activeBrowserRequestId && this.activeBrowserRequestId !== id) {
-      this.dispose(this.activeBrowserRequestId)
+  private replaceImageStream(id: string): void {
+    if (this.activeImageRequestId && this.activeImageRequestId !== id) {
+      this.dispose(this.activeImageRequestId)
     }
-    if (this.pendingBrowserRequestId && this.pendingBrowserRequestId !== id) {
-      this.dispose(this.pendingBrowserRequestId)
+    if (this.pendingImageRequestId && this.pendingImageRequestId !== id) {
+      this.dispose(this.pendingImageRequestId)
     }
-    this.pendingBrowserRequestId = id
-    this.activeBrowserRequestId = null
+    this.pendingImageRequestId = id
+    this.activeImageRequestId = null
   }
 
   private disposeServerSubscription(id: string, stream: StreamRequest): void {
@@ -249,10 +274,6 @@ export class RpcClientStreamRegistry {
     if (unsubscribe) {
       this.sendRpc(unsubscribe.method, unsubscribe.params)
     }
-  }
-
-  private sendBrowserUnsubscribe(subscriptionId: string): void {
-    this.sendRpc('browser.screencast.unsubscribe', { subscriptionId })
   }
 
   private sendRpc(method: string, params: unknown): boolean {
@@ -276,35 +297,20 @@ export class RpcClientStreamRegistry {
   private remove(id: string): void {
     const stream = this.streams.get(id)
     this.streams.delete(id)
-    this.clearBrowserRequest(id)
-    this.resetTerminalRouting(id)
-    if (stream?.method === 'browser.screencast') {
+    this.clearImageRequest(id)
+    this.terminalRouter.reset(id)
+    if (stream && isImageStreamMethod(stream.method)) {
       stream.cancelled = true
     }
   }
 
-  private clearBrowserRequest(id: string): void {
-    if (this.activeBrowserRequestId === id) {
-      this.activeBrowserRequestId = null
+  private clearImageRequest(id: string): void {
+    if (this.activeImageRequestId === id) {
+      this.activeImageRequestId = null
     }
-    if (this.pendingBrowserRequestId === id) {
-      this.pendingBrowserRequestId = null
+    if (this.pendingImageRequestId === id) {
+      this.pendingImageRequestId = null
     }
-  }
-
-  private resetTerminalRouting(id: string): void {
-    this.terminalRouter.reset(id)
-  }
-
-  private handleBrowserFrame(frame: BrowserScreencastFrame): void {
-    if (!this.activeBrowserRequestId) {
-      return
-    }
-    const stream = this.streams.get(this.activeBrowserRequestId)
-    if (!stream || stream.cancelled || stream.method !== 'browser.screencast') {
-      return
-    }
-    stream.onBinaryFrame?.(frame)
   }
 
   private emitError(stream: StreamRequest, message: string, error?: unknown): void {

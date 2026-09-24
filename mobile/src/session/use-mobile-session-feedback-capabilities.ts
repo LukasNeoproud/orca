@@ -24,7 +24,8 @@ export function useMobileSessionFeedbackCapabilities(scope: MobileSessionTermina
     connStateRef,
     activeSessionTabTypeRef,
     delayedActionTimersRef,
-    activeSessionTab
+    activeSessionTab,
+    localEmulatorTabsRef
   } = scope
   const [browserScreencastSupported, setBrowserScreencastSupported] = useState<boolean | null>(null)
   // Why: hosts without aiVault.v1 reject listSessions, so hide the header entry instead of a dead-end "update this host" panel.
@@ -41,7 +42,9 @@ export function useMobileSessionFeedbackCapabilities(scope: MobileSessionTermina
   // Why: terminal gesture/input callbacks are stable/imperative, so keep their refs current before commit, not in a later effect.
   clientRef.current = client
   connStateRef.current = connState
-  activeSessionTabTypeRef.current = activeSessionTab?.type ?? null
+  activeSessionTabTypeRef.current =
+    activeSessionTab?.type ??
+    (localEmulatorTabsRef.current.some((tab) => tab.id === activeSessionTabId) ? 'emulator' : null)
   sessionTabsRef.current = sessionTabs
   activeSessionTabIdRef.current = activeSessionTabId
   markdownDocsRef.current = markdownDocs

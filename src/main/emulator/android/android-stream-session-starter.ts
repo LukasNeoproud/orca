@@ -37,7 +37,12 @@ export const startAndroidStreamSession: StartAndroidStream = async ({
   let session: ScrcpyStreamSession | null = null
   // ScrcpyStreamSession.start waits for video meta, and that same startup path
   // may emit config/keyframes. Register first so those events seed replay cache.
-  scrcpyVideoRegistry.register(serial, () => session?.close())
+  scrcpyVideoRegistry.register(
+    serial,
+    () => session?.close(),
+    (phase, x, y) => session?.sendTouch(phase, x, y) ?? false,
+    (width, height) => session?.setVideoSize(width, height)
+  )
   try {
     session = await ScrcpyStreamSession.start(
       { runner, sdk, serial, localJarPath: jarPath, maxSize },

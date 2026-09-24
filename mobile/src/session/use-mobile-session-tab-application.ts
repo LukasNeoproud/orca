@@ -22,6 +22,8 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
     terminalsRef,
     setSessionTabs,
     sessionTabsRef,
+    localEmulatorTabsRef,
+    localEmulatorScopeKey,
     appliedSnapshotMarkerRef,
     appliedSessionTabsRevisionRef,
     closedTabTombstonesRef,
@@ -105,6 +107,17 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
         accepted: true as const,
         effectiveTabs: nextTabs,
         applicationRevision
+      }
+
+      // Phone-owned emulator tabs are absent from host snapshots; keep the user's selection.
+      if (
+        result.navigationIntent !== 'follow' &&
+        localEmulatorTabsRef.current.some(
+          (tab) =>
+            tab.scopeKey === localEmulatorScopeKey && tab.id === activeSessionTabIdRef.current
+        )
+      ) {
+        return outcome
       }
 
       const pendingActiveSessionTabId = pendingActiveSessionTabIdRef.current

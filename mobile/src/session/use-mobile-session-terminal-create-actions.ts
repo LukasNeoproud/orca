@@ -24,6 +24,7 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
     defaultTerminalHandlesToLiveInput,
     setActiveHandle,
     activeSessionTabId,
+    sessionTabs,
     activeSessionTabIdRef,
     setActiveSessionTabId,
     setCreating,
@@ -95,7 +96,9 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
       }
       const response = await client.sendRequest('session.tabs.createTerminal', {
         worktree: `id:${worktreeId}`,
-        afterTabId: activeSessionTabId ?? undefined,
+        afterTabId: sessionTabs.some((tab) => tab.id === activeSessionTabId)
+          ? (activeSessionTabId ?? undefined)
+          : undefined,
         clientMutationId,
         ...(options?.startupCommand ? { command: options.startupCommand } : {}),
         ...(options?.startupCommandDelivery

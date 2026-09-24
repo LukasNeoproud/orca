@@ -1,0 +1,13 @@
+{
+  "name": "@orca/expo-emulator-video",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Native emulator video decoder",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

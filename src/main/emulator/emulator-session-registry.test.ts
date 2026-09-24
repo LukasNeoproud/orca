@@ -32,4 +32,14 @@ describe('EmulatorSessionRegistry backend tagging', () => {
     const info = registry.getActiveForWorktree('wt1')
     expect(info?.streamCodec).toBe('h264')
   })
+
+  it('keeps desktop managed ownership while a mobile viewer shares the device', () => {
+    const registry = new EmulatorSessionRegistry()
+    const info = { deviceUdid: 'emulator-5554', wsUrl: '', streamUrl: 'scrcpy://emulator-5554' }
+    registry.registerActive('desktop', info, { managed: true, backend: 'android' })
+    registry.registerActive('mobile-viewer', info, { managed: false, backend: 'android' })
+    expect(registry.getSession(info.deviceUdid)?.managed).toBe(true)
+    registry.unregisterWorktree('mobile-viewer')
+    expect(registry.getActiveForWorktree('desktop')?.deviceUdid).toBe(info.deviceUdid)
+  })
 })

@@ -43,12 +43,14 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
     activeMarkdownTab,
     activeFileTab,
     activeBrowserTab,
+    activeEmulatorTab,
     keyboardLift
   } = controller
   return (
     !activeMarkdownTab &&
     !activeFileTab &&
     !activeBrowserTab &&
+    !activeEmulatorTab &&
     !showNativeChat && (
       <View
         style={[

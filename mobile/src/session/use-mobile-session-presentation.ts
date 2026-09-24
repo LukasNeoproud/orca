@@ -27,16 +27,18 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     initialSessionAutoCreateRef,
     terminalFrameHeightRef,
     handleCreateTerminal,
-    visibleTabs
+    visibleTabs,
+    localEmulatorTabs
   } = scope
-  const showLoadingState = connState === 'connected' && !terminalsLoaded && visibleTabs.length === 0
+  const visibleTabCount = visibleTabs.length + localEmulatorTabs.length
+  const showLoadingState = connState === 'connected' && !terminalsLoaded && visibleTabCount === 0
   const showEmptyState =
-    connState === 'connected' && terminalsLoaded && visibleTabs.length === 0 && !activeHandle
+    connState === 'connected' && terminalsLoaded && visibleTabCount === 0 && !activeHandle
 
   // Why: a newly created workspace can hydrate with zero tabs before its first terminal exists.
   useInitialSessionTerminalAutoCreate({
     client,
-    newlyCreatedWorkspace: created === '1',
+    newlyCreatedWorkspace: created === '1' && localEmulatorTabs.length === 0,
     connState,
     terminalsLoaded,
     visibleTabCount: visibleTabs.length,
@@ -62,9 +64,9 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     connState === 'connected'
       ? showLoadingState
         ? 'Loading tabs'
-        : visibleTabs.length === 1
+        : visibleTabCount === 1
           ? '1 tab'
-          : `${visibleTabs.length} tabs`
+          : `${visibleTabCount} tabs`
       : showConnectionRetry
         ? `${verdictDisplayLabel(connectionVerdict)} — tap to retry`
         : MOBILE_SESSION_STATUS_LABELS[connState]

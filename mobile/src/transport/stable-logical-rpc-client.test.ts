@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { RelayDialStageTracker, type RelayDialStage } from './relay-dial-stage'
 import type { ConnectionState, RpcResponse } from './types'
 import type { RpcClient } from './rpc-client'
+import { BrowserScreencastOpcode, type BrowserScreencastFrame } from './browser-screencast-protocol'
+import type { EmulatorVideoFrame } from '../../../src/shared/emulator-video-protocol'
 import { isRpcDeliveryUnknown, markRpcDeliveryUnknown } from './rpc-delivery-ambiguity'
 import {
   createStableLogicalRpcClient,
@@ -117,6 +119,87 @@ describe('stable logical RPC client', () => {
     expect(stream).toHaveBeenCalledOnce()
     expect(stream).toHaveBeenCalledWith('current')
     pending.resolve(success('late'))
+  })
+
+  it('fences binary callbacks across physical cutover and cancellation', async () => {
+    const oldSession = new FakeSession('connected')
+    const nextSession = new FakeSession('connected')
+    const client = createStableLogicalRpcClient(oldSession, 'lan')
+    const onBinaryFrame = vi.fn()
+    const cancel = client.subscribe('emulator.mobile.stream', { deviceId: 'device-1' }, vi.fn(), {
+      onBinaryFrame
+    })
+    const oldBinary = oldSession.subscribe.mock.calls[0]![3]!.onBinaryFrame!
+    const frame: BrowserScreencastFrame = {
+      opcode: BrowserScreencastOpcode.Frame,
+      seq: 1,
+      format: 'jpeg',
+      metadata: {},
+      image: new Uint8Array([1])
+    }
+    oldBinary(frame)
+    expect(onBinaryFrame).toHaveBeenCalledTimes(1)
+
+    await client.migrateTo(nextSession, 'relay')
+    const nextBinary = nextSession.subscribe.mock.calls[0]![3]!.onBinaryFrame!
+    oldBinary(frame)
+    nextBinary(frame)
+    expect(onBinaryFrame).toHaveBeenCalledTimes(2)
+
+    cancel()
+    nextBinary(frame)
+    expect(onBinaryFrame).toHaveBeenCalledTimes(2)
+  })
+
+  it('fences emulator codec callbacks across physical cutover and cancellation', async () => {
+    const oldSession = new FakeSession('connected')
+    const nextSession = new FakeSession('connected')
+    const client = createStableLogicalRpcClient(oldSession, 'lan')
+    const onEmulatorVideoFrame = vi.fn()
+    const cancel = client.subscribe('emulator.mobile.stream', { deviceId: 'device-1' }, vi.fn(), {
+      onEmulatorVideoFrame
+    })
+    const oldBinary = oldSession.subscribe.mock.calls[0]![3]!.onEmulatorVideoFrame!
+    const frame: EmulatorVideoFrame = {
+      codec: 'h264',
+      subscriptionId: 'old',
+      seq: 1,
+      config: false,
+      keyFrame: true,
+      width: 100,
+      height: 200,
+      timestampUs: 1,
+      data: new Uint8Array([1])
+    }
+    oldBinary(frame)
+    expect(onEmulatorVideoFrame).toHaveBeenCalledOnce()
+
+    await client.migrateTo(nextSession, 'relay')
+    const nextBinary = nextSession.subscribe.mock.calls[0]![3]!.onEmulatorVideoFrame!
+    oldBinary(frame)
+    nextBinary(frame)
+    expect(onEmulatorVideoFrame).toHaveBeenCalledTimes(2)
+
+    cancel()
+    nextBinary(frame)
+    expect(onEmulatorVideoFrame).toHaveBeenCalledTimes(2)
+  })
+
+  it('notifies emulator stream before attaching it to a replacement connection', async () => {
+    const oldSession = new FakeSession('connected')
+    const nextSession = new FakeSession('connected')
+    const client = createStableLogicalRpcClient(oldSession, 'lan')
+    const events: unknown[] = []
+    client.subscribe('emulator.mobile.stream', { deviceId: 'device-1' }, (value) => {
+      events.push(value)
+    })
+    nextSession.subscribe.mockImplementationOnce(() => {
+      expect(events).toEqual([{ type: 'reconnecting' }])
+      return () => {}
+    })
+
+    await client.migrateTo(nextSession, 'relay')
+    expect(events).toEqual([{ type: 'reconnecting' }])
   })
 
   it('keeps replies that commit before cutover and carries viewport state into replay', async () => {

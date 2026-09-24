@@ -1,4 +1,3 @@
-import { platform } from 'node:os'
 import { EmulatorError } from './emulator-errors'
 import type { EmulatorSessionInfo } from './emulator-types'
 import type { SimulatorDevice } from './simctl-simulator-devices'
@@ -13,6 +12,9 @@ import { listAvailableEmulatorDevices } from './emulator-device-inventory'
 import { deriveAxUrlFromStreamUrl } from './serve-sim-detached-session'
 import { IosEmulatorBackend } from './backends/ios-emulator-backend'
 import { AndroidEmulatorBackend } from './backends/android-emulator-backend'
+import type { ScrcpyStreamSession } from './android/scrcpy-stream-session'
+import type { AndroidMobileVideoSessionRequest } from './android/android-mobile-video-session'
+import { backendForEmulatorDevice } from './emulator-device-backend-selection'
 import type {
   EmulatorBackend,
   EmulatorBackendCapabilities,
@@ -21,10 +23,6 @@ import type {
   EmulatorTargetOpts
 } from './backends/emulator-backend'
 
-// Routes emulator commands to the backend that owns the target device while
-// owning the per-worktree active-session registry and lifecycle orchestration.
-// Backends supply only device/helper/input mechanics; the bridge decides which
-// backend a command targets (by the session's recorded backend, else by device).
 export class EmulatorBridge {
   private readonly sessionRegistry = new EmulatorSessionRegistry()
   private readonly startLeases = new EmulatorStartLeaseRegistry()
@@ -44,13 +42,10 @@ export class EmulatorBridge {
     return this.backends
   }
 
-  // Aggregated device list across host-supported backends (iOS simulators +
-  // Android devices/AVDs), for the unified `orca emulator list`.
   async listAllDevices(): Promise<EmulatorDevice[]> {
     return listAvailableEmulatorDevices(this.backends)
   }
 
-  // iOS-specific passthroughs kept for back-compat with the runtime + availability code.
   async listSimulators(): Promise<SimulatorDevice[]> {
     return this.iosBackend.listSimulators()
   }
@@ -224,8 +219,6 @@ export class EmulatorBridge {
     })
   }
 
-  // Runs a capability-gated verb against the resolved target, rejecting backends
-  // that do not advertise the capability (e.g. install/logcat on iOS).
   async runCapability<T>(
     capability: keyof EmulatorBackendCapabilities,
     opts: EmulatorTargetOpts | undefined,
@@ -246,6 +239,12 @@ export class EmulatorBridge {
     return this.startLeases.acquire(backend, device, (info) =>
       this.sessionRegistry.hasActiveWorktreeForSession(info.deviceUdid)
     )
+  }
+
+  async startMobileAndroidVideoSession(
+    request: AndroidMobileVideoSessionRequest
+  ): Promise<ScrcpyStreamSession> {
+    return this.androidBackend.startMobileVideoSession(request)
   }
 
   async kill(device?: string, worktreeId?: string): Promise<string> {
@@ -340,17 +339,6 @@ export class EmulatorBridge {
   }
 
   private async backendForDevice(device: string): Promise<EmulatorBackend> {
-    for (const backend of this.backends) {
-      if (await backend.ownsDevice(device)) {
-        return backend
-      }
-    }
-    // Why: fall back to a host-supported backend, else the platform-primary one,
-    // so an unrecognized device (e.g. no SDK yet) surfaces the right setup error
-    // — Android on Windows/Linux, iOS/CoreSimulator on macOS — not iOS-on-Windows.
-    return (
-      this.backends.find((backend) => backend.isSupportedOnHost()) ??
-      (platform() === 'darwin' ? this.iosBackend : this.androidBackend)
-    )
+    return backendForEmulatorDevice(device, this.backends, this.iosBackend, this.androidBackend)
   }
 }

@@ -31,6 +31,7 @@ export type ScrcpyServerOptions = {
   maxSize?: number
   maxFps?: number
   videoBitRate?: number
+  videoCodec?: 'h264' | 'h265' | 'av1'
   deviceJarPath?: string
   version?: string
 }
@@ -47,7 +48,7 @@ export function startScrcpyServerArgs(serial: string, options: ScrcpyServerOptio
     'control=true',
     'cleanup=true',
     'clipboard_autosync=false',
-    'video_codec=h264'
+    `video_codec=${options.videoCodec ?? 'h264'}`
   ]
   if (options.maxSize !== undefined) {
     params.push(`max_size=${options.maxSize}`)

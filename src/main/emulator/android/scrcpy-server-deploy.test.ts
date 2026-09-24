@@ -50,4 +50,20 @@ describe('scrcpy deploy args', () => {
     expect(args).toContain('control=true')
     expect(args).toContain('max_size=1024')
   })
+
+  it('passes dedicated mobile codec and profile limits to scrcpy', () => {
+    for (const codec of ['h264', 'h265', 'av1'] as const) {
+      const args = startScrcpyServerArgs('emulator-5554', {
+        scid: 'abcd1234',
+        videoCodec: codec,
+        maxSize: 640,
+        maxFps: 5,
+        videoBitRate: 800_000
+      })
+      expect(args).toContain(`video_codec=${codec}`)
+      expect(args).toContain('max_size=640')
+      expect(args).toContain('max_fps=5')
+      expect(args).toContain('video_bit_rate=800000')
+    }
+  })
 })

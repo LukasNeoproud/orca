@@ -189,14 +189,14 @@ index 887251c..47eba00 100644
        return
      }
 
-+    dispatchTextChanged(s.toString(), BaseInputConnection.getComposingSpanStart(editText.text) >= 0)
++    dispatchTextChanged(s.toString(), (editText.text?.let { BaseInputConnection.getComposingSpanStart(it) } ?: -1) >= 0)
 +  }
 +
 +  internal fun dispatchComposingEndIfNeeded() {
 +    if (
 +        !lastDispatchedIsComposing ||
 +            editText.disableTextDiffing ||
-+            BaseInputConnection.getComposingSpanStart(editText.text) >= 0
++            (editText.text?.let { BaseInputConnection.getComposingSpanStart(it) } ?: -1) >= 0
 +    ) {
 +      return
 +    }

@@ -10,7 +10,13 @@ import type { TerminalRecord } from './mobile-terminal-records'
 
 export type Terminal = TerminalRecord
 
-export type MobileSessionTabType = 'terminal' | 'markdown' | 'file' | 'browser' | 'agent-session'
+export type MobileSessionTabType =
+  | 'terminal'
+  | 'markdown'
+  | 'file'
+  | 'browser'
+  | 'agent-session'
+  | 'emulator'
 
 export type MobileSessionTab =
   | {

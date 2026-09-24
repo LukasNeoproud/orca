@@ -26,6 +26,7 @@ import type {
 } from './mobile-session-route-types'
 import { useMobileSessionTabActionTargets } from './use-mobile-session-tab-action-targets'
 import type { MobileSessionFoundationModel } from './use-mobile-session-foundation'
+import type { MobileLocalEmulatorTab } from './mobile-local-emulator-tab'
 
 export function useMobileSessionScreenState(scope: MobileSessionFoundationModel) {
   const { worktreeId, hostId, initialCreateWarning } = scope
@@ -33,6 +34,14 @@ export function useMobileSessionScreenState(scope: MobileSessionFoundationModel)
   const terminalsRef = useRef<Terminal[]>([])
   const [sessionTabs, setSessionTabs] = useState<MobileSessionTab[]>([])
   const sessionTabsRef = useRef<MobileSessionTab[]>([])
+  const [localEmulatorTabsState, setLocalEmulatorTabs] = useState<MobileLocalEmulatorTab[]>([])
+  const localEmulatorScopeKey = `${hostId}:${worktreeId}`
+  const localEmulatorTabs = localEmulatorTabsState.filter(
+    (tab) => tab.scopeKey === localEmulatorScopeKey
+  )
+  const localEmulatorTabsRef = useRef<MobileLocalEmulatorTab[]>([])
+  const [showEmulatorPicker, setShowEmulatorPicker] = useState(false)
+  const [emulatorStreamSupported, setEmulatorStreamSupported] = useState<boolean | null>(null)
   // Why: track the last applied (epoch, version) so a late older snapshot can't overwrite a newer one and resurrect closed tabs (session-tab-snapshot-gate).
   const appliedSnapshotMarkerRef = useRef<AppliedSnapshotMarker>({ epoch: null, version: -1 })
   const appliedSessionTabsRevisionRef = useRef(0)
@@ -132,6 +141,14 @@ export function useMobileSessionScreenState(scope: MobileSessionFoundationModel)
     sessionTabs,
     setSessionTabs,
     sessionTabsRef,
+    localEmulatorTabs,
+    localEmulatorScopeKey,
+    setLocalEmulatorTabs,
+    localEmulatorTabsRef,
+    showEmulatorPicker,
+    setShowEmulatorPicker,
+    emulatorStreamSupported,
+    setEmulatorStreamSupported,
     appliedSnapshotMarkerRef,
     appliedSessionTabsRevisionRef,
     closedTabTombstonesRef,

@@ -11,13 +11,14 @@ export class EmulatorSessionRegistry {
     options: { managed?: boolean; backend?: EmulatorBackendKind } = {}
   ): void {
     const key = info.deviceUdid
+    const existing = this.sessions.get(key)
     this.sessions.set(key, {
       deviceUdid: info.deviceUdid,
       wsUrl: info.wsUrl,
       streamUrl: info.streamUrl,
       axUrl: info.axUrl,
       pid: info.helperPid,
-      managed: options.managed === true,
+      managed: existing?.managed === true || options.managed === true,
       initialized: true,
       // Why: default to the iOS/serve-sim contract so existing callers that
       // predate multi-backend keep their prior behavior.

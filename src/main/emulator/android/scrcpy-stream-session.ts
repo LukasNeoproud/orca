@@ -19,6 +19,7 @@ import {
   type ScrcpyVideoMeta
 } from './scrcpy-video-frame-parser'
 import { emulatorProbe, emulatorProbeError } from '../emulator-probe'
+import { encodeScrcpyTouchFrame, type ScrcpyTouchPhase } from './scrcpy-touch-frame'
 
 // A live scrcpy session validated against a real emulator. The connection
 // handshake (dummy byte, 64-byte device name, codec meta) and the server option
@@ -43,6 +44,9 @@ export type ScrcpyStreamOptions = {
   localJarPath: string
   localPort?: number
   maxSize?: number
+  maxFps?: number
+  videoBitRate?: number
+  videoCodec?: 'h264' | 'h265' | 'av1'
 }
 
 function newScid(): string {
@@ -57,6 +61,7 @@ export class ScrcpyStreamSession {
   private server: ChildProcess | null = null
   private videoSocket: Socket | null = null
   private controlSocket: Socket | null = null
+  private videoSize: { width: number; height: number } | null = null
   private pendingVideo: Buffer = Buffer.alloc(0)
   private metaSeen = false
   private headerStripped = false
@@ -118,12 +123,22 @@ export class ScrcpyStreamSession {
   }
 
   private spawnServer(): void {
-    const { sdk, serial, maxSize } = this.options
+    const { sdk, serial, maxSize, maxFps, videoBitRate, videoCodec } = this.options
     // The server is long-running, so spawn it directly rather than via the
     // request/response command runner.
-    this.server = spawn(sdk.adb, startScrcpyServerArgs(serial, { scid: this.scid, maxSize }), {
-      stdio: ['ignore', 'pipe', 'pipe']
-    })
+    this.server = spawn(
+      sdk.adb,
+      startScrcpyServerArgs(serial, {
+        scid: this.scid,
+        maxSize,
+        maxFps,
+        videoBitRate,
+        videoCodec
+      }),
+      {
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    )
     let serverLog = ''
     const capture = (chunk: Buffer): void => {
       serverLog += chunk.toString()
@@ -227,6 +242,7 @@ export class ScrcpyStreamSession {
       this.metaSeen = true
       emulatorProbe('scrcpy.meta', meta)
       this.callbacks.onMeta(meta)
+      this.videoSize = { width: meta.width, height: meta.height }
       shouldResolveReady = true
       buffer = Buffer.from(buffer.subarray(12))
     }
@@ -248,6 +264,22 @@ export class ScrcpyStreamSession {
     }
     for (const frame of result.frames) {
       this.callbacks.onFrame(frame)
+    }
+  }
+
+  sendTouch(phase: ScrcpyTouchPhase, x: number, y: number): boolean {
+    if (!this.controlSocket || !this.videoSize || this.closed) {
+      return false
+    }
+    this.controlSocket.write(
+      encodeScrcpyTouchFrame(phase, x, y, this.videoSize.width, this.videoSize.height)
+    )
+    return true
+  }
+
+  setVideoSize(width: number, height: number): void {
+    if (width > 0 && height > 0) {
+      this.videoSize = { width, height }
     }
   }
 

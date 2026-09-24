@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { Copy, FileText, Globe, RefreshCw, SquareTerminal } from 'lucide-react-native'
+import { Copy, FileText, Globe, RefreshCw, Smartphone, SquareTerminal } from 'lucide-react-native'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
 import { QuickCommandsSheet } from './QuickCommandsSheet'
 import { triggerSuccess, triggerError } from '../platform/haptics'
@@ -10,6 +10,7 @@ import { ConfirmModal } from '../components/ConfirmModal'
 import { MobileSessionCustomKeySheet } from './MobileSessionCustomKeySheet'
 import { MobileDictationSetupSheet } from '../components/MobileDictationSetupSheet'
 import { MobileBrowserTabActionSheet } from './MobileBrowserTabActionSheet'
+import { MobileSessionEmulatorSheets } from './MobileSessionEmulatorSheets'
 import { MobileLinkActionSheet } from './MobileLinkActionSheet'
 import { getMobileTerminalActionSheetActions } from './mobile-terminal-action-sheet-actions'
 import {
@@ -149,9 +150,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
               void handleCreateTerminal()
             }
           },
-          // Why: browser/markdown creation resolve a real worktree on the host
-          // (browser.tabCreate, files.createFile); the floating sentinel is
-          // terminal-only over RPC, so those options hide there.
           ...(isFloatingWorkspaceRoute
             ? []
             : [
@@ -174,11 +172,20 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
                     setShowCreateTabDrawer(false)
                     void handleCreateMarkdownNote()
                   }
+                },
+                {
+                  label: 'Mobile Emulator',
+                  icon: Smartphone,
+                  onPress: () => {
+                    setShowCreateTabDrawer(false)
+                    controller.setShowEmulatorPicker(true)
+                  }
                 }
               ])
         ]}
         onClose={() => setShowCreateTabDrawer(false)}
       />
+      <MobileSessionEmulatorSheets controller={controller} />
       <ActionSheetModal
         visible={pendingDiffNotesDelivery !== null}
         title="Send Review Notes"

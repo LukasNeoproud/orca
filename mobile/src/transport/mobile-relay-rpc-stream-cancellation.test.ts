@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import {
+  BrowserScreencastOpcode,
+  encodeBrowserScreencastFrame
+} from '../../../src/shared/browser-screencast-protocol'
 import { MobileRelayRpcStreams } from './mobile-relay-rpc-streams'
 import type { RpcResponse } from './types'
 
@@ -19,6 +23,7 @@ function response(id: string, result: unknown): RpcResponse {
 
 const serverSubscriptions = [
   ['browser.screencast', 'browser.screencast.unsubscribe'],
+  ['emulator.mobile.stream', 'emulator.mobile.unsubscribe'],
   ['runtime.clientEvents.subscribe', 'runtime.clientEvents.unsubscribe']
 ] as const
 
@@ -136,6 +141,7 @@ describe('mobile relay subscription cancellation', () => {
   it.each([
     'terminal.subscribe',
     'browser.screencast',
+    'emulator.mobile.stream',
     'runtime.clientEvents.subscribe',
     'session.tabs.subscribe',
     'nativeChat.subscribe'
@@ -255,5 +261,102 @@ describe('mobile relay subscription cancellation', () => {
       )
     ).toHaveLength(100)
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('routes image frames only to the ready emulator after replacing a browser stream', async () => {
+    const { streams, sendFrame } = createStreams()
+    const browserFrames = vi.fn()
+    const emulatorFrames = vi.fn()
+    streams.subscribe('browser.screencast', { page: 'page-1' }, vi.fn(), {
+      onBinaryFrame: browserFrames
+    })
+    await Promise.resolve()
+    streams.handleResponse(response('request-1', { type: 'ready', subscriptionId: 'browser-1' }))
+    const frame = encodeBrowserScreencastFrame({
+      opcode: BrowserScreencastOpcode.Frame,
+      seq: 1,
+      format: 'jpeg',
+      metadata: {},
+      image: new Uint8Array([1])
+    })
+    streams.handleBinary(frame)
+    expect(browserFrames).toHaveBeenCalledTimes(1)
+
+    const cancelEmulator = streams.subscribe('emulator.mobile.stream', {}, vi.fn(), {
+      onBinaryFrame: emulatorFrames
+    })
+    streams.handleBinary(frame)
+    expect(browserFrames).toHaveBeenCalledTimes(1)
+    expect(emulatorFrames).not.toHaveBeenCalled()
+    expect(sendFrame).toHaveBeenCalledWith({
+      id: 'request-3',
+      method: 'browser.screencast.unsubscribe',
+      params: { subscriptionId: 'browser-1' }
+    })
+    await Promise.resolve()
+    streams.handleResponse(
+      response('request-2', {
+        type: 'ready',
+        subscriptionId: 'emulator-1',
+        device: { id: 'device-1', name: 'Pixel', backend: 'android' }
+      })
+    )
+    streams.handleBinary(frame)
+    expect(emulatorFrames).toHaveBeenCalledTimes(1)
+    cancelEmulator()
+    expect(sendFrame).toHaveBeenLastCalledWith({
+      id: 'request-4',
+      method: 'emulator.mobile.unsubscribe',
+      params: { subscriptionId: 'emulator-1' }
+    })
+  })
+
+  it('cleans a late emulator ready after an image stream replacement', async () => {
+    const { streams, sendFrame } = createStreams()
+    const oldFrames = vi.fn()
+    const newFrames = vi.fn()
+    streams.subscribe('emulator.mobile.stream', {}, vi.fn(), { onBinaryFrame: oldFrames })
+    await Promise.resolve()
+    streams.subscribe('browser.screencast', {}, vi.fn(), { onBinaryFrame: newFrames })
+    await Promise.resolve()
+    streams.handleResponse(response('request-1', { type: 'ready', subscriptionId: 'old-1' }))
+    expect(sendFrame).toHaveBeenCalledWith({
+      id: 'request-3',
+      method: 'emulator.mobile.unsubscribe',
+      params: { subscriptionId: 'old-1' }
+    })
+    expect(oldFrames).not.toHaveBeenCalled()
+    expect(newFrames).not.toHaveBeenCalled()
+  })
+
+  it('keeps emulator frames inactive during startup and cancels with the early ID', async () => {
+    const { streams, sendFrame } = createStreams()
+    const frames = vi.fn()
+    const cancel = streams.subscribe('emulator.mobile.stream', {}, vi.fn(), {
+      onBinaryFrame: frames
+    })
+    await Promise.resolve()
+    streams.handleResponse(
+      response('request-1', {
+        type: 'starting',
+        subscriptionId: 'emulator-starting'
+      })
+    )
+    streams.handleBinary(
+      encodeBrowserScreencastFrame({
+        opcode: BrowserScreencastOpcode.Frame,
+        seq: 1,
+        format: 'jpeg',
+        metadata: {},
+        image: new Uint8Array([1])
+      })
+    )
+    expect(frames).not.toHaveBeenCalled()
+    cancel()
+    expect(sendFrame).toHaveBeenLastCalledWith({
+      id: 'request-2',
+      method: 'emulator.mobile.unsubscribe',
+      params: { subscriptionId: 'emulator-starting' }
+    })
   })
 })

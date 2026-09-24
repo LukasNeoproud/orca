@@ -23,6 +23,7 @@ export const MOBILE_SESSION_ROUTE_SOURCE_FILES = [
   './use-mobile-session-startup.ts',
   './use-mobile-session-preference-focus.ts',
   './use-mobile-session-tab-switching.ts',
+  './use-mobile-session-emulator-tabs.ts',
   './use-mobile-session-terminal-webview.ts',
   './use-mobile-session-terminal-send-actions.ts',
   './use-mobile-session-file-actions.ts',
@@ -44,7 +45,8 @@ export const MOBILE_SESSION_ROUTE_SOURCE_FILES = [
   './MobileSessionActiveContent.tsx',
   './MobileSessionCommandDock.tsx',
   './MobileTerminalAccessoryRows.tsx',
-  './MobileSessionSheets.tsx'
+  './MobileSessionSheets.tsx',
+  './MobileSessionEmulatorSheets.tsx'
 ] as const
 
 export function readMobileSessionRouteSource(relativePath: string): string {

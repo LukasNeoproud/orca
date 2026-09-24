@@ -5,6 +5,13 @@ import { is } from '@electron-toolkit/utils'
 import { StarNagService } from '../star-nag/service'
 import { AgentBrowserBridge } from '../browser/agent-browser-bridge'
 import { EmulatorBridge } from '../emulator/emulator-bridge'
+import {
+  mobileEmulatorDevices,
+  sendMobileEmulatorInput,
+  startMobileEmulatorStream,
+  stopMobileEmulatorStream
+} from '../emulator/mobile-emulator-stream'
+import { setMobileEmulatorStreamHost } from '../host/mobile-emulator-stream-host'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'
 import { browserManager } from '../browser/browser-manager'
 import { configureBrowserClientPageAutomationRuntime } from '../browser/browser-client-page-automation-runtime'
@@ -77,6 +84,12 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
   // Why: externally started serve-sim processes must stay independent — only Orca-managed/attached helpers belong to a workspace.
   state.emulatorBridge = new EmulatorBridge()
   runtime.setEmulatorBridge(state.emulatorBridge)
+  setMobileEmulatorStreamHost({
+    devices: mobileEmulatorDevices,
+    start: startMobileEmulatorStream,
+    stop: stopMobileEmulatorStream,
+    input: sendMobileEmulatorInput
+  })
   // Why: worktree deletion renames the checkout aside and deletes it in the background, so a quit or
   // crash mid-delete can leave the moved directory on disk. Why deferred: the sweep's recursive
   // readdir/rm runs on the same libuv threadpool the window's first paint and worktree-catalog

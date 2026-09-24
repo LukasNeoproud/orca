@@ -1,4 +1,8 @@
-import { decodeBrowserScreencastFrame } from './browser-screencast-protocol'
+import type {
+  EmulatorVideoCodec,
+  EmulatorVideoFrame
+} from '../../../src/shared/emulator-video-protocol'
+import { emulatorVideoCodec, routeMobileImageFrame } from './mobile-image-stream-routing'
 import {
   handleTerminalBinaryFrame,
   type TerminalSnapshotState
@@ -8,7 +12,7 @@ import {
   buildTerminalUnsubscribeParams,
   updateTerminalSubscriptionViewport
 } from './rpc-client-terminal-subscription'
-import { buildReadyStreamUnsubscribe } from './rpc-client-server-subscription'
+import { buildReadyStreamUnsubscribe, isImageStreamMethod } from './rpc-client-server-subscription'
 import type { RpcClient } from './rpc-client'
 import type { RpcResponse, RpcSuccess } from './types'
 
@@ -21,8 +25,10 @@ type StreamRecord = {
     | undefined
     ? Listener
     : never
+  onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
   streamIds: Set<number>
   subscriptionId?: string
+  videoCodec?: EmulatorVideoCodec
   cancelled: boolean
   sent: boolean
   receivedSnapshot?: boolean
@@ -57,7 +63,8 @@ export class MobileRelayRpcStreams {
   >()
   private readonly terminalListeners = new Map<number, (result: unknown) => void>()
   private readonly terminalSnapshots = new Map<number, TerminalSnapshotState>()
-  private activeBrowserStream: StreamRecord | null = null
+  private activeImageStreamId: string | null = null
+  private pendingImageStreamId: string | null = null
 
   constructor(private readonly options: StreamManagerOptions) {}
 
@@ -73,11 +80,15 @@ export class MobileRelayRpcStreams {
       params,
       listener,
       onBinaryFrame: subscribeOptions?.onBinaryFrame,
+      onEmulatorVideoFrame: subscribeOptions?.onEmulatorVideoFrame,
       streamIds: new Set(),
       cancelled: false,
       sent: false
     }
     this.streams.set(id, stream)
+    if (isImageStreamMethod(method)) {
+      this.replaceImageStream(id)
+    }
     void this.options
       .waitForConnected()
       .then(() => {
@@ -141,12 +152,32 @@ export class MobileRelayRpcStreams {
       if (typeof metadata.subscriptionId === 'string') {
         stream.subscriptionId = metadata.subscriptionId
       }
+      if (stream.method === 'emulator.mobile.stream') {
+        if (metadata.type === 'ready') {
+          stream.videoCodec = emulatorVideoCodec(metadata)
+        } else if (metadata.type === 'starting' || metadata.type === 'reconnecting') {
+          stream.videoCodec = undefined
+        }
+      }
       if (typeof metadata.streamId === 'number') {
         stream.streamIds.add(metadata.streamId)
         this.terminalListeners.set(metadata.streamId, stream.listener)
       }
-      if (stream.method === 'browser.screencast') {
-        this.activeBrowserStream = stream
+      if (
+        isImageStreamMethod(stream.method) &&
+        metadata.type === 'ready' &&
+        typeof metadata.subscriptionId === 'string'
+      ) {
+        if (this.pendingImageStreamId !== response.id && this.activeImageStreamId !== response.id) {
+          const unsubscribe = buildReadyStreamUnsubscribe(stream.method, metadata.subscriptionId)
+          if (unsubscribe) {
+            this.sendUnsubscribe(unsubscribe)
+          }
+          this.remove(response.id)
+          return true
+        }
+        this.pendingImageStreamId = null
+        this.activeImageStreamId = response.id
       }
       if (metadata.type === 'end') {
         stream.listener(result)
@@ -161,9 +192,8 @@ export class MobileRelayRpcStreams {
   }
 
   handleBinary(bytes: Uint8Array): void {
-    const browserFrame = decodeBrowserScreencastFrame(bytes)
-    if (browserFrame && this.activeBrowserStream?.onBinaryFrame) {
-      this.activeBrowserStream.onBinaryFrame(browserFrame)
+    const stream = this.activeImageStreamId ? this.streams.get(this.activeImageStreamId) : undefined
+    if (routeMobileImageFrame(bytes, stream)) {
       return
     }
     handleTerminalBinaryFrame(bytes, {
@@ -180,7 +210,8 @@ export class MobileRelayRpcStreams {
     this.cancelledSubscriptions.clear()
     this.terminalListeners.clear()
     this.terminalSnapshots.clear()
-    this.activeBrowserStream = null
+    this.activeImageStreamId = null
+    this.pendingImageStreamId = null
   }
 
   private cancel(id: string): void {
@@ -205,7 +236,7 @@ export class MobileRelayRpcStreams {
         } else if (unsubscribe || byParams) {
           this.sendUnsubscribe((unsubscribe ?? byParams)!)
         } else if (
-          stream.method === 'browser.screencast' ||
+          isImageStreamMethod(stream.method) ||
           stream.method === 'runtime.clientEvents.subscribe'
         ) {
           // Keep only the cleanup route while the server assigns its subscription ID.
@@ -253,10 +284,24 @@ export class MobileRelayRpcStreams {
       this.terminalListeners.delete(streamId)
       this.terminalSnapshots.delete(streamId)
     }
-    if (this.activeBrowserStream === stream) {
-      this.activeBrowserStream = null
+    if (this.activeImageStreamId === id) {
+      this.activeImageStreamId = null
+    }
+    if (this.pendingImageStreamId === id) {
+      this.pendingImageStreamId = null
     }
     this.streams.delete(id)
+  }
+
+  private replaceImageStream(id: string): void {
+    if (this.activeImageStreamId && this.activeImageStreamId !== id) {
+      this.cancel(this.activeImageStreamId)
+    }
+    if (this.pendingImageStreamId && this.pendingImageStreamId !== id) {
+      this.cancel(this.pendingImageStreamId)
+    }
+    this.activeImageStreamId = null
+    this.pendingImageStreamId = id
   }
 
   private fail(id: string, stream: StreamRecord, message: string, error?: unknown): void {
