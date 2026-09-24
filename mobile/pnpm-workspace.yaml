@@ -3,6 +3,9 @@ allowBuilds:
 
 minimumReleaseAge: 4320
 
+# Prefab treats '=' in long patch_hash directory names as a CLI option.
+virtualStoreDirMaxLength: 40
+
 overrides:
   xcode>uuid: 11.1.1
 
