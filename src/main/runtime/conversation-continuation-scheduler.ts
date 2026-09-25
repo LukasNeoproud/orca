@@ -1,6 +1,9 @@
 import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { ConversationContinuationSource } from '../../shared/conversation-continuation'
+import type {
+  ConversationContinuationCompactionOrigin,
+  ConversationContinuationSource
+} from '../../shared/conversation-continuation'
 import type { ConversationContinuationView } from '../../shared/conversation-continuation-view'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { durableWriteTempPath, renameDurable, writeTempFileDurable } from '../durable-file-write'
@@ -131,6 +134,14 @@ export class ConversationContinuationScheduler {
   }
 
   async prepare(source: ConversationContinuationSource, expectedRevision: string) {
+    return this.prepareWithOrigin(source, expectedRevision, 'manual')
+  }
+
+  private async prepareWithOrigin(
+    source: ConversationContinuationSource,
+    expectedRevision: string,
+    compactionOrigin: ConversationContinuationCompactionOrigin
+  ) {
     await this.ready
     if (this.deps.busy(source.providerSessionId)) {
       throw new Error('The conversation is still working or awaiting input.')
@@ -139,7 +150,11 @@ export class ConversationContinuationScheduler {
     if (view.checkpoint?.revision !== expectedRevision) {
       throw new Error('The conversation changed. Refresh before preparing a copy.')
     }
-    const candidate = await this.deps.service.prepareInBackground({ source, expectedRevision })
+    const candidate = await this.deps.service.prepareInBackground(
+      { source, expectedRevision },
+      undefined,
+      compactionOrigin
+    )
     const registration = this.registrations.get(keyOf(source))!
     registration.candidateId = candidate.candidateId
     registration.touchedAt = this.now()
@@ -182,7 +197,7 @@ export class ConversationContinuationScheduler {
           if (view.candidate?.checkpoint.revision === view.checkpoint.revision) {
             continue
           }
-          await this.prepare(source, view.checkpoint.revision)
+          await this.prepareWithOrigin(source, view.checkpoint.revision, 'automatic')
           break
         } catch (error) {
           console.warn('[conversation-continuation] Preparation deferred', {

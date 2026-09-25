@@ -12,12 +12,13 @@ import { translate } from '@/i18n/i18n'
 
 type LaunchAgentSessionContinuationArgs = {
   agent: TuiAgent
-  prompt: string
+  prompt?: string
   worktreeId: string
   groupId?: string | null
   workspacePath: string
   initialCwd?: string | null
   launchSource: LaunchSource
+  assertCurrent?: () => void
 }
 
 export async function detectAgentSessionContinuationAgents(
@@ -95,32 +96,39 @@ export async function launchAgentSessionContinuation({
   groupId,
   workspacePath,
   initialCwd,
-  launchSource
+  launchSource,
+  assertCurrent
 }: LaunchAgentSessionContinuationArgs): Promise<boolean> {
   if (!(await ensureAgentAvailable(agent, worktreeId))) {
     return false
   }
+  assertCurrent?.()
 
   const connectionId = getConnectionIdFromState(useAppStore.getState(), worktreeId)
   await preflightAgentTrust({ agent, workspacePath, connectionId })
+  assertCurrent?.()
 
   const label = getAgentLabel(agent)
+  const hasPrompt = Boolean(prompt?.trim())
   const result = launchAgentInNewTab({
     agent,
     worktreeId,
     ...(groupId ? { groupId } : {}),
-    prompt,
-    promptDelivery: 'submit-after-ready',
+    ...(hasPrompt ? { prompt, promptDelivery: 'submit-after-ready' as const } : {}),
     launchSource,
     ...(initialCwd ? { initialCwd } : {}),
-    onPromptDelivered: () =>
-      toast.success(
-        translate(
-          'components.agentSessionContinuation.sent',
-          'Session context sent to {{agent}} in a new session.',
-          { agent: label }
-        )
-      )
+    ...(hasPrompt
+      ? {
+          onPromptDelivered: () =>
+            toast.success(
+              translate(
+                'components.agentSessionContinuation.sent',
+                'Session context sent to {{agent}} in a new session.',
+                { agent: label }
+              )
+            )
+        }
+      : {})
   })
   if (!result) {
     notifyLaunchFailed(label)

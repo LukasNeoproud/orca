@@ -75,7 +75,9 @@ function copyRevision(hash: Hash): string {
   return hash.copy().digest('hex')
 }
 
-async function assertTrustedSourcePath(source: ResolvedCodexContinuationSource): Promise<string> {
+export async function assertTrustedSourcePath(
+  source: ResolvedCodexContinuationSource
+): Promise<string> {
   if (
     !source.providerSessionId.trim() ||
     !source.workspaceId.trim() ||

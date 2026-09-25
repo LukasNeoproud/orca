@@ -38,6 +38,8 @@ export const MIN_COMPATIBLE_RUNTIME_SERVER_VERSION = 2
 export const AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY = 'agent.context-transitions.v1' as const
 export const AGENT_CONTEXT_STRUCTURED_MOBILE_RUNTIME_CAPABILITY =
   'agent.context-structured-mobile.v1' as const
+export const CONVERSATION_CONTINUATION_CANDIDATE_REFERENCE_CAPABILITY =
+  'conversation.continuation.candidate-reference.v1' as const
 
 export const PROJECT_HOST_SETUP_RUNTIME_CAPABILITY = 'project-host-setup.v1' as const
 export const PROJECT_HOST_SETUP_HOST_LOCAL_LINK_RUNTIME_CAPABILITY =
@@ -234,6 +236,7 @@ export const RUNTIME_CAPABILITIES = [
   AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY,
   AGENT_CONTEXT_STRUCTURED_MOBILE_RUNTIME_CAPABILITY,
   'conversation.continuation.v1',
+  CONVERSATION_CONTINUATION_CANDIDATE_REFERENCE_CAPABILITY,
   'runtime.status.compat.v1',
   'runtime.environments.v1',
   REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY,

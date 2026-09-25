@@ -86,10 +86,11 @@ describe('conversation continuation schedule', () => {
     await scheduler.tick()
     await scheduler.tick()
     expect(service.prepareInBackground).toHaveBeenCalledTimes(1)
-    expect(service.prepareInBackground).toHaveBeenCalledWith({
-      source,
-      expectedRevision: checkpoint.revision
-    })
+    expect(service.prepareInBackground).toHaveBeenCalledWith(
+      { source, expectedRevision: checkpoint.revision },
+      undefined,
+      'automatic'
+    )
   })
 
   it('restores registration and does not retry unconfirmed preparation after restart', async () => {
@@ -112,6 +113,11 @@ describe('conversation continuation schedule', () => {
   it('rejects stale manual preparation and hides a candidate when its source advances', async () => {
     const { scheduler, service } = await setup()
     await scheduler.prepare(source, checkpoint.revision)
+    expect(service.prepareInBackground).toHaveBeenCalledWith(
+      { source, expectedRevision: checkpoint.revision },
+      undefined,
+      'manual'
+    )
     service.inspect.mockResolvedValue({
       source,
       checkpoint: { ...checkpoint, revision: 'revision-2' }

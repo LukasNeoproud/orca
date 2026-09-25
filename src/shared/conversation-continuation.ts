@@ -27,6 +27,8 @@ export const CONVERSATION_CONTINUATION_CANDIDATE_STATUSES = [
 export type ConversationContinuationCandidateStatus =
   (typeof CONVERSATION_CONTINUATION_CANDIDATE_STATUSES)[number]
 
+export type ConversationContinuationCompactionOrigin = 'automatic' | 'manual'
+
 export type ConversationContinuationCandidate = {
   candidateId: string
   source: ConversationContinuationSource
@@ -40,6 +42,8 @@ export type ConversationContinuationCandidate = {
   /** Absent on existing compacted copies. Fresh candidates never copy source history. */
   mode?: 'fresh'
   handoffDigest?: string
+  /** Absent when the preparation origin is unknown. */
+  compactionOrigin?: ConversationContinuationCompactionOrigin
 }
 
 export type ConversationContinuationPrepareInput = {

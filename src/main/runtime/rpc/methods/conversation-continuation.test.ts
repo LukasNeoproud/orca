@@ -34,6 +34,7 @@ function facade(viewId: string) {
     },
     service: {
       prepareReference: vi.fn(),
+      prepareCandidateReference: vi.fn(),
       claim: vi.fn()
     }
   }
@@ -159,5 +160,23 @@ describe('conversation continuation RPC methods', () => {
     expect(otherEntry.service.claim).not.toHaveBeenCalled()
     expect(runtimeFacade.resolve).toHaveBeenCalledTimes(1)
     expect(runtimeFacade.resolve).toHaveBeenCalledWith(owner)
+  })
+
+  it('routes candidate references only to the owning runtime', async () => {
+    const owner = runtime('runtime-a')
+    const entry = facade('source-a')
+    entry.service.prepareCandidateReference.mockResolvedValue({ reference: 'snapshot' })
+    runtimeFacade.resolve.mockReturnValue(entry)
+    const params = {
+      source: { providerSessionId: 'session', workspaceId: 'workspace' },
+      expectedRevision: 'revision',
+      candidateId: 'candidate'
+    }
+    const response = await new RpcDispatcher({
+      runtime: owner,
+      methods: CONVERSATION_CONTINUATION_METHODS
+    }).dispatch(request('conversationContinuation.candidateReference', params))
+    expect(response).toMatchObject({ ok: true, result: { reference: 'snapshot' } })
+    expect(entry.service.prepareCandidateReference).toHaveBeenCalledExactlyOnceWith(params)
   })
 })

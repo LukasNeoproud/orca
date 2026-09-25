@@ -19,7 +19,8 @@ vi.mock('@/runtime/local-runtime-capabilities', () => ({
 import {
   claimContinuationCandidate,
   inspectContinuation,
-  prepareContinuation
+  prepareContinuation,
+  referenceContinuationCandidate
 } from './conversation-continuation-client'
 
 const source = { providerSessionId: 'provider-session', workspaceId: 'folder:project' }
@@ -30,6 +31,30 @@ describe('conversation continuation client routing', () => {
     mock.capabilities = ['conversation.continuation.v1']
     mock.assertCapability.mockResolvedValue(undefined)
     mock.call.mockResolvedValue({})
+  })
+
+  it('requires the snapshot capability before referencing a candidate on an old local host', async () => {
+    await expect(
+      referenceContinuationCandidate({ kind: 'local' }, source, 'r1', 'copy')
+    ).rejects.toThrow('Update the owning')
+    expect(mock.call).not.toHaveBeenCalled()
+  })
+
+  it('references a compacted snapshot on its owning peer without claiming it', async () => {
+    const target = { kind: 'environment' as const, environmentId: 'owning-peer' }
+    await referenceContinuationCandidate(target, source, 'r1', 'copy')
+    expect(mock.assertCapability).toHaveBeenCalledWith(
+      'owning-peer',
+      'conversation.continuation.candidate-reference.v1',
+      expect.any(String),
+      15_000
+    )
+    expect(mock.call).toHaveBeenCalledExactlyOnceWith(
+      target,
+      'conversationContinuation.candidateReference',
+      { source, expectedRevision: 'r1', candidateId: 'copy' },
+      { timeoutMs: 120_000 }
+    )
   })
 
   it('refuses an older paired owner without falling back to the local runtime', async () => {

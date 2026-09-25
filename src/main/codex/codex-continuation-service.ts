@@ -1,22 +1,25 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type {
   ConversationContinuationCandidate,
+  ConversationContinuationCompactionOrigin,
   ConversationContinuationInspection,
   ConversationContinuationPrepareInput,
   ConversationContinuationReference,
   ConversationContinuationSource
 } from '../../shared/conversation-continuation'
-import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import type {
   openCodexAppServerConnection,
   CodexAppServerLaunch
 } from './codex-app-server-connection'
 import {
+  assertTrustedSourcePath,
   inspectCodexContinuationSource,
   writeCodexContinuationReference,
   type InspectedCodexContinuationSource,
   type ResolvedCodexContinuationSource
 } from './codex-continuation-source'
+import { writeCodexCandidateReference } from './codex-continuation-reference'
+import { assertResolvedLaunch } from './codex-continuation-source-identity'
 import { CodexContinuationStore } from './codex-continuation-store'
 import { prepareCodexContinuationCandidate } from './codex-continuation-preparation'
 
@@ -35,44 +38,6 @@ export type CodexContinuationServiceDeps = {
   now?: () => number
   requestTimeoutMs?: number
   compactionTimeoutMs?: number
-}
-
-function sourceMatches(
-  expected: ConversationContinuationSource,
-  actual: CodexContinuationResolvedSource
-): boolean {
-  return (
-    expected.providerSessionId === actual.providerSessionId &&
-    expected.workspaceId === actual.workspaceId
-  )
-}
-
-function assertResolvedLaunch(
-  requested: ConversationContinuationSource,
-  resolved: CodexContinuationResolvedSource
-): void {
-  if (!sourceMatches(requested, resolved)) {
-    throw new Error('conversation_continuation_resolver_identity_mismatch')
-  }
-  if (
-    !resolved.launch.cwd ||
-    normalizeRuntimePathForComparison(resolved.launch.cwd) !==
-      normalizeRuntimePathForComparison(resolved.cwd)
-  ) {
-    throw new Error('conversation_continuation_launch_cwd_mismatch')
-  }
-  const launchHome = resolved.launch.env?.CODEX_HOME
-  if (
-    !launchHome ||
-    normalizeRuntimePathForComparison(launchHome) !==
-      normalizeRuntimePathForComparison(resolved.codexHome) ||
-    resolved.launch.envToDelete?.includes('CODEX_HOME')
-  ) {
-    throw new Error('conversation_continuation_launch_home_mismatch')
-  }
-  if (resolved.launch.args.at(-1) !== 'app-server') {
-    throw new Error('conversation_continuation_launch_not_app_server')
-  }
 }
 
 export class CodexContinuationService {
@@ -99,7 +64,8 @@ export class CodexContinuationService {
 
   async prepareInBackground(
     input: ConversationContinuationPrepareInput,
-    handoff?: string
+    handoff?: string,
+    compactionOrigin?: ConversationContinuationCompactionOrigin
   ): Promise<ConversationContinuationCandidate> {
     const { inspected } = await this.resolveAndInspect(input.source)
     const checkpoint = inspected.checkpoint
@@ -131,6 +97,7 @@ export class CodexContinuationService {
       status: 'preparing',
       createdAt: now,
       updatedAt: now,
+      ...(compactionOrigin ? { compactionOrigin } : {}),
       ...(handoff
         ? {
             mode: 'fresh' as const,
@@ -181,6 +148,53 @@ export class CodexContinuationService {
       checkpoint,
       checkpointByteOffset: inspected.checkpointByteOffset
     })
+  }
+
+  async prepareCandidateReference(
+    input: ConversationContinuationPrepareInput & { candidateId: string }
+  ): Promise<ConversationContinuationReference> {
+    const candidate = this.store.get(input.candidateId)
+    if (
+      !candidate ||
+      candidate.source.providerSessionId !== input.source.providerSessionId ||
+      candidate.source.workspaceId !== input.source.workspaceId ||
+      candidate.checkpoint.revision !== input.expectedRevision ||
+      candidate.mode === 'fresh' ||
+      candidate.status !== 'ready' ||
+      !candidate.providerSessionId ||
+      !candidate.transcriptPath
+    ) {
+      throw new Error('conversation_continuation_candidate_not_ready')
+    }
+    const { resolved, inspected } = await this.resolveAndInspect(input.source)
+    if (inspected.checkpoint?.revision !== input.expectedRevision) {
+      throw new Error('conversation_continuation_checkpoint_changed')
+    }
+    const candidateSource = {
+      providerSessionId: candidate.providerSessionId,
+      workspaceId: candidate.source.workspaceId,
+      cwd: resolved.cwd,
+      transcriptPath: candidate.transcriptPath,
+      codexHome: resolved.codexHome
+    }
+    await inspectCodexContinuationSource(candidateSource)
+    const trustedTranscriptPath = await assertTrustedSourcePath(candidateSource)
+    const reference = await writeCodexCandidateReference({
+      userDataPath: this.deps.userDataPath,
+      source: input.source,
+      checkpoint: candidate.checkpoint,
+      transcriptPath: trustedTranscriptPath
+    })
+    if (this.store.get(input.candidateId)?.status !== 'ready') {
+      throw new Error('conversation_continuation_candidate_not_ready')
+    }
+    if (
+      (await this.resolveAndInspect(input.source)).inspected.checkpoint?.revision !==
+      input.expectedRevision
+    ) {
+      throw new Error('conversation_continuation_checkpoint_changed')
+    }
+    return reference
   }
 
   async markUsed(candidateId: string): Promise<ConversationContinuationCandidate> {

@@ -68,6 +68,19 @@ describe('CodexContinuationStore retention', () => {
     expect(store.get('candidate-uncertain')).toBeNull()
   })
 
+  it('rejects an invalid persisted compaction origin', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'orca-continuation-store-'))
+    directories.push(directory)
+    await writeFile(
+      join(directory, 'conversation-continuation-candidates.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        candidates: [{ ...candidate('current'), compactionOrigin: 'scheduled-ish' }]
+      })
+    )
+    expect(() => new CodexContinuationStore(directory)).toThrow('unsupported shape')
+  })
+
   it('reclaims legacy stale records without removing an in-flight preparation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'orca-continuation-store-'))
     directories.push(directory)

@@ -199,6 +199,67 @@ describe('CodexContinuationService', () => {
     expect(openConnection).toHaveBeenCalledTimes(1)
   })
 
+  it('persists explicit compaction origin and preserves it when reusing a candidate', async () => {
+    const { root, source, resolved, candidatePath } = await fixture()
+    const service = new CodexContinuationService({
+      userDataPath: root,
+      resolveSource: async () => resolved,
+      openConnection: fakeConnection({ candidatePath, calls: [] })
+    })
+    const checkpoint = (await service.inspect(source)).checkpoint!
+    const input = { source, expectedRevision: checkpoint.revision }
+    const initial = await service.prepareInBackground(input, undefined, 'manual')
+    await service.settled()
+    const duplicate = await service.prepareInBackground(input, undefined, 'automatic')
+    expect(duplicate.compactionOrigin).toBe('manual')
+    const restarted = new CodexContinuationService({
+      userDataPath: root,
+      resolveSource: async () => resolved
+    })
+    expect(restarted.status(initial.candidateId)?.compactionOrigin).toBe('manual')
+  })
+
+  it('references an immutable snapshot of the ready compacted candidate without claiming it', async () => {
+    const { root, source, service, candidate, candidatePath } = await prepareReadyCandidate()
+    const compacted = line({
+      type: 'event_msg',
+      payload: { type: 'context_compacted', summary: 'Relevant compacted context' }
+    })
+    await appendFile(candidatePath, compacted)
+    const reference = await service.prepareCandidateReference({
+      source,
+      expectedRevision: candidate.checkpoint.revision,
+      candidateId: candidate.candidateId
+    })
+    const snapshotPath = reference.reference.match(
+      /Compacted Codex transcript \(read-only\): (.+)/
+    )?.[1]
+    expect(snapshotPath).toBeTruthy()
+    expect(await readFile(snapshotPath!, 'utf8')).toBe(await readFile(candidatePath, 'utf8'))
+    expect(reference.reference).toContain('latest post-compaction context')
+    expect(service.status(candidate.candidateId)?.status).toBe('ready')
+    await appendFile(candidatePath, line({ type: 'event_msg', payload: { type: 'later' } }))
+    expect(await readFile(snapshotPath!, 'utf8')).toContain(compacted)
+    expect(await readFile(snapshotPath!, 'utf8')).not.toContain('"later"')
+    expect(snapshotPath).toContain(join(root, 'conversation-continuation-references'))
+  })
+
+  it('refuses candidate references after the original checkpoint advances', async () => {
+    const { service, candidate, source, sourcePath } = await prepareReadyCandidate()
+    await appendFile(
+      sourcePath,
+      line({ type: 'event_msg', payload: { type: 'task_started', turn_id: 'turn-next' } }) +
+        line({ type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-next' } })
+    )
+    await expect(
+      service.prepareCandidateReference({
+        source,
+        expectedRevision: candidate.checkpoint.revision,
+        candidateId: candidate.candidateId
+      })
+    ).rejects.toThrow('conversation_continuation_checkpoint_changed')
+  })
+
   it.each([
     {
       name: 'unsupported method',
@@ -325,6 +386,7 @@ describe('CodexContinuationService', () => {
       status: 'unconfirmed',
       error: expect.stringContaining('restarted')
     })
+    expect(restarted.status('candidate-1')?.compactionOrigin).toBeUndefined()
     await restarted.settled()
   })
 })

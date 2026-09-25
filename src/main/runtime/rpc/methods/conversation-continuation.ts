@@ -6,6 +6,7 @@ const Identifier = z.string().min(1).max(512)
 const Source = z.object({ providerSessionId: Identifier, workspaceId: Identifier }).strict()
 const Inspect = z.object({ source: Source }).strict()
 const Prepare = z.object({ source: Source, expectedRevision: z.string().min(1).max(512) }).strict()
+const CandidateReference = Prepare.extend({ candidateId: Identifier }).strict()
 
 export const CONVERSATION_CONTINUATION_METHODS: readonly RpcAnyMethod[] = [
   defineMethod({
@@ -34,6 +35,12 @@ export const CONVERSATION_CONTINUATION_METHODS: readonly RpcAnyMethod[] = [
       }
       return service.prepareReference(params)
     }
+  }),
+  defineMethod({
+    name: 'conversationContinuation.candidateReference',
+    params: CandidateReference,
+    handler: (params, ctx) =>
+      conversationContinuationRuntime(ctx.runtime).service.prepareCandidateReference(params)
   }),
   defineMethod({
     name: 'conversationContinuation.claim',

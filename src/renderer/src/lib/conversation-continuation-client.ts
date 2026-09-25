@@ -1,5 +1,9 @@
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
-import { callConversationRuntimeFeature } from './conversation-runtime-rpc'
+import {
+  assertConversationRuntimeFeature,
+  callConversationRuntimeFeature
+} from './conversation-runtime-rpc'
+import { CONVERSATION_CONTINUATION_CANDIDATE_REFERENCE_CAPABILITY } from '../../../shared/protocol-version'
 import {
   CONVERSATION_CONTINUATION_CAPABILITY,
   type ConversationContinuationView
@@ -48,3 +52,24 @@ export const referenceContinuation = (
   })
 export const claimContinuationCandidate = (target: RuntimeClientTarget, candidateId: string) =>
   call<ConversationContinuationCandidate>(target, 'claim', { candidateId })
+
+export const assertContinuationCandidateReferenceSupported = (target: RuntimeClientTarget) =>
+  assertConversationRuntimeFeature(
+    target,
+    CONVERSATION_CONTINUATION_CANDIDATE_REFERENCE_CAPABILITY,
+    'Update the owning Orca runtime to pass compacted context to another agent.'
+  )
+
+export const referenceContinuationCandidate = (
+  target: RuntimeClientTarget,
+  source: ConversationContinuationSource,
+  expectedRevision: string,
+  candidateId: string
+) =>
+  callConversationRuntimeFeature<ConversationContinuationReference>(
+    target,
+    CONVERSATION_CONTINUATION_CANDIDATE_REFERENCE_CAPABILITY,
+    'Update the owning Orca runtime to pass compacted context to another agent.',
+    'conversationContinuation.candidateReference',
+    { source: identity(source), expectedRevision, candidateId }
+  )

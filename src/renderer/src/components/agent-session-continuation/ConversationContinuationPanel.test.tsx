@@ -6,6 +6,10 @@ const mocks = vi.hoisted(() => ({
   inspect: vi.fn(),
   prepare: vi.fn(),
   reference: vi.fn(),
+  candidateReference: vi.fn(),
+  assertReferenceSupported: vi.fn(),
+  launch: vi.fn(),
+  agent: 'codex' as 'codex' | 'claude',
   used: vi.fn()
 }))
 vi.mock('@/store', () => ({
@@ -16,7 +20,19 @@ vi.mock('@/lib/conversation-continuation-client', () => ({
   inspectContinuation: mocks.inspect,
   prepareContinuation: mocks.prepare,
   referenceContinuation: mocks.reference,
+  referenceContinuationCandidate: mocks.candidateReference,
+  assertContinuationCandidateReferenceSupported: mocks.assertReferenceSupported,
   claimContinuationCandidate: mocks.used
+}))
+vi.mock('./use-continuation-target-agent', () => ({
+  useContinuationTargetAgent: () => ({
+    selectedAgent: mocks.agent,
+    setSelectedAgent: vi.fn(),
+    agents: ['codex', 'claude'],
+    detecting: false,
+    error: null,
+    launch: mocks.launch
+  })
 }))
 import { ConversationContinuationPanel } from './ConversationContinuationPanel'
 const source = {
@@ -44,6 +60,10 @@ beforeEach(() => {
   mocks.prepare.mockReset()
   mocks.reference.mockReset()
   mocks.used.mockReset()
+  mocks.candidateReference.mockReset()
+  mocks.assertReferenceSupported.mockReset()
+  mocks.launch.mockReset()
+  mocks.agent = 'codex'
   mocks.inspect.mockResolvedValue(view)
   mocks.used.mockResolvedValue(usedCandidate)
   container = document.createElement('div')
@@ -55,10 +75,20 @@ afterEach(() => {
   container.remove()
 })
 async function click(text: string) {
-  const button = [...container.querySelectorAll('button')].find((element) =>
+  let button = [...document.body.querySelectorAll('button')].find((element) =>
     element.textContent?.includes(text)
-  )!
-  await act(async () => button.click())
+  )
+  if (!button) {
+    const trigger = [...container.querySelectorAll('button')].find((element) =>
+      element.textContent?.includes('Continue…')
+    )!
+    await act(async () => trigger.click())
+    button = [...document.body.querySelectorAll('button')].find((element) =>
+      element.textContent?.includes(text)
+    )
+  }
+  expect(button, `button ${text}`).toBeDefined()
+  await act(async () => button!.click())
 }
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -68,6 +98,84 @@ function deferred<T>() {
   return { promise, resolve }
 }
 describe('ConversationContinuationPanel', () => {
+  it('does not compact or launch when the owner cannot provide a compacted reference', async () => {
+    mocks.agent = 'claude'
+    mocks.assertReferenceSupported.mockRejectedValue(new Error('Update the owning runtime'))
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel source={source} busy={false} onContinue={vi.fn()} />
+      )
+    )
+    await click('Compact and pass a reference')
+    expect(mocks.prepare).not.toHaveBeenCalled()
+    expect(mocks.launch).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Update the owning runtime')
+  })
+  it('cancels a pending cross-agent launch when the menu is dismissed', async () => {
+    mocks.agent = 'claude'
+    const reference = deferred<{ reference: string }>()
+    mocks.reference.mockReturnValue(reference.promise)
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel source={source} busy={false} onContinue={vi.fn()} />
+      )
+    )
+    await click('New with reference')
+    await click('Continue…')
+    await act(async () => {
+      reference.resolve({ reference: 'snapshot' })
+      await reference.promise
+    })
+    expect(mocks.launch).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['Compact and pass a reference', 'compacted snapshot'],
+    ['New with reference', 'original snapshot'],
+    ['Empty conversation', undefined]
+  ] as const)('launches another agent with the correct context for %s', async (label, expected) => {
+    mocks.agent = 'claude'
+    mocks.inspect.mockResolvedValue({
+      ...view,
+      candidate: { ...readyCandidate, compactionOrigin: 'automatic' }
+    })
+    mocks.reference.mockResolvedValue({ reference: 'original snapshot' })
+    mocks.candidateReference.mockResolvedValue({ reference: 'compacted snapshot' })
+    const onContinue = vi.fn()
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
+      )
+    )
+    await click('Continue…')
+    expect(document.body.textContent).toContain('Prepared automatically')
+    await click(label)
+    expect(mocks.launch).toHaveBeenCalledExactlyOnceWith('claude', expected, expect.any(Function))
+    expect(onContinue).not.toHaveBeenCalled()
+    expect(mocks.used).not.toHaveBeenCalled()
+    expect(mocks.prepare).not.toHaveBeenCalled()
+    if (expected === 'compacted snapshot') {
+      expect(mocks.candidateReference).toHaveBeenCalledExactlyOnceWith(
+        source.target,
+        source,
+        'r1',
+        'copy'
+      )
+      expect(mocks.reference).not.toHaveBeenCalled()
+    } else {
+      expect(mocks.candidateReference).not.toHaveBeenCalled()
+    }
+  })
+  it('does not infer automatic origin from the current setting', async () => {
+    mocks.inspect.mockResolvedValue({ ...view, autoCompact: true, candidate: readyCandidate })
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel source={source} busy={false} onContinue={vi.fn()} />
+      )
+    )
+    await click('Continue…')
+    expect(document.body.textContent).toContain('Prepared')
+    expect(document.body.textContent).not.toContain('Prepared automatically')
+  })
   it('offers an idle conversation without invoking compaction or suggesting the original when auto compact is off', async () => {
     const onContinue = vi.fn()
     await act(async () =>
@@ -75,13 +183,15 @@ describe('ConversationContinuationPanel', () => {
         <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
       )
     )
-    expect(container.textContent).toContain('New with reference')
-    expect(container.textContent).not.toContain('Continue original')
+    expect(container.textContent).toContain('Continue…')
+    await click('Continue…')
+    expect(document.body.textContent).toContain('New with reference')
+    expect(document.body.textContent).not.toContain('Continue original')
     expect(mocks.prepare).not.toHaveBeenCalled()
-    await click('New conversation')
+    await click('Empty conversation')
     expect(onContinue).toHaveBeenCalledExactlyOnceWith('fresh')
   })
-  it('offers the original choice when auto compact is enabled', async () => {
+  it('never offers an original action even when auto compact is enabled', async () => {
     mocks.inspect.mockResolvedValue({ ...view, autoCompact: true })
     const onContinue = vi.fn()
     await act(async () =>
@@ -89,18 +199,15 @@ describe('ConversationContinuationPanel', () => {
         <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
       )
     )
-    await click('Continue original')
-    expect(onContinue).toHaveBeenCalledWith('original')
-    expect(container.textContent).not.toContain('New with reference')
+    await click('Continue…')
+    expect(onContinue).not.toHaveBeenCalled()
+    expect(document.body.textContent).not.toContain('Continue original')
   })
-  it('shows labeled terminal actions beside continuation and invokes each action', async () => {
+  it('replaces handoff with a target picker and keeps split as a labeled toolbar action', async () => {
     const onContinue = vi.fn()
     const terminalActions = {
-      onContinueInNewSession: vi.fn(),
       onToggleNativeChat: vi.fn(),
-      onSplitPane: vi.fn(),
-      onClosePane: vi.fn(),
-      closeLabel: 'Close this pane'
+      onSplitPane: vi.fn()
     }
     await act(async () =>
       root.render(
@@ -113,27 +220,18 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    for (const [label, callback] of [
-      ['New session with handoff…', terminalActions.onContinueInNewSession],
-      ['Show chat view', terminalActions.onToggleNativeChat],
-      ['Split Terminal Right', terminalActions.onSplitPane],
-      ['Close this pane', terminalActions.onClosePane]
-    ] as const) {
-      const button = [...container.querySelectorAll('button')].find(
-        (element) => element.textContent === label
-      )
-      expect(button?.querySelector('svg')).not.toBeNull()
-      await click(label)
-      expect(callback).toHaveBeenCalledOnce()
-    }
-    expect(container.textContent).toContain('New conversation')
+    expect(container.textContent).toContain('View: Terminal')
+    expect(container.textContent).toContain('Split Terminal Right')
+    expect(container.textContent).not.toContain('Close Pane')
+    await click('Split Terminal Right')
+    expect(terminalActions.onSplitPane).toHaveBeenCalledOnce()
+    await click('Continue…')
+    expect(document.body.textContent).toContain('Target agent')
+    expect(document.body.textContent).toContain('Empty conversation')
+    expect(document.body.textContent).not.toContain('handoff')
     expect(onContinue).not.toHaveBeenCalled()
-
-    await click('Conversation continuation')
-    expect(container.textContent).not.toContain('New conversation')
-    expect(container.textContent).toContain('New session with handoff…')
   })
-  it('labels the chat toggle according to the active view', async () => {
+  it('shows the selected view in a dropdown and only switches on the other choice', async () => {
     const onToggleNativeChat = vi.fn()
     await act(async () =>
       root.render(
@@ -146,11 +244,21 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    const button = [...container.querySelectorAll('button')].find(
-      (element) => element.textContent === 'Show terminal'
-    ) as HTMLButtonElement
-    expect(button.getAttribute('aria-pressed')).toBe('true')
-    await click('Show terminal')
+    expect(container.textContent).toContain('View: Chat')
+    const viewTrigger = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('View: Chat')
+    )!
+    await act(async () => {
+      viewTrigger.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      )
+    })
+    const selected = document.body.querySelector('[role="menuitemradio"][data-state="checked"]')
+    expect(selected?.textContent).toContain('Chat')
+    const terminal = [...document.body.querySelectorAll('[role="menuitemradio"]')].find((item) =>
+      item.textContent?.includes('Terminal')
+    ) as HTMLElement
+    await act(async () => terminal.click())
     expect(onToggleNativeChat).toHaveBeenCalledOnce()
   })
   it('does not switch when the source changed since a ready candidate was displayed', async () => {
@@ -165,10 +273,10 @@ describe('ConversationContinuationPanel', () => {
         <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
       )
     )
-    await click('Continue compacted')
+    await click('Continue with compacted context')
     expect(onContinue).not.toHaveBeenCalled()
     expect(mocks.prepare).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('Wait for the current turn')
+    expect(document.body.textContent).toContain('Wait for the current turn')
   })
   it('claims a ready copy before attempting a launch and never automatically retries it', async () => {
     mocks.inspect.mockResolvedValue({ ...view, candidate: readyCandidate })
@@ -178,9 +286,9 @@ describe('ConversationContinuationPanel', () => {
         <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
       )
     )
-    await click('Continue compacted')
+    await click('Continue with compacted context')
     expect(mocks.used).toHaveBeenCalledWith(source.target, 'copy')
-    expect(container.textContent).toContain('Launch refused')
+    expect(document.body.textContent).toContain('Launch refused')
   })
 
   it.each([
@@ -208,16 +316,16 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    await click('Compact a copy')
+    await click('Continue with compacted context')
 
-    expect(container.textContent).toContain(outcome.expected)
+    expect(document.body.textContent).toContain(outcome.expected)
     expect(onContinue).not.toHaveBeenCalled()
-    const original = [...container.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Continue original')
+    const original = [...document.body.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Empty conversation')
     ) as HTMLButtonElement
     expect(original.disabled).toBe(false)
-    await click('Continue original')
-    expect(onContinue).toHaveBeenCalledExactlyOnceWith('original')
+    await click('Empty conversation')
+    expect(onContinue).toHaveBeenCalledExactlyOnceWith('fresh')
   })
 
   it('does not switch when claiming a ready copy is rejected', async () => {
@@ -230,11 +338,11 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    await click('Continue compacted')
+    await click('Continue with compacted context')
 
     expect(mocks.used).toHaveBeenCalledExactlyOnceWith(source.target, 'copy')
     expect(onContinue).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('Copy was already selected elsewhere.')
+    expect(document.body.textContent).toContain('Copy was already selected elsewhere.')
   })
 
   it('shows recovery instead of allowing a duplicate after claim succeeds and launch fails', async () => {
@@ -246,18 +354,18 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    await click('Continue compacted')
+    await click('Continue with compacted context')
 
     expect(onContinue).toHaveBeenCalledExactlyOnceWith('compacted', {
       providerSessionId: 'copy-thread',
       transcriptPath: '/copy.jsonl'
     })
-    const selected = [...container.querySelectorAll('button')].find((button) =>
+    const selected = [...document.body.querySelectorAll('button')].find((button) =>
       button.textContent?.includes('Copy selected')
     ) as HTMLButtonElement
     expect(selected.disabled).toBe(true)
-    expect(container.textContent).toContain('reopen it from Session History')
-    expect(container.textContent).toContain('Launch refused after claim')
+    expect(document.body.textContent).toContain('reopen it from Session History')
+    expect(document.body.textContent).toContain('Launch refused after claim')
   })
 
   it('does not switch when the conversation becomes busy during a checkpoint refresh', async () => {
@@ -270,7 +378,7 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    await click('Compact a copy')
+    await click('Continue with compacted context')
     await act(async () => {
       root.render(
         <ConversationContinuationPanel source={source} busy={true} onContinue={onContinue} />
@@ -284,7 +392,7 @@ describe('ConversationContinuationPanel', () => {
     expect(mocks.prepare).not.toHaveBeenCalled()
     expect(mocks.used).not.toHaveBeenCalled()
     expect(onContinue).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('The active conversation changed')
+    expect(document.body.textContent).toContain('Finish or stop the current turn')
   })
 
   it('does not switch a claimed copy into a replacement source identity', async () => {
@@ -312,7 +420,7 @@ describe('ConversationContinuationPanel', () => {
       )
     )
 
-    await click('Continue compacted')
+    await click('Continue with compacted context')
     expect(mocks.used).toHaveBeenCalled()
     await act(async () => {
       root.render(

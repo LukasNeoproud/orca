@@ -9,13 +9,11 @@ import {
 } from '@/runtime/local-runtime-capabilities'
 import type { RuntimeCapability } from '../../../shared/protocol-version'
 
-export async function callConversationRuntimeFeature<T>(
+export async function assertConversationRuntimeFeature(
   target: RuntimeClientTarget,
   capability: RuntimeCapability,
-  updateMessage: string,
-  method: string,
-  params: unknown
-): Promise<T> {
+  updateMessage: string
+): Promise<void> {
   if (target.kind === 'environment') {
     await assertRuntimeEnvironmentCapability(
       target.environmentId,
@@ -31,5 +29,15 @@ export async function callConversationRuntimeFeature<T>(
       throw new Error(updateMessage)
     }
   }
+}
+
+export async function callConversationRuntimeFeature<T>(
+  target: RuntimeClientTarget,
+  capability: RuntimeCapability,
+  updateMessage: string,
+  method: string,
+  params: unknown
+): Promise<T> {
+  await assertConversationRuntimeFeature(target, capability, updateMessage)
   return callRuntimeRpc<T>(target, method, params, { timeoutMs: 120_000 })
 }

@@ -135,4 +135,47 @@ describe('launchAgentSessionContinuation', () => {
       )
     )
   })
+
+  it('starts an empty session without prompt delivery', async () => {
+    const { launchAgentSessionContinuation } = await import('./launch-agent-session-continuation')
+
+    await expect(
+      launchAgentSessionContinuation({
+        agent: 'codex',
+        worktreeId: 'wt-1',
+        workspacePath: '/repo/worktree',
+        launchSource: 'sidebar'
+      })
+    ).resolves.toBe(true)
+
+    expect(launchAgentInNewTab).toHaveBeenCalledWith(
+      expect.not.objectContaining({ prompt: expect.anything() })
+    )
+    expect(launchAgentInNewTab.mock.calls[0]?.[0]).not.toHaveProperty('promptDelivery')
+    expect(launchAgentInNewTab.mock.calls[0]?.[0]).not.toHaveProperty('onPromptDelivered')
+  })
+
+  it('checks the current identity after detection and trust before creating a tab', async () => {
+    const assertCurrent = vi.fn()
+    const markTrusted = vi.fn(async () => {
+      assertCurrent.mockImplementation(() => {
+        throw new Error('conversation changed')
+      })
+    })
+    vi.stubGlobal('window', { api: { agentTrust: { markTrusted } } })
+    const { launchAgentSessionContinuation } = await import('./launch-agent-session-continuation')
+
+    await expect(
+      launchAgentSessionContinuation({
+        agent: 'codex',
+        worktreeId: 'wt-1',
+        workspacePath: '/repo/worktree',
+        launchSource: 'sidebar',
+        assertCurrent
+      })
+    ).rejects.toThrow('conversation changed')
+
+    expect(assertCurrent).toHaveBeenCalledTimes(2)
+    expect(launchAgentInNewTab).not.toHaveBeenCalled()
+  })
 })

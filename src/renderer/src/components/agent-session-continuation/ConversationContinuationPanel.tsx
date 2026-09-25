@@ -3,12 +3,18 @@ import {
   ChevronDown,
   Loader2,
   MessageSquare,
-  MessageSquarePlus,
   SquareSplitVertical,
-  SquareTerminal,
-  X
+  SquareTerminal
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
@@ -16,6 +22,8 @@ import {
   inspectContinuation,
   prepareContinuation,
   referenceContinuation,
+  referenceContinuationCandidate,
+  assertContinuationCandidateReferenceSupported,
   claimContinuationCandidate
 } from '@/lib/conversation-continuation-client'
 import type {
@@ -23,6 +31,9 @@ import type {
   ConversationContinuationView
 } from '../../../../shared/conversation-continuation-view'
 import type { ConversationContinuationSource } from '../../../../shared/conversation-continuation'
+import { ConversationContinuationChoices } from './ConversationContinuationChoices'
+import { useContinuationTargetAgent } from './use-continuation-target-agent'
+import { waitForContinuationSelection } from './prepare-continuation-selection'
 
 export type ConversationContinuationPanelProps = {
   source: ConversationContinuationSource & { target: RuntimeClientTarget; sessionId?: string }
@@ -36,12 +47,9 @@ export type ConversationContinuationPanelProps = {
     reference?: string
   ) => void | Promise<void>
   terminalActions?: {
-    onContinueInNewSession?: () => void
     onToggleNativeChat?: () => void
     isChatViewMode?: boolean
     onSplitPane?: () => void
-    onClosePane?: () => void
-    closeLabel?: string
   }
 }
 
@@ -76,17 +84,29 @@ export function ConversationContinuationPanel({
   const [error, setError] = useState<string | null>(null)
   const [readError, setReadError] = useState<string | null>(null)
   const isExpanded = controlledExpanded ?? expanded
+  const actionGeneration = useRef(0)
   const setPanelExpanded = useCallback(
     (next: boolean) => {
+      if (!next) {
+        actionGeneration.current += 1
+      }
       setExpanded(next)
       onExpandedChange?.(next)
     },
     [onExpandedChange]
   )
   const identity = JSON.stringify([source.providerSessionId, source.workspaceId, source.target])
+  const targetAgents = useContinuationTargetAgent({
+    workspaceId: source.workspaceId,
+    enabled: isExpanded,
+    identity
+  })
   const mounted = useRef(false)
   const generation = useRef(0)
   const busyRef = useRef(busy)
+  if (busy && !busyRef.current) {
+    actionGeneration.current += 1
+  }
   busyRef.current = busy
   const currentIdentity = useRef(identity)
   currentIdentity.current = identity
@@ -144,18 +164,26 @@ export function ConversationContinuationPanel({
     checkpoint &&
     dismissed !== checkpoint.revision &&
     checkedAt - Date.parse(checkpoint.completedAt) >= delay
-  const open = isExpanded || Boolean(offered)
+  const open = isExpanded
   const preparing = view?.candidate?.status === 'preparing'
 
   async function choose(mode: ConversationContinuationMode): Promise<void> {
-    if (busy || pending) {
+    if (busy || pending || mode === 'original') {
       return
     }
     setPending(true)
     setPanelExpanded(true)
     setError(null)
+    const action = actionGeneration.current
+    const agent = targetAgents.selectedAgent
+    const otherAgent = agent !== 'codex'
     const assertCurrent = () => {
-      if (!mounted.current || currentIdentity.current !== identity || busyRef.current) {
+      if (
+        !mounted.current ||
+        currentIdentity.current !== identity ||
+        busyRef.current ||
+        action !== actionGeneration.current
+      ) {
         throw new Error(
           translate(
             'continuation.changed',
@@ -165,12 +193,8 @@ export function ConversationContinuationPanel({
       }
     }
     try {
-      if (mode === 'original') {
-        setDismissed(checkpoint?.revision ?? null)
-        setPanelExpanded(false)
-        await onContinue(mode)
-      } else if (mode === 'fresh') {
-        await onContinue(mode)
+      if (mode === 'fresh') {
+        await (otherAgent ? targetAgents.launch(agent, undefined, assertCurrent) : onContinue(mode))
       } else {
         const latest = await refresh()
         assertCurrent()
@@ -186,26 +210,47 @@ export function ConversationContinuationPanel({
             latest.checkpoint.revision
           )
           assertCurrent()
-          await onContinue(mode, undefined, reference)
+          await (otherAgent
+            ? targetAgents.launch(agent, reference, assertCurrent)
+            : onContinue(mode, undefined, reference))
         } else {
-          const candidate =
-            latest.candidate?.status === 'ready'
+          if (otherAgent) {
+            await assertContinuationCandidateReferenceSupported(source.target)
+            assertCurrent()
+          }
+          const initialCandidate =
+            latest.candidate?.status === 'ready' || latest.candidate?.status === 'preparing'
               ? latest.candidate
               : await prepareContinuation(source.target, source, latest.checkpoint.revision)
-          await refresh()
-          assertCurrent()
+          const candidate = await waitForContinuationSelection({
+            candidate: initialCandidate,
+            revision: latest.checkpoint.revision,
+            refresh,
+            assertCurrent
+          })
           if (
             candidate.status === 'ready' &&
             candidate.providerSessionId &&
             candidate.transcriptPath
           ) {
-            const claimed = await claimContinuationCandidate(source.target, candidate.candidateId)
-            assertCurrent()
-            setView((current) => (current ? { ...current, candidate: claimed } : current))
-            await onContinue(mode, {
-              providerSessionId: candidate.providerSessionId,
-              transcriptPath: candidate.transcriptPath
-            })
+            if (otherAgent) {
+              const { reference } = await referenceContinuationCandidate(
+                source.target,
+                source,
+                latest.checkpoint.revision,
+                candidate.candidateId
+              )
+              assertCurrent()
+              await targetAgents.launch(agent, reference, assertCurrent)
+            } else {
+              const claimed = await claimContinuationCandidate(source.target, candidate.candidateId)
+              assertCurrent()
+              setView((current) => (current ? { ...current, candidate: claimed } : current))
+              await onContinue(mode, {
+                providerSessionId: candidate.providerSessionId,
+                transcriptPath: candidate.transcriptPath
+              })
+            }
           } else if (candidate.status !== 'preparing') {
             throw new Error(
               candidate.error ??
@@ -217,8 +262,13 @@ export function ConversationContinuationPanel({
           }
         }
       }
+      setPanelExpanded(false)
     } catch (cause) {
-      if (currentIdentity.current === identity) {
+      if (
+        mounted.current &&
+        currentIdentity.current === identity &&
+        action === actionGeneration.current
+      ) {
         setError(cause instanceof Error ? cause.message : String(cause))
       }
     } finally {
@@ -230,160 +280,110 @@ export function ConversationContinuationPanel({
 
   return (
     <section
-      className="shrink-0 border-b border-border bg-background px-3 py-2"
+      className="@container/continuation shrink-0 border-b border-border bg-background px-3 py-1.5"
       aria-label={translate('continuation.label', 'Conversation continuation')}
     >
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          onClick={() => {
-            if (open) {
+      <div className="flex min-w-0 items-center gap-2">
+        <Popover
+          open={open}
+          onOpenChange={(next) => {
+            if (!next && offered) {
               setDismissed(checkpoint?.revision ?? null)
-              setPanelExpanded(false)
-            } else {
-              setPanelExpanded(true)
             }
+            setPanelExpanded(next)
           }}
-          aria-expanded={open}
         >
-          <ChevronDown className={`size-3 transition-transform ${open ? 'rotate-180' : ''}`} />
-          {translate('continuation.label', 'Conversation continuation')}
-          {preparing ? <Loader2 className="size-3 animate-spin" /> : null}
-        </Button>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant={offered ? 'secondary' : 'ghost'}
+              size="xs"
+              aria-expanded={open}
+            >
+              {translate('continuation.open', 'Continue…')}
+              {preparing ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <ChevronDown className="size-3" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" side="bottom" className="p-0">
+            <ConversationContinuationChoices
+              view={view}
+              busy={busy}
+              pending={pending}
+              compact={compact}
+              error={error}
+              readError={readError ?? targetAgents.error}
+              onChoose={(mode) => void choose(mode)}
+              targetAgent={targetAgents.selectedAgent}
+              agents={targetAgents.agents}
+              detecting={targetAgents.detecting}
+              onAgentChange={targetAgents.setSelectedAgent}
+            />
+          </PopoverContent>
+        </Popover>
         {terminalActions ? (
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
-            {terminalActions.onContinueInNewSession ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={terminalActions.onContinueInNewSession}
-              >
-                <MessageSquarePlus className="size-3" />
-                {translate('continuation.newAgentSessionWithHandoff', 'New session with handoff…')}
-              </Button>
-            ) : null}
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-1">
             {terminalActions.onToggleNativeChat ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                aria-pressed={terminalActions.isChatViewMode ?? false}
-                onClick={terminalActions.onToggleNativeChat}
-              >
-                {terminalActions.isChatViewMode ? (
-                  <SquareTerminal className="size-3" />
-                ) : (
-                  <MessageSquare className="size-3" />
-                )}
-                {terminalActions.isChatViewMode
-                  ? translate('components.native-chat.toggle.showTerminal', 'Show terminal')
-                  : translate('components.native-chat.toggle.showChat', 'Show chat view')}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    aria-label={`${translate('continuation.view', 'View')}: ${terminalActions.isChatViewMode ? translate('continuation.chat', 'Chat') : translate('continuation.terminal', 'Terminal')}`}
+                  >
+                    {terminalActions.isChatViewMode ? (
+                      <MessageSquare className="size-3" />
+                    ) : (
+                      <SquareTerminal className="size-3" />
+                    )}
+                    <span className="@max-[340px]/continuation:hidden">
+                      {translate('continuation.view', 'View')}:{' '}
+                      {terminalActions.isChatViewMode
+                        ? translate('continuation.chat', 'Chat')
+                        : translate('continuation.terminal', 'Terminal')}
+                    </span>
+                    <ChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={terminalActions.isChatViewMode ? 'chat' : 'terminal'}
+                    onValueChange={(value) => {
+                      if ((value === 'chat') !== Boolean(terminalActions.isChatViewMode)) {
+                        terminalActions.onToggleNativeChat?.()
+                      }
+                    }}
+                  >
+                    <DropdownMenuRadioItem value="terminal">
+                      <SquareTerminal className="size-3" />
+                      {translate('continuation.terminal', 'Terminal')}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="chat">
+                      <MessageSquare className="size-3" />
+                      {translate('continuation.chat', 'Chat')}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
             {terminalActions.onSplitPane ? (
               <Button type="button" variant="ghost" size="xs" onClick={terminalActions.onSplitPane}>
                 <SquareSplitVertical className="size-3" />
-                {translate(
-                  'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
-                  'Split Terminal Right'
-                )}
-              </Button>
-            ) : null}
-            {terminalActions.onClosePane ? (
-              <Button type="button" variant="ghost" size="xs" onClick={terminalActions.onClosePane}>
-                <X className="size-3" />
-                {terminalActions.closeLabel ??
-                  translate(
-                    'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
-                    'Close Pane'
+                <span className="@max-[340px]/continuation:sr-only">
+                  {translate(
+                    'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
+                    'Split Terminal Right'
                   )}
+                </span>
               </Button>
             ) : null}
           </div>
         ) : null}
       </div>
-      {open ? (
-        <div className="mt-2 space-y-2">
-          <div className="flex flex-wrap gap-1">
-            {view?.autoCompact ? (
-              <Button
-                size="xs"
-                variant="secondary"
-                disabled={busy || pending}
-                onClick={() => void choose('original')}
-              >
-                {translate('continuation.original', 'Continue original')}
-              </Button>
-            ) : null}
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={
-                busy || pending || preparing || !checkpoint || view?.candidate?.status === 'used'
-              }
-              onClick={() => void choose('compacted')}
-            >
-              {view?.candidate?.status === 'used'
-                ? translate('continuation.selected', 'Copy selected')
-                : preparing
-                  ? translate('continuation.preparing', 'Preparing…')
-                  : view?.candidate?.status === 'ready'
-                    ? translate('continuation.compacted', 'Continue compacted')
-                    : translate('continuation.prepare', 'Compact a copy')}
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={busy || pending || !checkpoint}
-              onClick={() => void choose('reference')}
-            >
-              {translate('continuation.reference', 'New with reference')}
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={busy || pending}
-              onClick={() => void choose('fresh')}
-            >
-              {translate('continuation.fresh', 'New conversation')}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {busy
-              ? translate('continuation.busy', 'Finish or stop the current turn before switching.')
-              : compact
-                ? translate(
-                    'continuation.draft',
-                    'Switching may discard the message being typed. The original conversation is preserved.'
-                  )
-                : translate(
-                    'continuation.preserve',
-                    'The original conversation is preserved. Preparing a copy uses model tokens.'
-                  )}
-          </p>
-          {view?.candidate?.status === 'used' ? (
-            <p className="text-xs text-muted-foreground">
-              {translate(
-                'continuation.recover',
-                'This copy has already been selected. If switching was interrupted, reopen it from Session History.'
-              )}
-            </p>
-          ) : null}
-          {error || readError ? (
-            <p role="alert" className="text-xs text-destructive">
-              {error ?? readError}
-            </p>
-          ) : null}
-          {view?.candidate?.error && !error ? (
-            <p role="status" className="text-xs text-muted-foreground">
-              {view.candidate.error}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
     </section>
   )
 }

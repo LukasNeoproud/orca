@@ -27,6 +27,9 @@ function isCandidate(value: unknown): value is ConversationContinuationCandidate
     ['preparing', 'ready', 'unconfirmed', 'failed', 'stale', 'used'].includes(candidate.status) &&
     typeof candidate.createdAt === 'string' &&
     typeof candidate.updatedAt === 'string' &&
+    (candidate.compactionOrigin === undefined ||
+      candidate.compactionOrigin === 'automatic' ||
+      candidate.compactionOrigin === 'manual') &&
     (candidate.mode === undefined || candidate.mode === 'fresh') &&
     (candidate.mode !== 'fresh' ||
       (typeof candidate.handoffDigest === 'string' &&

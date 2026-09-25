@@ -13,7 +13,6 @@ import { shouldShowMobileDriverOverlay } from './mobile-driver-overlay-visibilit
 import { shouldChatTakeOverMobileSurface } from '../native-chat/native-chat-send-eligibility'
 import type { TerminalPaneController } from './use-terminal-pane-controller'
 import { useAppStore } from '@/store'
-import { translate } from '@/i18n/i18n'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
@@ -137,16 +136,7 @@ function CodexConversationContinuationPortal({
     return null
   }
   const isActivePane = controller.activePane?.id === pane.id
-  const paneTitle = controller.paneTitles[pane.id]
   const terminalActions = {
-    onContinueInNewSession:
-      isActivePane && controller.activePaneCanContinueInNewSession
-        ? () =>
-            controller.contextMenu.runForPane(
-              pane.id,
-              controller.contextMenu.onContinueAgentSessionInNewSession
-            )
-        : undefined,
     onToggleNativeChat:
       isActivePane && controller.activePaneCanToggleChat
         ? controller.handleToggleNativeChat
@@ -155,15 +145,7 @@ function CodexConversationContinuationPortal({
     onSplitPane:
       controller.isActive && controller.showSplitButton
         ? () => controller.splitTerminalPaneFromHeader(pane, 'vertical')
-        : undefined,
-    onClosePane: paneTitle
-      ? () => controller.handleRemoveTitle(pane.id)
-      : controller.paneCount > 1 && controller.isActive
-        ? () => controller.handleRequestClosePane(pane.id)
-        : undefined,
-    closeLabel: paneTitle
-      ? translate('auto.components.terminal.pane.TerminalPane.ac112e9036', 'Remove title')
-      : translate('auto.components.terminal.pane.TerminalContextMenu.8c17d6786d', 'Close Pane')
+        : undefined
   }
   return createPortal(
     <div ref={toolbarRef} className="absolute inset-x-0 top-0 z-20">
