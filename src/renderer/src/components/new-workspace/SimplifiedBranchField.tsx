@@ -13,7 +13,8 @@ export function SimplifiedBranchField({
   branches,
   onSelect,
   inputRef,
-  onSubmit
+  onSubmit,
+  mode = 'branch'
 }: {
   value: string
   onChange: (value: string) => void
@@ -21,12 +22,16 @@ export function SimplifiedBranchField({
   onSelect: (branch: BaseRefSearchResult | null) => void
   inputRef?: RefObject<HTMLInputElement | null>
   onSubmit: () => void
+  mode?: 'branch' | 'base'
 }): React.JSX.Element {
+  const isBase = mode === 'base'
+  const inputId = isBase ? 'simplified-worktree-base' : 'simplified-worktree-branch'
+  const optionsId = isBase ? 'simplified-base' : 'simplified-branch'
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const local = branches.filter((b) => b.refName === b.localBranchName)
   const remote = branches.filter((b) => b.refName !== b.localBranchName)
-  const canCreate = value.trim() && !local.some((b) => b.refName === value)
+  const canCreate = !isBase && value.trim() && !local.some((b) => b.refName === value)
   const rows: (BaseRefSearchResult | null)[] = [...(canCreate ? [null] : []), ...local, ...remote]
   const pick = (row: BaseRefSearchResult | null) => {
     onSelect(row)
@@ -35,27 +40,38 @@ export function SimplifiedBranchField({
   }
   return (
     <div className="space-y-2">
-      <Label htmlFor="simplified-worktree-branch">
-        {translate('simplifiedWorktree.branch', 'Branch')}
+      <Label htmlFor={inputId}>
+        {isBase
+          ? translate('simplifiedWorktree.createFrom', 'Create from')
+          : translate('simplifiedWorktree.branch', 'Branch')}
       </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverAnchor asChild>
           <Input
-            id="simplified-worktree-branch"
+            id={inputId}
             ref={inputRef}
             role="combobox"
             aria-expanded={open}
-            aria-controls="simplified-branch-options"
+            aria-controls={`${optionsId}-options`}
             aria-autocomplete="list"
             aria-activedescendant={
-              open && active >= 0 ? `simplified-branch-option-${active}` : undefined
+              open && active >= 0 ? `${optionsId}-option-${active}` : undefined
             }
             value={value}
-            placeholder={translate(
-              'simplifiedWorktree.branchPlaceholder',
-              'feature/123-add-something'
-            )}
-            data-workspace-name-input="true"
+            placeholder={
+              isBase
+                ? translate(
+                    'simplifiedWorktree.defaultBase',
+                    'Project default, master, or repository default'
+                  )
+                : translate('simplifiedWorktree.branchPlaceholder', 'feature/123-add-something')
+            }
+            data-workspace-name-input={isBase ? undefined : 'true'}
+            onFocus={() => {
+              if (isBase) {
+                setOpen(true)
+              }
+            }}
             onChange={(e) => {
               onChange(e.target.value)
               setOpen(true)
@@ -97,13 +113,13 @@ export function SimplifiedBranchField({
             shouldFilter={false}
             value={active >= 0 ? (rows[active]?.refName ?? '__create__') : ''}
           >
-            <CommandList id="simplified-branch-options">
+            <CommandList id={`${optionsId}-options`}>
               {canCreate ? (
                 <CommandGroup>
                   <CommandItem
                     className="jump-palette-item"
                     value="__create__"
-                    id="simplified-branch-option-0"
+                    id={`${optionsId}-option-0`}
                     onSelect={() => pick(null)}
                   >
                     {translate('simplifiedWorktree.createBranch', 'Create branch “{{branch}}”', {
@@ -120,7 +136,7 @@ export function SimplifiedBranchField({
                     <CommandItem
                       className="jump-palette-item"
                       value={b.refName}
-                      id={`simplified-branch-option-${rows.indexOf(b)}`}
+                      id={`${optionsId}-option-${rows.indexOf(b)}`}
                       key={b.refName}
                       onSelect={() => pick(b)}
                     >
@@ -137,7 +153,7 @@ export function SimplifiedBranchField({
                     <CommandItem
                       className="jump-palette-item"
                       value={b.refName}
-                      id={`simplified-branch-option-${rows.indexOf(b)}`}
+                      id={`${optionsId}-option-${rows.indexOf(b)}`}
                       key={b.refName}
                       onSelect={() => pick(b)}
                     >

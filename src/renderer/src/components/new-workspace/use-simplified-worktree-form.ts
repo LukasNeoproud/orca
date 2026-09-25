@@ -2,8 +2,7 @@ import type { ExecutionHostId } from '../../../../shared/execution-host'
 import { findRepoForHost } from '@/store/slices/repo-host-identity'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
-import { settingsForRepoOwner } from '@/store/slices/worktrees/listing/worktree-owner-settings'
-import { searchRuntimeRepoBaseRefDetails } from '@/runtime/runtime-repo-client'
+import { useSimplifiedBranchSearch } from './use-simplified-branch-search'
 import {
   previewSimplifiedWorktree,
   ignoreSimplifiedWorktreeLocally
@@ -36,7 +35,7 @@ export function useSimplifiedWorktreeForm({
   const [rootOverride, setRoot] = useState<string | null>(null)
   const [layoutOverride, setLayout] = useState<'nested' | 'flat' | null>(null)
   const layout = layoutOverride ?? repo?.simplifiedWorktreeLayout ?? 'nested'
-  const [branches, setBranches] = useState<BaseRefSearchResult[]>([])
+  const branches = useSimplifiedBranchSearch(enabled, repoId, branch, hostId)
   const [preview, setPreview] = useState<WorktreeCreationPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -63,36 +62,6 @@ export function useSimplifiedWorktreeForm({
     () => ({ explicitCreation, name, displayName, baseBranch }),
     [explicitCreation, name, displayName, baseBranch]
   )
-
-  useEffect(() => {
-    if (!enabled || !repoId) {
-      return
-    }
-    let stale = false
-    const timer = setTimeout(() => {
-      void searchRuntimeRepoBaseRefDetails(
-        settingsForRepoOwner(useAppStore.getState(), repoId, hostId),
-        repoId,
-        branch,
-        30,
-        hostId ?? undefined
-      )
-        .then((rows) => {
-          if (!stale) {
-            setBranches(rows)
-          }
-        })
-        .catch(() => {
-          if (!stale) {
-            setBranches([])
-          }
-        })
-    }, 150)
-    return () => {
-      stale = true
-      clearTimeout(timer)
-    }
-  }, [enabled, repoId, branch, hostId])
 
   useEffect(() => {
     setPreview(null)

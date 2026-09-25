@@ -13,6 +13,7 @@ import {
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { openRegisteredWorktree } from '@/lib/open-registered-worktree'
+import { SimplifiedBaseBranchField } from './SimplifiedBaseBranchField'
 import { SimplifiedBranchField } from './SimplifiedBranchField'
 import { NewWorkspaceComposerNameSection } from './NewWorkspaceComposerNameSection'
 import type { NewWorkspaceComposerCardProps } from './new-workspace-composer-card-props'
@@ -129,20 +130,13 @@ export function SimplifiedWorktreeFields({
         </p>
       ) : null}
       {(!form.preview || form.preview.branch.kind === 'new') && !form.remote ? (
-        <div className="space-y-2">
-          <Label htmlFor="simplified-worktree-base">
-            {translate('simplifiedWorktree.createFrom', 'Create from')}
-          </Label>
-          <Input
-            id="simplified-worktree-base"
-            value={form.baseBranch ?? form.preview?.baseBranch ?? ''}
-            onChange={(e) => form.setBase(e.target.value)}
-            placeholder={translate(
-              'simplifiedWorktree.defaultBase',
-              'Project default, master, or repository default'
-            )}
-          />
-        </div>
+        <SimplifiedBaseBranchField
+          repoId={card.repoId}
+          hostId={card.selectedRepoExecutionHostId}
+          value={form.baseBranch ?? form.preview?.baseBranch ?? ''}
+          onChange={form.setBase}
+          onSubmit={card.onCreate}
+        />
       ) : null}
       <LinkedName
         label={translate('simplifiedWorktree.worktreeName', 'Worktree name')}
