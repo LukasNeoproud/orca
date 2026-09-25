@@ -22,6 +22,7 @@ import {
   repairWindowsMobileFirewall,
   type WindowsMobileFirewallEnvironment
 } from '../runtime/windows-mobile-firewall'
+import { deviceApprovalEnrollment } from '../device-approval/device-approval-enrollment'
 
 // Why: only an explicit "This computer only" pick skips the one-way widen, and only when the address it
 // advertises really is loopback — a mismatch (a LAN address under a this-computer reach) would otherwise
@@ -262,6 +263,35 @@ export function registerMobileHandlers(
     }
   })
 
+  ipcMain.handle('mobile:startDeviceApprovalEnrollment', (event: IpcMainInvokeEvent) => {
+    requireLocalEnrollmentWindow(event)
+    return deviceApprovalEnrollment.start()
+  })
+
+  ipcMain.handle('mobile:getDeviceApprovalEnrollmentStatus', (event: IpcMainInvokeEvent) => {
+    requireLocalEnrollmentWindow(event)
+    return deviceApprovalEnrollment.status()
+  })
+
+  ipcMain.handle(
+    'mobile:confirmDeviceApprovalEnrollment',
+    (event: IpcMainInvokeEvent, args?: { fingerprintPrefix?: unknown }) => {
+      requireLocalEnrollmentWindow(event)
+      if (
+        typeof args?.fingerprintPrefix !== 'string' ||
+        !/^[a-f0-9]{12}$/i.test(args.fingerprintPrefix)
+      ) {
+        throw new Error('Enter the first 12 fingerprint characters')
+      }
+      return deviceApprovalEnrollment.confirm(args.fingerprintPrefix)
+    }
+  )
+
+  ipcMain.handle('mobile:cancelDeviceApprovalEnrollment', (event: IpcMainInvokeEvent) => {
+    requireLocalEnrollmentWindow(event)
+    return deviceApprovalEnrollment.cancel()
+  })
+
   ipcMain.handle('mobile:getWindowsFirewallStatus', (_event, args?: { address?: string }) => {
     const port = getWebSocketPort(rpcServer.getWebSocketEndpoint())
     return inspectWindowsMobileFirewall(port, args?.address, firewallEnvironment)
@@ -302,4 +332,10 @@ export function registerMobileHandlers(
 
 function isWindowRenderer(event: IpcMainInvokeEvent): boolean {
   return !event.sender.isDestroyed() && event.sender.getType() === 'window'
+}
+
+function requireLocalEnrollmentWindow(event: IpcMainInvokeEvent): void {
+  if (!isWindowRenderer(event) || process.platform !== 'darwin') {
+    throw new Error('Device approval enrollment requires local Orca Desktop on macOS')
+  }
 }

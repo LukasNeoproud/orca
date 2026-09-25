@@ -17,6 +17,12 @@ export function createWebMobileApi(): Partial<PreloadApi> {
       revokeRuntimeAccess: () => Promise.resolve({ revoked: false }),
       isWebSocketReady: () =>
         Promise.resolve({ ready: Boolean(webRuntimeState.activeEnvironment), endpoint: null }),
+      startDeviceApprovalEnrollment: () =>
+        Promise.reject(new Error('Device approval enrollment requires Orca Desktop')),
+      getDeviceApprovalEnrollmentStatus: () => Promise.resolve({ phase: 'idle' as const }),
+      confirmDeviceApprovalEnrollment: () =>
+        Promise.reject(new Error('Device approval enrollment requires Orca Desktop')),
+      cancelDeviceApprovalEnrollment: () => Promise.resolve({ phase: 'idle' as const }),
       getRelayStatus: () => Promise.resolve({ status: 'offline' as const }),
       onRelayStatusChanged: () => noopUnsubscribe,
       consumePendingUnpairedDeviceAuthFailure: () => Promise.resolve(false),

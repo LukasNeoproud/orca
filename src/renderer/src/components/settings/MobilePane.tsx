@@ -11,6 +11,7 @@ import { useMobilePairingDevicePolling } from './mobile-pairing-device-polling'
 import type { MobileNetworkInterface } from './mobile-network-interface-selection'
 import { MobilePairingQrSection } from './MobilePairingQrSection'
 import { MobilePairedDevicesSection } from './MobilePairedDevicesSection'
+import { MobileDeviceApprovalsSection } from './MobileDeviceApprovalsSection'
 import { MobileAutoRestoreFitSection } from './MobileAutoRestoreFitSection'
 import { MobilePairingConnectionOptions } from './MobilePairingConnectionOptions'
 import { MobilePairingSetupSection } from './MobilePairingSetupSection'
@@ -25,7 +26,7 @@ import type { MobileRelayMintFailure } from '../../../../shared/mobile-relay-min
 import { useMobilePairingConnectionMode } from '../mobile/use-mobile-pairing-connection-mode'
 import { useMobilePairingAddressPreference } from '../mobile/use-mobile-pairing-address-preference'
 import { shouldOpenMobilePairingAddress } from './mobile-pane-search'
-export { getMobilePaneSearchEntries } from './mobile-pane-search'
+const ignoreRefresh = (): void => undefined
 
 export function MobilePane(): React.JSX.Element {
   const autoRestoreFitMs = useAppStore((s) => s.settings?.mobileAutoRestoreFitMs ?? null)
@@ -52,11 +53,9 @@ export function MobilePane(): React.JSX.Element {
   // response cannot paint a stale QR after sign-out, a mode switch, or an
   // address change invalidated the request that produced it.
   const pairingRequestIdRef = useRef(0)
-  // Tracks the mode we last acted on so the connectionMode effect can tell a
-  // cross-window preference sync apart from our own path change.
+  // Distinguishes cross-window preference sync from this pane's own path change.
   const handledModeRef = useRef(connectionMode)
-  // Ref mirrors of QR-visible / loading so invalidatePairing stays stable and
-  // cannot make loadNetworkInterfaces re-fetch on every generate.
+  // Ref mirrors keep invalidatePairing stable and prevent redundant interface fetches.
   const qrDisplayedRef = useRef(false)
   const loadingRef = useRef(false)
   const mountedRef = useMountedRef()
@@ -64,15 +63,14 @@ export function MobilePane(): React.JSX.Element {
     devices,
     loaded: devicesLoaded,
     refresh: refreshDevices
-  } = usePairedMobileDevices({ refreshOnMount: false })
+  } = usePairedMobileDevices({
+    refreshOnMount: false
+  })
 
   useEffect(() => {
     qrDisplayedRef.current = qrDataUrl != null
-  }, [qrDataUrl])
-
-  useEffect(() => {
     loadingRef.current = loading
-  }, [loading])
+  }, [qrDataUrl, loading])
 
   // Why: an offer encodes a specific policy + endpoint. When the selection that
   // produced it changes, drop any displayed QR and invalidate the in-flight
@@ -132,13 +130,11 @@ export function MobilePane(): React.JSX.Element {
     }
   }, [])
 
-  const loadDevices = useCallback(async () => {
-    try {
-      await refreshDevices()
-    } catch {
-      // Silently fail — device list is non-critical
-    }
-  }, [refreshDevices])
+  // Device list refresh is non-critical.
+  const loadDevices = useCallback(
+    () => refreshDevices().then(ignoreRefresh, ignoreRefresh),
+    [refreshDevices]
+  )
 
   const loadNetworkInterfaces = useCallback(
     async (opts: { notifyOnError?: boolean } = {}) => {
@@ -461,7 +457,7 @@ export function MobilePane(): React.JSX.Element {
         hasQrCode={qrDataUrl != null}
         onRevokeDevice={(deviceId) => void revokeDevice(deviceId)}
       />
-
+      <MobileDeviceApprovalsSection />
       <MobileAutoRestoreFitSection
         autoRestoreFitMs={autoRestoreFitMs}
         onAutoRestoreFitChange={(ms) => void updateSettings({ mobileAutoRestoreFitMs: ms })}

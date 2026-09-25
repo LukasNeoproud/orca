@@ -4,6 +4,7 @@ import type { MobilePairingConnectionMode } from '../../shared/mobile-pairing-co
 import type { RuntimePairingReach } from '../../shared/runtime-pairing-reach'
 import type { MobileRelayMintFailure } from '../../shared/mobile-relay-mint-failure'
 import type { PreloadApi } from '../api-types'
+import type { DeviceApprovalEnrollmentStatus } from '../../shared/device-approval-enrollment-status'
 
 export const mobileApi = {
   listNetworkInterfaces: (): Promise<{
@@ -73,6 +74,20 @@ export const mobileApi = {
 
   isWebSocketReady: (): Promise<{ ready: boolean; endpoint: string | null }> =>
     ipcRenderer.invoke('mobile:isWebSocketReady'),
+
+  startDeviceApprovalEnrollment: (): Promise<DeviceApprovalEnrollmentStatus> =>
+    ipcRenderer.invoke('mobile:startDeviceApprovalEnrollment'),
+
+  getDeviceApprovalEnrollmentStatus: (): Promise<DeviceApprovalEnrollmentStatus> =>
+    ipcRenderer.invoke('mobile:getDeviceApprovalEnrollmentStatus'),
+
+  confirmDeviceApprovalEnrollment: (args: {
+    fingerprintPrefix: string
+  }): Promise<DeviceApprovalEnrollmentStatus> =>
+    ipcRenderer.invoke('mobile:confirmDeviceApprovalEnrollment', args),
+
+  cancelDeviceApprovalEnrollment: (): Promise<DeviceApprovalEnrollmentStatus> =>
+    ipcRenderer.invoke('mobile:cancelDeviceApprovalEnrollment'),
 
   getRelayStatus: (): Promise<MobileRelayStatusDetail> =>
     ipcRenderer.invoke('mobile:getRelayStatus'),

@@ -3,6 +3,7 @@ import type { MobilePairingConnectionMode } from '../../shared/mobile-pairing-co
 import type { RuntimePairingReach } from '../../shared/runtime-pairing-reach'
 import type { MobileRelayMintFailure } from '../../shared/mobile-relay-mint-failure'
 import type { RuntimeAccessGrant } from '../../shared/runtime-access-grants'
+import type { DeviceApprovalEnrollmentStatus } from '../../shared/device-approval-enrollment-status'
 
 export type MobileApi = {
   listNetworkInterfaces: () => Promise<{
@@ -79,6 +80,12 @@ export type MobileApi = {
   listRuntimeAccessGrants: () => Promise<{ grants: RuntimeAccessGrant[] }>
   revokeRuntimeAccess: (args: { deviceId: string }) => Promise<{ revoked: boolean }>
   isWebSocketReady: () => Promise<{ ready: boolean; endpoint: string | null }>
+  startDeviceApprovalEnrollment: () => Promise<DeviceApprovalEnrollmentStatus>
+  getDeviceApprovalEnrollmentStatus: () => Promise<DeviceApprovalEnrollmentStatus>
+  confirmDeviceApprovalEnrollment: (args: {
+    fingerprintPrefix: string
+  }) => Promise<DeviceApprovalEnrollmentStatus>
+  cancelDeviceApprovalEnrollment: () => Promise<DeviceApprovalEnrollmentStatus>
   getRelayStatus: () => Promise<MobileRelayStatusDetail>
   onRelayStatusChanged: (callback: (detail: MobileRelayStatusDetail) => void) => () => void
   /** Consumes an auth-failure notification that arrived before the renderer listener mounted. */

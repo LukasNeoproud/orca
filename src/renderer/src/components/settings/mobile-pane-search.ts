@@ -2,6 +2,8 @@ import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from './settings-search'
+import { getRendererAppPlatform } from '@/lib/renderer-app-platform'
+import { isWebClientLocation } from '@/lib/web-client-location'
 
 const getNetworkInterfaceSearchEntries = createLocalizedCatalog(() => [
   {
@@ -52,7 +54,7 @@ export function shouldOpenMobilePairingAddress(searchQuery: string): boolean {
   )
 }
 
-export const getMobilePaneSearchEntries = createLocalizedCatalog(() => [
+const getAllMobilePaneSearchEntries = createLocalizedCatalog(() => [
   {
     title: translate('auto.components.settings.mobile.pane.search.d49925710a', 'Mobile Pairing'),
     description: translate(
@@ -86,6 +88,29 @@ export const getMobilePaneSearchEntries = createLocalizedCatalog(() => [
         'auto.components.settings.mobile.pane.search.7d01f93ec0',
         'connected'
       )
+    ]
+  },
+  {
+    title: translate(
+      'auto.components.settings.mobile.pane.search.deviceApprovals',
+      'Device Approvals'
+    ),
+    description: translate(
+      'auto.components.settings.mobile.pane.search.deviceApprovalsDescription',
+      'Register a phone to approve requests for this Mac.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.mobile.pane.search.approvals',
+        'approvals'
+      ),
+      ...translateSearchKeyword('auto.components.settings.mobile.pane.search.register', 'register'),
+      ...translateSearchKeyword('auto.components.settings.mobile.pane.search.touchId', 'touch id'),
+      ...translateSearchKeyword(
+        'auto.components.settings.mobile.pane.search.fingerprint',
+        'fingerprint'
+      ),
+      ...translateSearchKeyword('auto.components.settings.mobile.pane.search.phone', 'phone')
     ]
   },
   ...getNetworkInterfaceSearchEntries(),
@@ -122,3 +147,17 @@ export const getMobilePaneSearchEntries = createLocalizedCatalog(() => [
     ]
   }
 ])
+
+export function getMobilePaneSearchEntries(): ReturnType<typeof getAllMobilePaneSearchEntries> {
+  const entries = getAllMobilePaneSearchEntries()
+  return getRendererAppPlatform() === 'darwin' && !isWebClientLocation()
+    ? entries
+    : entries.filter(
+        (entry) =>
+          entry.title !==
+          translate(
+            'auto.components.settings.mobile.pane.search.deviceApprovals',
+            'Device Approvals'
+          )
+      )
+}

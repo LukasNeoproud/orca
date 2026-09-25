@@ -72,19 +72,19 @@ new request, and the updated host intentionally hides requests from older
 helpers that lack that field.
 
 Install a new native Orca Mobile build containing the approval module first.
-The initial build still uses local Touch ID or your existing CI credentials.
-Then, from the repository root, run the enrollment ceremony:
+In Orca Desktop, open Settings → Mobile → Device approvals and choose
+**Start registration**. The command-line alternative from the repository root is:
 
 ```sh
 pnpm --dir mobile exec tsx ../config/scripts/enroll-device-approval.ts
 ```
 
-Open this Mac in Orca Mobile, select the shield button (Device approvals), and
-register the phone. The local script checks Google's attestation chain and
+In Orca Mobile, open Settings → Device approvals, select the paired Mac, and
+tap **Register this phone** on the pending request. The desktop verifies Google's attestation chain and
 revocation status, verified boot, hardware backing, and biometric-per-use
 policy. Internet access is required; failed verification stops enrollment.
 Compare the displayed fingerprints, enter the requested prefix on the Mac,
-then confirm local Touch ID.
+then confirm local Touch ID. The registration request expires after five minutes.
 
 The helper's underlying administrative commands are:
 
@@ -98,8 +98,8 @@ SHA-256 public-key fingerprint. The public key is pinned in the login Keychain
 under the helper's ACL; enrolling a different key fails until the current key
 is revoked. No desktop RPC can enroll, replace, or revoke it.
 The raw enroll-mobile command accepts a public key; attestation is enforced by
-the trusted local setup script, not by that administrative command. Use the
-script above for enrollment. This design trusts local setup and the publisher.
+the trusted desktop enrollment flow or local setup script, not by that
+administrative command. Use one of those flows for enrollment.
 
 For each mobile read, the helper creates a random 120-second challenge in
 ~/.config/orca/device-approvals/pending/. Orca transports its exact JSON

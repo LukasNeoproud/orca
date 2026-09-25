@@ -13,6 +13,7 @@ export default function DeviceApprovalsScreen() {
   const router = useRouter()
   const { client, state } = useHostClient(hostId)
   const approvals = useDeviceApprovals(client, hostId, state === 'connected')
+  const hasEnrollmentRequest = approvals.pending.some((entry) => 'kind' in entry.request)
   const [hostName, setHostName] = useState(hostId)
   useEffect(() => {
     let stale = false
@@ -34,7 +35,7 @@ export default function DeviceApprovalsScreen() {
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Back to host"
+          accessibilityLabel="Back"
           hitSlop={12}
         >
           <ChevronLeft size={24} color={colors.textPrimary} />
@@ -45,11 +46,28 @@ export default function DeviceApprovalsScreen() {
         <Text style={styles.title}>{hostName}</Text>
         <Text style={styles.text}>
           Approve Keychain access or a private Android build with this phone’s biometrics. Keep this
-          screen open while the Mac requests approval.
+          screen open while the macOS host requests approval.
         </Text>
+        {(!approvals.keyId || hasEnrollmentRequest) && (
+          <View style={styles.card}>
+            <Text style={styles.title}>Register this phone</Text>
+            <Text style={styles.text}>
+              1. On the Mac, open Settings → Mobile → Device approvals and choose Start
+              registration.
+            </Text>
+            <Text style={styles.text}>
+              2. Keep this screen open. When the registration request appears below, tap Register
+              this phone.
+            </Text>
+            <Text style={styles.text}>
+              3. Compare the first 12 characters of the fingerprint on both devices, then confirm on
+              the Mac with Touch ID.
+            </Text>
+          </View>
+        )}
         {Platform.OS !== 'android' ? (
           <Text style={styles.error}>
-            Signing currently requires Android 11 or newer and a new native Orca build.
+            Device approvals currently require Android 11 or newer and a native Orca build.
           </Text>
         ) : null}
         {state !== 'connected' ? (
@@ -77,14 +95,18 @@ export default function DeviceApprovalsScreen() {
             </Text>
           </View>
         ) : null}
-        {!approvals.supported ? (
+        {state === 'connected' && !approvals.supported ? (
           <Text style={styles.text}>
-            Start device approval setup on this Mac first. Registration requires one local Touch ID
-            confirmation.
+            This host is not offering device approval requests. Device approvals require a macOS
+            host; start registration in its settings.
           </Text>
         ) : null}
         {approvals.supported && !approvals.pending.length ? (
-          <Text style={styles.text}>No pending requests.</Text>
+          <Text style={styles.text}>
+            {approvals.keyId
+              ? 'No pending approval requests. Keep this screen open for the next request.'
+              : 'No pending requests. Start registration on the Mac and keep this screen open.'}
+          </Text>
         ) : null}
         {approvals.pending.map((entry) => {
           const disabled =
@@ -102,6 +124,12 @@ export default function DeviceApprovalsScreen() {
                     Create a hardware-backed approval key. The Mac checks its attestation and asks
                     you to confirm its fingerprint locally.
                   </Text>
+                  {approvals.keyId ? (
+                    <Text style={styles.error}>
+                      This host already has a key on this phone. Remove the local key below before
+                      registering again.
+                    </Text>
+                  ) : null}
                 </>
               ) : entry.request.operation.kind === 'keychain-read' ? (
                 <>

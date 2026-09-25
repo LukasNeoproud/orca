@@ -22,7 +22,8 @@ import {
   Globe,
   MessageSquare,
   Terminal as TerminalIcon,
-  KeyRound
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../src/theme/mobile-theme'
 import {
@@ -139,6 +140,16 @@ export default function SettingsScreen() {
           >
             <Mic size={16} color={colors.textSecondary} />
             <Text style={styles.rowLabel}>Voice</Text>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </Pressable>
+          <View style={styles.separator} />
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={() => router.push('/device-approvals')}
+          >
+            <ShieldCheck size={16} color={colors.textSecondary} />
+            <Text style={styles.rowLabel}>Device approvals</Text>
             <ChevronRight size={16} color={colors.textMuted} />
           </Pressable>
           <View style={styles.separator} />

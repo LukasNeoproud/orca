@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const platform = vi.hoisted(() => ({ value: 'darwin', web: false }))
+vi.mock('@/lib/renderer-app-platform', () => ({ getRendererAppPlatform: () => platform.value }))
+vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => platform.web }))
 
 import { getMobilePaneSearchEntries, shouldOpenMobilePairingAddress } from './mobile-pane-search'
 
@@ -9,9 +13,23 @@ describe('getMobilePaneSearchEntries', () => {
     expect(getMobilePaneSearchEntries().map((entry) => entry.title)).toEqual([
       'Mobile Pairing',
       'Connected Devices',
+      'Device Approvals',
       'Network Interface',
       'When you leave the mobile app'
     ])
+  })
+
+  it('omits Device Approvals outside desktop macOS', () => {
+    platform.value = 'linux'
+    expect(getMobilePaneSearchEntries().map((entry) => entry.title)).not.toContain(
+      'Device Approvals'
+    )
+    platform.value = 'darwin'
+    platform.web = true
+    expect(getMobilePaneSearchEntries().map((entry) => entry.title)).not.toContain(
+      'Device Approvals'
+    )
+    platform.web = false
   })
 })
 

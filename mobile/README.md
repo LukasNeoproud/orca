@@ -271,6 +271,8 @@ Publishing through this route also requires explicit `--release-notes`, and
 release-note hash before biometric approval. The helper verifies the signature itself; an Orca
 desktop approval status cannot release the Keychain values. See
 `config/native/touchid-keychain/README.md` for enrollment and installation.
+Start registration in Orca Desktop under Settings → Mobile → Device approvals, then
+open Orca Mobile Settings → Device approvals and select the paired Mac.
 
 The same helper also supports `get-mobile` for other Keychain service/account pairs. In that
 case Orca Mobile shows every requested pair before approval and the helper returns values only
