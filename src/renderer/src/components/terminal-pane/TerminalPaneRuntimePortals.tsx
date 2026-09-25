@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import CodexRestartChip from '../CodexRestartChip'
 import { ConversationContinuationPanel } from '@/components/agent-session-continuation/ConversationContinuationPanel'
@@ -13,6 +13,7 @@ import { shouldShowMobileDriverOverlay } from './mobile-driver-overlay-visibilit
 import { shouldChatTakeOverMobileSurface } from '../native-chat/native-chat-send-eligibility'
 import type { TerminalPaneController } from './use-terminal-pane-controller'
 import { useAppStore } from '@/store'
+import { translate } from '@/i18n/i18n'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
@@ -24,6 +25,7 @@ import {
 import { useAgentContextTransition } from './use-agent-context-transition'
 import { AgentContextRequestStatus } from '@/components/agent-session-continuation/AgentContextRequestStatus'
 import { useAgentContextOwnerAvailable } from '@/components/agent-session-continuation/use-agent-context-owner-capability'
+import { useConversationContinuationPaneHeight } from './use-conversation-continuation-pane-height'
 
 function continuationSourceMatches(
   left: CodexConversationContinuationSource | null,
@@ -41,10 +43,12 @@ function continuationSourceMatches(
 
 function CodexConversationContinuationPortal({
   controller,
-  pane
+  pane,
+  onHeightChange
 }: {
   controller: TerminalPaneController
   pane: TerminalPaneController['managedPanes'][number]
+  onHeightChange: (paneId: number, height: number) => void
 }): React.JSX.Element | null {
   const {
     codexConversationContinuation,
@@ -117,12 +121,52 @@ function CodexConversationContinuationPortal({
     },
     [restartCodexConversationPane, setCodexConversationContinuation, source]
   )
+  const portalKey = source
+    ? `${source.paneKey}-${source.providerSessionId}-${source.target.kind === 'environment' ? source.target.environmentId : 'local'}`
+    : null
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  useConversationContinuationPaneHeight(
+    toolbarRef,
+    pane,
+    controller.managerRef,
+    controller.isVisible,
+    portalKey,
+    onHeightChange
+  )
   if (!source) {
     return null
   }
-  const portalKey = `${source.paneKey}-${source.providerSessionId}-${source.target.kind === 'environment' ? source.target.environmentId : 'local'}`
+  const isActivePane = controller.activePane?.id === pane.id
+  const paneTitle = controller.paneTitles[pane.id]
+  const terminalActions = {
+    onContinueInNewSession:
+      isActivePane && controller.activePaneCanContinueInNewSession
+        ? () =>
+            controller.contextMenu.runForPane(
+              pane.id,
+              controller.contextMenu.onContinueAgentSessionInNewSession
+            )
+        : undefined,
+    onToggleNativeChat:
+      isActivePane && controller.activePaneCanToggleChat
+        ? controller.handleToggleNativeChat
+        : undefined,
+    isChatViewMode: controller.activePaneIsChatLeaf,
+    onSplitPane:
+      controller.isActive && controller.showSplitButton
+        ? () => controller.splitTerminalPaneFromHeader(pane, 'vertical')
+        : undefined,
+    onClosePane: paneTitle
+      ? () => controller.handleRemoveTitle(pane.id)
+      : controller.paneCount > 1 && controller.isActive
+        ? () => controller.handleRequestClosePane(pane.id)
+        : undefined,
+    closeLabel: paneTitle
+      ? translate('auto.components.terminal.pane.TerminalPane.ac112e9036', 'Remove title')
+      : translate('auto.components.terminal.pane.TerminalContextMenu.8c17d6786d', 'Close Pane')
+  }
   return createPortal(
-    <div className="absolute inset-x-0 top-0 z-20">
+    <div ref={toolbarRef} className="absolute inset-x-0 top-0 z-20">
       <AgentContextRequestStatus source={source} />
       <ConversationContinuationPanel
         key={portalKey}
@@ -132,6 +176,7 @@ function CodexConversationContinuationPortal({
         expanded={expanded}
         onExpandedChange={onExpandedChange}
         onContinue={onContinue}
+        terminalActions={terminalActions}
       />
       {agentContextTransition.phase === 'switching' ? (
         <p className="border-b border-border bg-background px-3 py-2 text-xs text-muted-foreground">
@@ -150,9 +195,11 @@ function CodexConversationContinuationPortal({
 
 /** Each live Codex pane owns one panel, including panes currently covered by native chat. */
 export function TerminalPaneCodexConversationContinuationPortals({
-  controller
+  controller,
+  onHeightChange
 }: {
   controller: TerminalPaneController
+  onHeightChange: (paneId: number, height: number) => void
 }): React.JSX.Element {
   return (
     <>
@@ -161,6 +208,7 @@ export function TerminalPaneCodexConversationContinuationPortals({
           key={pane.leafId}
           controller={controller}
           pane={pane}
+          onHeightChange={onHeightChange}
         />
       ))}
     </>

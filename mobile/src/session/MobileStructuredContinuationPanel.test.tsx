@@ -85,55 +85,69 @@ describe('live structured continuation', () => {
     expect(renderer!.root.findAllByType('Pressable')).toHaveLength(0)
   })
 
-  it('stages the typed draft and opens the created tab once', async () => {
-    const sendRequest = vi.fn(async (method: string) => {
-      if (method === 'agentSession.createSupport') {
-        return { ok: true, result: { supported: true } }
+  it.each([false, true])(
+    'offers the original only with auto compact %s and opens a fresh tab with the draft',
+    async (autoCompact) => {
+      const sendRequest = vi.fn(async (method: string) => {
+        if (method === 'agentSession.createSupport') {
+          return { ok: true, result: { supported: true } }
+        }
+        if (method === 'agentSession.history') {
+          return { ok: true, result: { providerSession: { key: 'session_id', id: 'provider-1' } } }
+        }
+        throw new Error(`Unexpected ${method}`)
+      })
+      fakes.inspect.mockResolvedValue({
+        source: { providerSessionId: 'provider-1', workspaceId: 'worktree-1' },
+        checkpoint: null,
+        candidate: null,
+        autoCompact
+      })
+      fakes.launch.mockResolvedValue({ kind: 'opened', sessionId: 'copy-1' })
+      const onOpened = vi.fn()
+      await act(async () => {
+        renderer = create(
+          createElement(MobileStructuredContinuationPanel, {
+            client: { sendRequest } as unknown as RpcClient,
+            connected: true,
+            hostId: 'host-1',
+            worktreeId: 'worktree-1',
+            sessionId: 'session-1',
+            agent: 'codex',
+            busy: false,
+            draft: 'Review the fix',
+            onOpened
+          })
+        )
+      })
+      const probe = fakes.probe.mock.calls[0]![0] as (capabilities: string[]) => void
+      await act(async () => probe(CAPABILITIES))
+      const header = renderer!.root.findByProps({ accessibilityLabel: 'Conversation continuation' })
+      act(() => header.props.onPress())
+      const original = renderer!.root
+        .findAllByType('Pressable')
+        .find((item) =>
+          item.findAllByType('Text').some((text) => text.props.children === 'Continue original')
+        )
+      expect(Boolean(original)).toBe(autoCompact)
+      if (original) {
+        act(() => original.props.onPress())
+        expect(fakes.launch).not.toHaveBeenCalled()
+        act(() => header.props.onPress())
       }
-      if (method === 'agentSession.history') {
-        return { ok: true, result: { providerSession: { key: 'session_id', id: 'provider-1' } } }
-      }
-      throw new Error(`Unexpected ${method}`)
-    })
-    fakes.inspect.mockResolvedValue({
-      source: { providerSessionId: 'provider-1', workspaceId: 'worktree-1' },
-      checkpoint: null,
-      candidate: null,
-      autoCompact: false
-    })
-    fakes.launch.mockResolvedValue({ kind: 'opened', sessionId: 'copy-1' })
-    const onOpened = vi.fn()
-    await act(async () => {
-      renderer = create(
-        createElement(MobileStructuredContinuationPanel, {
-          client: { sendRequest } as unknown as RpcClient,
-          connected: true,
-          hostId: 'host-1',
-          worktreeId: 'worktree-1',
-          sessionId: 'session-1',
-          agent: 'codex',
-          busy: false,
-          draft: 'Review the fix',
-          onOpened
-        })
+      const fresh = renderer!.root
+        .findAllByType('Pressable')
+        .find((item) =>
+          item.findAllByType('Text').some((text) => text.props.children === 'New conversation')
+        )
+      expect(fresh).toBeDefined()
+      await act(async () => fresh!.props.onPress())
+      expect(fakes.launch).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'fresh', hostId: 'host-1', worktreeId: 'worktree-1' })
       )
-    })
-    const probe = fakes.probe.mock.calls[0]![0] as (capabilities: string[]) => void
-    await act(async () => probe(CAPABILITIES))
-    const header = renderer!.root.findByProps({ accessibilityLabel: 'Conversation continuation' })
-    act(() => header.props.onPress())
-    const fresh = renderer!.root
-      .findAllByType('Pressable')
-      .find((item) =>
-        item.findAllByType('Text').some((text) => text.props.children === 'New conversation')
-      )
-    expect(fresh).toBeDefined()
-    await act(async () => fresh!.props.onPress())
-    expect(fakes.launch).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: 'fresh', hostId: 'host-1', worktreeId: 'worktree-1' })
-    )
-    expect(readMobileStructuredLaunchDraft('host-1', 'copy-1')?.text).toBe('Review the fix')
-    expect(onOpened).toHaveBeenCalledTimes(1)
-    expect(onOpened).toHaveBeenCalledWith('copy-1')
-  })
+      expect(readMobileStructuredLaunchDraft('host-1', 'copy-1')?.text).toBe('Review the fix')
+      expect(onOpened).toHaveBeenCalledTimes(1)
+      expect(onOpened).toHaveBeenCalledWith('copy-1')
+    }
+  )
 })

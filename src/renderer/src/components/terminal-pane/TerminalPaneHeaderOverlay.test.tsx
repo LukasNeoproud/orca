@@ -52,6 +52,7 @@ function renderOverlay({
   canToggleNativeChat = false,
   isChatViewMode = false,
   onToggleNativeChat = vi.fn(),
+  continuationHeightsByPaneId = {},
   renameValue = '',
   renamingPaneId = null
 }: {
@@ -67,6 +68,7 @@ function renderOverlay({
   canToggleNativeChat?: boolean
   isChatViewMode?: boolean
   onToggleNativeChat?: ReturnType<typeof vi.fn>
+  continuationHeightsByPaneId?: Record<number, number>
   renameValue?: string
   renamingPaneId?: number | null
 }): {
@@ -95,6 +97,7 @@ function renderOverlay({
           1: { left: 0, top: 0, width: 200 },
           2: { left: 220, top: 0, width: 200 }
         }}
+        continuationHeightsByPaneId={continuationHeightsByPaneId}
         renamingPaneId={renamingPaneId}
         renameValue={renameValue}
         renameInputRef={createRef<HTMLInputElement>()}
@@ -251,5 +254,19 @@ describe('TerminalPaneHeaderOverlay', () => {
 
     act(() => toggle?.click())
     expect(onToggleNativeChat).toHaveBeenCalledOnce()
+  })
+
+  it('moves a titled header below the continuation toolbar without duplicate actions', () => {
+    const { container } = renderOverlay({
+      paneTitles: { 1: 'server', 2: '' },
+      continuationHeightsByPaneId: { 1: 72, 2: 72 },
+      canContinueAgentSessionInNewSession: true
+    })
+
+    const header = container.querySelector<HTMLElement>('.pane-title-bar')
+    expect(header?.style.top).toBe('72px')
+    expect(container.querySelectorAll('.pane-title-bar')).toHaveLength(1)
+    expect(container.querySelector('button[aria-label="Continue in New Session…"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="Split Terminal Right"]')).toBeNull()
   })
 })

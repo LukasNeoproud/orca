@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { useCallback, useState } from 'react'
 import TerminalSearch from '@/components/TerminalSearch'
 import { DaemonActionDialog } from '@/components/shared/useDaemonActions'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
@@ -114,6 +115,23 @@ export function TerminalPaneSurface({
     visibleTerminalError,
     worktreeId
   } = controller
+  const [continuationHeightsByPaneId, setContinuationHeightsByPaneId] = useState<
+    Readonly<Record<number, number>>
+  >({})
+  const onContinuationHeightChange = useCallback((paneId: number, height: number) => {
+    setContinuationHeightsByPaneId((current) => {
+      if ((current[paneId] ?? 0) === height) {
+        return current
+      }
+      const next = { ...current }
+      if (height > 0) {
+        next[paneId] = height
+      } else {
+        delete next[paneId]
+      }
+      return next
+    })
+  }, [])
   return (
     <>
       <div
@@ -162,7 +180,10 @@ export function TerminalPaneSurface({
         }}
       />
       <TerminalPaneCodexRestartPortals controller={controller} />
-      <TerminalPaneCodexConversationContinuationPortals controller={controller} />
+      <TerminalPaneCodexConversationContinuationPortals
+        controller={controller}
+        onHeightChange={onContinuationHeightChange}
+      />
       {/* Why: the reconnect banner already owns SSH recovery UX; the z-50 error
           toast was painting over it (same bottom strip) with the raw ssh:connect failure. */}
       {visibleTerminalError && isActive && !showSshReconnectOverlay && activePane
@@ -313,6 +334,7 @@ export function TerminalPaneSurface({
         panes={managedPanes}
         paneTitles={paneTitles}
         paneTitleOverlayRects={paneTitleOverlayRects}
+        continuationHeightsByPaneId={continuationHeightsByPaneId}
         renamingPaneId={renamingPaneId}
         renameValue={renameValue}
         renameInputRef={renameInputRef}

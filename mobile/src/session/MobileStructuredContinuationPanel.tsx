@@ -222,11 +222,13 @@ export function MobileStructuredContinuationPanel(props: {
         {expanded ? (
           <View style={styles.body}>
             <View style={styles.actions}>
-              <Choice
-                label="Continue original"
-                disabled={locked}
-                onPress={() => void choose('original')}
-              />
+              {ready.view.autoCompact ? (
+                <Choice
+                  label="Continue original"
+                  disabled={locked}
+                  onPress={() => void choose('original')}
+                />
+              ) : null}
               <Choice
                 label={candidate?.status === 'ready' ? 'Continue compacted' : 'Compact a copy'}
                 disabled={

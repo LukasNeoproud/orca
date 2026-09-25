@@ -21,6 +21,8 @@ export type PaneTitleOverlayRect = {
   width: number
 }
 
+const EMPTY_CONTINUATION_HEIGHTS: Readonly<Record<number, number>> = {}
+
 type TerminalPaneHeaderOverlayProps = {
   tabId: string
   worktreeId: string
@@ -33,6 +35,7 @@ type TerminalPaneHeaderOverlayProps = {
   panes: readonly ManagedPane[]
   paneTitles: Readonly<Record<number, string>>
   paneTitleOverlayRects: Readonly<Record<number, PaneTitleOverlayRect>>
+  continuationHeightsByPaneId?: Readonly<Record<number, number>>
   renamingPaneId: number | null
   renameValue: string
   renameInputRef: RefObject<HTMLInputElement | null>
@@ -78,6 +81,7 @@ export default function TerminalPaneHeaderOverlay({
   panes,
   paneTitles,
   paneTitleOverlayRects,
+  continuationHeightsByPaneId = EMPTY_CONTINUATION_HEIGHTS,
   renamingPaneId,
   renameValue,
   renameInputRef,
@@ -123,9 +127,12 @@ export default function TerminalPaneHeaderOverlay({
         const title = paneTitles[pane.id]
         const isEditing = renamingPaneId === pane.id
         const overlayRect = paneTitleOverlayRects[pane.id]
+        const continuationHeight = continuationHeightsByPaneId[pane.id] ?? 0
         const isActivePane = activePaneId === pane.id
         const isChromeless = showAlwaysOnHeaders && !title && !isEditing
-        const showHeader = overlayRect && (showAlwaysOnHeaders || Boolean(title) || isEditing)
+        const showHeader =
+          overlayRect &&
+          (Boolean(title) || isEditing || (showAlwaysOnHeaders && continuationHeight === 0))
         if (!showHeader || !overlayRect) {
           return null
         }
@@ -180,7 +187,7 @@ export default function TerminalPaneHeaderOverlay({
             onContextMenuCapture={(event) => onPaneTitleContextMenu(event, pane.id)}
             style={{
               left: overlayRect.left,
-              top: overlayRect.top,
+              top: overlayRect.top + continuationHeight,
               width: overlayRect.width
             }}
           >
@@ -245,158 +252,163 @@ export default function TerminalPaneHeaderOverlay({
                     {title}
                   </button>
                 ) : null}
-                <div className="pane-title-actions ml-auto flex shrink-0 items-center gap-0">
-                  {canContinueAgentSessionInNewSession && isActivePane ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="pane-title-split-trigger"
-                          aria-label={translate(
+                {continuationHeight === 0 ? (
+                  <div className="pane-title-actions ml-auto flex shrink-0 items-center gap-0">
+                    {canContinueAgentSessionInNewSession && isActivePane ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="pane-title-split-trigger"
+                            aria-label={translate(
+                              'components.agentSessionContinuation.continueInNewSession',
+                              'Continue in New Session…'
+                            )}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onContinueAgentSessionInNewSession?.(pane)
+                            }}
+                          >
+                            <MessageSquarePlus className="size-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                          {translate(
                             'components.agentSessionContinuation.continueInNewSession',
                             'Continue in New Session…'
                           )}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onContinueAgentSessionInNewSession?.(pane)
-                          }}
-                        >
-                          <MessageSquarePlus className="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {translate(
-                          'components.agentSessionContinuation.continueInNewSession',
-                          'Continue in New Session…'
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {canToggleNativeChat && isActivePane ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          // Same class as split so it shares the hover/active reveal
-                          // and sits as a peer in the [chat][split][×] cluster.
-                          className="pane-title-split-trigger"
-                          aria-label={
-                            isChatViewMode
-                              ? translate(
-                                  'components.native-chat.toggle.showTerminal',
-                                  'Show terminal'
-                                )
-                              : translate(
-                                  'components.native-chat.toggle.showChat',
-                                  'Show chat view'
-                                )
-                          }
-                          aria-pressed={isChatViewMode}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onToggleNativeChat?.()
-                          }}
-                        >
-                          {isChatViewMode ? (
-                            <SquareTerminal className="size-3" />
-                          ) : (
-                            <MessageSquare className="size-3" />
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                    {canToggleNativeChat && isActivePane ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            // Same class as split so it shares the hover/active reveal
+                            // and sits as a peer in the [chat][split][×] cluster.
+                            className="pane-title-split-trigger"
+                            aria-label={
+                              isChatViewMode
+                                ? translate(
+                                    'components.native-chat.toggle.showTerminal',
+                                    'Show terminal'
+                                  )
+                                : translate(
+                                    'components.native-chat.toggle.showChat',
+                                    'Show chat view'
+                                  )
+                            }
+                            aria-pressed={isChatViewMode}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onToggleNativeChat?.()
+                            }}
+                          >
+                            {isChatViewMode ? (
+                              <SquareTerminal className="size-3" />
+                            ) : (
+                              <MessageSquare className="size-3" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                          {isChatViewMode
+                            ? translate(
+                                'components.native-chat.toggle.showTerminal',
+                                'Show terminal'
+                              )
+                            : translate('components.native-chat.toggle.showChat', 'Show chat view')}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                    {showAlwaysOnHeaders && showSplitButton ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="pane-title-split-trigger"
+                            data-contextual-tour-target={
+                              isActivePane ? 'terminal-pane-split-target' : undefined
+                            }
+                            aria-label={splitRightLabel}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onSplitPane(pane, 'vertical')
+                            }}
+                          >
+                            <SquareSplitVertical className="size-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                          {splitRightLabel}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                    {title ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="pane-title-close"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onRemoveTitle(pane.id)
+                            }}
+                            aria-label={translate(
+                              'auto.components.terminal.pane.TerminalPane.f984ab2a30',
+                              'Remove pane title: {{value0}}',
+                              { value0: title }
+                            )}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                          {translate(
+                            'auto.components.terminal.pane.TerminalPane.ac112e9036',
+                            'Remove title'
                           )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {isChatViewMode
-                          ? translate('components.native-chat.toggle.showTerminal', 'Show terminal')
-                          : translate('components.native-chat.toggle.showChat', 'Show chat view')}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {showAlwaysOnHeaders && showSplitButton ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="pane-title-split-trigger"
-                          data-contextual-tour-target={
-                            isActivePane ? 'terminal-pane-split-target' : undefined
-                          }
-                          aria-label={splitRightLabel}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onSplitPane(pane, 'vertical')
-                          }}
-                        >
-                          <SquareSplitVertical className="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {splitRightLabel}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {title ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="pane-title-close"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onRemoveTitle(pane.id)
-                          }}
-                          aria-label={translate(
-                            'auto.components.terminal.pane.TerminalPane.f984ab2a30',
-                            'Remove pane title: {{value0}}',
-                            { value0: title }
-                          )}
-                        >
-                          <X className="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {translate(
-                          'auto.components.terminal.pane.TerminalPane.ac112e9036',
-                          'Remove title'
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : paneCount > 1 && showAlwaysOnHeaders ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="pane-title-close"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onClosePane(pane.id)
-                          }}
-                          aria-label={translate(
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : paneCount > 1 && showAlwaysOnHeaders ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="pane-title-close"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onClosePane(pane.id)
+                            }}
+                            aria-label={translate(
+                              'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
+                              'Close Pane'
+                            )}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={4}>
+                          {translate(
                             'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
                             'Close Pane'
                           )}
-                        >
-                          <X className="size-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {translate(
-                          'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
-                          'Close Pane'
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                ) : null}
               </>
             )}
           </div>

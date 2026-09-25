@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Loader2 } from 'lucide-react'
+import {
+  ChevronDown,
+  Loader2,
+  MessageSquare,
+  MessageSquarePlus,
+  SquareSplitVertical,
+  SquareTerminal,
+  X
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
@@ -27,6 +35,14 @@ export type ConversationContinuationPanelProps = {
     candidate?: { providerSessionId: string; transcriptPath: string },
     reference?: string
   ) => void | Promise<void>
+  terminalActions?: {
+    onContinueInNewSession?: () => void
+    onToggleNativeChat?: () => void
+    isChatViewMode?: boolean
+    onSplitPane?: () => void
+    onClosePane?: () => void
+    closeLabel?: string
+  }
 }
 
 export function ConversationContinuationPanel({
@@ -35,7 +51,8 @@ export function ConversationContinuationPanel({
   compact,
   expanded: controlledExpanded,
   onExpandedChange,
-  onContinue
+  onContinue,
+  terminalActions
 }: ConversationContinuationPanelProps): React.JSX.Element {
   const delay = useAppStore((s) => s.settings?.conversationContinuationOfferAfterMs ?? 1_800_000)
   const [checkedAt, setCheckedAt] = useState(Date.now)
@@ -216,34 +233,91 @@ export function ConversationContinuationPanel({
       className="shrink-0 border-b border-border bg-background px-3 py-2"
       aria-label={translate('continuation.label', 'Conversation continuation')}
     >
-      <Button
-        variant="ghost"
-        size="xs"
-        onClick={() => {
-          if (open) {
-            setDismissed(checkpoint?.revision ?? null)
-            setPanelExpanded(false)
-          } else {
-            setPanelExpanded(true)
-          }
-        }}
-        aria-expanded={open}
-      >
-        <ChevronDown className="size-3" />
-        {translate('continuation.label', 'Conversation continuation')}
-        {preparing ? <Loader2 className="size-3 animate-spin" /> : null}
-      </Button>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={() => {
+            if (open) {
+              setDismissed(checkpoint?.revision ?? null)
+              setPanelExpanded(false)
+            } else {
+              setPanelExpanded(true)
+            }
+          }}
+          aria-expanded={open}
+        >
+          <ChevronDown className={`size-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+          {translate('continuation.label', 'Conversation continuation')}
+          {preparing ? <Loader2 className="size-3 animate-spin" /> : null}
+        </Button>
+        {terminalActions ? (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+            {terminalActions.onContinueInNewSession ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={terminalActions.onContinueInNewSession}
+              >
+                <MessageSquarePlus className="size-3" />
+                {translate('continuation.newAgentSessionWithHandoff', 'New session with handoff…')}
+              </Button>
+            ) : null}
+            {terminalActions.onToggleNativeChat ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-pressed={terminalActions.isChatViewMode ?? false}
+                onClick={terminalActions.onToggleNativeChat}
+              >
+                {terminalActions.isChatViewMode ? (
+                  <SquareTerminal className="size-3" />
+                ) : (
+                  <MessageSquare className="size-3" />
+                )}
+                {terminalActions.isChatViewMode
+                  ? translate('components.native-chat.toggle.showTerminal', 'Show terminal')
+                  : translate('components.native-chat.toggle.showChat', 'Show chat view')}
+              </Button>
+            ) : null}
+            {terminalActions.onSplitPane ? (
+              <Button type="button" variant="ghost" size="xs" onClick={terminalActions.onSplitPane}>
+                <SquareSplitVertical className="size-3" />
+                {translate(
+                  'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
+                  'Split Terminal Right'
+                )}
+              </Button>
+            ) : null}
+            {terminalActions.onClosePane ? (
+              <Button type="button" variant="ghost" size="xs" onClick={terminalActions.onClosePane}>
+                <X className="size-3" />
+                {terminalActions.closeLabel ??
+                  translate(
+                    'auto.components.terminal.pane.TerminalContextMenu.8c17d6786d',
+                    'Close Pane'
+                  )}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       {open ? (
         <div className="mt-2 space-y-2">
           <div className="flex flex-wrap gap-1">
-            <Button
-              size="xs"
-              variant="secondary"
-              disabled={busy || pending}
-              onClick={() => void choose('original')}
-            >
-              {translate('continuation.original', 'Continue original')}
-            </Button>
+            {view?.autoCompact ? (
+              <Button
+                size="xs"
+                variant="secondary"
+                disabled={busy || pending}
+                onClick={() => void choose('original')}
+              >
+                {translate('continuation.original', 'Continue original')}
+              </Button>
+            ) : null}
             <Button
               size="xs"
               variant="outline"

@@ -68,7 +68,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 describe('ConversationContinuationPanel', () => {
-  it('offers an idle conversation without invoking compaction and preserves original choice', async () => {
+  it('offers an idle conversation without invoking compaction or suggesting the original when auto compact is off', async () => {
     const onContinue = vi.fn()
     await act(async () =>
       root.render(
@@ -76,10 +76,82 @@ describe('ConversationContinuationPanel', () => {
       )
     )
     expect(container.textContent).toContain('New with reference')
+    expect(container.textContent).not.toContain('Continue original')
     expect(mocks.prepare).not.toHaveBeenCalled()
+    await click('New conversation')
+    expect(onContinue).toHaveBeenCalledExactlyOnceWith('fresh')
+  })
+  it('offers the original choice when auto compact is enabled', async () => {
+    mocks.inspect.mockResolvedValue({ ...view, autoCompact: true })
+    const onContinue = vi.fn()
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel source={source} busy={false} onContinue={onContinue} />
+      )
+    )
     await click('Continue original')
     expect(onContinue).toHaveBeenCalledWith('original')
     expect(container.textContent).not.toContain('New with reference')
+  })
+  it('shows labeled terminal actions beside continuation and invokes each action', async () => {
+    const onContinue = vi.fn()
+    const terminalActions = {
+      onContinueInNewSession: vi.fn(),
+      onToggleNativeChat: vi.fn(),
+      onSplitPane: vi.fn(),
+      onClosePane: vi.fn(),
+      closeLabel: 'Close this pane'
+    }
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel
+          source={source}
+          busy={false}
+          onContinue={onContinue}
+          terminalActions={terminalActions}
+        />
+      )
+    )
+
+    for (const [label, callback] of [
+      ['New session with handoff…', terminalActions.onContinueInNewSession],
+      ['Show chat view', terminalActions.onToggleNativeChat],
+      ['Split Terminal Right', terminalActions.onSplitPane],
+      ['Close this pane', terminalActions.onClosePane]
+    ] as const) {
+      const button = [...container.querySelectorAll('button')].find(
+        (element) => element.textContent === label
+      )
+      expect(button?.querySelector('svg')).not.toBeNull()
+      await click(label)
+      expect(callback).toHaveBeenCalledOnce()
+    }
+    expect(container.textContent).toContain('New conversation')
+    expect(onContinue).not.toHaveBeenCalled()
+
+    await click('Conversation continuation')
+    expect(container.textContent).not.toContain('New conversation')
+    expect(container.textContent).toContain('New session with handoff…')
+  })
+  it('labels the chat toggle according to the active view', async () => {
+    const onToggleNativeChat = vi.fn()
+    await act(async () =>
+      root.render(
+        <ConversationContinuationPanel
+          source={source}
+          busy={false}
+          onContinue={vi.fn()}
+          terminalActions={{ onToggleNativeChat, isChatViewMode: true }}
+        />
+      )
+    )
+
+    const button = [...container.querySelectorAll('button')].find(
+      (element) => element.textContent === 'Show terminal'
+    ) as HTMLButtonElement
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    await click('Show terminal')
+    expect(onToggleNativeChat).toHaveBeenCalledOnce()
   })
   it('does not switch when the source changed since a ready candidate was displayed', async () => {
     mocks.inspect.mockResolvedValueOnce({ ...view, candidate: readyCandidate }).mockResolvedValue({
@@ -123,6 +195,7 @@ describe('ConversationContinuationPanel', () => {
       expected: 'Preparation could not be confirmed'
     }
   ] as const)('keeps the original available after $status preparation', async (outcome) => {
+    mocks.inspect.mockResolvedValue({ ...view, autoCompact: true })
     mocks.prepare.mockResolvedValue({
       ...readyCandidate,
       status: outcome.status,

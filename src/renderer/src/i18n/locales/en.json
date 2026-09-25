@@ -18269,6 +18269,7 @@
     "noCheckpoint": "Wait for the current turn to finish.",
     "unconfirmed": "Preparation could not be confirmed. The original conversation is available.",
     "label": "Conversation continuation",
+    "newAgentSessionWithHandoff": "New session with handoff…",
     "original": "Continue original",
     "selected": "Copy selected",
     "preparing": "Preparing…",
