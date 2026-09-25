@@ -115,6 +115,7 @@ describe('file-tree', () => {
 
   it('classifies binary file paths for existing mobile preview behavior', () => {
     expect(getMobileFileKind('assets/logo.png')).toBe('binary')
+    expect(getMobileFileKind('build/app-release.apk')).toBe('binary')
     expect(getMobileFileKind('src/app.ts')).toBe('text')
   })
 

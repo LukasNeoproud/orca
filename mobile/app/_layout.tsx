@@ -13,6 +13,7 @@ import { useOpenNotificationRoute } from '../src/notifications/use-open-notifica
 import { loadHostCatalog } from '../src/transport/host-store'
 import { extractPairingCodeFromUrl } from '../src/transport/pairing'
 import { recoverMobileRelayPairing } from '../src/transport/mobile-relay-pairing-recovery'
+import { recoverPendingApkInstallation } from '../src/apk/mobile-apk-pending-install'
 
 // Why: keeps the native splash screen visible until the React tree is mounted
 // and ready to render. Without this the user sees a blank white/black frame
@@ -42,6 +43,7 @@ export default function RootLayout() {
     // Why: pairing publication is journaled across process death; startup must
     // reconcile the server result before another scan can replace that journal.
     void recoverMobileRelayPairing()
+    void recoverPendingApkInstallation().catch(() => {})
   }, [])
 
   // Why: route `orca://pair?...` deep links to the confirm screen so

@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { LayoutChangeEvent } from 'react-native'
+import { Platform, type LayoutChangeEvent } from 'react-native'
 import { Bot } from 'lucide-react-native'
 import {
   type ActivePanel,
@@ -171,8 +171,9 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     repoContextLoaded: prRepoContextLoaded,
     hostedChecksSupported: prIsGithubRepo
   })
+  const showApkInstallAction = Platform.OS === 'android' && !isFloatingWorkspaceRoute
   const showHeaderMoreButton =
-    showAgentSessionHistoryAction || showChecksAction || showBacklogAction
+    showAgentSessionHistoryAction || showChecksAction || showBacklogAction || showApkInstallAction
   const createTabBusy = creating || creatingBrowser || creatingMarkdown
   return {
     createTabAgentActions,
@@ -184,6 +185,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     showBacklogAction,
     showAgentSessionHistoryAction,
     showChecksAction,
+    showApkInstallAction,
     showHeaderMoreButton,
     createTabBusy
   }

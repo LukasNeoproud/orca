@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useMobileEmulatorStream } from './use-mobile-emulator-stream'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
+import { getMobileEmulatorVideoCapabilities } from './mobile-emulator-native-video'
 import {
   BrowserScreencastOpcode,
   type BrowserScreencastFrame
@@ -63,8 +64,8 @@ function setup() {
       return cancel
     }
   } as unknown as RpcClient
-  function Harness({ active = true }: { active?: boolean }) {
-    current = useMobileEmulatorStream(client, 'device', 'responsive', active)
+  function Harness({ active = true, visible = true }: { active?: boolean; visible?: boolean }) {
+    current = useMobileEmulatorStream(client, 'device', 'responsive', active, 'auto', visible)
     return null
   }
   return {
@@ -78,9 +79,43 @@ function setup() {
 afterEach(() => {
   act(() => renderer?.unmount())
   renderer = undefined
+  vi.mocked(getMobileEmulatorVideoCapabilities).mockReset()
+  vi.mocked(getMobileEmulatorVideoCapabilities).mockResolvedValue({
+    h264: true,
+    hevc: true,
+    av1: true
+  })
   vi.useRealTimers()
 })
 describe('emulator streaming lifecycle', () => {
+  it('ignores a pending start after unmount and starts a fresh stream on remount', async () => {
+    let resolveCapabilities!: (value: { h264: boolean; hevc: boolean; av1: boolean }) => void
+    vi.mocked(getMobileEmulatorVideoCapabilities).mockImplementationOnce(
+      () => new Promise((resolve) => (resolveCapabilities = resolve))
+    )
+    const test = setup()
+    await act(async () => {
+      renderer = create(createElement(test.Harness))
+    })
+    expect(test.subscriptions).toHaveLength(0)
+    await act(async () => renderer!.unmount())
+    resolveCapabilities({ h264: true, hevc: true, av1: true })
+    await act(async () => {})
+    expect(test.subscriptions).toHaveLength(0)
+
+    await act(async () => {
+      renderer = create(createElement(test.Harness))
+    })
+    expect(test.subscriptions).toHaveLength(1)
+    const sub = test.subscriptions[0]!
+    act(() => {
+      sub.event({ type: 'ready', subscriptionId: 'fresh' })
+      sub.frame?.(frame)
+    })
+    expect(current.ready).toBe(true)
+    await act(async () => renderer!.unmount())
+    expect(sub.cancel).toHaveBeenCalledOnce()
+  })
   it('requires a frame before enabling controls and stops on backgrounding', async () => {
     const test = setup()
     await act(async () => {
@@ -168,6 +203,25 @@ describe('emulator streaming lifecycle', () => {
     }
     expect(current.ready).toBe(true)
     expect(current.error).toBeNull()
+  })
+  it('keeps an encoded stream starting while hidden and checks rendering on return', async () => {
+    vi.useFakeTimers()
+    const test = setup()
+    await act(async () => {
+      renderer = create(createElement(test.Harness, { visible: false }))
+    })
+    const sub = test.subscriptions[0]!
+    act(() => sub.event({ type: 'ready', subscriptionId: 'video1', videoCodec: 'hevc' }))
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(current.error).toBeNull()
+    expect(sub.cancel).not.toHaveBeenCalled()
+
+    act(() => renderer!.update(createElement(test.Harness, { visible: true })))
+    expect(test.subscriptions).toHaveLength(1)
+    act(() => vi.advanceTimersByTime(15_000))
+    expect(sub.cancel).toHaveBeenCalledOnce()
+    await act(async () => {})
+    expect(test.subscriptions).toHaveLength(2)
   })
   it('times out a ready stream with no frames and allows a fresh retry', async () => {
     vi.useFakeTimers()

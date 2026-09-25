@@ -20,7 +20,7 @@ struct ReadOptions: Sendable {
 enum Command {
     case help, check
     case read(ReadOptions)
-    case mobileRead(ReadOptions, contextPath: String)
+    case mobileRead(ReadOptions, contextPath: String?)
     case enrollMobile(publicKey: String), revokeMobile
 
     static func parse(_ arguments: [String]) throws -> Command {
@@ -30,11 +30,35 @@ enum Command {
             return .enrollMobile(publicKey: arguments[1])
         }
         if arguments == ["revoke-mobile"] { return .revokeMobile }
-        if arguments.count >= 6, arguments[0] == "get-mobile",
-           arguments[1] == "--json", arguments[2] == "--context-file",
-           !arguments[3].isEmpty {
-            let requests = try parseRequests(Array(arguments.dropFirst(4)))
-            return .mobileRead(ReadOptions(requests: requests, format: .json), contextPath: arguments[3])
+        if arguments.first == "get-mobile" {
+            var remaining = Array(arguments.dropFirst())
+            var format: OutputFormat = .raw
+            var contextPath: String?
+            while let option = remaining.first {
+                if option == "--null" || option == "--json" {
+                    guard format == .raw else { throw ToolError("Choose only one mobile output format.") }
+                    format = option == "--null" ? .nul : .json
+                    remaining.removeFirst()
+                } else if option == "--context-file" {
+                    guard contextPath == nil, remaining.count > 1, !remaining[1].isEmpty else {
+                        throw ToolError("--context-file requires one nonempty path.")
+                    }
+                    contextPath = remaining[1]
+                    remaining.removeFirst(2)
+                } else { break }
+            }
+            if remaining.first == "--" { remaining.removeFirst() }
+            let requests = try parseRequests(remaining)
+            try MobileApproval.validateRequests(requests)
+            if contextPath != nil {
+                guard format == .json,
+                      requests == MobileApproval.accounts.map({ SecretRequest(service: MobileApproval.service, account: $0) }) else {
+                    throw ToolError("Private Android distribution requires --json and its five fixed service/account pairs.")
+                }
+            } else if format == .raw && requests.count != 1 {
+                throw ToolError("Multiple secrets require --null or --json.")
+            }
+            return .mobileRead(ReadOptions(requests: requests, format: format), contextPath: contextPath)
         }
         guard let verb = arguments.first, verb == "get" || verb == "verify" else {
             throw ToolError("Expected get, get-mobile, verify, enroll-mobile, check, or --help.")

@@ -1,7 +1,7 @@
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
 import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
-import { MobileEmulatorPane } from '../emulator/MobileEmulatorPane'
+import { MobilePersistentEmulatorPanes } from './MobilePersistentEmulatorPanes'
 import { MobileMarkdownLinkHandlerProvider } from '../components/MobileMarkdown'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
@@ -78,6 +78,8 @@ export function MobileSessionActiveContent({
     activeFileTab,
     activeBrowserTab,
     activeEmulatorTab,
+    activeSessionTabId,
+    localEmulatorTabs,
     appActive,
     activePendingTerminalTab,
     isPendingTerminalRecoveryParked,
@@ -89,7 +91,7 @@ export function MobileSessionActiveContent({
     toastAnimatedStyle,
     createTabBusy
   } = controller
-  return showLoadingState ? (
+  const content = showLoadingState ? (
     <View style={styles.emptyState}>
       <ActivityIndicator size="small" color={colors.textSecondary} />
     </View>
@@ -116,12 +118,7 @@ export function MobileSessionActiveContent({
       </View>
     </View>
   ) : activeEmulatorTab ? (
-    <MobileEmulatorPane
-      key={activeEmulatorTab.id}
-      client={client}
-      device={activeEmulatorTab.device}
-      appActive={appActive}
-    />
+    <View style={{ flex: 1 }} />
   ) : activeMarkdownTab ? (
     <View style={styles.markdownFrame}>
       <MarkdownReader
@@ -303,6 +300,17 @@ export function MobileSessionActiveContent({
           <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       )}
+    </View>
+  )
+  return (
+    <View style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      {content}
+      <MobilePersistentEmulatorPanes
+        tabs={localEmulatorTabs}
+        activeTabId={activeSessionTabId}
+        client={client}
+        appActive={appActive}
+      />
     </View>
   )
 }

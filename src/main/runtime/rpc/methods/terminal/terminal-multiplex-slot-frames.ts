@@ -78,7 +78,11 @@ export function installMultiplexSlotFrames(
           terminal: stream.terminal,
           text,
           client: stream.client,
-          isMobile: stream.isMobile
+          isMobile: stream.isMobile,
+          authenticatedMobileClientId:
+            stream.client?.id === state.authenticatedMobileClientId
+              ? state.authenticatedMobileClientId
+              : undefined
         })
         state.notifyStreamWriteUnavailable(stream, outcome)
       })

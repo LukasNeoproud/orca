@@ -39,6 +39,7 @@ export type FileExplorerRow = TreeNode | InlineStatusNode
 
 const DESKTOP_EXCLUDED_NAMES = new Set(['.git', 'node_modules'])
 const BINARY_EXTENSIONS = new Set([
+  '.apk',
   '.avif',
   '.bmp',
   '.gif',

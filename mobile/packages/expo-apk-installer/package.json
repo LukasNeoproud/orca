@@ -1,0 +1,13 @@
+{
+  "name": "@orca/expo-apk-installer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Android system APK installer handoff",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

@@ -16,6 +16,7 @@ import {
 function stubRuntime(overrides: Partial<OrcaRuntimeService> = {}): OrcaRuntimeService {
   return {
     getRuntimeId: () => 'test-runtime',
+    recordMobileApprovalInput: vi.fn(),
     beginMobileInputFloor: vi.fn((ptyId: string, clientId: string) => ({
       commit: async () => {
         await overrides.mobileTookFloor?.(ptyId, clientId)

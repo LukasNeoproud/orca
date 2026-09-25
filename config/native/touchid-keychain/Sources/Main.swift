@@ -13,6 +13,9 @@ struct TouchIDKeychain {
                   touchid-keychain get --null SERVICE ACCOUNT [SERVICE ACCOUNT ...]
                   touchid-keychain get --json SERVICE ACCOUNT [SERVICE ACCOUNT ...]
                   touchid-keychain verify SERVICE ACCOUNT [SERVICE ACCOUNT ...]
+                  touchid-keychain get-mobile SERVICE ACCOUNT
+                  touchid-keychain get-mobile --null SERVICE ACCOUNT [SERVICE ACCOUNT ...]
+                  touchid-keychain get-mobile --json SERVICE ACCOUNT [SERVICE ACCOUNT ...]
                   touchid-keychain get-mobile --json --context-file PATH SERVICE ACCOUNT ...
                   touchid-keychain enroll-mobile P256_SPKI_DER_BASE64
                   touchid-keychain revoke-mobile
@@ -20,6 +23,7 @@ struct TouchIDKeychain {
 
                 Reads existing generic passwords from ~/Library/Keychains/login.keychain-db.
                 Each get/verify authenticates once with Touch ID before reading any item.
+                get-mobile requires a fresh signed approval from enrolled Orca Mobile.
                 get: exact bytes for one item; --null: NUL-delimited UTF-8 values;
                 --json: an array of service/account/value objects. No partial batch output.
                 verify: read and discard all values (for first-use Always Allow approval).

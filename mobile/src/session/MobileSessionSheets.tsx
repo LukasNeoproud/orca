@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { Copy, FileText, Globe, RefreshCw, Smartphone, SquareTerminal } from 'lucide-react-native'
-import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
+import { MobileSessionHeaderSheets } from './MobileSessionHeaderSheets'
 import { QuickCommandsSheet } from './QuickCommandsSheet'
 import { triggerSuccess, triggerError } from '../platform/haptics'
 import { ActionSheetModal } from '../components/ActionSheetModal'
@@ -36,8 +36,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     setShowQuickCommands,
     setShowCreateBrowserModal,
     showCreateBrowserModal,
-    showHeaderMoreActions,
-    setShowHeaderMoreActions,
     actionTarget,
     setActionTarget,
     markdownActionTarget,
@@ -84,12 +82,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     closeWithBulkActions,
     createTabAgentActions,
     sendDiffNotesAgentActions,
-    handlePanelTap,
-    openAgentSessionHistory,
-    openBacklog,
-    showAgentSessionHistoryAction,
-    showBacklogAction,
-    showChecksAction,
     terminalLinkOpenMode,
     linkActionTarget,
     dismissLinkActions,
@@ -101,16 +93,7 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
   } = controller
   return (
     <>
-      <MobileSessionHeaderMoreActionsSheet
-        visible={showHeaderMoreActions}
-        showAgentSessionHistory={showAgentSessionHistoryAction}
-        showBacklog={showBacklogAction}
-        showChecks={showChecksAction}
-        onOpenAgentSessionHistory={openAgentSessionHistory}
-        onOpenBacklog={openBacklog}
-        onOpenChecks={() => handlePanelTap('pr')}
-        onClose={() => setShowHeaderMoreActions(false)}
-      />
+      <MobileSessionHeaderSheets controller={controller} />
       <MobileLinkActionSheet
         target={linkActionTarget}
         client={client}

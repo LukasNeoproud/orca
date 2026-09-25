@@ -152,6 +152,11 @@ export class OrcaRuntimeWithMarkPtyLivenessUnverifiable extends OrcaRuntimeWithO
   }
 
   protected setDriver(ptyId: string, next: DriverState): void {
+    if (next.kind === 'desktop') {
+      ;(
+        this as { recordMobileApprovalInput?: (ptyId: string, clientId: null) => void }
+      ).recordMobileApprovalInput?.(ptyId, null)
+    }
     this.terminalDrivers.set(ptyId, next)
   }
 

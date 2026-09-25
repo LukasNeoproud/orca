@@ -23,6 +23,7 @@ export function useDeviceApprovals(client: RpcClient | null, hostId: string, con
   const [pending, setPending] = useState<PendingApproval[]>([])
   const [keyId, setKeyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [supported, setSupported] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -35,6 +36,7 @@ export function useDeviceApprovals(client: RpcClient | null, hostId: string, con
       setKeyId(null)
       setSupported(false)
       setNotice(null)
+      setRefreshError(null)
       let loading = false
       const refresh = async () => {
         if (loading || !client || !connected || AppState.currentState !== 'active') {
@@ -64,11 +66,13 @@ export function useDeviceApprovals(client: RpcClient | null, hostId: string, con
               }
             })
           )
-          setError(null)
+          setRefreshError(null)
         } catch (cause) {
           if (owner === generation.current) {
             setPending([])
-            setError(cause instanceof Error ? cause.message : 'Could not read pending requests')
+            setRefreshError(
+              cause instanceof Error ? cause.message : 'Could not read pending requests'
+            )
           }
         } finally {
           loading = false
@@ -194,10 +198,19 @@ export function useDeviceApprovals(client: RpcClient | null, hostId: string, con
         await deviceApproval.deleteKey(hostId)
         setKeyId(null)
         setNotice(
-          'Local approval key removed. Register this phone again on the Mac before approving builds.'
+          'Local approval key removed. Register this phone again on the Mac before approving requests.'
         )
       }),
     [hostId, perform]
   )
-  return { pending, keyId, error, notice, supported, busy, approve, resetKey }
+  return {
+    pending,
+    keyId,
+    error: error ?? refreshError,
+    notice,
+    supported,
+    busy,
+    approve,
+    resetKey
+  }
 }

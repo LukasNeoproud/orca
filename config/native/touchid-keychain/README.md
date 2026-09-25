@@ -2,10 +2,10 @@
 
 This macOS helper reads existing generic passwords from the login Keychain. The
 original `get` and `verify` commands require fresh local Touch ID on every
-invocation. Orca's opt-in `get-mobile` command permits the fixed five-item
-private Android distribution batch after a fresh signed approval from an
-enrolled Orca Mobile device. The login Keychain keeps enforcing each item's
-existing ACL; these commands do not add biometric access control to the items.
+invocation. The opt-in `get-mobile` command accepts the same service/account
+pairs after a fresh signed approval from an enrolled Orca Mobile device. The
+login Keychain keeps enforcing each item's existing ACL; these commands do not
+add biometric access control to the items.
 
 The source was copied from the user's local macos-tools/touchid-keychain
 project; see PROVENANCE.md. It requires macOS 13+, enrolled Touch ID for local
@@ -23,7 +23,7 @@ test.sh uses generated keys and fake values. It does not invoke Touch ID or
 read real Keychain items. install.sh replaces the owner-only executable at
 ~/.local/bin/touchid-keychain with an ad-hoc signed build. It does not alter
 stored credentials. A changed ad-hoc signature can require renewed Keychain
-ACL approval for the five existing items. Run verify and approve the new
+ACL approval for existing items. Run verify and approve the new
 helper after reviewing the installed build; testing this source alone does not
 install it. Do not install with sudo.
 
@@ -43,6 +43,33 @@ later item cannot leave a partial batch on stdout. check tests availability
 without authenticating or accessing Keychain. Avoid logging get output.
 
 ## Mobile approval path
+
+```sh
+touchid-keychain get-mobile SERVICE ACCOUNT
+touchid-keychain get-mobile --json SERVICE ACCOUNT [SERVICE ACCOUNT ...]
+touchid-keychain get-mobile --null SERVICE ACCOUNT [SERVICE ACCOUNT ...]
+```
+
+`get-mobile` accepts up to 32 distinct service/account pairs. The phone displays
+every requested pair before biometric approval. It receives request metadata,
+never secret values. After approval, the helper returns the complete batch only
+on its stdout to the calling process, with the same raw, JSON, and NUL framing as
+`get`. A failed item produces no partial output. The calling process is trusted
+to use and protect the returned values; mobile approval does not constrain its
+subsequent actions.
+
+Run `get-mobile` from a local Orca terminal that you have controlled from Orca
+Mobile. Orca offers the request only to that paired phone while the helper is a
+descendant of the terminal process. A local desktop command should use `get` and
+Touch ID. Desktop input, phone disconnect, or terminal exit revokes the mobile
+origin; a mobile input record also expires after four hours. Navigating from the
+mobile terminal to Device approvals does not revoke it. SSH and WSL terminals
+cannot use this Mac's local mobile approval route.
+
+Update the desktop host, mobile app, and helper together. The challenge now
+includes the helper process ID; an older host or mobile app cannot approve the
+new request, and the updated host intentionally hides requests from older
+helpers that lack that field.
 
 Install a new native Orca Mobile build containing the approval module first.
 The initial build still uses local Touch ID or your existing CI credentials.
@@ -79,11 +106,13 @@ For each mobile read, the helper creates a random 120-second challenge in
 bytes to the enrolled phone. The phone shows the operation, requires biometric
 authorization, and signs those bytes. The helper consumes the response from
 responses/, verifies the DER P-256 ECDSA signature against the pinned key,
-checks the deadline and five fixed service/account pairs, then reads Keychain.
+checks the deadline and requested service/account pairs, then reads Keychain.
 An unsigned status or desktop RPC result is never accepted as authorization.
 Timeout, invalid signature, absent key, and revocation fail without output.
 
-The local publisher selects this route with --approval mobile. It requires a
+The local publisher selects this route with --approval mobile and supplies an
+additional operation context. For that contextual command, the helper requires
+the fixed five private Android distribution items. The publisher requires a
 clean committed worktree, explicit release notes when publishing, and rejects
 --existing-apk. Clean HEAD rechecks catch ordinary source changes during the
 operation; they do not prove that a concurrently modified build input produced

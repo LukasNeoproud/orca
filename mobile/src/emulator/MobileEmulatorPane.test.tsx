@@ -28,7 +28,11 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'ios' },
   StyleSheet: { hairlineWidth: 1, create: (value: unknown) => value }
 }))
-vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: 'SafeAreaView',
+  useSafeAreaInsets: () => ({ top: 24, bottom: 16, left: 0, right: 0 })
+}))
+vi.mock('./MobileEmulatorImmersiveBars', () => ({ MobileEmulatorImmersiveBars: 'ImmersiveBars' }))
 vi.mock('lucide-react-native', () => ({
   ArrowLeft: 'ArrowLeft',
   Home: 'Home',
@@ -94,7 +98,17 @@ describe('mobile emulator pane', () => {
     act(() => button('Fullscreen').props.onPress())
     expect(renderer!.root.findByType('Modal').props.visible).toBe(true)
     expect(button('Exit fullscreen')).toBeDefined()
+    expect(renderer!.root.findAllByType('Pressable')).toHaveLength(1)
     expect(subscribe).toHaveBeenCalledOnce()
+    expect(button('Home')).toBeUndefined()
+    expect(button('Stream quality settings')).toBeUndefined()
+    expect(renderer!.root.findAllByType('SafeAreaView')).toHaveLength(0)
+    expect(renderer!.root.findByType('Modal').props.navigationBarTranslucent).toBe(true)
+    expect(renderer!.root.findByType('Modal').props.statusBarTranslucent).toBe(true)
+    expect(renderer!.root.findAllByType('ImmersiveBars')).toHaveLength(1)
+    act(() => button('Exit fullscreen').props.onPress())
+    expect(renderer!.root.findAllByType('ImmersiveBars')).toHaveLength(0)
+    expect(button('Home')).toBeDefined()
     act(() => button('Stream quality settings').props.onPress())
     const sheet = renderer!.root
       .findAllByType('ActionSheetModal')
@@ -108,6 +122,7 @@ describe('mobile emulator pane', () => {
       expect.any(Function),
       expect.any(Object)
     )
+    act(() => button('Fullscreen').props.onPress())
     act(() => renderer!.root.findByType('Modal').props.onRequestClose())
     expect(renderer!.root.findAllByType('Modal')).toHaveLength(0)
   })

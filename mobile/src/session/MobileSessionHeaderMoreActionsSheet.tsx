@@ -1,4 +1,4 @@
-import { ListChecks, ListTodo } from 'lucide-react-native'
+import { FileDown, ListChecks, ListTodo } from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { ActionSheetModal } from '../components/ActionSheetModal'
 import { colors } from '../theme/mobile-theme'
@@ -8,9 +8,11 @@ type Props = {
   showAgentSessionHistory: boolean
   showChecks: boolean
   showBacklog: boolean
+  showApkInstall: boolean
   onOpenAgentSessionHistory: () => void
   onOpenChecks: () => void
   onOpenBacklog: () => void
+  onOpenApkInstall: () => void
   onClose: () => void
 }
 
@@ -19,9 +21,11 @@ export function MobileSessionHeaderMoreActionsSheet({
   showAgentSessionHistory,
   showChecks,
   showBacklog,
+  showApkInstall,
   onOpenAgentSessionHistory,
   onOpenChecks,
   onOpenBacklog,
+  onOpenApkInstall,
   onClose
 }: Props) {
   return (
@@ -61,6 +65,17 @@ export function MobileSessionHeaderMoreActionsSheet({
                 hint: 'Open pull request checks',
                 icon: ListChecks,
                 onPress: onOpenChecks
+              }
+            ]
+          : []),
+        ...(showApkInstall
+          ? [
+              {
+                label: 'Install APK',
+                hint: 'Choose a build from this workspace',
+                icon: FileDown,
+                closeBeforePress: true,
+                onPress: onOpenApkInstall
               }
             ]
           : [])

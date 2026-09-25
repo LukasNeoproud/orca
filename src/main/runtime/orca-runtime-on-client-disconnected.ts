@@ -4,6 +4,7 @@ import type { RuntimeCommandSurfaceHost } from './orca-runtime-core'
 
 export class OrcaRuntimeWithOnClientDisconnected extends OrcaRuntimeWithHasRecentTerminalOutputPath {
   onClientDisconnected(clientId: string): void {
+    ;(this as RuntimeCommandSurfaceHost<this>).clearMobileApprovalInputForClient?.(clientId)
     ;(this as RuntimeCommandSurfaceHost<this>).revokeTerminalFileGrantsForClient(clientId)
     this.mobileDictation.cancelForClient(clientId)
 

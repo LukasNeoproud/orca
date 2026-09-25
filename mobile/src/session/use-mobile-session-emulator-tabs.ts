@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Keyboard } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import type { MobileEmulatorDevice } from '../emulator/mobile-emulator-types'
 import { triggerSelection } from '../platform/haptics'
 import { mobileEmulatorTabId, type MobileLocalEmulatorTab } from './mobile-local-emulator-tab'
+import {
+  cachedMobileLocalEmulatorTabs,
+  loadMobileLocalEmulatorTabs,
+  saveMobileLocalEmulatorTabs,
+  type MobileLocalEmulatorTabsSnapshot
+} from './mobile-local-emulator-tabs-persistence'
 import type { MobileSessionTabSwitchingModel } from './use-mobile-session-tab-switching'
 
 export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingModel) {
@@ -30,17 +37,40 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
   const [emulatorActionTarget, setEmulatorActionTarget] = useState<MobileLocalEmulatorTab | null>(
     null
   )
-  const [appActive, setAppActive] = useState(AppState.currentState === 'active')
+  const [appStateActive, setAppStateActive] = useState(AppState.currentState === 'active')
+  const [routeFocused, setRouteFocused] = useState(false)
+  const [restoredScopeKey, setRestoredScopeKey] = useState<string | null>(null)
+  const mutationRevisionRef = useRef(0)
+  const explicitHostSelectionDuringLoadRef = useRef(false)
   const scopeKey = `${hostId}:${worktreeId}`
+
+  const saveTabs = useCallback(
+    (snapshot: MobileLocalEmulatorTabsSnapshot) => {
+      mutationRevisionRef.current += 1
+      setRestoredScopeKey(scopeKey)
+      void saveMobileLocalEmulatorTabs(hostId, worktreeId, scopeKey, snapshot).catch(() => {})
+    },
+    [hostId, scopeKey, worktreeId]
+  )
+
+  useFocusEffect(
+    useCallback(() => {
+      setRouteFocused(true)
+      return () => setRouteFocused(false)
+    }, [])
+  )
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) =>
-      setAppActive(state === 'active')
+      setAppStateActive(state === 'active')
     )
     return () => subscription.remove()
   }, [])
 
   useEffect(() => {
+    let disposed = false
+    const revision = mutationRevisionRef.current
+    explicitHostSelectionDuringLoadRef.current = false
     localEmulatorTabsRef.current = []
     setLocalEmulatorTabs([])
     setEmulatorActionTarget(null)
@@ -50,7 +80,60 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       activeSessionTabTypeRef.current = null
       setActiveSessionTabId(null)
     }
+    const restore = (snapshot: MobileLocalEmulatorTabsSnapshot) => {
+      if (disposed || revision !== mutationRevisionRef.current) {
+        return
+      }
+      localEmulatorTabsRef.current = snapshot.tabs
+      setLocalEmulatorTabs(snapshot.tabs)
+      if (
+        snapshot.selectedTabId &&
+        !explicitHostSelectionDuringLoadRef.current &&
+        !pendingActiveSessionTabIdRef.current &&
+        !pendingActiveTerminalHandleRef.current
+      ) {
+        selectedSessionTabIdRef.current = snapshot.selectedTabId
+        activeSessionTabTypeRef.current = 'emulator'
+        activeSessionTabIdRef.current = snapshot.selectedTabId
+        setActiveSessionTabId(snapshot.selectedTabId)
+      }
+      setRestoredScopeKey(scopeKey)
+    }
+    const cached = cachedMobileLocalEmulatorTabs(scopeKey)
+    if (cached) {
+      restore(cached)
+    } else {
+      void loadMobileLocalEmulatorTabs(hostId, worktreeId, scopeKey).then(restore, () => {
+        if (!disposed) {
+          setRestoredScopeKey(scopeKey)
+        }
+      })
+    }
+    return () => {
+      disposed = true
+    }
   }, [hostId, worktreeId, localEmulatorTabsRef, setLocalEmulatorTabs])
+
+  useEffect(() => {
+    if (restoredScopeKey !== scopeKey) {
+      if (pendingActiveSessionTabIdRef.current || pendingActiveTerminalHandleRef.current) {
+        explicitHostSelectionDuringLoadRef.current = true
+      }
+      return
+    }
+    const snapshot = cachedMobileLocalEmulatorTabs(scopeKey)
+    if (!snapshot) {
+      return
+    }
+    const selectedTabId = localEmulatorTabsRef.current.some(
+      (tab) => tab.scopeKey === scopeKey && tab.id === activeSessionTabId
+    )
+      ? activeSessionTabId
+      : null
+    if (snapshot.selectedTabId !== selectedTabId) {
+      saveTabs({ tabs: localEmulatorTabsRef.current, selectedTabId })
+    }
+  }, [activeSessionTabId, localEmulatorTabsRef, restoredScopeKey, saveTabs, scopeKey])
 
   const switchEmulatorTab = useCallback(
     (tab: MobileLocalEmulatorTab) => {
@@ -70,8 +153,9 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       }
       activeHandleRef.current = null
       setActiveHandle(null)
+      saveTabs({ tabs: localEmulatorTabsRef.current, selectedTabId: tab.id })
     },
-    [initializedHandlesRef, unsubscribeTerminal]
+    [initializedHandlesRef, saveTabs, unsubscribeTerminal]
   )
 
   const openEmulatorDevice = useCallback(
@@ -106,6 +190,12 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       const next = localEmulatorTabsRef.current.filter((candidate) => candidate.id !== tab.id)
       localEmulatorTabsRef.current = next
       setLocalEmulatorTabs(next)
+      saveTabs({
+        tabs: next,
+        selectedTabId: next.some((candidate) => candidate.id === activeSessionTabIdRef.current)
+          ? activeSessionTabIdRef.current
+          : null
+      })
       if (activeSessionTabIdRef.current !== tab.id) {
         return
       }
@@ -124,11 +214,11 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       activeSessionTabTypeRef.current = null
       setActiveSessionTabId(null)
     },
-    [localEmulatorTabsRef, sessionTabs, switchEmulatorTab, switchSessionTab]
+    [localEmulatorTabsRef, saveTabs, sessionTabs, switchEmulatorTab, switchSessionTab]
   )
 
   return {
-    appActive,
+    appActive: appStateActive && routeFocused,
     localEmulatorTabs,
     emulatorActionTarget,
     setEmulatorActionTarget,

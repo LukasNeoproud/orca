@@ -44,8 +44,8 @@ export default function DeviceApprovalsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{hostName}</Text>
         <Text style={styles.text}>
-          Approve one private Android build with this phone’s biometrics. Keep this screen open
-          while the Mac requests approval.
+          Approve Keychain access or a private Android build with this phone’s biometrics. Keep this
+          screen open while the Mac requests approval.
         </Text>
         {Platform.OS !== 'android' ? (
           <Text style={styles.error}>
@@ -102,6 +102,30 @@ export default function DeviceApprovalsScreen() {
                     Create a hardware-backed approval key. The Mac checks its attestation and asks
                     you to confirm its fingerprint locally.
                   </Text>
+                </>
+              ) : entry.request.operation.kind === 'keychain-read' ? (
+                <>
+                  <Text style={styles.title}>Read Keychain secrets</Text>
+                  <Text style={styles.text}>
+                    Approval releases these secrets to the requesting process on the Mac:
+                  </Text>
+                  {entry.request.requests.map((request, index) => (
+                    <View
+                      key={`${request.service}\u0000${request.account}`}
+                      style={styles.credential}
+                    >
+                      <Text style={styles.text}>Secret {index + 1}</Text>
+                      <Text selectable style={styles.fingerprint}>
+                        Service: {request.service}
+                      </Text>
+                      <Text selectable style={styles.fingerprint}>
+                        Account: {request.account}
+                      </Text>
+                    </View>
+                  ))}
+                  {approvals.keyId !== entry.request.keyId ? (
+                    <Text style={styles.error}>This request is for another approval key.</Text>
+                  ) : null}
                 </>
               ) : (
                 <>
@@ -200,6 +224,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md
   },
+  credential: { gap: spacing.xs },
   button: {
     backgroundColor: colors.surfaceBright,
     padding: spacing.md,

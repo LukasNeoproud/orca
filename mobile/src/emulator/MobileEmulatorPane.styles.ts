@@ -3,6 +3,19 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 
 export const emulatorStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bgBase },
+  fullscreenStatus: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '40%',
+    backgroundColor: colors.bgPanel
+  },
+  fullscreenToggle: {
+    position: 'absolute',
+    flexDirection: 'row',
+    backgroundColor: colors.bgPanel,
+    borderRadius: radii.button
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

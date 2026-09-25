@@ -30,6 +30,7 @@ export function registerLegacyBinaryControlFrames(
     ptyId,
     clientId,
     isMobile,
+    authenticatedMobileClientId,
     supportsDesktopViewportClaims,
     supportsWriteUnavailable
   } = args
@@ -56,7 +57,8 @@ export function registerLegacyBinaryControlFrames(
           terminal: params.terminal,
           text,
           client: params.client,
-          isMobile
+          isMobile,
+          authenticatedMobileClientId
         })
         if (!controls.isClosed() && outcome === 'rejected' && supportsWriteUnavailable) {
           controls.sendFrame(TerminalStreamOpcode.WriteUnavailable)

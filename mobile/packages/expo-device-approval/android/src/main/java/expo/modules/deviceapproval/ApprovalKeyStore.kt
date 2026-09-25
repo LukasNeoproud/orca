@@ -72,8 +72,10 @@ internal object ApprovalKeyStore {
       result["attestationCertificateChainBase64"] = certificates.map { encode(it.encoded) }
       return result
     } catch (error: Exception) {
-      // A failed enrollment must never leave a key that the server did not accept.
-      if (keyStore().containsAlias(alias)) keyStore().deleteEntry(alias)
+      cleanupFailedEnrollment(alias, error)
+      throw error
+    } catch (error: LinkageError) {
+      cleanupFailedEnrollment(alias, error)
       throw error
     }
   }
@@ -84,20 +86,20 @@ internal object ApprovalKeyStore {
       ?: error("Approval key does not exist")
     val keyInfo = KeyFactory.getInstance("EC", PROVIDER)
       .getKeySpec(privateKey, KeyInfo::class.java) as KeyInfo
-    val securityLevel = when (keyInfo.securityLevel) {
-      KeyProperties.SECURITY_LEVEL_STRONGBOX -> "strongbox"
-      KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "trusted_environment"
-      else -> error("Approval key is not hardware backed")
-    }
+    val securityLevel = securityLevelFor(
+      Build.VERSION.SDK_INT,
+      keyInfo.isInsideSecureHardware,
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) keyInfo.securityLevel else null,
+    )
     val publicKey = store.getCertificate(alias)?.publicKey?.encoded
       ?: error("Approval public key is unavailable")
-    check(keyInfo.isUserAuthenticationRequired &&
-      keyInfo.userAuthenticationValidityDurationSeconds == -1 &&
-      keyInfo.userAuthenticationType == KeyProperties.AUTH_BIOMETRIC_STRONG &&
-      keyInfo.isUserAuthenticationRequirementEnforcedBySecureHardware &&
-      keyInfo.isInvalidatedByBiometricEnrollment) {
-      "Approval key has an invalid authentication policy"
-    }
+    ApprovalKeyPolicy(
+      authenticationRequired = keyInfo.isUserAuthenticationRequired,
+      validitySeconds = keyInfo.userAuthenticationValidityDurationSeconds,
+      biometricOnly = keyInfo.userAuthenticationType == KeyProperties.AUTH_BIOMETRIC_STRONG,
+      hardwareEnforced = keyInfo.isUserAuthenticationRequirementEnforcedBySecureHardware,
+      invalidatedByEnrollment = keyInfo.isInvalidatedByBiometricEnrollment,
+    ).validate()
     return mapOf("publicKeySpkiBase64" to encode(publicKey), "securityLevel" to securityLevel)
   }
 
@@ -119,6 +121,30 @@ internal object ApprovalKeyStore {
   }
 
   private fun keyStore(): KeyStore = KeyStore.getInstance(PROVIDER).apply { load(null) }
+
+  private fun cleanupFailedEnrollment(alias: String, originalError: Throwable) {
+    try {
+      val store = keyStore()
+      if (store.containsAlias(alias)) store.deleteEntry(alias)
+    } catch (cleanupError: Exception) {
+      originalError.addSuppressed(cleanupError)
+    } catch (cleanupError: LinkageError) {
+      originalError.addSuppressed(cleanupError)
+    }
+  }
+
+  internal fun securityLevelFor(apiLevel: Int, insideSecureHardware: Boolean, securityLevel: Int?): String {
+    if (apiLevel < Build.VERSION_CODES.S) {
+      check(insideSecureHardware) { "Approval key is not hardware backed" }
+      return "trusted_environment"
+    }
+
+    return when (securityLevel) {
+      KeyProperties.SECURITY_LEVEL_STRONGBOX -> "strongbox"
+      KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "trusted_environment"
+      else -> error("Approval key is not hardware backed")
+    }
+  }
 
   private fun generate(alias: String, challenge: ByteArray, strongBox: Boolean) {
     val parameters = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)

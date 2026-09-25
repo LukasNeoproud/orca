@@ -1,16 +1,17 @@
 import { isAgentSessionPtyWriteRefusedError } from '../../../../../shared/agent-session-pty-write-admission'
 import { assertLegacyAiVaultResumeCommandAllowed } from '../../../../ai-vault/structured-session-ownership'
-import { InvalidArgumentError, defineMethod, type RpcAnyMethod } from '../../core'
-import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
+import { defineMethod, type RpcAnyMethod } from '../../core'
 import { assertTerminalAgentSendable } from '../../terminal-agent-send-guard'
 import { TerminalSend } from './unary-schemas'
 import {
   assertTerminalSendExactPtyBinding,
   assertTerminalSendTextWithinLimit,
+  assertTerminalQueryReply,
   commitMobileInputFloorClaim,
   getTerminalSendGuardRefusedReason,
   isTerminalInputLockedForClient,
   isTerminalSendGuardNotWritable,
+  settleTerminalSendInput,
   resolveMobileFloorClientId,
   type MobileInputFloorClaimHolder
 } from './terminal-input-delivery'
@@ -29,6 +30,7 @@ export const TERMINAL_SEND_METHODS: RpcAnyMethod[] = [
       {
         runtime,
         clientId,
+        clientKind,
         signal,
         orchestrationMutation,
         recordMutationReceipt,
@@ -48,21 +50,7 @@ export const TERMINAL_SEND_METHODS: RpcAnyMethod[] = [
           runtime.ensureStructuredAgentSessionHost()
         )
       }
-      const queryReplyClientId = clientId ?? params.client?.id
-      if (
-        params.inputKind === 'query-reply' &&
-        (!params.text ||
-          !isTerminalQueryReply(params.text) ||
-          params.enter === true ||
-          params.interrupt === true ||
-          params.agentPrompt === true ||
-          params.requireAgentStatus !== undefined ||
-          params.client?.type !== 'mobile' ||
-          !queryReplyClientId ||
-          (clientId !== undefined && params.client.id !== clientId))
-      ) {
-        throw new InvalidArgumentError('Invalid terminal query reply')
-      }
+      const queryReplyClientId = assertTerminalQueryReply(params, clientId)
       const replayObservation = await observeReplayedTerminalPrompt(
         runtime,
         params.terminal,
@@ -280,9 +268,14 @@ export const TERMINAL_SEND_METHODS: RpcAnyMethod[] = [
         }
         throw error
       }
-      if (result.accepted !== true) {
-        mobileFloorClaim.current?.rollback()
-      }
+      settleTerminalSendInput(
+        runtime,
+        leaf?.ptyId,
+        result,
+        params,
+        { clientId, clientKind },
+        mobileFloorClaim
+      )
       if (
         result.accepted === true &&
         params.enter === true &&
@@ -299,7 +292,6 @@ export const TERMINAL_SEND_METHODS: RpcAnyMethod[] = [
           result
         )
       }
-      // Why: deliberate mobile input takes the floor (drives `* → mobile{clientId}`); clientless sends fall back to the current mobile driver.
       return { send: result }
     }
   })

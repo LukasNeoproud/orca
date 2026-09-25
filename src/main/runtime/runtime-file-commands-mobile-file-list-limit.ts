@@ -124,6 +124,7 @@ export const runtimeFileWatcherLeasesByOwnerAndRoot = new Map<
 export const sshFileExplorerWatchRearms = new Map<string, Set<() => void>>()
 
 export const MOBILE_BINARY_EXTENSIONS = new Set([
+  '.apk',
   '.avif',
   '.bmp',
   '.gif',

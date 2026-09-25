@@ -18,6 +18,9 @@ importers:
       '@noble/hashes':
         specifier: 1.8.0
         version: 1.8.0
+      '@orca/expo-apk-installer':
+        specifier: file:./packages/expo-apk-installer
+        version: file:packages/expo-apk-installer(expo@55.0.30)(react-native@0.83.10(patch_hash=47a97ae67dbb8be1b4b3831e144d49a37fed4902b034c3d9e1fed358677215df)(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.8))(react@19.2.8)
       '@orca/expo-device-approval':
         specifier: file:./packages/expo-device-approval
         version: file:packages/expo-device-approval(expo@55.0.30)(react-native@0.83.10(patch_hash=47a97ae67dbb8be1b4b3831e144d49a37fed4902b034c3d9e1fed358677215df)(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.8))(react@19.2.8)
@@ -1944,6 +1947,12 @@ packages:
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
+  '@orca/expo-apk-installer@file:packages/expo-apk-installer':
+    resolution: {directory: packages/expo-apk-installer, type: directory}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
   '@orca/expo-device-approval@file:packages/expo-device-approval':
     resolution: {directory: packages/expo-device-approval, type: directory}
     peerDependencies:
@@ -9411,6 +9420,11 @@ snapshots:
 
   '@noble/hashes@1.8.0': {}
 
+  '@orca/expo-apk-installer@file:packages/expo-apk-installer(expo@55.0.30)(react-native@0.83.10(patch_hash=47a97ae67dbb8be1b4b3831e144d49a37fed4902b034c3d9e1fed358677215df)(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      expo: 55.0.30(7a5a05591dbb8496dd47faee5fd1b48a)
+      react: 19.2.8
+      react-native: 0.83.10(patch_hash=47a97ae67dbb8be1b4b3831e144d49a37fed4902b034c3d9e1fed358677215df)(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.8)
   '@orca/expo-device-approval@file:packages/expo-device-approval(expo@55.0.30)(react-native@0.83.10(patch_hash=47a97ae67dbb8be1b4b3831e144d49a37fed4902b034c3d9e1fed358677215df)(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.85.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.8))(react@19.2.8)':
     dependencies:
       expo: 55.0.30(7a5a05591dbb8496dd47faee5fd1b48a)

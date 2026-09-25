@@ -11,6 +11,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class ExpoEmulatorVideoModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoEmulatorVideo")
+    Constants("supportsImmersiveWindow" to true)
 
     AsyncFunction("getCapabilities") { promise: Promise ->
       val result = listOf("h264", "hevc", "av1").associateWith { codec ->
@@ -59,6 +60,10 @@ class ExpoEmulatorVideoModule : Module() {
       Prop("streamId") { view: EmulatorVideoView, streamId: String ->
         view.setStreamId(streamId)
       }
+    }
+
+    View(EmulatorImmersiveView::class) {
+      Name("EmulatorImmersiveView")
     }
 
     OnDestroy {

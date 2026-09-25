@@ -1,5 +1,5 @@
 import type { MobileEmulatorCodecPreference } from './mobile-emulator-codec-preferences'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,7 +19,7 @@ import {
   Send,
   SlidersHorizontal
 } from 'lucide-react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ActionSheetModal } from '../components/ActionSheetModal'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
@@ -31,30 +31,57 @@ import {
 import { useMobileEmulatorStream } from './use-mobile-emulator-stream'
 import { MobileEmulatorScreen } from './MobileEmulatorScreen'
 import { emulatorStyles as styles } from './MobileEmulatorPane.styles'
+import { MobileEmulatorImmersiveBars } from './MobileEmulatorImmersiveBars'
 
 export function MobileEmulatorPane({
   client,
   device,
-  appActive
+  appActive,
+  visible = true
 }: {
   client: RpcClient | null
   device: MobileEmulatorDevice
   appActive: boolean
+  visible?: boolean
 }) {
   const [fullscreen, setFullscreen] = useState(false)
+  const insets = useSafeAreaInsets()
+  const chromeVisible = !fullscreen
   const [profile, setProfile] = useState<MobileEmulatorProfile>('responsive')
   const [codecPreference, setCodecPreference] = useState<MobileEmulatorCodecPreference>('auto')
   const [codecSettings, setCodecSettings] = useState(false)
   const [settings, setSettings] = useState(false)
   const [keyboard, setKeyboard] = useState(false)
   const [text, setText] = useState('')
-  const stream = useMobileEmulatorStream(client, device.id, profile, appActive, codecPreference)
+  const stream = useMobileEmulatorStream(
+    client,
+    device.id,
+    profile,
+    appActive,
+    codecPreference,
+    visible
+  )
+  useEffect(() => {
+    if (!visible) {
+      setSettings(false)
+      setCodecSettings(false)
+      setKeyboard(false)
+    }
+    if (!visible && fullscreen) {
+      setFullscreen(false)
+      setKeyboard(false)
+      if (stream.videoCodec !== 'jpeg') {
+        stream.restartVideo()
+      }
+    }
+  }, [visible, fullscreen, stream.videoCodec, stream.restartVideo])
   const toggleFullscreen = () => {
     // Reparenting a native surface needs a new stream keyframe.
     if (stream.videoCodec !== 'jpeg') {
       stream.restartVideo()
     }
     setFullscreen((value) => !value)
+    setKeyboard(false)
   }
   const sendText = () => {
     if (!text || !stream.ready) {
@@ -84,39 +111,37 @@ export function MobileEmulatorPane({
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.toolbar}>
-        <Text numberOfLines={1} style={styles.title}>
-          {device.name}
-        </Text>
-        {button(
-          'Stream quality settings',
-          <SlidersHorizontal size={20} color={colors.textSecondary} />,
-          () => setSettings(true)
-        )}
-        {button(
-          fullscreen ? 'Exit fullscreen' : 'Fullscreen',
-          fullscreen ? (
-            <Minimize size={20} color={colors.textSecondary} />
-          ) : (
-            <Maximize size={20} color={colors.textSecondary} />
-          ),
-          toggleFullscreen
-        )}
-      </View>
+      {chromeVisible ? (
+        <View style={styles.toolbar}>
+          <Text numberOfLines={1} style={styles.title}>
+            {device.name}
+          </Text>
+          {button(
+            'Stream quality settings',
+            <SlidersHorizontal size={20} color={colors.textSecondary} />,
+            () => setSettings(true)
+          )}
+          {button(
+            'Fullscreen',
+            <Maximize size={20} color={colors.textSecondary} />,
+            toggleFullscreen
+          )}
+        </View>
+      ) : null}
       <MobileEmulatorScreen
         frames={stream.frames}
-        enabled={stream.ready && appActive}
+        enabled={stream.ready && appActive && visible}
         sendInput={stream.sendInput}
         onVideoRendered={stream.onVideoRendered}
         onVideoError={stream.onVideoError}
       />
       {stream.error ? (
-        <View style={styles.status}>
+        <View style={[styles.status, fullscreen && styles.fullscreenStatus]}>
           <Text style={styles.error}>{stream.error}</Text>
           {button('Reconnect emulator', <Text style={styles.text}>Reconnect</Text>, stream.retry)}
         </View>
       ) : !stream.ready ? (
-        <View style={styles.status}>
+        <View style={[styles.status, fullscreen && styles.fullscreenStatus]}>
           {appActive && client ? <ActivityIndicator color={colors.textSecondary} /> : null}
           <Text style={styles.muted}>
             {appActive && client
@@ -125,65 +150,78 @@ export function MobileEmulatorPane({
           </Text>
         </View>
       ) : null}
-      {keyboard ? (
-        <View style={styles.inputRow}>
-          <TextInput
-            accessibilityLabel="Text to type on emulator"
-            value={text}
-            onChangeText={setText}
-            onSubmitEditing={sendText}
-            style={styles.input}
-            placeholder="Type on device"
-            placeholderTextColor={colors.textMuted}
-            maxLength={4096}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="send"
-          />
+      {chromeVisible ? (
+        <View>
+          {keyboard ? (
+            <View style={styles.inputRow}>
+              <TextInput
+                accessibilityLabel="Text to type on emulator"
+                value={text}
+                onChangeText={setText}
+                onSubmitEditing={sendText}
+                style={styles.input}
+                placeholder="Type on device"
+                placeholderTextColor={colors.textMuted}
+                maxLength={4096}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="send"
+              />
+              {button(
+                'Send text to emulator',
+                <Send size={20} color={colors.textSecondary} />,
+                sendText,
+                !stream.ready || !text
+              )}
+            </View>
+          ) : null}
+          <View style={styles.controls}>
+            {device.backend === 'android'
+              ? button(
+                  'Back',
+                  <ArrowLeft size={20} color={colors.textSecondary} />,
+                  () => stream.sendInput({ type: 'button', name: 'back' }),
+                  !stream.ready
+                )
+              : null}
+            {button(
+              'Home',
+              <Home size={20} color={colors.textSecondary} />,
+              () => stream.sendInput({ type: 'button', name: 'home' }),
+              !stream.ready
+            )}
+            {button(
+              'Type text',
+              <Keyboard size={20} color={colors.textSecondary} />,
+              () => setKeyboard(!keyboard),
+              !stream.ready
+            )}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Video format"
+            onPress={() => setCodecSettings(true)}
+            style={styles.status}
+          >
+            <Text style={styles.muted}>
+              Video: {stream.videoCodec.toUpperCase()} ·{' '}
+              {codecPreference === 'auto' ? 'Automatic' : codecPreference.toUpperCase()}
+            </Text>
+            {stream.codecNotice ? <Text style={styles.muted}>{stream.codecNotice}</Text> : null}
+          </Pressable>
+        </View>
+      ) : null}
+      {fullscreen ? (
+        <View style={[styles.fullscreenToggle, { top: insets.top, right: insets.right }]}>
           {button(
-            'Send text to emulator',
-            <Send size={20} color={colors.textSecondary} />,
-            sendText,
-            !stream.ready || !text
+            'Exit fullscreen',
+            <Minimize size={20} color={colors.textSecondary} />,
+            toggleFullscreen
           )}
         </View>
       ) : null}
-      <View style={styles.controls}>
-        {device.backend === 'android'
-          ? button(
-              'Back',
-              <ArrowLeft size={20} color={colors.textSecondary} />,
-              () => stream.sendInput({ type: 'button', name: 'back' }),
-              !stream.ready
-            )
-          : null}
-        {button(
-          'Home',
-          <Home size={20} color={colors.textSecondary} />,
-          () => stream.sendInput({ type: 'button', name: 'home' }),
-          !stream.ready
-        )}
-        {button(
-          'Type text',
-          <Keyboard size={20} color={colors.textSecondary} />,
-          () => setKeyboard(!keyboard),
-          !stream.ready
-        )}
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Video format"
-        onPress={() => setCodecSettings(true)}
-        style={styles.status}
-      >
-        <Text style={styles.muted}>
-          Video: {stream.videoCodec.toUpperCase()} ·{' '}
-          {codecPreference === 'auto' ? 'Automatic' : codecPreference.toUpperCase()}
-        </Text>
-        {stream.codecNotice ? <Text style={styles.muted}>{stream.codecNotice}</Text> : null}
-      </Pressable>
       <ActionSheetModal
-        visible={codecSettings}
+        visible={visible && codecSettings}
         title="Video format"
         message="Available formats depend on both devices. Unsupported formats fall back automatically."
         actions={(['auto', 'h264', 'hevc', 'av1', 'jpeg'] as const).map((codec) => ({
@@ -193,7 +231,7 @@ export function MobileEmulatorPane({
         onClose={() => setCodecSettings(false)}
       />
       <ActionSheetModal
-        visible={settings}
+        visible={visible && settings}
         title="Stream quality"
         message="Choose image detail, update speed or lower data use."
         actions={MOBILE_EMULATOR_PROFILES.map((item) => ({
@@ -205,7 +243,7 @@ export function MobileEmulatorPane({
       />
     </KeyboardAvoidingView>
   )
-  if (!fullscreen) {
+  if (!fullscreen || !visible) {
     return (
       <SafeAreaView edges={['bottom']} style={styles.root}>
         {content}
@@ -217,10 +255,15 @@ export function MobileEmulatorPane({
       visible
       animationType="none"
       presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
       supportedOrientations={['portrait', 'landscape']}
       onRequestClose={toggleFullscreen}
     >
-      <SafeAreaView style={styles.root}>{content}</SafeAreaView>
+      <View style={styles.root}>
+        <MobileEmulatorImmersiveBars />
+        {content}
+      </View>
     </Modal>
   )
 }

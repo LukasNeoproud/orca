@@ -11,6 +11,33 @@ enum MobileApproval {
     ]
     static let applicationID = "1:100414786379:android:410ca57940be633c0676ce"
     static let packageName = "cz.neoproud.orca.dev"
+    static let maximumChallengeBytes = 16_384
+
+    static func validateRequests(_ requests: [SecretRequest]) throws {
+        guard (1...32).contains(requests.count) else {
+            throw ToolError("Mobile approval requires 1 to 32 service/account pairs.")
+        }
+        guard Set(requests.map { "\($0.service)\0\($0.account)" }).count == requests.count else {
+            throw ToolError("Mobile approval service/account pairs must be unique.")
+        }
+        for request in requests {
+            guard validLabel(request.service), validLabel(request.account) else {
+                throw ToolError("Mobile approval service and account must be 1 to 256 UTF-8 bytes without control or formatting characters.")
+            }
+        }
+    }
+
+    private static func validLabel(_ value: String) -> Bool {
+        guard !value.isEmpty, value.utf8.count <= 256 else { return false }
+        return value.unicodeScalars.allSatisfy { scalar in
+            switch scalar.properties.generalCategory {
+            case .control, .format, .lineSeparator, .paragraphSeparator:
+                return false
+            default:
+                return true
+            }
+        }
+    }
 
     static func fingerprint(_ key: Data) -> String {
         SHA256.hash(data: key).map { String(format: "%02x", $0) }.joined()
@@ -25,15 +52,17 @@ enum MobileApproval {
         return data
     }
 
-    static func approve(contextPath: String, requests: [SecretRequest], keychain: LoginKeychain) async throws {
-        guard requests == accounts.map({ SecretRequest(service: service, account: $0) }) else {
-            throw ToolError("Mobile approval is restricted to the private Android distribution batch.")
+    static func approve(contextPath: String?, requests: [SecretRequest], keychain: LoginKeychain) async throws {
+        try validateRequests(requests)
+        if contextPath != nil,
+           requests != accounts.map({ SecretRequest(service: service, account: $0) }) {
+            throw ToolError("Private Android distribution requires its five fixed service/account pairs.")
         }
         guard let enrolledKey = try keychain.readMobileApprovalKey() else {
             throw ToolError("No mobile approval key is enrolled.")
         }
         _ = try P256.Signing.PublicKey(derRepresentation: enrolledKey)
-        let operation = try parseOperation(try readOwnerOnlyFile(URL(fileURLWithPath: contextPath)))
+        let operation = try operation(contextPath: contextPath)
         let mailbox = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/orca/device-approvals", isDirectory: true)
         let pending = mailbox.appendingPathComponent("pending", isDirectory: true)
@@ -48,17 +77,9 @@ enum MobileApproval {
         let requestID = randomHex(16)
         let createdAt = Int64(Date().timeIntervalSince1970 * 1_000)
         let expiresAt = createdAt + 120_000
-        let payload: [String: Any] = [
-            "version": 1,
-            "requestId": requestID,
-            "nonce": randomBase64URL(32),
-            "keyId": fingerprint(enrolledKey),
-            "createdAt": createdAt,
-            "expiresAt": expiresAt,
-            "operation": operation,
-            "requests": requests.map { ["service": $0.service, "account": $0.account] },
-        ]
-        let challenge = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        let challenge = try makeChallenge(
+            requestID: requestID, nonce: randomBase64URL(32), keyID: fingerprint(enrolledKey),
+            createdAt: createdAt, expiresAt: expiresAt, operation: operation, requests: requests)
         let pendingFile = pending.appendingPathComponent("\(requestID).json")
         let responseFile = responses.appendingPathComponent("\(requestID).json")
         try createOwnerOnlyFile(pendingFile, contents: challenge)
@@ -93,6 +114,36 @@ enum MobileApproval {
         guard try keychain.readMobileApprovalKey() == enrolledKey else {
             throw ToolError("Mobile approval enrollment changed during the request.")
         }
+    }
+
+    static func operation(contextPath: String?) throws -> [String: Any] {
+        guard let contextPath else { return ["kind": "keychain-read"] }
+        return try parseOperation(try readOwnerOnlyFile(URL(fileURLWithPath: contextPath)))
+    }
+
+    static func makeChallenge(
+        requestID: String, nonce: String, keyID: String, createdAt: Int64, expiresAt: Int64,
+        operation: [String: Any], requests: [SecretRequest]
+    ) throws -> Data {
+        try validateRequests(requests)
+        let requesterPID = Int(getpid())
+        guard requesterPID > 0 else { throw ToolError("Cannot identify mobile approval requester.") }
+        let payload: [String: Any] = [
+            "version": 1,
+            "requestId": requestID,
+            "requesterPid": requesterPID,
+            "nonce": nonce,
+            "keyId": keyID,
+            "createdAt": createdAt,
+            "expiresAt": expiresAt,
+            "operation": operation,
+            "requests": requests.map { ["service": $0.service, "account": $0.account] },
+        ]
+        let challenge = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        guard challenge.count <= maximumChallengeBytes else {
+            throw ToolError("Mobile approval challenge exceeds 16 KB.")
+        }
+        return challenge
     }
 
     static func validSignature(_ signature: Data, challenge: Data, publicKey: Data) -> Bool {

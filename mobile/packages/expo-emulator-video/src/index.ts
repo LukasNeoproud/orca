@@ -15,6 +15,7 @@ export type NativeEncodedFrame = {
 }
 
 export type NativeVideoModule = {
+  supportsImmersiveWindow?: boolean
   getCapabilities(): Promise<NativeVideoCapabilities>
   submit(frame: NativeEncodedFrame): Promise<'queued' | 'waiting-for-keyframe' | 'dropped'>
   close(streamId: string): Promise<void>

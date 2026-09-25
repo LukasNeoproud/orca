@@ -36,16 +36,29 @@ export const PrivateDistributionOperation = z
           'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
   )
 
+export const KeychainReadOperation = z.object({ kind: z.literal('keychain-read') }).strict()
+const KeychainName = z
+  .string()
+  .refine(
+    (value) =>
+      value.length > 0 &&
+      new TextEncoder().encode(value).byteLength <= 256 &&
+      !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value)
+  )
+const KeychainRequest = z.object({ service: KeychainName, account: KeychainName }).strict()
+const CredentialRequest = z.object({ service: z.string(), account: z.string() }).strict()
+
 export const ApprovalChallengeSchema = z
   .object({
     version: z.literal(1),
     requestId: ApprovalRequestId,
     nonce: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
     keyId: ApprovalKeyId,
+    requesterPid: z.number().int().positive().safe(),
     createdAt: Time,
     expiresAt: Time,
-    operation: PrivateDistributionOperation,
-    requests: z.array(z.object({ service: z.string(), account: z.string() }).strict()).length(5)
+    operation: z.union([PrivateDistributionOperation, KeychainReadOperation]),
+    requests: z.array(CredentialRequest).min(1).max(32)
   })
   .strict()
   .superRefine((value, context) => {
@@ -56,13 +69,31 @@ export const ApprovalChallengeSchema = z
       'android-key-password',
       'firebase-service-account-json'
     ]
-    if (
-      value.requests.some(
-        (row, i) =>
-          row.service !== 'cz.neoproud.orca.dev.private-distribution' || row.account !== accounts[i]
-      )
-    ) {
-      context.addIssue({ code: 'custom', message: 'Unexpected credential scope' })
+    if (value.operation.kind === 'private-android-distribution') {
+      if (
+        value.requests.length !== accounts.length ||
+        value.requests.some(
+          (row, i) =>
+            row.service !== 'cz.neoproud.orca.dev.private-distribution' ||
+            row.account !== accounts[i]
+        )
+      ) {
+        context.addIssue({ code: 'custom', message: 'Unexpected credential scope' })
+      }
+    } else {
+      const pairs = new Set<string>()
+      for (const request of value.requests) {
+        if (!KeychainRequest.safeParse(request).success) {
+          context.addIssue({ code: 'custom', message: 'Invalid Keychain credential scope' })
+          break
+        }
+        const pair = JSON.stringify([request.service, request.account])
+        if (pairs.has(pair)) {
+          context.addIssue({ code: 'custom', message: 'Duplicate Keychain credential scope' })
+          break
+        }
+        pairs.add(pair)
+      }
     }
     if (value.expiresAt <= value.createdAt || value.expiresAt - value.createdAt > 120_000) {
       context.addIssue({ code: 'custom', message: 'Invalid approval lifetime' })
@@ -113,7 +144,7 @@ export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>
 export type EnrollmentResponse = z.infer<typeof EnrollmentResponseSchema>
 
 export function parseDeviceApprovalPayload(payload: string, now = Date.now()) {
-  if (payload.length > 16_384) {
+  if (new TextEncoder().encode(payload).byteLength > 16_384) {
     throw new Error('Approval request is too large')
   }
   const raw: unknown = JSON.parse(payload)

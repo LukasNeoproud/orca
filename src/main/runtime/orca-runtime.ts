@@ -17,6 +17,47 @@ import { resolveCodexCommand } from '../codex-cli/command'
 import { activeStructuredAgentSessionTurnId } from '../../shared/structured-agent-session-projection'
 
 class OrcaRuntimeService extends OrcaRuntimeWithResolveWaiter {
+  private readonly mobileApprovalInputByPty = new Map<string, { clientId: string; at: number }>()
+
+  recordMobileApprovalInput(ptyId: string, clientId: string | null): void {
+    if (clientId) {
+      this.mobileApprovalInputByPty.set(ptyId, { clientId, at: Date.now() })
+    } else {
+      this.mobileApprovalInputByPty.delete(ptyId)
+    }
+  }
+
+  clearMobileApprovalInputForClient(clientId: string): void {
+    for (const [ptyId, input] of this.mobileApprovalInputByPty) {
+      if (input.clientId === clientId) {
+        this.mobileApprovalInputByPty.delete(ptyId)
+      }
+    }
+  }
+
+  async getMobileApprovalTerminalRootPids(clientId: string): Promise<number[]> {
+    if (!this.ptyController?.listProcesses || !clientId) {
+      return []
+    }
+    try {
+      const processes = await this.ptyController.listProcesses(null, {
+        deadlineMs: Date.now() + 1_000
+      })
+      return processes.flatMap((entry) => {
+        const input = this.mobileApprovalInputByPty.get(entry.id)
+        if (input && Date.now() - input.at > 4 * 60 * 60_000) {
+          this.mobileApprovalInputByPty.delete(entry.id)
+          return []
+        }
+        return entry.rootProcessId && input?.clientId === clientId && !entry.wslDistro
+          ? [entry.rootProcessId]
+          : []
+      })
+    } catch {
+      return []
+    }
+  }
+
   getAgentContextPaneSnapshot(paneKey: string) {
     const status = (this.getAgentStatusSnapshotFn?.() ?? []).find(
       (row) => !row.connectionId && row.paneKey === paneKey

@@ -19,7 +19,8 @@ export function useMobileEmulatorStream(
   deviceId: string,
   profile: MobileEmulatorProfile,
   active: boolean,
-  codecPreference: MobileEmulatorCodecPreference = 'auto'
+  codecPreference: MobileEmulatorCodecPreference = 'auto',
+  visible = true
 ) {
   const [frames] = useState(createMobileEmulatorFrameStore)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +32,9 @@ export function useMobileEmulatorStream(
   const videoRenderedRef = useRef<(id: string, width: number, height: number) => void>(() => {})
   const videoErrorRef = useRef<(id: string, message: string) => void>(() => {})
   const queueRef = useRef<MobileEmulatorInputQueue | null>(null)
+  const visibleRef = useRef(visible)
+  const updateVisibilityRef = useRef<(visible: boolean) => void>(() => {})
+  visibleRef.current = visible
 
   useEffect(() => {
     frames.clear()
@@ -103,10 +107,23 @@ export function useMobileEmulatorStream(
     }
     const armWatchdog = (delay: number) => {
       clearTimeout(watchdog)
+      if (delay === 15_000 && negotiatedCodec !== 'jpeg' && !visibleRef.current) {
+        return
+      }
       watchdog = setTimeout(
         () => failVideo(new Error('No emulator frames received. Reconnect to try again.')),
         delay
       )
+    }
+    updateVisibilityRef.current = (isVisible) => {
+      if (!subscriptionId || failed || disposed || negotiatedCodec === 'jpeg') {
+        return
+      }
+      if (isVisible) {
+        armWatchdog(15_000)
+      } else {
+        clearTimeout(watchdog)
+      }
     }
     const resetInput = () => {
       queueRef.current?.dispose()
@@ -230,11 +247,14 @@ export function useMobileEmulatorStream(
     void subscribe().catch(fail)
     return () => {
       disposed = true
+      updateVisibilityRef.current = () => {}
       stopState()
       stop()
       frames.clear()
     }
   }, [active, attempt, client, codecPreference, deviceId, failedCodecs, frames, profile])
+
+  useEffect(() => updateVisibilityRef.current(visible), [visible])
 
   const sendInput = useCallback(
     (action: MobileEmulatorInput) => {

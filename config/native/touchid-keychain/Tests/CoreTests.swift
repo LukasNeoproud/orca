@@ -80,9 +80,60 @@ struct CoreTests {
         }
         precondition(verify.format == .discard)
         guard case .mobileRead(let mobile, let contextPath) = try Command.parse([
-            "get-mobile", "--json", "--context-file", "/tmp/context.json", "service", "first"
+            "get-mobile", "--json", "service", "first", "service", "second"
         ]) else { preconditionFailure("Expected mobile read command") }
-        precondition(mobile.requests == [first] && contextPath == "/tmp/context.json")
+        precondition(mobile.requests == [first, second] && mobile.format == .json && contextPath == nil)
+        guard case .mobileRead(let mobileRaw, nil) = try Command.parse([
+            "get-mobile", "service", "first"
+        ]) else { preconditionFailure("Expected raw mobile read command") }
+        precondition(mobileRaw.requests == [first] && mobileRaw.format == .raw)
+        guard case .mobileRead(let mobileNull, nil) = try Command.parse([
+            "get-mobile", "--null", "service", "first", "service", "second"
+        ]) else { preconditionFailure("Expected NUL mobile read command") }
+        precondition(mobileNull.format == .nul)
+        let privateBatch = MobileApproval.accounts.flatMap { [MobileApproval.service, $0] }
+        guard case .mobileRead(let publisher, let publisherContext) = try Command.parse(
+            ["get-mobile", "--json", "--context-file", "/tmp/context.json"] + privateBatch
+        ) else { preconditionFailure("Expected publisher mobile read command") }
+        precondition(publisher.format == .json && publisherContext == "/tmp/context.json")
+        let invalidMobileArguments: [[String]] = [
+            ["get-mobile", "service", "first", "service", "second"],
+            ["get-mobile", "--json", "service", "first", "service", "first"],
+            ["get-mobile", "--json", "service", "line\nfeed"],
+            ["get-mobile", "service", "a\u{202E}b"],
+            ["get-mobile", String(repeating: "x", count: 257), "account"],
+            ["get-mobile", "--json"] + (0..<33).flatMap { ["service", "account\($0)"] },
+            ["get-mobile", "--context-file", "/tmp/context.json", "service", "first"],
+            ["get-mobile", "--json", "--context-file", "", "service", "first"],
+            ["get-mobile", "--json", "--null", "service", "first"],
+        ]
+        for arguments in invalidMobileArguments {
+            do {
+                _ = try Command.parse(arguments)
+                preconditionFailure("Invalid mobile arguments accepted: \(arguments)")
+            } catch {}
+        }
+        let genericOperation = try MobileApproval.operation(contextPath: nil)
+        precondition(genericOperation.count == 1 && genericOperation["kind"] as? String == "keychain-read")
+        let genericChallenge = try MobileApproval.makeChallenge(
+            requestID: "request", nonce: "nonce", keyID: "key", createdAt: 1_000,
+            expiresAt: 121_000, operation: genericOperation, requests: [first, second])
+        let parsedChallenge = try JSONSerialization.jsonObject(with: genericChallenge) as! [String: Any]
+        precondition((parsedChallenge["operation"] as? [String: String]) == ["kind": "keychain-read"])
+        precondition((parsedChallenge["requests"] as? [[String: String]]) == [
+            ["service": "service", "account": "first"],
+            ["service": "service", "account": "second"],
+        ])
+        let longRequests = (0..<32).map {
+            SecretRequest(service: String(repeating: "s", count: 256),
+                          account: String(repeating: "a", count: 253) + String(format: "%03d", $0))
+        }
+        do {
+            _ = try MobileApproval.makeChallenge(
+                requestID: "request", nonce: "nonce", keyID: "key", createdAt: 1_000,
+                expiresAt: 121_000, operation: genericOperation, requests: longRequests)
+            preconditionFailure("Oversize mobile challenge accepted")
+        } catch {}
         let signingKey = P256.Signing.PrivateKey()
         let unrelatedKey = P256.Signing.PrivateKey()
         let publicKey = signingKey.publicKey.derRepresentation

@@ -1,5 +1,6 @@
 import { isAgentSessionPtyWriteRefusedError } from '../../../../../shared/agent-session-pty-write-admission'
 import { InvalidArgumentError } from '../../core'
+import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
 import type {
   DriverState,
   OrcaRuntimeService,
@@ -37,6 +38,36 @@ export async function assertTerminalSendTextWithinLimit(text: string | undefined
   }
 }
 
+export function assertTerminalQueryReply(
+  params: {
+    inputKind?: string
+    text?: string
+    enter?: unknown
+    interrupt?: unknown
+    agentPrompt?: boolean
+    requireAgentStatus?: string
+    client?: TerminalViewportClient
+  },
+  clientId: string | undefined
+): string | undefined {
+  const queryReplyClientId = clientId ?? params.client?.id
+  if (
+    params.inputKind === 'query-reply' &&
+    (!params.text ||
+      !isTerminalQueryReply(params.text) ||
+      params.enter === true ||
+      params.interrupt === true ||
+      params.agentPrompt === true ||
+      params.requireAgentStatus !== undefined ||
+      params.client?.type !== 'mobile' ||
+      !queryReplyClientId ||
+      (clientId !== undefined && params.client.id !== clientId))
+  ) {
+    throw new InvalidArgumentError('Invalid terminal query reply')
+  }
+  return queryReplyClientId
+}
+
 export function resolveMobileFloorClientId(
   driver: DriverState | null,
   client: TerminalViewportClient | undefined
@@ -51,6 +82,31 @@ export function resolveMobileFloorClientId(
 }
 
 export type TerminalStreamInputOutcome = 'delivered' | 'rejected' | 'failed'
+
+export function settleTerminalSendInput(
+  runtime: OrcaRuntimeService,
+  ptyId: string | null | undefined,
+  result: { accepted: boolean },
+  params: { inputKind?: string; client?: TerminalViewportClient },
+  caller: { clientId?: string; clientKind?: string },
+  floorClaim: MobileInputFloorClaimHolder
+): void {
+  if (!result.accepted) {
+    floorClaim.current?.rollback()
+    return
+  }
+  if (!ptyId || params.inputKind === 'query-reply') {
+    return
+  }
+  const mobileClientId =
+    caller.clientKind === 'mobile' &&
+    caller.clientId &&
+    params.client?.type === 'mobile' &&
+    params.client.id === caller.clientId
+      ? caller.clientId
+      : null
+  runtime.recordMobileApprovalInput(ptyId, mobileClientId)
+}
 
 export function watchSubscriptionLifetime(
   runtime: OrcaRuntimeService,
@@ -108,14 +164,31 @@ export async function sendTerminalStreamInput(
     text: string
     client: TerminalViewportClient | undefined
     isMobile: boolean
+    authenticatedMobileClientId?: string
   }
 ): Promise<TerminalStreamInputOutcome> {
   const action = { text: args.text, enter: false, interrupt: false }
-  const clientId = args.isMobile ? args.client?.id : undefined
+  const clientId =
+    args.isMobile && args.client?.id === args.authenticatedMobileClientId
+      ? args.authenticatedMobileClientId
+      : undefined
+  let writtenPtyId: string | null = null
+  const markInput = (): void => {
+    if (writtenPtyId) {
+      runtime.recordMobileApprovalInput(writtenPtyId, clientId ?? null)
+    }
+  }
   const floorClaim: MobileInputFloorClaimHolder = { current: null }
   try {
     if (!clientId) {
-      const result = await runtime.sendTerminal(args.terminal, action)
+      const result = await runtime.sendTerminal(args.terminal, action, {
+        afterWrite: (ptyId) => {
+          writtenPtyId = ptyId
+        }
+      })
+      if (result.accepted) {
+        markInput()
+      }
       return result.accepted ? 'delivered' : 'rejected'
     }
     const result = await runtime.sendTerminal(args.terminal, action, {
@@ -126,12 +199,16 @@ export async function sendTerminalStreamInput(
         }
         floorClaim.current = claim
       },
-      afterWrite: () => commitMobileInputFloorClaim(floorClaim)
+      afterWrite: async (ptyId) => {
+        writtenPtyId = ptyId
+        await commitMobileInputFloorClaim(floorClaim)
+      }
     })
     if (!result.accepted) {
       floorClaim.current?.rollback()
       return 'rejected'
     }
+    markInput()
     return 'delivered'
   } catch (error) {
     floorClaim.current?.rollback()

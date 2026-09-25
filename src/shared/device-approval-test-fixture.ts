@@ -4,6 +4,7 @@ export function approvalFixture(now = Date.now()) {
     requestId: 'a'.repeat(32),
     nonce: 'b'.repeat(43),
     keyId: 'c'.repeat(64),
+    requesterPid: 4242,
     createdAt: now,
     expiresAt: now + 120_000,
     operation: {

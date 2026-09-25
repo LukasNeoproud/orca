@@ -265,11 +265,16 @@ partial batch if any item is missing or access is denied.
 
 For an enrolled Orca Mobile device, add `--approval mobile`. This uses the vendored helper's
 `get-mobile` command and a phone signature over the exact operation request. It requires a clean
-committed worktree. Publishing through this route also requires explicit `--release-notes`, and
+committed worktree and must run in a local Orca terminal controlled from the paired phone.
+Publishing through this route also requires explicit `--release-notes`, and
 `--existing-apk` is not supported. The phone shows the mode, commit, app, tester groups, and a
 release-note hash before biometric approval. The helper verifies the signature itself; an Orca
 desktop approval status cannot release the Keychain values. See
 `config/native/touchid-keychain/README.md` for enrollment and installation.
+
+The same helper also supports `get-mobile` for other Keychain service/account pairs. In that
+case Orca Mobile shows every requested pair before approval and the helper returns values only
+to the invoking process; see the helper README for command syntax.
 
 The default command builds and verifies a signed APK but does not upload it:
 

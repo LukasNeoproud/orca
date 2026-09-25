@@ -17,7 +17,15 @@ export const TERMINAL_MULTIPLEX_METHODS: RpcAnyMethod[] = [
     params: TerminalMultiplex,
     handler: async (
       _params,
-      { runtime, connectionId, sendBinary, registerBinaryStreamHandler, signal },
+      {
+        runtime,
+        connectionId,
+        sendBinary,
+        registerBinaryStreamHandler,
+        signal,
+        clientId,
+        clientKind
+      },
       emit
     ) => {
       if (!sendBinary || !registerBinaryStreamHandler || !connectionId) {
@@ -31,6 +39,7 @@ export const TERMINAL_MULTIPLEX_METHODS: RpcAnyMethod[] = [
       const state: TerminalMultiplexConnectionBase = {
         runtime,
         connectionId,
+        authenticatedMobileClientId: clientKind === 'mobile' ? clientId : undefined,
         sendBinary,
         registerBinaryStreamHandler,
         signal,

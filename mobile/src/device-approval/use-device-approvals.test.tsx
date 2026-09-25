@@ -90,9 +90,43 @@ afterEach(() => {
   act(() => renderer?.unmount())
   renderer = null
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 describe('useDeviceApprovals', () => {
+  it('keeps an action error across polling and clears it on a successful retry', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    native.sign.mockRejectedValueOnce(
+      new Error('Approval key has an invalid authentication policy')
+    )
+    const rpc = host(approvalPayload())
+    await render(rpc.client)
+    await act(async () => latest.approve(latest.pending[0]!))
+
+    await act(async () => vi.advanceTimersByTimeAsync(4_000))
+
+    expect(
+      rpc.sendRequest.mock.calls.filter(([method]) => method === 'deviceApproval.list')
+    ).toHaveLength(3)
+    expect(latest.error).toBe('Approval key has an invalid authentication policy')
+    await act(async () => latest.approve(latest.pending[0]!))
+    expect(latest.error).toBeNull()
+    expect(respondCalls(rpc.sendRequest)).toHaveLength(1)
+  })
+
+  it('clears a polling error when loading requests recovers', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const rpc = host(approvalPayload())
+    rpc.sendRequest.mockRejectedValueOnce(new Error('Request unavailable'))
+    await render(rpc.client)
+    expect(latest.error).toBe('Request unavailable')
+
+    await act(async () => vi.advanceTimersByTimeAsync(2_000))
+
+    expect(latest.error).toBeNull()
+    expect(latest.pending).toHaveLength(1)
+  })
+
   it('keeps the screen usable when the native module rejects public-key lookup', async () => {
     native.getPublicInfo.mockRejectedValue(new Error('Native module unavailable'))
     const rpc = host(approvalPayload())
@@ -106,6 +140,32 @@ describe('useDeviceApprovals', () => {
 
   it('signs the exact raw challenge bytes and sends only the DER signature', async () => {
     const payload = approvalPayload()
+    const rpc = host(payload)
+    await render(rpc.client)
+    expect(latest.pending[0]?.payload).toBe(payload)
+
+    await act(async () => latest.approve(latest.pending[0]!))
+
+    expect(native.sign).toHaveBeenCalledExactlyOnceWith(hostId, payload)
+    expect(respondCalls(rpc.sendRequest)).toEqual([
+      [
+        'deviceApproval.respond',
+        { version: 1, requestId: 'a'.repeat(32), signatureDerBase64 },
+        { failWhenDisconnected: true, timeoutMs: 10_000 }
+      ]
+    ])
+  })
+
+  it('signs a generic Keychain request without sending secret scopes in the response', async () => {
+    const payload = JSON.stringify({
+      ...approvalFixture(now),
+      keyId,
+      operation: { kind: 'keychain-read' },
+      requests: [
+        { service: 'com.example.credentials', account: 'one' },
+        { service: 'com.example.credentials', account: 'two' }
+      ]
+    })
     const rpc = host(payload)
     await render(rpc.client)
     expect(latest.pending[0]?.payload).toBe(payload)

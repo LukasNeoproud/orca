@@ -197,6 +197,9 @@ export class OrcaRuntimeWithOnPtyExit extends OrcaRuntimeWithOnClientDisconnecte
     // until tab teardown, and `getDriver(deadPtyId)` would keep returning a
     // stale `mobile{X}` to any caller that hasn't yet seen the exit IPC.
     this.terminalDrivers.clear(ptyId)
+    ;(
+      this as { recordMobileApprovalInput?: (ptyId: string, clientId: null) => void }
+    ).recordMobileApprovalInput?.(ptyId, null)
     this.remoteDesktopFloor.clearPty(ptyId)
     this.disposeHeadlessTerminal(ptyId)
     if (pty) {

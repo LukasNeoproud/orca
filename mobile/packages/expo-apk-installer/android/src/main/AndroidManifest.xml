@@ -1,0 +1,22 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <provider
+      android:name="expo.modules.apkinstaller.ApkFileProvider"
+      android:authorities="${applicationId}.apk-installer"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/apk_installer_paths" />
+    </provider>
+    <service
+      android:name="expo.modules.apkinstaller.ApkDownloadNotificationService"
+      android:exported="false"
+      android:foregroundServiceType="dataSync" />
+  </application>
+</manifest>

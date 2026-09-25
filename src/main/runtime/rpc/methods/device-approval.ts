@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { defineMethod, type RpcContext } from '../core'
 import { deviceApprovalMailbox } from '../../../device-approval/device-approval-mailbox'
+import { isRequesterDescendantOfMobileTerminal } from '../../../device-approval/device-approval-request-origin'
 import {
   ApprovalResponseSchema,
   EnrollmentResponseSchema,
@@ -18,13 +19,33 @@ function requirePhone(ctx: RpcContext) {
   }
 }
 
+async function assertMobileTerminalRequest(ctx: RpcContext, requesterPid: number): Promise<void> {
+  const roots = await ctx.runtime.getMobileApprovalTerminalRootPids(ctx.clientId ?? '')
+  if (!(await isRequesterDescendantOfMobileTerminal(requesterPid, roots))) {
+    throw new Error('Approval request did not originate in a terminal controlled by this phone')
+  }
+}
+
 export const DEVICE_APPROVAL_METHODS = [
   defineMethod({
     name: 'deviceApproval.list',
     params: z.object({}).strict(),
     handler: async (_, ctx) => {
       requirePhone(ctx)
-      return deviceApprovalMailbox.list()
+      const listing = await deviceApprovalMailbox.list()
+      const roots = await ctx.runtime.getMobileApprovalTerminalRootPids(ctx.clientId ?? '')
+      const pending = await Promise.all(
+        listing.pending.map(async (item) => {
+          const request = parseDeviceApprovalPayload(item.payload)
+          if (!('operation' in request)) {
+            return item
+          }
+          return (await isRequesterDescendantOfMobileTerminal(request.requesterPid, roots))
+            ? item
+            : null
+        })
+      )
+      return { ...listing, pending: pending.filter((item) => item !== null) }
     }
   }),
   defineMethod({
@@ -38,6 +59,7 @@ export const DEVICE_APPROVAL_METHODS = [
       if (!('operation' in pending)) {
         throw new Error('Expected signing request')
       }
+      await assertMobileTerminalRequest(ctx, pending.requesterPid)
       await deviceApprovalMailbox.respond(response)
       return { submitted: true }
     }

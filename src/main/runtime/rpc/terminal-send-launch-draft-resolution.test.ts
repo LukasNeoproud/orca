@@ -16,6 +16,7 @@ function makeRuntime(accepted: boolean): OrcaRuntimeService {
     resolveLiveLeafForHandle: vi.fn().mockReturnValue({ ptyId: 'pty-1' }),
     getDriver: vi.fn().mockReturnValue({ kind: 'idle' }),
     beginMobileInputFloor: vi.fn().mockReturnValue({ commit: vi.fn(), rollback: vi.fn() }),
+    recordMobileApprovalInput: vi.fn(),
     sendTerminal: vi.fn().mockResolvedValue({
       handle: 'terminal-1',
       accepted,
