@@ -9,6 +9,7 @@ import {
   encodeCodexQuestionOptionId
 } from './codex-structured-prompt-replies'
 import { encodeOrcaInteractionResult } from '../../shared/orca-interaction'
+import { encodeAgentSessionQuestionAnswers } from '../../shared/agent-session-question-answer'
 import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
 
 function userInputRequest(questionIds: string[]): {
@@ -187,6 +188,61 @@ describe('applyCodexPromptAnswer', () => {
     }
   })
 
+  it('converts the ordinary grouped-question fallback into a structured tool result', () => {
+    const registry = new CodexPromptRegistry()
+    const prompt = registry.register({
+      id: 13,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-1',
+        callId: 'call-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          fields: [
+            {
+              id: 'platforms',
+              type: 'multi_choice',
+              label: 'Platforms',
+              allowCustom: true,
+              options: [
+                { id: 'android', label: 'Android' },
+                { id: 'web', label: 'Web' }
+              ]
+            },
+            { id: 'offline', type: 'boolean', label: 'Offline', required: true },
+            { id: 'minSdk', type: 'number', label: 'Minimum SDK', min: 21 },
+            { id: 'note', type: 'text', label: 'Note', minLength: 3 }
+          ]
+        }
+      }
+    })
+    const answer = encodeAgentSessionQuestionAnswers([
+      { questionId: 'platforms', optionIds: ['android'], other: 'Desktop' },
+      { questionId: 'offline', optionIds: ['__orca_true__'] },
+      { questionId: 'minSdk', optionIds: [], other: '26' },
+      { questionId: 'note', optionIds: [], other: '  a' }
+    ])
+
+    expect(applyCodexPromptAnswer(prompt as NonNullable<typeof prompt>, answer)).toEqual({
+      contentItems: [
+        {
+          type: 'inputText',
+          text: JSON.stringify({
+            status: 'submitted',
+            values: {
+              platforms: ['android', { type: 'custom', value: 'Desktop' }],
+              offline: true,
+              minSdk: 26,
+              note: '  a'
+            }
+          })
+        }
+      ],
+      success: true
+    })
+  })
+
   it('rejects malformed or forged Orca interaction answers', () => {
     const registry = new CodexPromptRegistry()
     const prompt = registry.register({
@@ -219,6 +275,52 @@ describe('applyCodexPromptAnswer', () => {
         })
       )
     ).toThrow('not a valid Orca interaction result')
+  })
+
+  it('returns the normalized custom value that was validated', () => {
+    const registry = new CodexPromptRegistry()
+    const prompt = registry.register({
+      id: 14,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-1',
+        callId: 'call-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          fields: [
+            {
+              id: 'storage',
+              type: 'single_choice',
+              label: 'Storage',
+              allowCustom: true,
+              options: [{ id: 'sqlite', label: 'SQLite' }]
+            }
+          ]
+        }
+      }
+    })
+
+    expect(
+      applyCodexPromptAnswer(
+        prompt as NonNullable<typeof prompt>,
+        encodeOrcaInteractionResult({
+          status: 'submitted',
+          values: { storage: { type: 'custom', value: '  PostgreSQL  ' } }
+        })
+      )
+    ).toEqual({
+      contentItems: [
+        {
+          type: 'inputText',
+          text: JSON.stringify({
+            status: 'submitted',
+            values: { storage: { type: 'custom', value: 'PostgreSQL' } }
+          })
+        }
+      ],
+      success: true
+    })
   })
 
   it('accepts a bare answer only when the request has one question', () => {

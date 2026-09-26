@@ -37,7 +37,7 @@ function initialDrafts(request: OrcaInteractionRequest): Drafts {
             { kind: 'choice', selected: field.default ?? [], customSelected: false, custom: '' }
           ]
         case 'boolean':
-          return [field.id, { kind: 'boolean', value: field.default ?? false }]
+          return [field.id, { kind: 'boolean', value: field.default }]
         case 'text':
         case 'textarea':
           return [field.id, { kind: 'text', value: field.default ?? '' }]
@@ -59,13 +59,26 @@ function choiceValue(draft: ChoiceDraft): OrcaInteractionChoiceValue | undefined
 function resolveValues(
   request: OrcaInteractionRequest,
   drafts: Drafts
-): { valid: boolean; values: Record<string, OrcaInteractionValue> } {
+): {
+  valid: boolean
+  values: Record<string, OrcaInteractionValue>
+  errors: Record<string, string>
+} {
   const values: Record<string, OrcaInteractionValue> = {}
+  const errors: Record<string, string> = {}
   let valid = true
+  const markInvalid = (id: string, message: string): void => {
+    valid = false
+    errors[id] = message
+  }
+  const requiredMessage = translate(
+    'components.native-chat.interaction.validationRequired',
+    'Complete this required field.'
+  )
   for (const field of request.fields) {
     const draft = drafts[field.id]
     if (!draft) {
-      valid = false
+      markInvalid(field.id, requiredMessage)
       continue
     }
     if (field.type === 'single_choice' && draft.kind === 'choice') {
@@ -73,7 +86,15 @@ function resolveValues(
       if (value !== undefined) {
         values[field.id] = value
       } else if (field.required || draft.customSelected) {
-        valid = false
+        markInvalid(
+          field.id,
+          draft.customSelected
+            ? translate(
+                'components.native-chat.interaction.validationCustom',
+                'Enter a custom answer.'
+              )
+            : requiredMessage
+        )
       }
     } else if (field.type === 'multi_choice' && draft.kind === 'choice') {
       const selected: OrcaInteractionChoiceValue[] = [...draft.selected]
@@ -85,30 +106,46 @@ function resolveValues(
         values[field.id] = selected
       }
       if ((field.required && selected.length === 0) || (draft.customSelected && !custom)) {
-        valid = false
+        markInvalid(
+          field.id,
+          draft.customSelected
+            ? translate(
+                'components.native-chat.interaction.validationCustom',
+                'Enter a custom answer.'
+              )
+            : requiredMessage
+        )
       }
     } else if (field.type === 'boolean' && draft.kind === 'boolean') {
       if (draft.value !== undefined) {
         values[field.id] = draft.value
       } else if (field.required) {
-        valid = false
+        markInvalid(field.id, requiredMessage)
       }
     } else if ((field.type === 'text' || field.type === 'textarea') && draft.kind === 'text') {
       if (draft.value.length > 0) {
         values[field.id] = draft.value
       }
       const minimum = field.minLength ?? (field.required ? 1 : 0)
-      if ((field.required || draft.value.length > 0) && draft.value.length < minimum) {
-        valid = false
-      }
-      if (field.maxLength !== undefined && draft.value.length > field.maxLength) {
-        valid = false
+      const maximum = field.maxLength ?? (field.type === 'text' ? 8_000 : 32_000)
+      if (
+        (field.required || draft.value.length > 0) &&
+        (draft.value.length < minimum || draft.value.length > maximum)
+      ) {
+        markInvalid(
+          field.id,
+          translate(
+            'components.native-chat.interaction.validationText',
+            'Enter between {{minimum}} and {{maximum}} characters.',
+            { minimum, maximum }
+          )
+        )
       }
     } else if (field.type === 'number' && draft.kind === 'number') {
       const raw = draft.value.trim()
       if (!raw) {
         if (field.required) {
-          valid = false
+          markInvalid(field.id, requiredMessage)
         }
         continue
       }
@@ -125,15 +162,21 @@ function resolveValues(
         (field.max !== undefined && value > field.max) ||
         !stepValid
       ) {
-        valid = false
+        markInvalid(
+          field.id,
+          translate(
+            'components.native-chat.interaction.validationNumber',
+            'Enter a number within the allowed range and step.'
+          )
+        )
       } else {
         values[field.id] = value
       }
     } else {
-      valid = false
+      markInvalid(field.id, requiredMessage)
     }
   }
-  return { valid, values }
+  return { valid, values, errors }
 }
 
 export function NativeChatInteractionCard({
@@ -147,7 +190,15 @@ export function NativeChatInteractionCard({
   const formRef = useRef<HTMLFormElement>(null)
   const resolved = resolveValues(request, drafts)
   const result = { status: 'submitted' as const, values: resolved.values }
-  const canSubmit = resolved.valid && isValidOrcaInteractionResult(request, result)
+  const canonicalResult = isValidOrcaInteractionResult(request, result)
+  const canSubmit = resolved.valid && canonicalResult
+  const formError =
+    resolved.valid && !canonicalResult
+      ? translate(
+          'components.native-chat.interaction.validationForm',
+          'The combined response is too large.'
+        )
+      : null
 
   useEffect(() => {
     formRef.current?.querySelector<HTMLElement>('[data-interaction-control]')?.focus()
@@ -220,13 +271,19 @@ export function NativeChatInteractionCard({
                 field={field}
                 draft={drafts[field.id]!}
                 autofocus={index === 0}
+                error={resolved.errors[field.id]}
                 onChange={(draft) => update(field.id, draft)}
               />
             ))}
           </div>
 
           <div className="flex justify-end gap-2 border-t border-border px-3.5 py-2.5">
-            <Button type="button" variant="outline" size="sm" onClick={cancel}>
+            {formError ? (
+              <p className="mr-auto self-center text-xs text-destructive" role="alert">
+                {formError}
+              </p>
+            ) : null}
+            <Button type="button" variant="ghost" size="sm" onClick={cancel}>
               {translate('components.native-chat.interaction.cancel', 'Cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={!canSubmit}>

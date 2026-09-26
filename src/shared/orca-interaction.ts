@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+export const ORCA_INTERACTION_FALLBACK_SKIP_OPTION_ID = '__orca_skip__'
+export const ORCA_INTERACTION_RESULT_MAX_BYTES = 64 * 1024
+
 const IdentifierSchema = z
   .string()
   .regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/, 'must be a stable identifier')
@@ -241,18 +244,25 @@ export function isValidOrcaInteractionResult(
   request: OrcaInteractionRequest,
   value: unknown
 ): value is OrcaInteractionResult {
+  return parseOrcaInteractionResult(request, value) !== null
+}
+
+export function parseOrcaInteractionResult(
+  request: OrcaInteractionRequest,
+  value: unknown
+): OrcaInteractionResult | null {
   const parsed = InteractionResultSchema.safeParse(value)
   if (!parsed.success || parsed.data.status === 'cancelled') {
-    return parsed.success
+    return parsed.success ? parsed.data : null
   }
-  if (utf8Bytes(parsed.data) > 64 * 1024) {
-    return false
+  if (utf8Bytes(parsed.data) > ORCA_INTERACTION_RESULT_MAX_BYTES) {
+    return null
   }
   const values = parsed.data.values
   if (Object.keys(values).some((id) => !request.fields.some((field) => field.id === id))) {
-    return false
+    return null
   }
-  return request.fields.every((field) => {
+  const valid = request.fields.every((field) => {
     const answer = values[field.id]
     if (answer === undefined) {
       return field.required !== true
@@ -289,6 +299,7 @@ export function isValidOrcaInteractionResult(
         )
     }
   })
+  return valid ? parsed.data : null
 }
 
 const ANSWER_PREFIX = 'orca-interaction:'

@@ -4,6 +4,11 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { InteractionBooleanControl } from './NativeChatInteractionBooleanControl'
+import {
+  InteractionFieldHeader,
+  InteractionValidationMessage
+} from './NativeChatInteractionFieldPresentation'
 
 export type ChoiceDraft = {
   kind: 'choice'
@@ -13,47 +18,47 @@ export type ChoiceDraft = {
 }
 export type FieldDraft =
   | ChoiceDraft
-  | { kind: 'boolean'; value: boolean }
+  | { kind: 'boolean'; value: boolean | undefined }
   | { kind: 'text'; value: string }
   | { kind: 'number'; value: string }
-
-function FieldHeader({ field }: { field: OrcaInteractionField }): React.JSX.Element {
-  return (
-    <div className="space-y-1">
-      <div className="text-sm font-medium text-foreground">
-        {field.label}
-        {field.required ? (
-          <span className="ml-1 text-xs font-normal text-muted-foreground">
-            {translate('components.native-chat.interaction.required', '(required)')}
-          </span>
-        ) : null}
-      </div>
-      {field.description ? (
-        <p className="text-xs text-muted-foreground">{field.description}</p>
-      ) : null}
-    </div>
-  )
-}
 
 export function InteractionFieldControl({
   field,
   draft,
   autofocus,
+  error,
   onChange
 }: {
   field: OrcaInteractionField
   draft: FieldDraft
   autofocus: boolean
+  error?: string
   onChange: (draft: FieldDraft) => void
 }): React.JSX.Element {
   if (
     (field.type === 'single_choice' || field.type === 'multi_choice') &&
     draft.kind === 'choice'
   ) {
-    return <ChoiceControl field={field} draft={draft} autofocus={autofocus} onChange={onChange} />
+    return (
+      <ChoiceControl
+        field={field}
+        draft={draft}
+        autofocus={autofocus}
+        error={error}
+        onChange={onChange}
+      />
+    )
   }
   if (field.type === 'boolean' && draft.kind === 'boolean') {
-    return <BooleanControl field={field} draft={draft} autofocus={autofocus} onChange={onChange} />
+    return (
+      <InteractionBooleanControl
+        field={field}
+        value={draft.value}
+        autofocus={autofocus}
+        error={error}
+        onChange={(value) => onChange({ kind: 'boolean', value })}
+      />
+    )
   }
   if ((field.type === 'text' || field.type === 'textarea') && draft.kind === 'text') {
     const controlProps = {
@@ -63,6 +68,8 @@ export function InteractionFieldControl({
       minLength: field.minLength,
       maxLength: field.maxLength,
       required: field.required,
+      'aria-invalid': Boolean(error),
+      'aria-describedby': error ? `interaction-${field.id}-error` : undefined,
       'data-interaction-control': autofocus ? '' : undefined,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         onChange({ kind: 'text', value: event.target.value })
@@ -70,9 +77,10 @@ export function InteractionFieldControl({
     return (
       <div className="space-y-2">
         <label htmlFor={`interaction-${field.id}`}>
-          <FieldHeader field={field} />
+          <InteractionFieldHeader field={field} />
         </label>
         {field.type === 'textarea' ? <Textarea {...controlProps} /> : <Input {...controlProps} />}
+        <InteractionValidationMessage id={`interaction-${field.id}-error`} error={error} />
       </div>
     )
   }
@@ -80,7 +88,7 @@ export function InteractionFieldControl({
     return (
       <div className="space-y-2">
         <label htmlFor={`interaction-${field.id}`}>
-          <FieldHeader field={field} />
+          <InteractionFieldHeader field={field} />
         </label>
         <div className="flex items-center gap-2">
           <Input
@@ -91,11 +99,14 @@ export function InteractionFieldControl({
             max={field.max}
             step={field.step}
             required={field.required}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `interaction-${field.id}-error` : undefined}
             data-interaction-control={autofocus ? '' : undefined}
             onChange={(event) => onChange({ kind: 'number', value: event.target.value })}
           />
           {field.unit ? <span className="text-xs text-muted-foreground">{field.unit}</span> : null}
         </div>
+        <InteractionValidationMessage id={`interaction-${field.id}-error`} error={error} />
       </div>
     )
   }
@@ -108,11 +119,13 @@ function ChoiceControl({
   field,
   draft,
   autofocus,
+  error,
   onChange
 }: {
   field: ChoiceField
   draft: ChoiceDraft
   autofocus: boolean
+  error?: string
   onChange: (draft: ChoiceDraft) => void
 }): React.JSX.Element {
   const multiple = field.type === 'multi_choice'
@@ -125,9 +138,13 @@ function ChoiceControl({
     onChange({ ...draft, selected, customSelected: multiple && draft.customSelected })
   }
   return (
-    <fieldset className="space-y-2">
+    <fieldset
+      className="space-y-2"
+      aria-invalid={Boolean(error)}
+      aria-describedby={error ? `interaction-${field.id}-error` : undefined}
+    >
       <legend className="w-full">
-        <FieldHeader field={field} />
+        <InteractionFieldHeader field={field} />
       </legend>
       <div className="space-y-1.5">
         {field.options.map((option, index) => {
@@ -205,6 +222,8 @@ function ChoiceControl({
             )}
             <Input
               value={draft.custom}
+              aria-invalid={Boolean(error && draft.customSelected)}
+              aria-describedby={error ? `interaction-${field.id}-error` : undefined}
               aria-label={translate(
                 'components.native-chat.interaction.customAnswer',
                 'Custom answer'
@@ -233,38 +252,7 @@ function ChoiceControl({
           </div>
         ) : null}
       </div>
-    </fieldset>
-  )
-}
-
-function BooleanControl({
-  field,
-  draft,
-  autofocus,
-  onChange
-}: {
-  field: Extract<OrcaInteractionField, { type: 'boolean' }>
-  draft: Extract<FieldDraft, { kind: 'boolean' }>
-  autofocus: boolean
-  onChange: (draft: FieldDraft) => void
-}): React.JSX.Element {
-  return (
-    <fieldset className="space-y-2">
-      <legend className="w-full">
-        <FieldHeader field={field} />
-      </legend>
-      <label
-        htmlFor={`interaction-${field.id}`}
-        className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
-      >
-        <Checkbox
-          id={`interaction-${field.id}`}
-          checked={draft.value}
-          data-interaction-control={autofocus ? '' : undefined}
-          onCheckedChange={(checked) => onChange({ kind: 'boolean', value: checked === true })}
-        />
-        {translate('components.native-chat.interaction.enabled', 'Enabled')}
-      </label>
+      <InteractionValidationMessage id={`interaction-${field.id}-error`} error={error} />
     </fieldset>
   )
 }

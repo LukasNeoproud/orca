@@ -11,6 +11,9 @@ export type NativeChatQuestionCardProps = {
   /** Deliver the chosen answer (per-question option indices + free text). */
   onAnswer: (selections: AskAnswerSelection[]) => void
   allowOther?: boolean | readonly boolean[]
+  allowSkip?: boolean | readonly boolean[]
+  preserveOtherWhitespace?: boolean
+  submitEmptyAnswers?: boolean
   /** Dismiss the prompt (sends Escape to the agent). */
   onCancel: () => void
   /** Exposes the free-text row so pane-level Paste can target it while the
@@ -30,6 +33,9 @@ export function NativeChatQuestionCard({
   isSubmitting = false,
   onAnswer,
   allowOther = true,
+  allowSkip = true,
+  preserveOtherWhitespace = false,
+  submitEmptyAnswers = false,
   onCancel,
   answerInputRef
 }: NativeChatQuestionCardProps): React.JSX.Element {
@@ -43,6 +49,8 @@ export function NativeChatQuestionCard({
   const isLast = index === total - 1
   const q = prompt.questions[index]!
   const questionAllowsOther = Array.isArray(allowOther) ? (allowOther[index] ?? false) : allowOther
+  const questionAllowsSkip = (questionIndex: number): boolean =>
+    typeof allowSkip === 'boolean' ? allowSkip : (allowSkip[questionIndex] ?? false)
 
   const setOther = (qi: number, value: string): void => {
     setOtherText((prev) => {
@@ -63,13 +71,19 @@ export function NativeChatQuestionCard({
   }
 
   const currentAnswered = answerFor(index).length > 0
+  const allQuestionsResolved = prompt.questions.every(
+    (_, questionIndex) => answerFor(questionIndex).length > 0 || questionAllowsSkip(questionIndex)
+  )
+  const canConfirm =
+    (currentAnswered || questionAllowsSkip(index)) && (!isLast || allQuestionsResolved)
 
   const submitAll = (sel: number[][], oth: string[]): void => {
     const resolved: AskAnswerSelection[] = prompt.questions.map((_, i) => {
-      return { indices: [...(sel[i] ?? [])], other: (oth[i] ?? '').trim() }
+      const other = preserveOtherWhitespace ? (oth[i] ?? '') : (oth[i] ?? '').trim()
+      return { indices: [...(sel[i] ?? [])], other }
     })
     const anyAnswered = resolved.some((s) => s.indices.length > 0 || (s.other ?? '').length > 0)
-    if (anyAnswered) {
+    if (anyAnswered || submitEmptyAnswers) {
       onAnswer(resolved)
     }
   }
@@ -110,12 +124,15 @@ export function NativeChatQuestionCard({
   // dismisses, but a reflexive Enter in the empty field is a no-op so it can't
   // throw away the whole prompt.
   const confirm = (fromKeyboard = false): void => {
+    if (!canConfirm) {
+      return
+    }
     if (!isLast) {
       advanceOrSubmit(selections, otherText)
       return
     }
     const anyAnswered = prompt.questions.some((_, i) => answerFor(i).length > 0)
-    if (anyAnswered) {
+    if (anyAnswered || submitEmptyAnswers) {
       submitAll(selections, otherText)
     } else if (!fromKeyboard) {
       onCancel()
@@ -215,22 +232,24 @@ export function NativeChatQuestionCard({
               )}
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !canConfirm}
                 onClick={() => confirm()}
                 className={cn(
                   'shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50',
-                  currentAnswered
+                  canConfirm && currentAnswered
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >
                 {isSubmitting
                   ? translate('components.native-chat.question.sending', 'Sending…')
-                  : currentAnswered
-                    ? isLast
-                      ? translate('components.native-chat.question.send', 'Submit')
-                      : translate('components.native-chat.question.next', 'Next')
-                    : translate('components.native-chat.question.skip', 'Skip')}
+                  : !canConfirm
+                    ? translate('components.native-chat.question.required', 'Required')
+                    : currentAnswered
+                      ? isLast
+                        ? translate('components.native-chat.question.send', 'Submit')
+                        : translate('components.native-chat.question.next', 'Next')
+                      : translate('components.native-chat.question.skip', 'Skip')}
               </button>
             </div>
           </div>

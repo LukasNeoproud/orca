@@ -13,8 +13,9 @@ import { normalizeExecutionHostId } from '../../../../shared/execution-host'
 export { TopicIndexWriteParams } from './structured-agent-session-topic-index-schema'
 
 const MAX_ID_LENGTH = 512
-// Four Claude questions with all four generated choices occupy 610 chars when fully percent-encoded.
 const MAX_RESPONSE_OPTION_ID_LENGTH = 1024
+// Interaction results are bounded to 64 KiB before grouped-answer framing.
+const MAX_QUESTION_RESPONSE_OPTION_ID_LENGTH = 256 * 1024
 const MAX_PROMPT_BYTES = 256 * 1024
 const MAX_BLOCKS = 64
 const MAX_OPTION_LABEL = 512
@@ -173,15 +174,19 @@ export const CancelParams = z
     message: 'A task id requires background-task scope'
   })
 
-export const RespondParams = z
-  .object({
-    envelope: MutationEnvelope,
-    itemId: Identifier('Invalid item id'),
-    /** Compare-and-set: the revision the client had on screen. */
-    expectedRevision: z.number().int().positive(),
-    optionId: Identifier('Invalid option id', MAX_RESPONSE_OPTION_ID_LENGTH)
-  })
-  .strict()
+const respondParams = (maxOptionIdLength: number) =>
+  z
+    .object({
+      envelope: MutationEnvelope,
+      itemId: Identifier('Invalid item id'),
+      /** Compare-and-set: the revision the client had on screen. */
+      expectedRevision: z.number().int().positive(),
+      optionId: Identifier('Invalid option id', maxOptionIdLength)
+    })
+    .strict()
+
+export const RespondApprovalParams = respondParams(MAX_RESPONSE_OPTION_ID_LENGTH)
+export const RespondQuestionParams = respondParams(MAX_QUESTION_RESPONSE_OPTION_ID_LENGTH)
 
 export const SetOptionParams = z
   .object({

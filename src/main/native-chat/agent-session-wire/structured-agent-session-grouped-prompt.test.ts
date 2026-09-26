@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
 import type { AgentSessionMutationEnvelope } from '../../../shared/agent-session-wire'
 import { encodeAgentSessionQuestionAnswers } from '../../../shared/agent-session-question-answer'
-import { encodeOrcaInteractionResult } from '../../../shared/orca-interaction'
+import {
+  encodeOrcaInteractionResult,
+  type OrcaInteractionRequest
+} from '../../../shared/orca-interaction'
+import { codexInteractionFallbackQuestions } from '../../codex/codex-interaction-question-fallback'
 import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { journalDirectoryFor } from '../agent-session-journal/journal-paths'
 import { openAgentSessionJournal } from '../agent-session-journal/journal-store-factory'
@@ -119,23 +123,25 @@ async function seedInteraction(): Promise<{ itemId: string; revision: number }> 
     },
     journalDir: journalDirectoryFor(root, { workspaceId: 'workspace-1', sessionId: SESSION })
   })
+  const interaction: OrcaInteractionRequest = {
+    fields: [
+      {
+        id: 'storage',
+        type: 'single_choice',
+        label: 'Storage',
+        required: true,
+        options: [{ id: 'sqlite', label: 'SQLite' }]
+      }
+    ]
+  }
   const appended = await journal.appendItem(
     { provider: 'codex', threadId: THREAD, turnId: 'turn-1', ordinal: 101 },
     {
       kind: 'question',
       question: 'Persistence',
       options: [],
-      interaction: {
-        fields: [
-          {
-            id: 'storage',
-            type: 'single_choice',
-            label: 'Storage',
-            required: true,
-            options: [{ id: 'sqlite', label: 'SQLite' }]
-          }
-        ]
-      },
+      questions: codexInteractionFallbackQuestions(interaction),
+      interaction,
       resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
     },
     { fence: 1 }
@@ -243,5 +249,46 @@ describe('Orca interaction admission', () => {
       refusal: { code: 'agent_session_operation_invalid' }
     })
     expect(answerPrompt).not.toHaveBeenCalled()
+  })
+
+  it('accepts the ordinary grouped-question fallback only when it satisfies the interaction', async () => {
+    const prompt = await seedInteraction()
+    expect((await host.attach(CALLER, attachParams())).ok).toBe(true)
+    const invalid = encodeAgentSessionQuestionAnswers([
+      { questionId: 'storage', optionIds: ['postgres'] }
+    ])
+    const fields = { itemId: prompt.itemId, expectedRevision: prompt.revision, optionId: invalid }
+
+    await expect(
+      host.respondToPrompt(CALLER, {
+        envelope: envelope('agentSession.respondTo:question', fields),
+        kind: 'question',
+        ...fields
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      refusal: { code: 'agent_session_operation_invalid' }
+    })
+    expect(answerPrompt).not.toHaveBeenCalled()
+  })
+
+  it('delivers a valid grouped-question fallback through the interaction prompt', async () => {
+    const prompt = await seedInteraction()
+    expect((await host.attach(CALLER, attachParams())).ok).toBe(true)
+    const optionId = encodeAgentSessionQuestionAnswers([
+      { questionId: 'storage', optionIds: ['sqlite'] }
+    ])
+    const fields = { itemId: prompt.itemId, expectedRevision: prompt.revision, optionId }
+
+    await expect(
+      host.respondToPrompt(CALLER, {
+        envelope: envelope('agentSession.respondTo:question', fields),
+        kind: 'question',
+        ...fields
+      })
+    ).resolves.toMatchObject({ ok: true, value: { resolution: { state: 'resolved' } } })
+    expect(answerPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: prompt.itemId, optionId })
+    )
   })
 })

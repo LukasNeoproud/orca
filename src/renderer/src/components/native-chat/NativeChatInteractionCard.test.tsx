@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   decodeOrcaInteractionResult,
   type OrcaInteractionRequest
 } from '../../../../shared/orca-interaction'
+import { decodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { NativeChatInteractionCard } from './NativeChatInteractionCard'
 import { NativeChatStructuredPromptCard } from './NativeChatStructuredPromptCard'
@@ -131,6 +132,53 @@ describe('NativeChatInteractionCard', () => {
     })
   })
 
+  it('keeps booleans without defaults unset until the user chooses', async () => {
+    const user = userEvent.setup()
+    const onRespond = vi.fn()
+    const request: OrcaInteractionRequest = {
+      fields: [
+        { id: 'optional', type: 'boolean', label: 'Optional flag' },
+        { id: 'required', type: 'boolean', label: 'Required flag', required: true }
+      ]
+    }
+
+    render(<NativeChatInteractionCard request={request} onRespond={onRespond} />)
+    const submit = screen.getByRole('button', { name: 'Submit' }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    expect(screen.getByText('Complete this required field.')).toBeTruthy()
+    expect(screen.getByRole('group', { name: /Required flag/ }).getAttribute('aria-invalid')).toBe(
+      'true'
+    )
+
+    const required = screen.getByRole('group', { name: /Required flag/ })
+    await user.click(within(required).getByRole('radio', { name: 'No' }))
+    expect(submit.disabled).toBe(false)
+    await user.click(submit)
+
+    expect(decodedAnswer(onRespond)).toEqual({
+      status: 'submitted',
+      values: { required: false }
+    })
+  })
+
+  it('distinguishes an omitted optional boolean from explicit false', async () => {
+    const user = userEvent.setup()
+    const onRespond = vi.fn()
+    const request: OrcaInteractionRequest = {
+      fields: [{ id: 'optional', type: 'boolean', label: 'Optional flag' }]
+    }
+
+    render(<NativeChatInteractionCard request={request} onRespond={onRespond} />)
+    const optional = screen.getByRole('group', { name: /Optional flag/ })
+    await user.click(within(optional).getByRole('radio', { name: 'No' }))
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(decodedAnswer(onRespond)).toEqual({
+      status: 'submitted',
+      values: { optional: false }
+    })
+  })
+
   it('keeps Enter in a textarea as input and cancels with Escape', async () => {
     const user = userEvent.setup()
     const onRespond = vi.fn()
@@ -180,5 +228,132 @@ describe('NativeChatInteractionCard', () => {
 
     expect(decodedAnswer(onRespond)).toEqual({ status: 'cancelled' })
     expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('renders the ordinary fallback and returns structured cancellation for a future interaction', async () => {
+    const user = userEvent.setup()
+    const onRespond = vi.fn()
+    const onCancel = vi.fn()
+    const prompt: AgentJournalRenderItem = {
+      itemId: 'question-future',
+      revision: 1,
+      sequence: 1,
+      observedAt: 1,
+      body: {
+        kind: 'question',
+        question: 'Future interaction',
+        options: [{ id: 'fallback', label: 'Use fallback' }],
+        interaction: { fields: [{ id: 'priority', type: 'ranking', label: 'Priority' }] },
+        resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
+      }
+    }
+
+    render(
+      <NativeChatStructuredPromptCard
+        prompt={prompt}
+        turnId="turn-1"
+        onRespond={onRespond}
+        onCancel={onCancel}
+      />
+    )
+
+    expect(screen.getByText('Use fallback')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(decodedAnswer(onRespond)).toEqual({ status: 'cancelled' })
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('submits grouped interaction fallback answers when an optional field is skipped', async () => {
+    const user = userEvent.setup()
+    const onRespond = vi.fn()
+    const prompt: AgentJournalRenderItem = {
+      itemId: 'question-grouped-future',
+      revision: 1,
+      sequence: 1,
+      observedAt: 1,
+      body: {
+        kind: 'question',
+        question: 'Future interaction',
+        options: [],
+        questions: [
+          {
+            id: 'note',
+            question: 'Optional note',
+            multiSelect: false,
+            options: [{ id: '__orca_skip__', label: 'Skip' }]
+          },
+          {
+            id: 'enabled',
+            question: 'Enable it?',
+            multiSelect: false,
+            options: [
+              { id: '__orca_true__', label: 'Yes' },
+              { id: '__orca_false__', label: 'No' }
+            ]
+          }
+        ],
+        interaction: { fields: [{ id: 'priority', type: 'ranking', label: 'Priority' }] },
+        resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
+      }
+    }
+
+    render(
+      <NativeChatStructuredPromptCard
+        prompt={prompt}
+        turnId="turn-1"
+        onRespond={onRespond}
+        onCancel={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Skip' }).at(-1)!)
+    await user.click(screen.getByRole('button', { name: /Yes/ }))
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(onRespond).toHaveBeenCalledWith(
+      expect.stringContaining('"questionId":"note","optionIds":["__orca_skip__"]')
+    )
+  })
+
+  it('preserves text whitespace in the grouped interaction fallback', async () => {
+    const user = userEvent.setup()
+    const onRespond = vi.fn()
+    const prompt: AgentJournalRenderItem = {
+      itemId: 'question-text-future',
+      revision: 1,
+      sequence: 1,
+      observedAt: 1,
+      body: {
+        kind: 'question',
+        question: 'Future interaction',
+        options: [],
+        questions: [
+          {
+            id: 'note',
+            question: 'Note',
+            multiSelect: false,
+            options: [],
+            freeTextQuestionId: 'note'
+          }
+        ],
+        interaction: { fields: [{ id: 'priority', type: 'ranking', label: 'Priority' }] },
+        resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
+      }
+    }
+
+    render(
+      <NativeChatStructuredPromptCard
+        prompt={prompt}
+        turnId="turn-1"
+        onRespond={onRespond}
+        onCancel={vi.fn()}
+      />
+    )
+    await user.type(screen.getByRole('textbox'), '  a')
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    expect(decodeAgentSessionQuestionAnswers(onRespond.mock.calls[0]?.[0])).toEqual([
+      { questionId: 'note', optionIds: [], other: '  a' }
+    ])
   })
 })

@@ -136,15 +136,18 @@ describe('nested corruption is rejected', () => {
         resolution: RESOLUTION
       })
     ).toBe(false)
+  })
+
+  it('keeps an ordinary question usable when its additive interaction is unsupported', () => {
     expect(
       isAdmissibleAgentJournalItemBody({
         kind: 'question',
-        question: 'Broken interaction',
-        options: [],
-        interaction: { fields: [{ id: 'bad id', type: 'text', label: 'Value' }] },
+        question: 'Future interaction',
+        options: [{ id: 'fallback', label: 'Use fallback' }],
+        interaction: { fields: [{ id: 'future', type: 'ranking', label: 'Rank' }] },
         resolution: RESOLUTION
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('rejects broken payload, lifecycle, and block shapes', () => {

@@ -18,7 +18,11 @@ function connectionFor(
 
 describe('openCodexThread', () => {
   it('exposes the Orca interaction tool and overlay only when starting a thread', async () => {
-    const request = vi.fn(async () => ({ thread: { id: 'thread-1' } }))
+    const request = vi.fn(async (method: string) =>
+      method === 'config/read'
+        ? { config: { developer_instructions: 'Keep the existing workflow.' } }
+        : { thread: { id: 'thread-1' } }
+    )
 
     await openCodexThread(
       connectionFor(request),
@@ -26,11 +30,12 @@ describe('openCodexThread', () => {
       1_000
     )
 
+    expect(request).toHaveBeenCalledWith('config/read', { cwd: '/workspace' }, { timeoutMs: 1_000 })
     expect(request).toHaveBeenCalledWith(
       'thread/start',
       {
         cwd: '/workspace',
-        developerInstructions: ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+        developerInstructions: `Keep the existing workflow.\n\n${ORCA_INTERACTIVE_UI_INSTRUCTIONS}`,
         dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS
       },
       { timeoutMs: 1_000 }
@@ -50,10 +55,32 @@ describe('openCodexThread', () => {
     await openCodexThread(connection, { cwd: '/workspace', resumeThreadId: null }, 1_000)
 
     expect(request.mock.calls.map(([, params]) => params)).toEqual([
+      { cwd: '/workspace' },
       expect.objectContaining({ dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS }),
       { cwd: '/workspace' },
       { cwd: '/workspace' }
     ])
+  })
+
+  it('does not replace configured instructions when config/read is unavailable', async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === 'config/read') {
+        throw new CodexAppServerRequestError('config/read', -32601, 'method not found')
+      }
+      return { thread: { id: 'thread-1' } }
+    })
+
+    await openCodexThread(
+      connectionFor(request),
+      { cwd: '/workspace', resumeThreadId: null },
+      1_000
+    )
+
+    expect(request).toHaveBeenLastCalledWith(
+      'thread/start',
+      { cwd: '/workspace', dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS },
+      { timeoutMs: 1_000 }
+    )
   })
 
   it('captures effective speed and permissions for both new and resumed threads', async () => {

@@ -1,7 +1,7 @@
 import {
   decodeOrcaInteractionResult,
-  isValidOrcaInteractionResult,
   OrcaInteractionRequestSchema,
+  parseOrcaInteractionResult,
   type OrcaInteractionRequest
 } from '../../shared/orca-interaction'
 
@@ -48,7 +48,7 @@ export const ORCA_INTERACT_DYNAMIC_TOOLS = [
         type: 'function',
         name: ORCA_INTERACT_TOOL,
         description:
-          'Show a native Orca form. Returns {status:"submitted",values:{fieldId:value}} (custom values are {type:"custom",value}) or {status:"cancelled"}.',
+          'Prefer this native Orca form for structured user input, not ordinary conversation. Returns {status:"submitted",values:{fieldId:value}} (custom values are {type:"custom",value}) or {status:"cancelled"}.',
         inputSchema: {
           type: 'object',
           additionalProperties: false,
@@ -179,8 +179,9 @@ export function orcaInteractionToolResponse(
   request: OrcaInteractionRequest | undefined,
   answer: string
 ): Record<string, unknown> {
-  const result = decodeOrcaInteractionResult(answer)
-  if (!request || !isValidOrcaInteractionResult(request, result)) {
+  const decoded = decodeOrcaInteractionResult(answer)
+  const result = request ? parseOrcaInteractionResult(request, decoded) : null
+  if (!result) {
     throw new Error(`${answer} is not a valid Orca interaction result`)
   }
   const text = JSON.stringify(result)

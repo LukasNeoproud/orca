@@ -61,6 +61,39 @@ function isInteractiveThreadStartUnsupported(error: unknown): boolean {
   )
 }
 
+function configuredDeveloperInstructions(value: unknown): string | null | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+  const config = (value as Record<string, unknown>).config
+  if (typeof config !== 'object' || config === null) {
+    return undefined
+  }
+  const instructions = (config as Record<string, unknown>).developer_instructions
+  return instructions === null || typeof instructions === 'string' ? instructions : undefined
+}
+
+async function additiveInteractiveInstructions(
+  connection: Pick<CodexAppServerConnection, 'request'>,
+  cwd: string,
+  timeoutMs: number | undefined
+): Promise<string | undefined> {
+  try {
+    const configured = configuredDeveloperInstructions(
+      await connection.request('config/read', { cwd }, { timeoutMs })
+    )
+    if (configured === undefined) {
+      return undefined
+    }
+    return configured
+      ? `${configured}\n\n${ORCA_INTERACTIVE_UI_INSTRUCTIONS}`
+      : ORCA_INTERACTIVE_UI_INSTRUCTIONS
+  } catch {
+    // An unreadable or older config API must not make Orca replace instructions it cannot preserve.
+    return undefined
+  }
+}
+
 async function startCodexThread(
   connection: Pick<CodexAppServerConnection, 'request'>,
   cwd: string,
@@ -69,12 +102,13 @@ async function startCodexThread(
   if (interactiveThreadStartUnsupported.has(connection)) {
     return connection.request('thread/start', { cwd }, { timeoutMs })
   }
+  const developerInstructions = await additiveInteractiveInstructions(connection, cwd, timeoutMs)
   try {
     return await connection.request(
       'thread/start',
       {
         cwd,
-        developerInstructions: ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+        ...(developerInstructions ? { developerInstructions } : {}),
         dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS
       },
       { timeoutMs }

@@ -17271,6 +17271,7 @@
         "send": "Submit",
         "next": "Next",
         "skip": "Skip",
+        "required": "Required",
         "sending": "Sending…"
       },
       "interaction": {
@@ -17281,7 +17282,14 @@
         "recommended": "Recommended",
         "customAnswer": "Custom answer",
         "customPlaceholder": "Enter another value",
-        "enabled": "Enabled"
+        "enabled": "Enabled",
+        "yes": "Yes",
+        "no": "No",
+        "validationRequired": "Complete this required field.",
+        "validationCustom": "Enter a custom answer.",
+        "validationText": "Enter between {{minimum}} and {{maximum}} characters.",
+        "validationNumber": "Enter a number within the allowed range and step.",
+        "validationForm": "The combined response is too large."
       },
       "approval": {
         "title": "Allow {{value0}}?",

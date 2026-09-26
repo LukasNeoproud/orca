@@ -9,11 +9,8 @@ import {
   readQuestionIds,
   readQuestionOptionAnswers
 } from './codex-prompt-registry-bounds'
-import {
-  CODEX_DYNAMIC_TOOL_CALL_METHOD,
-  orcaInteractionToolResponse,
-  readOrcaInteractionCall
-} from './codex-orca-interaction'
+import { CODEX_DYNAMIC_TOOL_CALL_METHOD, readOrcaInteractionCall } from './codex-orca-interaction'
+import { answerOrcaInteraction } from './codex-interaction-question-fallback'
 export {
   codexJournalPromptIdPart,
   MAX_CODEX_PROMPT_REGISTRY_ENTRIES,
@@ -298,7 +295,7 @@ export function applyCodexPromptAnswer(
   optionId: string
 ): Record<string, unknown> | null {
   if (prompt.method === CODEX_DYNAMIC_TOOL_CALL_METHOD) {
-    return orcaInteractionToolResponse(prompt.interactionRequest, optionId)
+    return answerOrcaInteraction(prompt.interactionRequest, optionId)
   }
   if (prompt.method !== CODEX_USER_INPUT_METHOD) {
     if (!(CODEX_APPROVAL_DECISIONS as readonly string[]).includes(optionId)) {

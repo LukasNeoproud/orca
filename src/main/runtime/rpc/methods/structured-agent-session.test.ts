@@ -576,7 +576,7 @@ describe('parameter validation', () => {
     })
   })
 
-  it('accepts the maximum fully encoded Claude choice group and retains a finite bound', async () => {
+  it('accepts grouped interaction results above 1 KiB and retains a finite bound', async () => {
     const maximumSelections = Array.from({ length: 4 }, (_, questionIndex) => ({
       questionId: `q${questionIndex + 1}`,
       optionIds: Array.from(
@@ -603,7 +603,28 @@ describe('parameter validation', () => {
       expect.objectContaining({ optionId })
     )
 
+    const interactionAnswer = `question-group:${JSON.stringify([
+      { questionId: 'notes', optionIds: [], other: 'x'.repeat(2_048) }
+    ])}`
+    expect(interactionAnswer.length).toBeGreaterThan(1_024)
+    await call(
+      'agentSession.respondToQuestion',
+      {
+        envelope: envelope(),
+        itemId: 'item-1',
+        expectedRevision: 1,
+        optionId: interactionAnswer
+      },
+      STRUCTURED_CLIENT
+    )
+
     await rejects('agentSession.respondToQuestion', {
+      envelope: envelope(),
+      itemId: 'item-1',
+      expectedRevision: 1,
+      optionId: 'x'.repeat(256 * 1024 + 1)
+    })
+    await rejects('agentSession.respondToApproval', {
       envelope: envelope(),
       itemId: 'item-1',
       expectedRevision: 1,

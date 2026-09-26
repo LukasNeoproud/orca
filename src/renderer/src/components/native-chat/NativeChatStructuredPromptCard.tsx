@@ -1,5 +1,10 @@
 import { encodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
+import {
+  encodeOrcaInteractionResult,
+  ORCA_INTERACTION_FALLBACK_SKIP_OPTION_ID,
+  OrcaInteractionRequestSchema
+} from '../../../../shared/orca-interaction'
 import { NativeChatApprovalCard } from './NativeChatApprovalCard'
 import { NativeChatInteractionCard } from './NativeChatInteractionCard'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
@@ -35,11 +40,13 @@ export function NativeChatStructuredPromptCard({
     return null
   }
   const questionBody = prompt.body
-  if (questionBody.interaction) {
+  const hasInteraction = questionBody.interaction !== undefined
+  const interaction = OrcaInteractionRequestSchema.safeParse(questionBody.interaction)
+  if (interaction.success) {
     return (
       <NativeChatInteractionCard
         key={`${prompt.itemId}:${prompt.revision}`}
-        request={questionBody.interaction}
+        request={interaction.data}
         onRespond={onRespond}
       />
     )
@@ -70,19 +77,41 @@ export function NativeChatStructuredPromptCard({
         }))
       }}
       allowOther={questions.map((question) => Boolean(question.freeTextQuestionId))}
+      allowSkip={
+        hasInteraction
+          ? questions.map((question) =>
+              question.options.some(
+                (option) => option.id === ORCA_INTERACTION_FALLBACK_SKIP_OPTION_ID
+              )
+            )
+          : true
+      }
+      preserveOtherWhitespace={hasInteraction}
+      submitEmptyAnswers={hasInteraction}
       onAnswer={(answers) => {
         if (questionBody.questions) {
           const grouped = questions.map((question, questionIndex) => {
             const answer = answers[questionIndex]
-            const other = answer?.other?.trim()
-            const optionIds = (answer?.indices ?? []).flatMap((optionIndex) => {
+            const rawOther = answer?.other
+            const other = hasInteraction ? rawOther : rawOther?.trim()
+            let optionIds = (answer?.indices ?? []).flatMap((optionIndex) => {
               const optionId = question.options[optionIndex]?.id
               return optionId ? [optionId] : []
             })
+            if (
+              hasInteraction &&
+              optionIds.length === 0 &&
+              !other?.trim() &&
+              question.options.some(
+                (option) => option.id === ORCA_INTERACTION_FALLBACK_SKIP_OPTION_ID
+              )
+            ) {
+              optionIds = [ORCA_INTERACTION_FALLBACK_SKIP_OPTION_ID]
+            }
             return {
               questionId: question.id,
-              optionIds: question.multiSelect || !other ? optionIds : [],
-              ...(other ? { other } : {})
+              optionIds: question.multiSelect || !other?.trim() ? optionIds : [],
+              ...(other?.trim() ? { other } : {})
             }
           })
           if (grouped.every((answer) => answer.optionIds.length > 0 || answer.other)) {
@@ -103,7 +132,9 @@ export function NativeChatStructuredPromptCard({
         }
       }}
       onCancel={() => {
-        if (turnId) {
+        if (hasInteraction) {
+          onRespond(encodeOrcaInteractionResult({ status: 'cancelled' }))
+        } else if (turnId) {
           onCancel(turnId)
         }
       }}

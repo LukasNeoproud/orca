@@ -20,6 +20,7 @@ import {
   encodeCodexJournalQuestionOptionId,
   type CodexApprovalDecision
 } from './codex-structured-prompt-replies'
+import { codexInteractionFallbackQuestions } from './codex-interaction-question-fallback'
 
 // Codex prompt requests → durable journal items.
 //
@@ -192,6 +193,7 @@ export function codexInteractionItem(request: OrcaInteractionRequest): AgentJour
     kind: 'question',
     question: boundPromptText(request.title ?? first?.label ?? 'Input requested'),
     options: fallbackOptions,
+    questions: codexInteractionFallbackQuestions(request),
     interaction: request,
     resolution: { ...PENDING }
   }

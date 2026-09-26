@@ -12,9 +12,10 @@ import type { AgentSessionPromptResult } from '../../../shared/agent-session-wir
 import {
   decodeOrcaInteractionResult,
   isValidOrcaInteractionResult,
-  type OrcaInteractionRequest
+  OrcaInteractionRequestSchema
 } from '../../../shared/orca-interaction'
 import { decodeCodexQuestionOptionId } from '../../codex/codex-structured-prompt-replies'
+import { interactionResultFromQuestionAnswers } from '../../codex/codex-interaction-question-fallback'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
 function invalid(message: string): TurnOutcome<never> {
@@ -25,7 +26,7 @@ function promptBodyOf(body: AgentJournalItemBody): {
   options: readonly { id: string }[]
   freeTextQuestionId?: string
   questions?: AgentJournalQuestion[]
-  interaction?: OrcaInteractionRequest
+  interaction?: unknown
   resolution: AgentJournalResolution
 } | null {
   return body.kind === 'approval' || body.kind === 'question' ? body : null
@@ -71,14 +72,12 @@ export async function performPrompt(
     }
   }
   const freeText = decodeCodexQuestionOptionId(input.optionId)
-  const interactionResult =
-    item.body.kind === 'question' && prompt.interaction
-      ? decodeOrcaInteractionResult(input.optionId)
-      : null
+  const interaction = OrcaInteractionRequestSchema.safeParse(prompt.interaction)
+  const interactionResult = interaction.success ? decodeOrcaInteractionResult(input.optionId) : null
   const acceptsInteraction =
     item.body.kind === 'question' &&
-    prompt.interaction !== undefined &&
-    isValidOrcaInteractionResult(prompt.interaction, interactionResult)
+    interaction.success &&
+    isValidOrcaInteractionResult(interaction.data, interactionResult)
   const acceptsFreeText =
     item.body.kind === 'question' &&
     prompt.freeTextQuestionId !== undefined &&
@@ -88,10 +87,14 @@ export async function performPrompt(
     item.body.kind === 'question' && prompt.questions
       ? decodeAgentSessionQuestionAnswers(input.optionId)
       : null
+  const groupedInteraction = interaction.success
+    ? interactionResultFromQuestionAnswers(interaction.data, input.optionId)
+    : null
   const acceptsGrouped =
     grouped !== null &&
     prompt.questions !== undefined &&
-    isValidAgentSessionQuestionAnswers(prompt.questions, grouped)
+    isValidAgentSessionQuestionAnswers(prompt.questions, grouped) &&
+    (!interaction.success || groupedInteraction !== null)
   if (
     !acceptsInteraction &&
     !acceptsFreeText &&

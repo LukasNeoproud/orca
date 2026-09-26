@@ -17,7 +17,9 @@ references:
   - src/main/codex/codex-structured-thread-open.ts
   - src/main/codex/codex-server-request-disposition.ts
   - src/main/codex/codex-structured-prompt-replies.ts
+  - src/main/codex/codex-interaction-question-fallback.ts
   - src/renderer/src/components/native-chat/NativeChatInteractionCard.tsx
+  - src/renderer/src/components/native-chat/NativeChatInteractionBooleanControl.tsx
   - src/renderer/src/components/native-chat/NativeChatStructuredPromptCard.tsx
   - src/shared/agent-session-journal-types.ts
 priority: high
@@ -129,11 +131,15 @@ Implementace cílí na nativní strukturovaný Codex app-server runtime. Použij
 
 Implementováno jako sdílený Zod model, Codex dynamic-tool adapter, durable journal prompt a nativní React formulář. Starší klienti dál uvidí aditivní `question` prompt; neznámý dynamic tool je odmítnut bez spuštění akce. `checklist` a `approval` zůstaly podle scope mimo MVP, protože všech šest povinných typů sdílí jeden rozšiřitelný discriminated-union protokol.
 
+Po nezávislém review byla kompatibilita dotažena tak, že nepodporovaný budoucí field type nezneplatní celý journal row a starší klient použije běžný grouped-question formulář. Jeho odpověď host převede a znovu ověří proti stejnému interaction schématu. Orca overlay se připojuje k efektivním `developer_instructions` načteným přes `config/read`; pokud je nelze bezpečně načíst, Orca je nepřepíše a krátká preference zůstává v popisu dynamic toolu.
+
+Druhé nezávislé review doplnilo explicitní Yes/No pro povinný boolean bez defaultu, strukturovaný Cancel i u fallback rendereru, bezpečné Skip chování volitelných grouped polí, zachování whitespace textových hodnot a bounded RPC limit dostatečný pro validní interaction response. Neznámý budoucí field type tak degraduje na běžné otázky bez ztráty lifecycle semantiky.
+
 Původní skills ani pluginy nebyly změněny a v `agent-marketplace` nevznikl fork. Graceful fallback je dán hostitelskou dostupností: `orca.interact` a overlay se přidávají pouze při založení vlákna přes Orcu.
 
 Ověření 2026-09-26:
 
 - `pnpm tc`, `pnpm tc:node`, `pnpm tc:web` prošly,
-- 11 cílených test souborů / 170 testů prošlo,
+- 12 cílených test souborů / 189 testů a samostatný RPC boundary test prošly,
 - přímý `oxlint` všech dotčených souborů a max-lines ratchet prošly,
 - globální changed-code quality gate a plný test suite jsou blokované existujícími nesouvisejícími změnami/failures v extension, mobile, daemon a runtime částech worktree; žádný hlášený finding necílí na tuto implementaci.

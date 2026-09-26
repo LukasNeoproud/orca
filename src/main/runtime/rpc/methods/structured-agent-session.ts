@@ -46,7 +46,8 @@ import {
   HandoffParams,
   HandoffStatusParams,
   OptionsParams,
-  RespondParams,
+  RespondApprovalParams,
+  RespondQuestionParams,
   RewindParams,
   SendParams,
   SetOptionParams,
@@ -218,13 +219,13 @@ export const STRUCTURED_AGENT_SESSION_METHODS: RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'agentSession.respondToApproval',
-    params: RespondParams,
+    params: RespondApprovalParams,
     handler: async (params, ctx) =>
       requireHost(ctx).respondToPrompt(callerFor(ctx), { ...params, kind: 'approval' })
   }),
   defineMethod({
     name: 'agentSession.respondToQuestion',
-    params: RespondParams,
+    params: RespondQuestionParams,
     handler: async (params, ctx) =>
       requireHost(ctx).respondToPrompt(callerFor(ctx), { ...params, kind: 'question' })
   }),

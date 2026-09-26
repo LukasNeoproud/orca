@@ -3,7 +3,8 @@ import {
   decodeOrcaInteractionResult,
   encodeOrcaInteractionResult,
   isValidOrcaInteractionResult,
-  OrcaInteractionRequestSchema
+  OrcaInteractionRequestSchema,
+  parseOrcaInteractionResult
 } from './orca-interaction'
 
 const request = OrcaInteractionRequestSchema.parse({
@@ -92,6 +93,18 @@ describe('Orca interaction result validation', () => {
         values: { platform: 'android', minSdk: 36.5 }
       })
     ).toBe(false)
+  })
+
+  it('returns the normalized custom value that passed validation', () => {
+    expect(
+      parseOrcaInteractionResult(request, {
+        status: 'submitted',
+        values: { platform: { type: 'custom', value: '  Desktop  ' } }
+      })
+    ).toEqual({
+      status: 'submitted',
+      values: { platform: { type: 'custom', value: 'Desktop' } }
+    })
   })
 
   it('round-trips submitted and cancelled results through the prompt answer', () => {

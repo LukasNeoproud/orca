@@ -244,6 +244,17 @@ describe('codex interaction items', () => {
       kind: 'question',
       question: 'Persistence',
       interaction: { fields: [{ id: 'storage' }] },
+      questions: [
+        {
+          id: 'storage',
+          question: 'Storage',
+          options: [
+            { id: 'sqlite', label: 'SQLite' },
+            { id: 'files', label: 'Files' },
+            { id: '__orca_skip__', label: 'Skip' }
+          ]
+        }
+      ],
       resolution: { state: 'pending' }
     })
     expect(decodeOrcaInteractionResult(item.options[0]?.id ?? '')).toEqual({
