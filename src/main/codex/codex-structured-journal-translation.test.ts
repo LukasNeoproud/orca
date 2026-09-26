@@ -17,6 +17,7 @@ import {
   CODEX_COMMAND_APPROVAL_METHOD,
   CODEX_USER_INPUT_METHOD
 } from './codex-structured-prompt-replies'
+import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
 import type { CodexStructuredSessionEvent } from './codex-structured-session-adapter'
 
 const SESSION_ID = 'session-1'
@@ -640,6 +641,57 @@ describe('codex journal translation', () => {
       expect.objectContaining({ kind: 'question', question: 'Proceed?' })
     ])
     expect(publishes).toHaveLength(1)
+  })
+
+  it('publishes an Orca interaction as one durable rich question', () => {
+    const tap = recorder()
+    const translator = createCodexJournalTranslator({
+      sink: tap.sink,
+      bindPromptItemId: tap.bindPromptItemId
+    })
+
+    const admission = translator.handle({
+      type: 'prompt',
+      sessionId: SESSION_ID,
+      threadId: THREAD_ID,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: THREAD_ID,
+        turnId: TURN_ID,
+        callId: 'interaction-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          title: 'Persistence',
+          fields: [
+            {
+              id: 'storage',
+              type: 'single_choice',
+              label: 'Storage',
+              options: [{ id: 'sqlite', label: 'SQLite', recommended: true }]
+            }
+          ]
+        }
+      },
+      codexItemId: 'interaction-1',
+      promptKey: 'interaction-1'
+    })
+
+    expect(admission).toEqual({ accepted: true })
+    expect(tap.rows).toEqual([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          kind: 'question',
+          question: 'Persistence',
+          interaction: expect.objectContaining({
+            fields: [expect.objectContaining({ id: 'storage' })]
+          })
+        })
+      })
+    ])
+    expect(tap.bound).toEqual([
+      ['orca:codex-prompt%3Athread-abc%3Ainteraction-1', THREAD_ID, 'interaction-1']
+    ])
   })
 
   it('refuses an untranslated user-input prompt without binding live state', () => {

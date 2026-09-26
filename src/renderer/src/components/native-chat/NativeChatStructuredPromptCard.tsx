@@ -1,6 +1,7 @@
 import { encodeAgentSessionQuestionAnswers } from '../../../../shared/agent-session-question-answer'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { NativeChatApprovalCard } from './NativeChatApprovalCard'
+import { NativeChatInteractionCard } from './NativeChatInteractionCard'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
 
 function encodeQuestionAnswer(questionId: string, answer: string): string {
@@ -34,6 +35,15 @@ export function NativeChatStructuredPromptCard({
     return null
   }
   const questionBody = prompt.body
+  if (questionBody.interaction) {
+    return (
+      <NativeChatInteractionCard
+        key={`${prompt.itemId}:${prompt.revision}`}
+        request={questionBody.interaction}
+        onRespond={onRespond}
+      />
+    )
+  }
   const questions = questionBody.questions ?? [
     {
       id: questionBody.freeTextQuestionId ?? 'q1',

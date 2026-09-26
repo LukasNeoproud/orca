@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
 import type { AgentSessionMutationEnvelope } from '../../../shared/agent-session-wire'
 import { encodeAgentSessionQuestionAnswers } from '../../../shared/agent-session-question-answer'
+import { encodeOrcaInteractionResult } from '../../../shared/orca-interaction'
 import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { journalDirectoryFor } from '../agent-session-journal/journal-paths'
 import { openAgentSessionJournal } from '../agent-session-journal/journal-store-factory'
@@ -107,6 +108,41 @@ async function seedGroupedQuestion(): Promise<{ itemId: string; revision: number
   return { itemId: appended.itemId, revision: appended.revision }
 }
 
+async function seedInteraction(): Promise<{ itemId: string; revision: number }> {
+  const journal = await openAgentSessionJournal({
+    identity: {
+      sessionId: SESSION,
+      workspaceId: 'workspace-1',
+      hostId: 'local',
+      agent: 'codex',
+      providerHandle: { kind: 'codex', threadId: THREAD }
+    },
+    journalDir: journalDirectoryFor(root, { workspaceId: 'workspace-1', sessionId: SESSION })
+  })
+  const appended = await journal.appendItem(
+    { provider: 'codex', threadId: THREAD, turnId: 'turn-1', ordinal: 101 },
+    {
+      kind: 'question',
+      question: 'Persistence',
+      options: [],
+      interaction: {
+        fields: [
+          {
+            id: 'storage',
+            type: 'single_choice',
+            label: 'Storage',
+            required: true,
+            options: [{ id: 'sqlite', label: 'SQLite' }]
+          }
+        ]
+      },
+      resolution: { state: 'pending', selectedOptionId: null, resolvedBy: null, resolvedAt: null }
+    },
+    { fence: 1 }
+  )
+  return { itemId: appended.itemId, revision: appended.revision }
+}
+
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'orca-wire-grouped-'))
   resetHostTestOperationIds()
@@ -162,5 +198,50 @@ describe('grouped question admission', () => {
     expect(answerPrompt).toHaveBeenCalledWith(
       expect.objectContaining({ itemId: prompt.itemId, optionId })
     )
+  })
+})
+
+describe('Orca interaction admission', () => {
+  it.each([
+    { status: 'submitted' as const, values: { storage: 'sqlite' } },
+    { status: 'cancelled' as const }
+  ])('delivers $status as a resolved question answer', async (interactionResult) => {
+    const prompt = await seedInteraction()
+    expect((await host.attach(CALLER, attachParams())).ok).toBe(true)
+    const optionId = encodeOrcaInteractionResult(interactionResult)
+    const fields = { itemId: prompt.itemId, expectedRevision: prompt.revision, optionId }
+
+    const result = await host.respondToPrompt(CALLER, {
+      envelope: envelope('agentSession.respondTo:question', fields),
+      kind: 'question',
+      ...fields
+    })
+
+    expect(result).toMatchObject({ ok: true, value: { resolution: { state: 'resolved' } } })
+    expect(answerPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: prompt.itemId, optionId })
+    )
+  })
+
+  it('rejects a submitted value the interaction did not offer', async () => {
+    const prompt = await seedInteraction()
+    expect((await host.attach(CALLER, attachParams())).ok).toBe(true)
+    const optionId = encodeOrcaInteractionResult({
+      status: 'submitted',
+      values: { storage: 'postgres' }
+    })
+    const fields = { itemId: prompt.itemId, expectedRevision: prompt.revision, optionId }
+
+    const result = await host.respondToPrompt(CALLER, {
+      envelope: envelope('agentSession.respondTo:question', fields),
+      kind: 'question',
+      ...fields
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: { code: 'agent_session_operation_invalid' }
+    })
+    expect(answerPrompt).not.toHaveBeenCalled()
   })
 })

@@ -9,6 +9,7 @@ import {
 import { unhandledProviderFrameJournalItem } from '../native-chat/agent-session-wire/unhandled-provider-frame'
 import { codexImageItemBody } from './codex-image-item-translation'
 import { commandActionFacts } from './codex-command-action-class'
+import { codexDynamicToolCallBody } from './codex-dynamic-tool-item-translation'
 import {
   readFirstString,
   readRecord,
@@ -247,6 +248,9 @@ export function codexJournalItem(item: CodexThreadItem): CodexJournalItem {
   }
   if (item.type === 'mcpToolCall') {
     return mcpToolCallItem(item)
+  }
+  if (item.type === 'dynamicToolCall') {
+    return { body: codexDynamicToolCallBody(item), handled: true }
   }
   if (item.type === 'webSearch') {
     return webSearchItem(item)

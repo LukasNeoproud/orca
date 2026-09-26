@@ -621,6 +621,41 @@ describe('codex item bodies', () => {
     })
   })
 
+  it('renders a dynamic tool call with its namespace, result, and terminal state', () => {
+    expect(
+      codexItemBody({
+        type: 'dynamicToolCall',
+        id: 'dynamic-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: { title: 'Persistence' },
+        status: 'completed',
+        success: true,
+        contentItems: [{ type: 'inputText', text: '{"status":"submitted"}' }]
+      })
+    ).toEqual({
+      kind: 'tool-call',
+      name: 'orca.interact',
+      input: { title: 'Persistence' },
+      state: 'completed',
+      output: {
+        head: '{"status":"submitted"}',
+        byteLength: 22,
+        truncated: false,
+        digest: expect.any(String)
+      }
+    })
+    expect(
+      codexItemBody({
+        type: 'dynamicToolCall',
+        id: 'dynamic-2',
+        tool: 'interact',
+        status: 'failed',
+        success: false
+      })
+    ).toMatchObject({ name: 'interact', state: 'failed' })
+  })
+
   it('passes an mcp tool name through with no casing transform', () => {
     // Downstream dispatch is exact-match on raw identifiers, so every shape —
     // bare snake_case included — has to survive byte-identical.

@@ -5,6 +5,10 @@ import {
   type CodexAppServerConnection
 } from './codex-app-server-connection'
 import { openCodexThread } from './codex-structured-thread-open'
+import {
+  ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+  ORCA_INTERACT_DYNAMIC_TOOLS
+} from './codex-orca-interaction'
 
 function connectionFor(
   request: CodexAppServerConnection['request']
@@ -13,6 +17,45 @@ function connectionFor(
 }
 
 describe('openCodexThread', () => {
+  it('exposes the Orca interaction tool and overlay only when starting a thread', async () => {
+    const request = vi.fn(async () => ({ thread: { id: 'thread-1' } }))
+
+    await openCodexThread(
+      connectionFor(request),
+      { cwd: '/workspace', resumeThreadId: null },
+      1_000
+    )
+
+    expect(request).toHaveBeenCalledWith(
+      'thread/start',
+      {
+        cwd: '/workspace',
+        developerInstructions: ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+        dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS
+      },
+      { timeoutMs: 1_000 }
+    )
+  })
+
+  it('falls back once when an older app-server rejects interactive start fields', async () => {
+    const request = vi.fn(async (_method: string, params?: Record<string, unknown>) => {
+      if (params?.dynamicTools) {
+        throw new CodexAppServerRequestError('thread/start', -32602, 'unknown field `dynamicTools`')
+      }
+      return { thread: { id: 'thread-1' } }
+    })
+    const connection = connectionFor(request)
+
+    await openCodexThread(connection, { cwd: '/workspace', resumeThreadId: null }, 1_000)
+    await openCodexThread(connection, { cwd: '/workspace', resumeThreadId: null }, 1_000)
+
+    expect(request.mock.calls.map(([, params]) => params)).toEqual([
+      expect.objectContaining({ dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS }),
+      { cwd: '/workspace' },
+      { cwd: '/workspace' }
+    ])
+  })
+
   it('captures effective speed and permissions for both new and resumed threads', async () => {
     for (const resumeThreadId of [null, 'thread-1']) {
       const request = vi.fn(async () => ({

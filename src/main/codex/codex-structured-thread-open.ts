@@ -14,6 +14,10 @@ import {
   readCodexCustomPermissionsDescription,
   readCodexPermissionsMode
 } from './codex-structured-permissions'
+import {
+  ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+  ORCA_INTERACT_DYNAMIC_TOOLS
+} from './codex-orca-interaction'
 
 export type CodexOpenedThread = {
   threadId: string
@@ -35,6 +39,7 @@ function nonEmptyString(value: unknown): string | null {
 }
 
 const resumeMetadataUnsupported = new WeakSet<object>()
+const interactiveThreadStartUnsupported = new WeakSet<object>()
 
 function isExcludeTurnsUnsupported(error: unknown): boolean {
   return (
@@ -44,6 +49,43 @@ function isExcludeTurnsUnsupported(error: unknown): boolean {
       error.message
     )
   )
+}
+
+function isInteractiveThreadStartUnsupported(error: unknown): boolean {
+  return (
+    isCodexAppServerRequestError(error) &&
+    error.code === -32602 &&
+    /(?:unknown|unexpected|unsupported|unrecognized).{0,80}(?:dynamic[_ ]?tools|developer[_ ]?instructions)|(?:dynamic[_ ]?tools|developer[_ ]?instructions).{0,80}(?:unknown|unexpected|unsupported|unrecognized)/i.test(
+      error.message
+    )
+  )
+}
+
+async function startCodexThread(
+  connection: Pick<CodexAppServerConnection, 'request'>,
+  cwd: string,
+  timeoutMs: number | undefined
+): Promise<unknown> {
+  if (interactiveThreadStartUnsupported.has(connection)) {
+    return connection.request('thread/start', { cwd }, { timeoutMs })
+  }
+  try {
+    return await connection.request(
+      'thread/start',
+      {
+        cwd,
+        developerInstructions: ORCA_INTERACTIVE_UI_INSTRUCTIONS,
+        dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS
+      },
+      { timeoutMs }
+    )
+  } catch (error) {
+    if (!isInteractiveThreadStartUnsupported(error)) {
+      throw error
+    }
+    interactiveThreadStartUnsupported.add(connection)
+    return connection.request('thread/start', { cwd }, { timeoutMs })
+  }
 }
 
 async function resumeCodexThread(
@@ -93,7 +135,7 @@ export async function openCodexThread(
   const resumed = resumeParams ? await resumeCodexThread(connection, resumeParams, timeoutMs) : null
   const opened = resumed
     ? resumed.opened
-    : await connection.request('thread/start', { cwd: launch.cwd }, { timeoutMs })
+    : await startCodexThread(connection, launch.cwd, timeoutMs)
   const threadId = readCodexThreadId(opened)
   if (!threadId) {
     throw new Error('codex app-server did not name the thread it opened')

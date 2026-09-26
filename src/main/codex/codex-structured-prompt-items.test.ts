@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   codexApprovalItem,
   codexApprovalOptions,
+  codexInteractionItem,
   codexPromptIdentity,
   codexQuestionItems
 } from './codex-structured-prompt-items'
+import { decodeOrcaInteractionResult } from '../../shared/orca-interaction'
 import {
   CODEX_COMMAND_APPROVAL_METHOD,
   CODEX_FILE_CHANGE_APPROVAL_METHOD,
@@ -217,6 +219,39 @@ describe('codex question items', () => {
     expect(codexPromptIdentity({ threadId: THREAD_ID, promptKey: CODEX_ITEM_ID })).toEqual({
       provider: 'orca',
       clientMessageId: 'codex-prompt:thread-abc:item-4'
+    })
+  })
+})
+
+describe('codex interaction items', () => {
+  it('keeps the rich request and offers an old-client fallback for one choice', () => {
+    const item = codexInteractionItem({
+      title: 'Persistence',
+      fields: [
+        {
+          id: 'storage',
+          type: 'single_choice',
+          label: 'Storage',
+          options: [
+            { id: 'sqlite', label: 'SQLite', description: 'Structured local data' },
+            { id: 'files', label: 'Files' }
+          ]
+        }
+      ]
+    })
+
+    expect(item).toMatchObject({
+      kind: 'question',
+      question: 'Persistence',
+      interaction: { fields: [{ id: 'storage' }] },
+      resolution: { state: 'pending' }
+    })
+    expect(decodeOrcaInteractionResult(item.options[0]?.id ?? '')).toEqual({
+      status: 'submitted',
+      values: { storage: 'sqlite' }
+    })
+    expect(decodeOrcaInteractionResult(item.options.at(-1)?.id ?? '')).toEqual({
+      status: 'cancelled'
     })
   })
 })

@@ -20,6 +20,7 @@ import type {
   AgentJournalRenderItem,
   AgentJournalSubmission
 } from './agent-session-journal-types'
+import { OrcaInteractionRequestSchema } from './orca-interaction'
 
 const BoundedPayload = z.object({
   head: z.string(),
@@ -166,6 +167,7 @@ export const AgentJournalItemBodySchema = z.discriminatedUnion('kind', [
     question: z.string(),
     options: z.array(PromptOption),
     questions: z.array(Question).optional(),
+    interaction: OrcaInteractionRequestSchema.optional(),
     freeTextQuestionId: z.string().optional(),
     resolution: Resolution
   }),

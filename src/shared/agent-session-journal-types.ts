@@ -11,6 +11,7 @@ import type { AgentType } from './agent-status-types'
 import type { NativeChatToolMetadata } from './native-chat-tool-identity'
 import type { NativeChatBlock, NativeChatRole } from './native-chat-types'
 import type { NativeChatGeneration } from './native-chat-generation'
+import type { OrcaInteractionRequest } from './orca-interaction'
 
 export { type AgentType }
 
@@ -142,6 +143,8 @@ export type AgentJournalQuestionItem = {
   question: string
   options: AgentJournalPromptOption[]
   questions?: AgentJournalQuestion[]
+  /** Additive rich form; older clients retain the ordinary question fallback. */
+  interaction?: OrcaInteractionRequest
   /** Present when the provider accepts an answer outside the offered options. */
   freeTextQuestionId?: string
   resolution: AgentJournalResolution

@@ -9,6 +9,11 @@ import type {
   AgentJournalResolution
 } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionPromptResult } from '../../../shared/agent-session-wire'
+import {
+  decodeOrcaInteractionResult,
+  isValidOrcaInteractionResult,
+  type OrcaInteractionRequest
+} from '../../../shared/orca-interaction'
 import { decodeCodexQuestionOptionId } from '../../codex/codex-structured-prompt-replies'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
@@ -20,6 +25,7 @@ function promptBodyOf(body: AgentJournalItemBody): {
   options: readonly { id: string }[]
   freeTextQuestionId?: string
   questions?: AgentJournalQuestion[]
+  interaction?: OrcaInteractionRequest
   resolution: AgentJournalResolution
 } | null {
   return body.kind === 'approval' || body.kind === 'question' ? body : null
@@ -65,6 +71,14 @@ export async function performPrompt(
     }
   }
   const freeText = decodeCodexQuestionOptionId(input.optionId)
+  const interactionResult =
+    item.body.kind === 'question' && prompt.interaction
+      ? decodeOrcaInteractionResult(input.optionId)
+      : null
+  const acceptsInteraction =
+    item.body.kind === 'question' &&
+    prompt.interaction !== undefined &&
+    isValidOrcaInteractionResult(prompt.interaction, interactionResult)
   const acceptsFreeText =
     item.body.kind === 'question' &&
     prompt.freeTextQuestionId !== undefined &&
@@ -79,6 +93,7 @@ export async function performPrompt(
     prompt.questions !== undefined &&
     isValidAgentSessionQuestionAnswers(prompt.questions, grouped)
   if (
+    !acceptsInteraction &&
     !acceptsFreeText &&
     !acceptsGrouped &&
     !prompt.options.some((option) => option.id === input.optionId)

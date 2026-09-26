@@ -5,6 +5,10 @@ import type {
   AgentJournalQuestionItem
 } from '../../shared/agent-session-journal-types'
 import {
+  encodeOrcaInteractionResult,
+  type OrcaInteractionRequest
+} from '../../shared/orca-interaction'
+import {
   boundInlineText,
   DEFAULT_JOURNAL_PAYLOAD_LIMITS
 } from '../native-chat/agent-session-journal/journal-payload-bounds'
@@ -162,6 +166,35 @@ export function codexQuestionItems(input: {
     })
   }
   return items
+}
+
+export function codexInteractionItem(request: OrcaInteractionRequest): AgentJournalQuestionItem {
+  const first = request.fields[0]
+  const fallbackOptions: AgentJournalPromptOption[] = [
+    {
+      id: encodeOrcaInteractionResult({ status: 'cancelled' }),
+      label: 'Cancel interaction'
+    }
+  ]
+  if (request.fields.length === 1 && first?.type === 'single_choice') {
+    fallbackOptions.unshift(
+      ...first.options.map((option) => ({
+        id: encodeOrcaInteractionResult({
+          status: 'submitted',
+          values: { [first.id]: option.id }
+        }),
+        label: boundPromptOptionLabel(option.label),
+        ...(option.description ? { description: boundPromptText(option.description) } : {})
+      }))
+    )
+  }
+  return {
+    kind: 'question',
+    question: boundPromptText(request.title ?? first?.label ?? 'Input requested'),
+    options: fallbackOptions,
+    interaction: request,
+    resolution: { ...PENDING }
+  }
 }
 
 function questionAllowsFreeText(question: Record<string, unknown>): boolean {

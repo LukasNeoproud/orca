@@ -17273,6 +17273,16 @@
         "skip": "Skip",
         "sending": "Sending…"
       },
+      "interaction": {
+        "title": "Input requested",
+        "cancel": "Cancel",
+        "submit": "Submit",
+        "required": "(required)",
+        "recommended": "Recommended",
+        "customAnswer": "Custom answer",
+        "customPlaceholder": "Enter another value",
+        "enabled": "Enabled"
+      },
       "approval": {
         "title": "Allow {{value0}}?",
         "allow": "Allow",

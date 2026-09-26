@@ -9,10 +9,12 @@ import {
   type CodexPromptRegistry,
   type CodexPendingPrompt
 } from './codex-structured-prompt-replies'
+import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
+
+export { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
 
 export const CODEX_MCP_ELICITATION_METHOD = 'mcpServer/elicitation/request'
 export const CODEX_PERMISSIONS_APPROVAL_METHOD = 'item/permissions/requestApproval'
-export const CODEX_DYNAMIC_TOOL_CALL_METHOD = 'item/tool/call'
 export const CODEX_AUTH_TOKEN_REFRESH_METHOD = 'account/chatgptAuthTokens/refresh'
 export const CODEX_ATTESTATION_METHOD = 'attestation/generate'
 export const CODEX_LEGACY_APPLY_PATCH_APPROVAL_METHOD = 'applyPatchApproval'

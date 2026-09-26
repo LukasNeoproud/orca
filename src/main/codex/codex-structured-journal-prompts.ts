@@ -2,10 +2,12 @@ import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key
 import { cancelledJournalPromptBody } from '../native-chat/agent-session-journal/journal-prompt-body-bounds'
 import {
   codexApprovalItem,
+  codexInteractionItem,
   codexPromptIdentity,
   codexQuestionItems
 } from './codex-structured-prompt-items'
 import { CODEX_USER_INPUT_METHOD } from './codex-structured-prompt-replies'
+import { CODEX_DYNAMIC_TOOL_CALL_METHOD, readOrcaInteractionCall } from './codex-orca-interaction'
 import type {
   CodexJournalTranslationAdmission,
   CodexJournalTranslatorDeps
@@ -34,6 +36,29 @@ export class CodexJournalPrompts {
     codexItemId: string
     promptKey: string
   }): CodexJournalTranslationAdmission {
+    if (event.method === CODEX_DYNAMIC_TOOL_CALL_METHOD) {
+      const interaction = readOrcaInteractionCall(event.params)
+      if (!interaction) {
+        return { accepted: false, reason: 'untranslated' }
+      }
+      const identity = codexPromptIdentity({
+        threadId: event.threadId,
+        promptKey: event.promptKey
+      })
+      const body = codexInteractionItem(interaction.request)
+      const admission = this.admit(event, [{ identity, body }])
+      if (!admission.accepted) {
+        return admission
+      }
+      const itemId = agentJournalItemKey(identity)
+      this.pending.set(itemId, { identity, body })
+      const trimAdmission = this.trim()
+      if (!trimAdmission.accepted) {
+        return trimAdmission
+      }
+      this.deps.bindPromptItemId?.(itemId, event.threadId, event.promptKey)
+      return CODEX_JOURNAL_ADMITTED
+    }
     if (event.method === CODEX_USER_INPUT_METHOD) {
       const questions = codexQuestionItems({
         threadId: event.threadId,

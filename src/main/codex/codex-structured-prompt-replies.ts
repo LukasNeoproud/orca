@@ -1,4 +1,5 @@
 import type { CodexAppServerConnection } from './codex-app-server-connection'
+import type { OrcaInteractionRequest } from '../../shared/orca-interaction'
 import {
   CODEX_PROMPT_MAX_ANSWER_BYTES,
   MAX_CODEX_PROMPT_JOURNAL_BINDINGS,
@@ -8,6 +9,11 @@ import {
   readQuestionIds,
   readQuestionOptionAnswers
 } from './codex-prompt-registry-bounds'
+import {
+  CODEX_DYNAMIC_TOOL_CALL_METHOD,
+  orcaInteractionToolResponse,
+  readOrcaInteractionCall
+} from './codex-orca-interaction'
 export {
   codexJournalPromptIdPart,
   MAX_CODEX_PROMPT_REGISTRY_ENTRIES,
@@ -46,10 +52,10 @@ export type CodexPendingPrompt = {
   questionIdAliases: ReadonlyMap<string, string>
   optionAnswers: ReadonlyMap<string, { questionId: string; answer: string }>
   answers: Map<string, string>
+  interactionRequest?: OrcaInteractionRequest
 }
 
-/** A user-input request can carry several questions but takes ONE reply, so an
- *  option id has to name the question it answers. */
+/** A multi-question user-input request takes one reply, so option ids name their question. */
 export function encodeCodexQuestionOptionId(questionId: string, answer: string): string {
   return `${encodeURIComponent(questionId)}:${encodeURIComponent(answer)}`
 }
@@ -83,7 +89,8 @@ export function isCodexPromptMethod(method: string): boolean {
   return (
     method === CODEX_COMMAND_APPROVAL_METHOD ||
     method === CODEX_FILE_CHANGE_APPROVAL_METHOD ||
-    method === CODEX_USER_INPUT_METHOD
+    method === CODEX_USER_INPUT_METHOD ||
+    method === CODEX_DYNAMIC_TOOL_CALL_METHOD
   )
 }
 
@@ -127,6 +134,9 @@ export class CodexPromptRegistry {
     for (const value of prompt.answers.values()) {
       bytes += Buffer.byteLength(value, 'utf8')
     }
+    if (prompt.interactionRequest) {
+      bytes += Buffer.byteLength(JSON.stringify(prompt.interactionRequest), 'utf8')
+    }
     return bytes
   }
 
@@ -158,16 +168,22 @@ export class CodexPromptRegistry {
     return `${encodeURIComponent(threadId)}:${encodeURIComponent(promptKey)}`
   }
 
-  /** Returns null for a request this build does not model, so the caller can
-   *  refuse it instead of leaving Codex blocked on an answer forever. */
+  /** Null lets the caller refuse an unmodelled request instead of blocking Codex forever. */
   register(request: {
     id: number | string
     method: string
     params: unknown
   }): CodexPendingPrompt | null {
-    const codexItemId = readString(request.params, 'itemId')
-    const threadId = readString(request.params, 'threadId')
+    const interaction =
+      request.method === CODEX_DYNAMIC_TOOL_CALL_METHOD
+        ? readOrcaInteractionCall(request.params)
+        : null
+    const codexItemId = interaction?.callId ?? readString(request.params, 'itemId')
+    const threadId = interaction?.threadId ?? readString(request.params, 'threadId')
     if (!isCodexPromptMethod(request.method) || !codexItemId || !threadId) {
+      return null
+    }
+    if (request.method === CODEX_DYNAMIC_TOOL_CALL_METHOD && !interaction) {
       return null
     }
     const questionIds =
@@ -186,16 +202,17 @@ export class CodexPromptRegistry {
       requestId: request.id,
       method: request.method,
       threadId,
-      turnId: readString(request.params, 'turnId'),
+      turnId: interaction?.turnId ?? readString(request.params, 'turnId'),
       codexItemId,
-      promptKey: readString(request.params, 'approvalId') ?? codexItemId,
+      promptKey: interaction?.callId ?? readString(request.params, 'approvalId') ?? codexItemId,
       questionIds,
       questionIdAliases:
         request.method === CODEX_USER_INPUT_METHOD
           ? new Map(questionIds.map((id) => [codexJournalPromptIdPart(id), id]))
           : new Map(),
       optionAnswers,
-      answers: new Map()
+      answers: new Map(),
+      ...(interaction ? { interactionRequest: interaction.request } : {})
     }
     const promptBytes = this.promptBytes(prompt)
     if (promptBytes > MAX_CODEX_PROMPT_REGISTRY_BYTES) {
@@ -280,6 +297,9 @@ export function applyCodexPromptAnswer(
   prompt: CodexPendingPrompt,
   optionId: string
 ): Record<string, unknown> | null {
+  if (prompt.method === CODEX_DYNAMIC_TOOL_CALL_METHOD) {
+    return orcaInteractionToolResponse(prompt.interactionRequest, optionId)
+  }
   if (prompt.method !== CODEX_USER_INPUT_METHOD) {
     if (!(CODEX_APPROVAL_DECISIONS as readonly string[]).includes(optionId)) {
       throw new Error(`${optionId} is not a Codex approval decision`)

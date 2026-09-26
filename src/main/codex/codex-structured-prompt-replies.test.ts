@@ -8,6 +8,8 @@ import {
   encodeCodexJournalQuestionOptionId,
   encodeCodexQuestionOptionId
 } from './codex-structured-prompt-replies'
+import { encodeOrcaInteractionResult } from '../../shared/orca-interaction'
+import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
 
 function userInputRequest(questionIds: string[]): {
   id: number
@@ -144,6 +146,81 @@ describe('CodexPromptRegistry', () => {
 })
 
 describe('applyCodexPromptAnswer', () => {
+  it('returns a structured dynamic tool response for submit and cancel', () => {
+    for (const result of [
+      { status: 'submitted' as const, values: { storage: 'sqlite' } },
+      { status: 'cancelled' as const }
+    ]) {
+      const registry = new CodexPromptRegistry()
+      const prompt = registry.register({
+        id: 11,
+        method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+        params: {
+          threadId: 'thread-1',
+          turnId: 'turn-1',
+          callId: 'call-1',
+          namespace: 'orca',
+          tool: 'interact',
+          arguments: {
+            fields: [
+              {
+                id: 'storage',
+                type: 'single_choice',
+                label: 'Storage',
+                required: true,
+                options: [{ id: 'sqlite', label: 'SQLite' }]
+              }
+            ]
+          }
+        }
+      })
+
+      expect(
+        applyCodexPromptAnswer(
+          prompt as NonNullable<typeof prompt>,
+          encodeOrcaInteractionResult(result)
+        )
+      ).toEqual({
+        contentItems: [{ type: 'inputText', text: JSON.stringify(result) }],
+        success: true
+      })
+    }
+  })
+
+  it('rejects malformed or forged Orca interaction answers', () => {
+    const registry = new CodexPromptRegistry()
+    const prompt = registry.register({
+      id: 12,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-1',
+        callId: 'call-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          fields: [
+            {
+              id: 'storage',
+              type: 'single_choice',
+              label: 'Storage',
+              options: [{ id: 'sqlite', label: 'SQLite' }]
+            }
+          ]
+        }
+      }
+    })
+
+    expect(() =>
+      applyCodexPromptAnswer(
+        prompt as NonNullable<typeof prompt>,
+        encodeOrcaInteractionResult({
+          status: 'submitted',
+          values: { storage: 'not-offered' }
+        })
+      )
+    ).toThrow('not a valid Orca interaction result')
+  })
+
   it('accepts a bare answer only when the request has one question', () => {
     const registry = new CodexPromptRegistry()
     const single = registry.register(userInputRequest(['q1']))

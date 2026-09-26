@@ -47,6 +47,55 @@ describe('Codex blocking server request dispositions', () => {
     expect(connection.respondWithError).not.toHaveBeenCalled()
   })
 
+  it('routes only the valid Orca interaction dynamic tool to a durable prompt', () => {
+    const { registry, connection } = harness()
+    const result = disposeCodexServerRequest(registry, connection, {
+      id: 6,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        callId: 'call-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          title: 'Persistence',
+          fields: [
+            {
+              id: 'storage',
+              type: 'single_choice',
+              label: 'Storage strategy',
+              options: [{ id: 'sqlite', label: 'SQLite', recommended: true }]
+            }
+          ]
+        }
+      }
+    })
+
+    expect(result.kind).toBe('prompt')
+    expect(connection.respond).not.toHaveBeenCalled()
+    expect(connection.respondWithError).not.toHaveBeenCalled()
+  })
+
+  it('safely rejects a different dynamic tool instead of rendering its arguments', () => {
+    const { registry, connection } = harness()
+
+    expect(
+      disposeCodexServerRequest(registry, connection, {
+        id: 7,
+        method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+        params: {
+          threadId: 'thread-1',
+          callId: 'call-foreign',
+          namespace: 'other',
+          tool: 'interact',
+          arguments: { fields: [{ id: 'value', type: 'text', label: 'Value' }] }
+        }
+      })
+    ).toEqual({ kind: 'responded', method: CODEX_DYNAMIC_TOOL_CALL_METHOD })
+    expect(connection.respond).toHaveBeenCalledWith(7, { contentItems: [], success: false })
+  })
+
   it.each([
     [CODEX_MCP_ELICITATION_METHOD, { action: 'decline', content: null, _meta: null }],
     [CODEX_PERMISSIONS_APPROVAL_METHOD, { permissions: {}, scope: 'turn', strictAutoReview: true }],

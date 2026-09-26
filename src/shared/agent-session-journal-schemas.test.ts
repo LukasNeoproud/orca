@@ -53,6 +53,22 @@ const CANONICAL_BODIES: AgentJournalItemBody[] = [
     freeTextQuestionId: 'q-free',
     resolution: { state: 'resolved', selectedOptionId: 'a', resolvedBy: 'client', resolvedAt: 5 }
   },
+  {
+    kind: 'question',
+    question: 'Persistence',
+    options: [],
+    interaction: {
+      fields: [
+        {
+          id: 'storage',
+          type: 'single_choice',
+          label: 'Storage',
+          options: [{ id: 'sqlite', label: 'SQLite', recommended: true }]
+        }
+      ]
+    },
+    resolution: RESOLUTION
+  },
   { kind: 'status', text: 'working' },
   {
     kind: 'status',
@@ -117,6 +133,15 @@ describe('nested corruption is rejected', () => {
         title: 'Run?',
         detail: null,
         options: [{ id: 'a' }],
+        resolution: RESOLUTION
+      })
+    ).toBe(false)
+    expect(
+      isAdmissibleAgentJournalItemBody({
+        kind: 'question',
+        question: 'Broken interaction',
+        options: [],
+        interaction: { fields: [{ id: 'bad id', type: 'text', label: 'Value' }] },
         resolution: RESOLUTION
       })
     ).toBe(false)
