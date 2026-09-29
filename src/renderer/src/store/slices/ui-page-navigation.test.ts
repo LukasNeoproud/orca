@@ -703,6 +703,34 @@ describe('createUISlice space navigation', () => {
     expect(store.getState().worktreeNavHistoryIndex).toBe(0)
   })
 
+  it('opens Agent Manager exclusively and returns to the originating view', () => {
+    const store = createUIStore()
+
+    store.getState().openTaskPage()
+    store.getState().openAgentManager()
+    store.getState().openAgentManager()
+
+    expect(store.getState().activeView).toBe('agent-manager')
+    expect(store.getState().previousViewBeforeAgentManager).toBe('tasks')
+
+    store.getState().closeAgentManager()
+    expect(store.getState().activeView).toBe('tasks')
+  })
+
+  it('records and rewinds Agent Manager visits on close', () => {
+    const store = createUIStore()
+    store.setState({ worktreesByRepo: { 'repo-1': [makeWorktree('a')] } })
+
+    store.getState().recordWorktreeVisit('a')
+    store.getState().openAgentManager()
+    expect(store.getState().worktreeNavHistory).toEqual(['a', 'agent-manager'])
+    expect(store.getState().worktreeNavHistoryIndex).toBe(1)
+
+    store.getState().closeAgentManager()
+    expect(store.getState().activeView).toBe('terminal')
+    expect(store.getState().worktreeNavHistoryIndex).toBe(0)
+  })
+
   it('records Artifacts and Skills as separate back/forward entries', () => {
     const store = createUIStore()
     store.setState({ worktreesByRepo: { 'repo-1': [makeWorktree('a')] } })

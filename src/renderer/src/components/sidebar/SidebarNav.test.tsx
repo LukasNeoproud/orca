@@ -17,12 +17,14 @@ const mocks = vi.hoisted(() => ({
   openAutomationsPage: vi.fn(),
   openActivityPage: vi.fn(),
   openMobilePage: vi.fn(),
+  openAgentManager: vi.fn(),
   openArtifactsPage: vi.fn(),
   openModal: vi.fn(),
   updateSettings: vi.fn(),
   refreshPreflightStatus: vi.fn(),
   checkLinearConnection: vi.fn(),
   hasPairedMobileDevice: false,
+  isWebClient: false,
   agentBucketCounts: { attention: 0, working: 0, done: 0, idle: 0 },
   getAgentBucketCounts: vi.fn(),
   dismissMobileOnboardingBadge: vi.fn(),
@@ -42,6 +44,10 @@ vi.mock('@/store/selectors', () => ({
 
 vi.mock('@/components/activity/useActivityUnreadCount', () => ({
   useActivityUnreadCount: () => 0
+}))
+
+vi.mock('@/lib/web-client-location', () => ({
+  isWebClientLocation: () => mocks.isWebClient
 }))
 
 vi.mock('@/components/dashboard/useAgentBucketCounts', () => ({
@@ -132,6 +138,7 @@ function setSidebarState({
     openAutomationsPage: mocks.openAutomationsPage,
     openActivityPage: mocks.openActivityPage,
     openMobilePage: mocks.openMobilePage,
+    openAgentManager: mocks.openAgentManager,
     openArtifactsPage: mocks.openArtifactsPage,
     openModal: mocks.openModal,
     updateSettings: mocks.updateSettings,
@@ -214,6 +221,7 @@ describe('SidebarNav', () => {
     vi.clearAllMocks()
     await i18n.changeLanguage('en')
     mocks.hasPairedMobileDevice = false
+    mocks.isWebClient = false
     mocks.agentBucketCounts = { attention: 0, working: 0, done: 0, idle: 0 }
     setSidebarState()
   })
@@ -263,6 +271,34 @@ describe('SidebarNav', () => {
     expect(working?.querySelector('svg')).toBeNull()
     expect(done?.querySelector('svg')).toBeNull()
     expect(idle?.querySelector('svg')).toBeNull()
+  })
+
+  it('always shows the Agents entry below Mobile on desktop', async () => {
+    const container = await renderSidebarNav()
+    const labels = Array.from(container.querySelectorAll('button')).map((button) =>
+      button.textContent?.trim()
+    )
+
+    expect(labels.indexOf('Agents and terminals')).toBeGreaterThan(labels.indexOf('Orca Mobile'))
+    await clickButton(getButtonByText(container, 'Agents and terminals'))
+    expect(mocks.openAgentManager).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the Agents entry visible when Mobile is hidden', async () => {
+    setSidebarState({
+      settings: { ...getDefaultSettings('/tmp'), showMobileButton: false }
+    })
+    const container = await renderSidebarNav()
+
+    expect(queryButtonByText(container, 'Orca Mobile')).toBeNull()
+    expect(queryButtonByText(container, 'Agents and terminals')).not.toBeNull()
+  })
+
+  it('omits the Agents entry in the web client', async () => {
+    mocks.isWebClient = true
+    const container = await renderSidebarNav()
+
+    expect(queryButtonByText(container, 'Agents and terminals')).toBeNull()
   })
 
   it('shows the Mobile entry by default for older settings', () => {

@@ -1,4 +1,5 @@
 import { omitPairingLocalUiFields } from '../../../../shared/pairing-local-ui-fields'
+import type { PairedUiState } from '../../../../shared/pairing-local-ui-fields'
 import type { PersistedUIState } from '../../../../shared/persisted-ui-state-types'
 import { defineMethod, type RpcMethod } from '../core'
 import {
@@ -11,6 +12,13 @@ import { FeatureInteractionIdParam, UiUpdate } from './client-ui-schemas'
 // the typecheck graph so drift fails the build instead of a paired client.
 
 import { TerminalQuickCommandsUpdate } from './terminal-quick-command-rpc-schema'
+
+function getPairingSafeUiState(ui: PersistedUIState): PairedUiState {
+  const paired = omitPairingLocalUiFields(ui)
+  // Why: paired clients update independently, and older decoders do not know this
+  // desktop-only page. Keep the established active-view sync for every other view.
+  return paired.activeView === 'agent-manager' ? { ...paired, activeView: 'terminal' } : paired
+}
 
 export const CLIENT_UI_METHODS: RpcMethod[] = [
   defineMethod({
@@ -59,7 +67,7 @@ export const CLIENT_UI_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'ui.get',
     params: null,
-    handler: (_params, { runtime }) => ({ ui: omitPairingLocalUiFields(runtime.getUIState()) })
+    handler: (_params, { runtime }) => ({ ui: getPairingSafeUiState(runtime.getUIState()) })
   }),
   defineMethod({
     name: 'ui.set',
@@ -67,7 +75,7 @@ export const CLIENT_UI_METHODS: RpcMethod[] = [
     // Why the fields are dropped here rather than removed from the schema: UiUpdate is strict, so
     // an unlisted key would make the dispatcher reject an old client's ENTIRE payload.
     handler: (params, { runtime }) => ({
-      ui: omitPairingLocalUiFields(
+      ui: getPairingSafeUiState(
         runtime.updateUIState(omitPairingLocalUiFields(params) as Partial<PersistedUIState>)
       )
     })
@@ -76,7 +84,7 @@ export const CLIENT_UI_METHODS: RpcMethod[] = [
     name: 'ui.recordFeatureInteraction',
     params: FeatureInteractionIdParam,
     handler: (params, { runtime }) => ({
-      ui: omitPairingLocalUiFields(runtime.recordFeatureInteraction(params))
+      ui: getPairingSafeUiState(runtime.recordFeatureInteraction(params))
     })
   })
 ]

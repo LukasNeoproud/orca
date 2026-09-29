@@ -66,8 +66,8 @@ export function ResourceUsageStatusSegment({
     navigateToTab,
     deleteWorktree,
     handleOpenWorkspaceCleanup,
+    handleOpenAgentManager,
     handleKillSession,
-    handleKillOrphans,
     runKillConfirmed,
     openSpaceResults
   } = controller
@@ -139,9 +139,8 @@ export function ResourceUsageStatusSegment({
           daemonUnreachable
         })}
         {renderResourceUsagePopoverFooter({
-          handleOpenWorkspaceCleanup,
-          orphanCount,
-          handleKillOrphans
+          handleOpenAgentManager,
+          handleOpenWorkspaceCleanup
         })}
         <WorkspaceSpaceCompactPanel onOpenFullPage={openSpaceResults} />
       </PopoverContent>

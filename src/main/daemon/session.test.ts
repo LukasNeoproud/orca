@@ -138,6 +138,12 @@ describe('Session', () => {
     return session
   }
 
+  it('records its creation time once', () => {
+    vi.setSystemTime(123_456)
+
+    expect(createSession().createdAt).toBe(123_456)
+  })
+
   describe('state machine', () => {
     it('starts in running state when shell readiness is not supported', () => {
       createSession({ shellReadySupported: false })

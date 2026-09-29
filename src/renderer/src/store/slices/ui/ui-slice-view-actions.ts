@@ -102,6 +102,21 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       set((state) => ({
         activeView: state.previousViewBeforeMobile
       })),
+    openAgentManager: () => {
+      get().recordViewVisit('agent-manager')
+      set((state) => ({
+        activeView: 'agent-manager',
+        previousViewBeforeAgentManager:
+          state.activeView === 'agent-manager'
+            ? state.previousViewBeforeAgentManager
+            : state.activeView
+      }))
+    },
+    closeAgentManager: () =>
+      set((state) => ({
+        activeView: state.previousViewBeforeAgentManager,
+        worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'agent-manager')
+      })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
     clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })
   }

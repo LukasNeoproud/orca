@@ -8,15 +8,20 @@ import {
   restartDaemon
 } from '../daemon/daemon-init'
 import type { MacDaemonTccAttributionHealth } from '../daemon/daemon-tcc-attribution'
-import type { DaemonSessionInfo } from '../daemon/types'
-
-// Why: poll past the daemon's 5s SIGTERM→SIGKILL ladder (KILL_TIMEOUT_MS in session.ts), else slow-exiting shells falsely look "refused".
-const MAX_POLL_ATTEMPTS = 65
-const POLL_INTERVAL_MS = 100
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+import {
+  collectManagementSessions,
+  resolveManagementSessionCwds,
+  MAX_TERMINATION_POLL_ATTEMPTS,
+  sameKnownDaemonIdentity,
+  sameSessionIncarnation,
+  sleepForTerminationPoll,
+  TERMINATION_POLL_INTERVAL_MS,
+  verifyManagementSessionExit,
+  type InventoryStatus,
+  type ManagementSession,
+  type OwnedSession,
+  type TerminationStatus
+} from './pty-management-inventory'
 
 function getDaemonAdapters(): DaemonPtyAdapter[] {
   const provider = getDaemonProvider()
@@ -36,19 +41,6 @@ function isDaemonDegraded(): boolean {
     provider instanceof DegradedDaemonPtyProvider &&
     provider.routesFreshSpawnsToLocalProvider === true
   )
-}
-
-async function collectSessions(adapters: DaemonPtyAdapter[]): Promise<DaemonSessionInfo[]> {
-  const results = await Promise.allSettled(
-    adapters.map(async (adapter) => {
-      const sessions = await adapter.listSessions()
-      return sessions.map<DaemonSessionInfo>((s) => ({
-        ...s,
-        protocolVersion: adapter.protocolVersion
-      }))
-    })
-  )
-  return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
 }
 
 export function registerDaemonManagementHandlers(): void {
@@ -72,9 +64,17 @@ export function registerDaemonManagementHandlers(): void {
 
   ipcMain.handle(
     'pty:management:listSessions',
-    async (): Promise<{ sessions: DaemonSessionInfo[]; degraded: boolean }> => {
-      const sessions = await collectSessions(getDaemonAdapters())
-      return { sessions, degraded: isDaemonDegraded() }
+    async (): Promise<{
+      sessions: ManagementSession[]
+      degraded: boolean
+      inventoryStatus: InventoryStatus
+    }> => {
+      const inventory = await collectManagementSessions(getDaemonAdapters())
+      return {
+        sessions: await resolveManagementSessionCwds(inventory.sessions),
+        degraded: isDaemonDegraded(),
+        inventoryStatus: inventory.inventoryStatus
+      }
     }
   )
 
@@ -85,25 +85,58 @@ export function registerDaemonManagementHandlers(): void {
       killedCount: number
       remainingCount: number
       killedSessionIds: string[]
+      status: TerminationStatus
+      inventoryStatus: InventoryStatus
     }> => {
       const adapters = getDaemonAdapters()
       // Why: snapshot session IDs up front so mid-kill respawns aren't counted as "remaining".
-      const initial = await collectSessions(adapters)
-      const initialIds = new Set(initial.map((s) => s.sessionId))
-      const initialCount = initial.length
+      const initial = await collectManagementSessions(adapters)
+      const initialIds = new Set(initial.sessions.map(({ session }) => session.sessionId))
+      const initialCount = initial.sessions.length
 
       if (initialCount === 0) {
-        return { killedCount: 0, remainingCount: 0, killedSessionIds: [] }
+        return {
+          killedCount: 0,
+          remainingCount: 0,
+          killedSessionIds: [],
+          status: initial.inventoryStatus === 'complete' ? 'exited' : 'unverifiable',
+          inventoryStatus: initial.inventoryStatus
+        }
       }
+
+      const preflightUnverifiableAdapters = new Set<DaemonPtyAdapter>()
+      const sessionsByOwner = new Map<DaemonPtyAdapter, OwnedSession[]>()
+      for (const owned of initial.sessions) {
+        const sessions = sessionsByOwner.get(owned.owner) ?? []
+        sessions.push(owned)
+        sessionsByOwner.set(owned.owner, sessions)
+      }
+      const preflightResults = await Promise.all(
+        [...sessionsByOwner].map(async ([owner, ownedSessions]) => {
+          try {
+            const live = await owner.listSessions()
+            const currentIdentity = owner.getLastAuthenticatedDaemonIdentity()
+            if (!sameKnownDaemonIdentity(ownedSessions[0].ownerIdentity, currentIdentity)) {
+              preflightUnverifiableAdapters.add(owner)
+              return []
+            }
+            return ownedSessions.filter(({ session }) =>
+              live.some(
+                (candidate) =>
+                  candidate.sessionId === session.sessionId &&
+                  sameSessionIncarnation(candidate, session.incarnationId)
+              )
+            )
+          } catch {
+            preflightUnverifiableAdapters.add(owner)
+            return []
+          }
+        })
+      )
 
       // Why: no retry — session.kill() is idempotent and runs its own kill ladder; allSettled so one rejection doesn't abort the rest.
       await Promise.allSettled(
-        initial.map(async (session) => {
-          // Why: assumes PROTOCOL_VERSION stays distinct from PREVIOUS_DAEMON_PROTOCOL_VERSIONS (types.ts), else legacy sessions misroute here.
-          const owner = adapters.find((a) => a.protocolVersion === session.protocolVersion)
-          if (!owner) {
-            return
-          }
+        preflightResults.flat().map(async ({ session, owner }) => {
           // Why: immediate=true only matters to legacy/future adapters; swallow rejections since remainingCount reports stuck sessions.
           await owner.shutdown(session.sessionId, { immediate: true }).catch(() => {})
         })
@@ -112,53 +145,113 @@ export function registerDaemonManagementHandlers(): void {
       // Why: count only the initial-snapshot intersection so renderer respawns mid-kill aren't counted as remaining.
       let remainingOriginalCount = initialCount
       let remainingOriginalIds = initialIds
-      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-        await sleep(POLL_INTERVAL_MS)
-        const current = await collectSessions(adapters)
-        remainingOriginalIds = new Set(
-          current
-            .filter((session) => initialIds.has(session.sessionId))
-            .map((session) => session.sessionId)
-        )
+      let inventoryStatus = initial.inventoryStatus
+      if (preflightUnverifiableAdapters.size > 0) {
+        inventoryStatus = 'unverifiable'
+      }
+      for (let attempt = 0; attempt < MAX_TERMINATION_POLL_ATTEMPTS; attempt += 1) {
+        await sleepForTerminationPoll(TERMINATION_POLL_INTERVAL_MS)
+        const current = await collectManagementSessions(adapters)
+        if (current.inventoryStatus === 'unverifiable') {
+          inventoryStatus = 'unverifiable'
+        }
+        remainingOriginalIds = new Set([
+          ...current.sessions
+            .filter(({ session }) => initialIds.has(session.sessionId))
+            .map(({ session }) => session.sessionId),
+          ...initial.sessions
+            .filter(
+              ({ owner, ownerIdentity }) =>
+                preflightUnverifiableAdapters.has(owner) ||
+                current.failedAdapters.has(owner) ||
+                !sameKnownDaemonIdentity(ownerIdentity, current.adapterIdentities.get(owner))
+            )
+            .map(({ session }) => session.sessionId)
+        ])
         remainingOriginalCount = remainingOriginalIds.size
-        if (remainingOriginalCount === 0) {
+        if (remainingOriginalCount === 0 && current.inventoryStatus === 'complete') {
           break
         }
       }
 
-      const killedCount = initialCount - remainingOriginalCount
+      const killedCount = inventoryStatus === 'complete' ? initialCount - remainingOriginalCount : 0
       return {
         killedCount,
         remainingCount: remainingOriginalCount,
-        killedSessionIds: [...initialIds].filter(
-          (sessionId) => !remainingOriginalIds.has(sessionId)
-        )
+        killedSessionIds:
+          inventoryStatus === 'complete'
+            ? [...initialIds].filter((sessionId) => !remainingOriginalIds.has(sessionId))
+            : [],
+        status:
+          inventoryStatus === 'unverifiable'
+            ? 'unverifiable'
+            : remainingOriginalCount === 0
+              ? 'exited'
+              : 'live',
+        inventoryStatus
       }
     }
   )
 
   ipcMain.handle(
     'pty:management:killOne',
-    async (_event, args: { sessionId: string }): Promise<{ success: boolean }> => {
-      if (typeof args?.sessionId !== 'string' || args.sessionId.length === 0) {
-        return { success: false }
+    async (
+      _event,
+      args: { sessionId: string; incarnationId?: string }
+    ): Promise<{ success: boolean; status: TerminationStatus }> => {
+      if (
+        typeof args?.sessionId !== 'string' ||
+        args.sessionId.length === 0 ||
+        args.sessionId.length > 512 ||
+        (args.incarnationId !== undefined &&
+          (typeof args.incarnationId !== 'string' || args.incarnationId.length === 0))
+      ) {
+        return { success: false, status: 'unverifiable' }
       }
       const adapters = getDaemonAdapters()
-      const sessions = await collectSessions(adapters)
-      const match = sessions.find((s) => s.sessionId === args.sessionId)
+      const inventory = await collectManagementSessions(adapters)
+      const match = inventory.sessions.find(({ session }) => session.sessionId === args.sessionId)
       if (!match) {
-        return { success: false }
+        // The UI selection does not carry its daemon endpoint identity. A complete inventory of
+        // the current endpoints cannot prove a session selected from a superseded daemon exited.
+        return { success: false, status: 'unverifiable' }
       }
-      const owner = adapters.find((a) => a.protocolVersion === match.protocolVersion)
-      if (!owner) {
-        return { success: false }
+      const expectedIncarnationId = args.incarnationId ?? match.session.incarnationId
+      if (!sameSessionIncarnation(match.session, args.incarnationId)) {
+        return { success: false, status: 'live' }
       }
+
+      // Why: close the list→kill window enough to reject an already-replaced ID. The daemon RPC
+      // is ID-only, so this is a best available identity fence until the wire supports a CAS kill.
       try {
-        await owner.shutdown(args.sessionId, { immediate: true })
-        return { success: true }
+        const preKill = (await match.owner.listSessions()).find(
+          (session) => session.sessionId === args.sessionId
+        )
+        if (
+          !sameKnownDaemonIdentity(
+            match.ownerIdentity,
+            match.owner.getLastAuthenticatedDaemonIdentity()
+          )
+        ) {
+          return { success: false, status: 'unverifiable' }
+        }
+        if (!preKill) {
+          return { success: false, status: 'exited' }
+        }
+        if (!sameSessionIncarnation(preKill, expectedIncarnationId)) {
+          return { success: false, status: 'live' }
+        }
+        await match.owner.shutdown(args.sessionId, { immediate: true })
       } catch {
-        return { success: false }
+        // A rejected request can still race a successful signal; verify the durable inventory.
       }
+      const status = await verifyManagementSessionExit(
+        match.owner,
+        args.sessionId,
+        expectedIncarnationId,
+        match.ownerIdentity
+      )
+      return { success: status === 'exited', status }
     }
   )
 

@@ -42,22 +42,20 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Live interactive view of an agent's terminal, streaming from the main
- * process's per-PTY headless emulator. On open it claims the PTY grid for the
- * dialog's own box (see createPreviewGridClaim), so the terminal renders
- * properly sized rather than scaled. The terminal itself is always created at
- * the PTY's REAL cols/rows, and when someone else owns the grid (a phone, a
- * host reclaim) createPreviewBoxFit scales the oversized frame down. Keystrokes
- * pass through to the PTY; DOM renderer so it never grabs a WebGL context.
+ * Live view of an agent terminal. Interactive previews claim the grid and send
+ * input; read-only previews preserve the PTY grid and only scale its frame.
  */
 export function AgentTerminalPreview({
   ptyId,
   terminalInput = null,
+  readOnly = false,
   className
 }: {
   ptyId: string
   /** Host-input facts relayed with the card; null routes bytes by client OS. */
   terminalInput?: DashboardCardTerminalInput | null
+  /** Observe the PTY without sending input, claiming focus, or changing its grid. */
+  readOnly?: boolean
   className?: string
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -119,11 +117,13 @@ export function AgentTerminalPreview({
     const boxFit = createPreviewBoxFit({ container, getTerminal: () => terminal })
     const scheduleFit = boxFit.schedule
 
-    const gridClaim = createPreviewGridClaim({
-      ptyId,
-      container,
-      getTerminal: () => terminal
-    })
+    const gridClaim = readOnly
+      ? { schedule: () => {}, dispose: () => {} }
+      : createPreviewGridClaim({
+          ptyId,
+          container,
+          getTerminal: () => terminal
+        })
     // Box growth/shrink (window resize) changes the reachable grid.
     const boxResizeObserver =
       typeof ResizeObserver === 'undefined'
@@ -252,8 +252,8 @@ export function AgentTerminalPreview({
     ): void => {
       const snap = connection.snapshot!
       if (!terminal) {
-        terminal = new Terminal(
-          buildPreviewTerminalOptions({
+        terminal = new Terminal({
+          ...buildPreviewTerminalOptions({
             settings: settingsRef.current,
             terminalInput: terminalInputRef.current,
             macOptionIsMeta: macOptionAsAltRef.current === 'true',
@@ -262,8 +262,9 @@ export function AgentTerminalPreview({
             cols: clamp(snap.cols ?? FALLBACK_COLS, 2, 500),
             rows: clamp(snap.rows ?? FALLBACK_ROWS, 2, 200),
             scrollback: PREVIEW_SCROLLBACK_BUFFER_ROWS
-          })
-        )
+          }),
+          disableStdin: readOnly
+        })
         try {
           terminal.open(container)
         } catch {
@@ -273,9 +274,11 @@ export function AgentTerminalPreview({
         }
         terminalRef.current = terminal
         installTerminalCompatibility()
-        installInputRouting()
-        installImeNativeTextBridge()
-        installKeyHandler()
+        if (!readOnly) {
+          installInputRouting()
+          installImeNativeTextBridge()
+          installKeyHandler()
+        }
       } else if (replaceExisting) {
         // Why: keep the old frame visible during capture, then atomically replace it once the authoritative snapshot arrives.
         terminal.resize(
@@ -312,7 +315,9 @@ export function AgentTerminalPreview({
       }
       scheduleFit()
       gridClaim.schedule()
-      terminal.focus()
+      if (!readOnly) {
+        terminal.focus()
+      }
     }
 
     const setup = async (replaceExisting = false): Promise<void> => {
@@ -354,19 +359,25 @@ export function AgentTerminalPreview({
       replayConnection(connection, replaceExisting, () => void setup(true))
     }
 
-    const disposeAppMenuClipboard = installPreviewTerminalAppMenuClipboard({
-      container,
-      getTerminal: () => terminal,
-      pasteClipboardText: (activeElement, source) => void pasteClipboardText(activeElement, source)
-    })
-    const disposeRightClickPaste = installPreviewTerminalRightClickPaste({
-      container,
-      getTerminal: () => terminal,
-      // Same default as the pane: Windows users expect terminal-style right-click.
-      isRightClickToPasteEnabled: () =>
-        settingsRef.current?.terminalRightClickToPaste ?? isWindowsUserAgent(),
-      pasteClipboardText: (activeElement, source) => void pasteClipboardText(activeElement, source)
-    })
+    const disposeAppMenuClipboard = readOnly
+      ? () => {}
+      : installPreviewTerminalAppMenuClipboard({
+          container,
+          getTerminal: () => terminal,
+          pasteClipboardText: (activeElement, source) =>
+            void pasteClipboardText(activeElement, source)
+        })
+    const disposeRightClickPaste = readOnly
+      ? () => {}
+      : installPreviewTerminalRightClickPaste({
+          container,
+          getTerminal: () => terminal,
+          // Same default as the pane: Windows users expect terminal-style right-click.
+          isRightClickToPasteEnabled: () =>
+            settingsRef.current?.terminalRightClickToPaste ?? isWindowsUserAgent(),
+          pasteClipboardText: (activeElement, source) =>
+            void pasteClipboardText(activeElement, source)
+        })
 
     offData = window.api.terminalPreview.onData((payload) => {
       if (payload.ptyId !== ptyId) {
@@ -399,7 +410,7 @@ export function AgentTerminalPreview({
       terminal?.dispose()
       terminalRef.current = null
     }
-  }, [ptyId, terminalTheme, terminalMode])
+  }, [ptyId, terminalTheme, terminalMode, readOnly])
 
   // Why: appearance settings must land on the open terminal, and the OS input
   // source can flip Option-as-Alt with no settings change at all. A remount

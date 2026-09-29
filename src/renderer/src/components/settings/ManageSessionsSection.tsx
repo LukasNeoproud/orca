@@ -1,194 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
-import type { PtyManagementSession } from '../../../../preload/api-types'
+import { useState } from 'react'
+import { ArrowRight, LoaderCircle, RotateCw, Trash2 } from 'lucide-react'
+import { translate } from '@/i18n/i18n'
+import { useAppStore } from '../../store'
 import { SearchableSetting } from './SearchableSetting'
 import { getManageSessionsSearchEntries } from './terminal-search'
-import { useAppStore } from '../../store'
-import { activateAndRevealWorktree } from '@/lib/worktree-activation'
-import { activateTabAndFocusPane } from '@/lib/activate-tab-and-focus-pane'
 import { useDaemonActions, DaemonActionDialog } from '../shared/useDaemonActions'
-import { ManageSessionKillDialog } from './ManageSessionKillDialog'
-import { ManageSessionsTable } from './ManageSessionsTable'
 import { notifyDaemonSessionInventoryInvalidated } from '../status-bar/daemon-session-inventory-invalidation'
 import {
   MANAGE_SESSIONS_SECTION_ID,
   TerminalTccAttributionNotice
 } from './TerminalTccAttributionNotice'
-import { translate } from '@/i18n/i18n'
-
-type ConfirmKind = 'killOne'
+import { Button } from '../ui/button'
 
 export function ManageSessionsSection(): React.JSX.Element {
-  const [sessions, setSessions] = useState<PtyManagementSession[]>([])
-  const [isRefreshing, setIsRefreshing] = useState(true)
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
-  const [pendingKillSession, setPendingKillSession] = useState<PtyManagementSession | null>(null)
-  const [busyKind, setBusyKind] = useState<ConfirmKind | null>(null)
   const [attributionRefreshRevision, setAttributionRefreshRevision] = useState(0)
-  const optimisticRollback = useRef<PtyManagementSession[] | null>(null)
-  const isMounted = useRef(true)
-  const mutationInFlight = useRef(false)
-
-  const tabsByWorktree = useAppStore((s) => s.tabsByWorktree)
-  const ptyIdsByTabId = useAppStore((s) => s.ptyIdsByTabId)
-  const setActiveView = useAppStore((s) => s.setActiveView)
-  const closeSettingsPage = useAppStore((s) => s.closeSettingsPage)
-
-  const ptyIdToTabId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const [tabId, ptyIds] of Object.entries(ptyIdsByTabId)) {
-      for (const ptyId of ptyIds) {
-        map.set(ptyId, tabId)
-      }
-    }
-    return map
-  }, [ptyIdsByTabId])
-
-  const tabIdToWorktreeId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const [worktreeId, tabs] of Object.entries(tabsByWorktree)) {
-      for (const tab of tabs) {
-        map.set(tab.id, worktreeId)
-      }
-    }
-    return map
-  }, [tabsByWorktree])
-
-  const handleNavigate = useCallback(
-    (tabId: string) => {
-      const worktreeId = tabIdToWorktreeId.get(tabId)
-      if (worktreeId) {
-        activateAndRevealWorktree(worktreeId)
-      }
-      setActiveView('terminal')
-      activateTabAndFocusPane(tabId, null)
-      closeSettingsPage()
-    },
-    [tabIdToWorktreeId, setActiveView, closeSettingsPage]
-  )
-
-  useEffect(() => {
-    isMounted.current = true
-    return () => {
-      isMounted.current = false
-    }
-  }, [])
-
-  const refresh = useCallback(async (): Promise<PtyManagementSession[]> => {
-    setIsRefreshing(true)
-    try {
-      const result = await window.api.pty.management.listSessions()
-      if (!isMounted.current || mutationInFlight.current) {
-        return result.sessions
-      }
-      setSessions(result.sessions)
-      return result.sessions
-    } catch (err) {
-      console.error('[manage-sessions] listSessions failed', err)
-      if (isMounted.current && !mutationInFlight.current) {
-        toast.error(
-          translate(
-            'auto.components.settings.ManageSessionsSection.c535cbdd09',
-            'Couldn’t load sessions.'
-          ),
-          {
-            description: err instanceof Error ? err.message : undefined
-          }
-        )
-      }
-      return []
-    } finally {
-      if (isMounted.current) {
-        setIsRefreshing(false)
-        setHasLoadedOnce(true)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
-
-  const sessionCount = sessions.length
-
+  const openAgentManager = useAppStore((state) => state.openAgentManager)
   const daemonActions = useDaemonActions({
-    onKillAllStart: () => {
-      mutationInFlight.current = true
-      optimisticRollback.current = sessions
-      setSessions([])
-    },
-    onKillAllError: () => {
-      if (isMounted.current && optimisticRollback.current) {
-        setSessions(optimisticRollback.current)
-      }
-    },
-    onKillAllSettled: () => {
-      optimisticRollback.current = null
-      mutationInFlight.current = false
-      void refresh()
-    },
+    onKillAllSettled: notifyDaemonSessionInventoryInvalidated,
     onRestartSettled: () => {
       notifyDaemonSessionInventoryInvalidated()
       setAttributionRefreshRevision((revision) => revision + 1)
-      void refresh()
     }
   })
-
-  const handleKillOne = useCallback(
-    async (session: PtyManagementSession) => {
-      setBusyKind('killOne')
-      mutationInFlight.current = true
-      try {
-        const { success } = await window.api.pty.management.killOne({
-          sessionId: session.sessionId
-        })
-        if (success) {
-          toast.success(
-            translate(
-              'auto.components.settings.ManageSessionsSection.bfba05dccd',
-              'Killed session.'
-            )
-          )
-        } else {
-          toast.error(
-            translate(
-              'auto.components.settings.ManageSessionsSection.0735b7a586',
-              'Couldn’t kill session — it may already be gone.'
-            )
-          )
-        }
-        mutationInFlight.current = false
-        notifyDaemonSessionInventoryInvalidated()
-        await refresh()
-      } catch (err) {
-        toast.error(
-          translate(
-            'auto.components.settings.ManageSessionsSection.8dbd96b463',
-            'Couldn’t kill session.'
-          ),
-          {
-            description: err instanceof Error ? err.message : undefined
-          }
-        )
-      } finally {
-        mutationInFlight.current = false
-        if (isMounted.current) {
-          setBusyKind(null)
-          setPendingKillSession(null)
-        }
-      }
-    },
-    [refresh]
-  )
-
-  const runConfirmed = useCallback(() => {
-    if (!pendingKillSession) {
-      return
-    }
-    void handleKillOne(pendingKillSession)
-  }, [pendingKillSession, handleKillOne])
-
-  const isBusy = busyKind !== null || daemonActions.isBusy
 
   return (
     <section className="space-y-4">
@@ -201,8 +34,8 @@ export function ManageSessionsSection(): React.JSX.Element {
         </h3>
         <p className="text-xs text-muted-foreground">
           {translate(
-            'auto.components.settings.ManageSessionsSection.7c4889a724',
-            'Recover from a frozen or misbehaving terminal by killing sessions or restarting the underlying daemon.'
+            'agents.manager.settingsDescription',
+            'Inspect active agents and terminals, then jump directly to the workspace that owns them.'
           )}
         </p>
       </div>
@@ -218,28 +51,60 @@ export function ManageSessionsSection(): React.JSX.Element {
           showManageSessionsButton={false}
           refreshRevision={attributionRefreshRevision}
         />
-        <ManageSessionsTable
-          sessions={sessions}
-          hasLoadedOnce={hasLoadedOnce}
-          sessionCount={sessionCount}
-          isBusy={isBusy}
-          isRefreshing={isRefreshing}
-          daemonBusyKind={daemonActions.busyKind}
-          ptyIdToTabId={ptyIdToTabId}
-          onRefresh={() => void refresh()}
-          onKillAll={() => daemonActions.setPending('killAll')}
-          onRestartDaemon={() => daemonActions.setPending('restart')}
-          onNavigate={handleNavigate}
-          onRequestKill={setPendingKillSession}
-        />
+        <Button variant="outline" size="sm" onClick={openAgentManager}>
+          {translate('agents.manager.open', 'Open agents and terminals')}
+          <ArrowRight />
+        </Button>
+
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="space-y-1">
+            <p className="text-xs font-medium">
+              {translate('agents.manager.advancedControls', 'Advanced daemon controls')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                'agents.manager.advancedControlsDescription',
+                'Use these recovery actions only when terminal sessions are frozen or misbehaving.'
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={daemonActions.isBusy}
+              onClick={() => daemonActions.setPending('killAll')}
+            >
+              {daemonActions.busyKind === 'killAll' ? (
+                <LoaderCircle className="animate-spin" />
+              ) : (
+                <Trash2 />
+              )}
+              {translate(
+                'auto.components.settings.ManageSessionsSection.3282db098c',
+                'Kill all sessions'
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={daemonActions.isBusy}
+              onClick={() => daemonActions.setPending('restart')}
+            >
+              {daemonActions.busyKind === 'restart' ? (
+                <LoaderCircle className="animate-spin" />
+              ) : (
+                <RotateCw />
+              )}
+              {translate(
+                'auto.components.settings.ManageSessionsSection.5ed15e778c',
+                'Restart daemon'
+              )}
+            </Button>
+          </div>
+        </div>
       </SearchableSetting>
 
-      <ManageSessionKillDialog
-        session={pendingKillSession}
-        isBusy={isBusy}
-        onCancel={() => setPendingKillSession(null)}
-        onConfirm={runConfirmed}
-      />
       <DaemonActionDialog api={daemonActions} />
     </section>
   )

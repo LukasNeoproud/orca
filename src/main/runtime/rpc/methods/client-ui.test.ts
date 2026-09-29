@@ -401,6 +401,18 @@ describe('client UI RPC methods', () => {
     expect(response).toMatchObject({ ok: true, result: { ui: omitPairingLocalUiFields(ui) } })
   })
 
+  it('maps the desktop-only Agent Manager view before publishing UI state', async () => {
+    const runtime = {
+      getRuntimeId: () => 'test-runtime',
+      getUIState: vi.fn(() => ({ ...getDefaultUIState(), activeView: 'agent-manager' }))
+    } as unknown as OrcaRuntimeService
+    const dispatcher = new RpcDispatcher({ runtime, methods: CLIENT_UI_METHODS })
+
+    const response = await dispatcher.dispatch(makeRequest('ui.get'))
+
+    expect(response).toMatchObject({ ok: true, result: { ui: { activeView: 'terminal' } } })
+  })
+
   it('persists UI updates on the runtime host and returns the updated state', async () => {
     const updated: PersistedUIState = {
       ...getDefaultUIState(),

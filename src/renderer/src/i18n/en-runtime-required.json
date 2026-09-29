@@ -1296,7 +1296,12 @@
           "9c940434af": "Switch back to the local runtime to restart or kill local daemon sessions.",
           "a06ababda0": "killAll",
           "ad467eaadc": "Session management is unavailable while a remote runtime server is active.",
-          "e3d1fbe008": "restart"
+          "e3d1fbe008": "restart",
+          "0735b7a586": "Couldn’t kill session — it may already be gone.",
+          "7c4889a724": "Recover from a frozen or misbehaving terminal by killing sessions or restarting the underlying daemon.",
+          "8dbd96b463": "Couldn’t kill session.",
+          "bfba05dccd": "Killed session.",
+          "c535cbdd09": "Couldn’t load sessions."
         },
         "McpConfigFileRow": {
           "845ae248e8": "valid"
@@ -2221,7 +2226,9 @@
             "6d9793d4bc": "Resource Manager - Terminals",
             "996295bff2": "orphan terminal",
             "9e2525c89f": "Resident memory held by Orca plus the processes under each worktree's terminals.",
-            "e7ccce7e87": "of system RAM"
+            "e7ccce7e87": "of system RAM",
+            "c7e3b1a0d9f2": "End {{value0}} orphan terminal",
+            "d8f4c2b1e0a3": "End {{value0}} orphan terminals"
           },
           "SshStatusSegment": {
             "3d0128b105": "connected",

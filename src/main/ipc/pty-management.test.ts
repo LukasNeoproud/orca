@@ -102,7 +102,10 @@ function makeSession(
 type MockAdapter = {
   protocolVersion: number
   listSessions: ReturnType<typeof vi.fn>
+  getCwd: ReturnType<typeof vi.fn>
   shutdown: ReturnType<typeof vi.fn>
+  providesAgentSessionOwnerListings: ReturnType<typeof vi.fn>
+  getLastAuthenticatedDaemonIdentity: ReturnType<typeof vi.fn>
 }
 
 function makeAdapter(
@@ -117,7 +120,14 @@ function makeAdapter(
   return {
     protocolVersion,
     listSessions: vi.fn(async () => sessions.map(({ protocolVersion: _pv, ...rest }) => rest)),
-    shutdown: vi.fn(shutdownImpl ?? (async () => {}))
+    getCwd: vi.fn(async () => ''),
+    shutdown: vi.fn(shutdownImpl ?? (async () => {})),
+    providesAgentSessionOwnerListings: vi.fn(() => false),
+    getLastAuthenticatedDaemonIdentity: vi.fn(() => ({
+      pid: protocolVersion,
+      startedAtMs: protocolVersion,
+      launchNonce: `daemon-${protocolVersion}`
+    }))
   }
 }
 
@@ -155,6 +165,51 @@ describe('pty:management IPC handlers', () => {
   })
 
   describe('listSessions', () => {
+    it('resolves missing cwd through each owning daemon without replacing shell-reported cwd', async () => {
+      const { registerDaemonManagementHandlers } = await importFresh()
+      const current = makeAdapter(5, [
+        makeSession('missing', { cwd: null }),
+        makeSession('tracked')
+      ])
+      const legacy = makeAdapter(4, [makeSession('legacy', { cwd: null })])
+      current.getCwd.mockResolvedValue('/current')
+      legacy.getCwd.mockResolvedValue('/legacy')
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current, [legacy]))
+      registerDaemonManagementHandlers()
+      const result = (await buildHandlerMap()['pty:management:listSessions']({})) as {
+        sessions: DaemonSessionInfo[]
+      }
+      expect(result.sessions.map(({ cwd }) => cwd)).toEqual(['/current', '/home/user', '/legacy'])
+      expect(current.getCwd).toHaveBeenCalledExactlyOnceWith('missing')
+      expect(legacy.getCwd).toHaveBeenCalledExactlyOnceWith('legacy')
+    })
+
+    it.each(['empty', 'error', 'changed daemon'])(
+      'keeps missing cwd and complete inventory when the cwd probe returns %s',
+      async (outcome) => {
+        const { registerDaemonManagementHandlers } = await importFresh()
+        const current = makeAdapter(5, [makeSession('missing', { cwd: null })])
+        current.getCwd.mockImplementation(async () => {
+          if (outcome === 'error') {
+            throw new Error('cwd unavailable')
+          }
+          if (outcome === 'changed daemon') {
+            current.getLastAuthenticatedDaemonIdentity.mockReturnValue(null)
+            return '/different-daemon'
+          }
+          return ''
+        })
+        getDaemonProviderMock.mockReturnValue(current)
+        registerDaemonManagementHandlers()
+        const result = (await buildHandlerMap()['pty:management:listSessions']({})) as {
+          sessions: DaemonSessionInfo[]
+          inventoryStatus: string
+        }
+        expect(result.sessions[0].cwd).toBeNull()
+        expect(result.inventoryStatus).toBe('complete')
+      }
+    )
+
     it('merges sessions across current + legacy adapters with protocolVersion', async () => {
       const current = makeAdapter(5, [makeSession('new-1'), makeSession('new-2')])
       const legacy = makeAdapter(3, [makeSession('old-1', { protocolVersion: 3 })])
@@ -166,10 +221,12 @@ describe('pty:management IPC handlers', () => {
       const result = (await handlers['pty:management:listSessions']({})) as {
         sessions: DaemonSessionInfo[]
         degraded: boolean
+        inventoryStatus: string
       }
 
       expect(result.sessions).toHaveLength(3)
       expect(result.degraded).toBe(false)
+      expect(result.inventoryStatus).toBe('complete')
       const byId = new Map(result.sessions.map((s) => [s.sessionId, s]))
       expect(byId.get('new-1')?.protocolVersion).toBe(5)
       expect(byId.get('new-2')?.protocolVersion).toBe(5)
@@ -186,9 +243,11 @@ describe('pty:management IPC handlers', () => {
       const result = (await handlers['pty:management:listSessions']({})) as {
         sessions: DaemonSessionInfo[]
         degraded: boolean
+        inventoryStatus: string
       }
 
       expect(result.degraded).toBe(true)
+      expect(result.inventoryStatus).toBe('complete')
       expect(result.sessions.map((s) => s.sessionId)).toEqual(['preserved-1'])
     })
 
@@ -214,9 +273,11 @@ describe('pty:management IPC handlers', () => {
       const handlers = buildHandlerMap()
       const result = (await handlers['pty:management:listSessions']({})) as {
         sessions: DaemonSessionInfo[]
+        inventoryStatus: string
       }
 
       expect(result.sessions).toEqual([])
+      expect(result.inventoryStatus).toBe('unverifiable')
     })
 
     it('tolerates a failing adapter by skipping its sessions', async () => {
@@ -232,10 +293,42 @@ describe('pty:management IPC handlers', () => {
       const handlers = buildHandlerMap()
       const result = (await handlers['pty:management:listSessions']({})) as {
         sessions: DaemonSessionInfo[]
+        inventoryStatus: string
       }
 
       expect(result.sessions).toHaveLength(1)
       expect(result.sessions[0].sessionId).toBe('new-1')
+      expect(result.inventoryStatus).toBe('unverifiable')
+    })
+
+    it('projects conservative owner and pane-binding evidence', async () => {
+      const owned = makeSession('repo::/tmp/wt@@owned', {
+        incarnationId: 'inc-owned',
+        terminalHandle: 'term_owned',
+        agentSessionOwners: [{} as never]
+      })
+      const unowned = makeSession('repo::/tmp/wt@@unowned', { agentSessionOwners: [] })
+      const independent = makeSession('global-floating-terminal@@independent')
+      const current = makeAdapter(26, [owned, unowned, independent])
+      current.providesAgentSessionOwnerListings.mockReturnValue(true)
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = (await buildHandlerMap()['pty:management:listSessions']({})) as {
+        sessions: Record<string, unknown>[]
+      }
+
+      expect(result.sessions[0]).toMatchObject({
+        sessionId: owned.sessionId,
+        incarnationId: 'inc-owned',
+        agentOwnership: 'present',
+        worktreeId: 'repo::/tmp/wt'
+      })
+      expect(result.sessions[0]).not.toHaveProperty('paneBound')
+      expect(result.sessions[1]).toMatchObject({ agentOwnership: 'absent' })
+      expect(result.sessions[1]).not.toHaveProperty('paneBound')
+      expect(result.sessions[2]).toMatchObject({ worktreeId: 'global-floating-terminal' })
     })
   })
 
@@ -307,7 +400,9 @@ describe('pty:management IPC handlers', () => {
       expect(result).toEqual({
         killedCount: 3,
         remainingCount: 0,
-        killedSessionIds: ['new-1', 'new-2', 'old-1']
+        killedSessionIds: ['new-1', 'new-2', 'old-1'],
+        status: 'exited',
+        inventoryStatus: 'complete'
       })
       // Each initial session receives exactly one shutdown — no retries.
       expect(current.shutdown).toHaveBeenCalledTimes(2)
@@ -335,7 +430,13 @@ describe('pty:management IPC handlers', () => {
       const handlers = buildHandlerMap()
       const result = await runKillAllWithPolls(handlers['pty:management:killAll'])
 
-      expect(result).toEqual({ killedCount: 0, remainingCount: 1, killedSessionIds: [] })
+      expect(result).toEqual({
+        killedCount: 0,
+        remainingCount: 1,
+        killedSessionIds: [],
+        status: 'live',
+        inventoryStatus: 'complete'
+      })
       // One shutdown fired — no per-session retry. Initial-snapshot
       // accounting means the stuck session is counted once.
       expect(current.shutdown).toHaveBeenCalledTimes(1)
@@ -372,7 +473,9 @@ describe('pty:management IPC handlers', () => {
       expect(result).toEqual({
         killedCount: 2,
         remainingCount: 0,
-        killedSessionIds: ['a', 'b']
+        killedSessionIds: ['a', 'b'],
+        status: 'exited',
+        inventoryStatus: 'complete'
       })
     })
 
@@ -410,7 +513,49 @@ describe('pty:management IPC handlers', () => {
       expect(result).toEqual({
         killedCount: 1,
         remainingCount: 1,
-        killedSessionIds: ['b']
+        killedSessionIds: ['b'],
+        status: 'live',
+        inventoryStatus: 'complete'
+      })
+    })
+
+    it('does not turn a failed verification inventory into proof of exit', async () => {
+      const current = makeAdapter(5, [makeSession('unverifiable')])
+      current.listSessions
+        .mockResolvedValueOnce([makeSession('unverifiable')])
+        .mockRejectedValue(new Error('daemon disconnected'))
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = await runKillAllWithPolls(buildHandlerMap()['pty:management:killAll'])
+
+      expect(result).toEqual({
+        killedCount: 0,
+        remainingCount: 1,
+        killedSessionIds: [],
+        status: 'unverifiable',
+        inventoryStatus: 'unverifiable'
+      })
+    })
+
+    it('does not signal through an adapter that reconnected to a replacement daemon', async () => {
+      const current = makeAdapter(5, [makeSession('survivor', { incarnationId: 'inc-old' })])
+      current.getLastAuthenticatedDaemonIdentity
+        .mockReturnValueOnce({ pid: 1, startedAtMs: 1, launchNonce: 'old' })
+        .mockReturnValue({ pid: 2, startedAtMs: 2, launchNonce: 'replacement' })
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = await runKillAllWithPolls(buildHandlerMap()['pty:management:killAll'])
+
+      expect(current.shutdown).not.toHaveBeenCalled()
+      expect(result).toMatchObject({
+        killedCount: 0,
+        remainingCount: 1,
+        status: 'unverifiable',
+        inventoryStatus: 'unverifiable'
       })
     })
   })
@@ -419,6 +564,10 @@ describe('pty:management IPC handlers', () => {
     it('routes to the adapter whose protocolVersion owns the session', async () => {
       const current = makeAdapter(5, [makeSession('new-1')])
       const legacy = makeAdapter(3, [makeSession('old-1', { protocolVersion: 3 })])
+      legacy.listSessions
+        .mockResolvedValueOnce([makeSession('old-1', { protocolVersion: 3 })])
+        .mockResolvedValueOnce([makeSession('old-1', { protocolVersion: 3 })])
+        .mockResolvedValueOnce([])
       const { registerDaemonManagementHandlers } = await importFresh()
       getDaemonProviderMock.mockReturnValue(await makeRouter(current, [legacy]))
       registerDaemonManagementHandlers()
@@ -426,9 +575,11 @@ describe('pty:management IPC handlers', () => {
       const handlers = buildHandlerMap()
       const result = (await handlers['pty:management:killOne']({}, { sessionId: 'old-1' })) as {
         success: boolean
+        status: string
       }
 
       expect(result.success).toBe(true)
+      expect(result.status).toBe('exited')
       expect(legacy.shutdown).toHaveBeenCalledWith('old-1', { immediate: true })
       expect(current.shutdown).not.toHaveBeenCalled()
     })
@@ -442,9 +593,74 @@ describe('pty:management IPC handlers', () => {
       const handlers = buildHandlerMap()
       const result = (await handlers['pty:management:killOne']({}, { sessionId: 'ghost' })) as {
         success: boolean
+        status: string
       }
 
-      expect(result.success).toBe(false)
+      expect(result).toEqual({ success: false, status: 'unverifiable' })
+      expect(current.shutdown).not.toHaveBeenCalled()
+    })
+
+    it('refuses to kill a session whose incarnation does not match', async () => {
+      const current = makeAdapter(5, [makeSession('reused', { incarnationId: 'inc-current' })])
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = (await buildHandlerMap()['pty:management:killOne'](
+        {},
+        { sessionId: 'reused', incarnationId: 'inc-stale' }
+      )) as { success: boolean; status: string }
+
+      expect(result).toEqual({ success: false, status: 'live' })
+      expect(current.shutdown).not.toHaveBeenCalled()
+    })
+
+    it('reports unverifiable when the authoritative inventory fails', async () => {
+      const current = makeAdapter(5, [])
+      current.listSessions.mockRejectedValue(new Error('daemon disconnected'))
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = await buildHandlerMap()['pty:management:killOne']({}, { sessionId: 'maybe' })
+
+      expect(result).toEqual({ success: false, status: 'unverifiable' })
+      expect(current.shutdown).not.toHaveBeenCalled()
+    })
+
+    it('does not signal when the daemon identity changes during preflight', async () => {
+      const current = makeAdapter(5, [makeSession('maybe-replaced', { incarnationId: 'inc-1' })])
+      current.getLastAuthenticatedDaemonIdentity
+        .mockReturnValueOnce({ pid: 1, startedAtMs: 1, launchNonce: 'old' })
+        .mockReturnValue({ pid: 2, startedAtMs: 2, launchNonce: 'replacement' })
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = await buildHandlerMap()['pty:management:killOne'](
+        {},
+        { sessionId: 'maybe-replaced', incarnationId: 'inc-1' }
+      )
+
+      expect(result).toEqual({ success: false, status: 'unverifiable' })
+      expect(current.shutdown).not.toHaveBeenCalled()
+    })
+
+    it('does not signal when current daemon identity evidence is missing', async () => {
+      const current = makeAdapter(5, [makeSession('identity-unknown', { incarnationId: 'inc-1' })])
+      current.getLastAuthenticatedDaemonIdentity
+        .mockReturnValueOnce({ pid: 1, startedAtMs: 1, launchNonce: 'known' })
+        .mockReturnValue(null)
+      const { registerDaemonManagementHandlers } = await importFresh()
+      getDaemonProviderMock.mockReturnValue(await makeRouter(current))
+      registerDaemonManagementHandlers()
+
+      const result = await buildHandlerMap()['pty:management:killOne'](
+        {},
+        { sessionId: 'identity-unknown', incarnationId: 'inc-1' }
+      )
+
+      expect(result).toEqual({ success: false, status: 'unverifiable' })
       expect(current.shutdown).not.toHaveBeenCalled()
     })
 

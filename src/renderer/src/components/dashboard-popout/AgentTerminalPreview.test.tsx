@@ -10,6 +10,7 @@ const terminalHarness = vi.hoisted(() => ({
     writeCallbacks: (() => void)[]
     onDataListener: ((data: string) => void) | null
     dispose: ReturnType<typeof vi.fn>
+    focus: ReturnType<typeof vi.fn>
     resize: ReturnType<typeof vi.fn>
     reset: ReturnType<typeof vi.fn>
     paste: ReturnType<typeof vi.fn>
@@ -20,6 +21,7 @@ const terminalHarness = vi.hoisted(() => ({
     modes: { bracketedPasteMode: boolean }
     selectionText: string
     customKeyHandler: ((event: KeyboardEvent) => boolean) | null
+    options: { disableStdin?: boolean }
   }[],
   userInputListener: null as (() => void) | null,
   userInputDispose: vi.fn()
@@ -46,6 +48,7 @@ vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80
     rows = 24
+    options: { disableStdin?: boolean }
     buffer = { active: { cursorY: 0 } }
     writeCallbacks: (() => void)[] = []
     onDataListener: ((data: string) => void) | null = null
@@ -86,7 +89,8 @@ vi.mock('@xterm/xterm', () => ({
       return { dispose: vi.fn() }
     })
 
-    constructor() {
+    constructor(options: { disableStdin?: boolean }) {
+      this.options = options
       terminalHarness.instances.push(this)
     }
   }
@@ -190,6 +194,21 @@ describe('AgentTerminalPreview', () => {
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+  })
+
+  it('keeps read-only previews from input, focus, and grid claims', async () => {
+    render(<AgentTerminalPreview ptyId="pty-1" readOnly />)
+    await waitFor(() => expect(terminalHarness.instances).toHaveLength(1))
+    const terminal = terminalHarness.instances[0]!
+
+    expect(terminal.onDataListener).toBeNull()
+    expect(terminal.options.disableStdin).toBe(true)
+    expect(terminalHarness.userInputListener).toBeNull()
+    expect(imeHarness.forwarders).toHaveLength(0)
+    expect(terminal.focus).not.toHaveBeenCalled()
+    expect(terminal.resize).not.toHaveBeenCalled()
+    expect(input).not.toHaveBeenCalled()
+    expect(fit).not.toHaveBeenCalled()
   })
 
   it('routes signaled user input while a live write parses and drops parser replies', async () => {

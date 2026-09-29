@@ -26,6 +26,7 @@ import type { TerminalExitCause } from '../../shared/terminal-exit-cause'
 export class Session {
   readonly sessionId: string
   readonly incarnationId = randomUUID()
+  readonly createdAt = Date.now()
   readonly terminalHandle: string | null
   readonly launchAgent: TuiAgent | null
   readonly wslDistro: string | null

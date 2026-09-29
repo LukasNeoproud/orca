@@ -33,6 +33,7 @@ export function useResourceUsageStatusController() {
   const setActiveView = useAppStore((s) => s.setActiveView)
   const openModal = useAppStore((s) => s.openModal)
   const openSpacePage = useAppStore((s) => s.openSpacePage)
+  const openAgentManager = useAppStore((s) => s.openAgentManager)
   const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
   const activeView = useAppStore((s) => s.activeView)
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
@@ -127,6 +128,10 @@ export function useResourceUsageStatusController() {
       void refreshSessions()
     }
   })
+  const handleOpenAgentManager = useCallback(() => {
+    setOpen(false)
+    openAgentManager()
+  }, [openAgentManager])
 
   // Why: Space scans can finish after the user closes the full page/popover; the status-bar trigger becomes the handoff point.
   const nextSpaceScanSnapshot = resolveResourceUsageSpaceScanReady({
@@ -232,6 +237,7 @@ export function useResourceUsageStatusController() {
     killing,
     setPopoverBodyNode,
     daemonActions,
+    handleOpenAgentManager,
     resourceSnapshot,
     spaceScanReady,
     recordFeatureInteraction,
