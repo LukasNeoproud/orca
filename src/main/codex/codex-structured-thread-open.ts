@@ -10,6 +10,7 @@ import {
   type CodexAppServerConnection
 } from './codex-app-server-connection'
 import { readCodexThreadId, readCodexThreadPath } from './codex-structured-thread-facts'
+import { codexInteractionMcpConfig } from './codex-interaction-mcp-config'
 import {
   readCodexCustomPermissionsDescription,
   readCodexPermissionsMode
@@ -21,6 +22,7 @@ import {
 
 export type CodexOpenedThread = {
   threadId: string
+  interactionMcp?: true
   thread?: Record<string, unknown>
   /** Metadata-only resume needs a bounded canonical history read before publication. */
   historyRequiresRead?: true
@@ -155,27 +157,43 @@ async function resumeCodexThread(
 }
 
 export async function openCodexThread(
-  connection: Pick<CodexAppServerConnection, 'request'>,
+  connection: Pick<CodexAppServerConnection, 'request' | 'prepareInteractionBridge'>,
   launch: { cwd: string; resumeThreadId: string | null; resumePath?: string | null },
   timeoutMs: number | undefined
 ): Promise<CodexOpenedThread> {
+  const bridgeEnvironment = launch.resumeThreadId
+    ? await connection.prepareInteractionBridge?.(launch.resumeThreadId)
+    : undefined
   const resumeParams = launch.resumeThreadId
     ? {
         threadId: launch.resumeThreadId,
         cwd: launch.cwd,
+        config: codexInteractionMcpConfig(bridgeEnvironment),
         ...(launch.resumePath ? { path: launch.resumePath } : {})
       }
     : null
   const resumed = resumeParams ? await resumeCodexThread(connection, resumeParams, timeoutMs) : null
-  const opened = resumed
-    ? resumed.opened
-    : await startCodexThread(connection, launch.cwd, timeoutMs)
+  let opened = resumed ? resumed.opened : await startCodexThread(connection, launch.cwd, timeoutMs)
   const threadId = readCodexThreadId(opened)
   if (!threadId) {
     throw new Error('codex app-server did not name the thread it opened')
   }
   if (launch.resumeThreadId && threadId !== launch.resumeThreadId) {
     throw new Error(`codex app-server resumed ${threadId} instead of ${launch.resumeThreadId}`)
+  }
+  const interactionMcp = Boolean(resumed) || interactiveThreadStartUnsupported.has(connection)
+  if (!resumed && interactionMcp) {
+    // Bind the bridge after creation, when the new thread's identity is known.
+    const environment = await connection.prepareInteractionBridge?.(threadId)
+    const fallback = await resumeCodexThread(
+      connection,
+      { threadId, cwd: launch.cwd, config: codexInteractionMcpConfig(environment) },
+      timeoutMs
+    )
+    opened = fallback.opened
+    if (readCodexThreadId(opened) !== threadId) {
+      throw new Error('codex app-server resumed a different thread for the interaction fallback')
+    }
   }
   const result = opened as Record<string, unknown>
   const thread =
@@ -188,6 +206,7 @@ export async function openCodexThread(
   const permissionsCustomDescription = readCodexCustomPermissionsDescription(result, launch.cwd)
   return {
     threadId,
+    ...(interactionMcp ? { interactionMcp: true as const } : {}),
     thread,
     ...(resumed?.historyRequiresRead ? { historyRequiresRead: true as const } : {}),
     historyPath: readCodexThreadPath(opened),

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  AgentJournalItemBody,
   AgentJournalMessageItem,
   AgentSessionJournalIdentity
 } from '../../shared/agent-session-journal-types'
+import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
+import { encodeOrcaInteractionResult } from '../../shared/orca-interaction'
+import {
+  CODEX_MCP_ELICITATION_METHOD,
+  encodeOrcaInteractionElicitationMessage,
+  ORCA_INTERACTION_ELICITATION_REQUESTED_SCHEMA,
+  ORCA_INTERACTION_MCP_SERVER
+} from '../../shared/orca-interaction-elicitation'
 import type {
   CodexAppServerConnection,
   CodexAppServerConnectionHandlers,
@@ -227,6 +236,95 @@ describe('CodexStructuredSessionAdapter lifecycle', () => {
     })
 
     expect(connection.replies).toEqual([])
+  })
+
+  it('settles only the interactions resolved by request or completed turn', async () => {
+    const codex = fakeCodex()
+    const rows = new Map<string, AgentJournalItemBody>()
+    const adapter = adapterFor(codex)
+    await adapter.acquire({
+      identity: identityFor('session-1'),
+      fence: 7,
+      spawnToken: 'spawn-9',
+      events: {
+        appendItem: (identity, body) => rows.set(agentJournalItemKey(identity), body),
+        appendTombstone: () => {},
+        publish: () => {}
+      }
+    })
+    const connection = codex.connections[0]
+    const request = {
+      title: 'Choose storage',
+      fields: [{ id: 'confirm', type: 'boolean' as const, label: 'Continue?' }]
+    }
+    const ask = (id: number, threadId: string, turnId?: string): void =>
+      connection.handlers.onServerRequest?.({
+        id,
+        method: CODEX_MCP_ELICITATION_METHOD,
+        params: {
+          threadId,
+          ...(turnId ? { turnId } : {}),
+          serverName: ORCA_INTERACTION_MCP_SERVER,
+          mode: 'form',
+          message: encodeOrcaInteractionElicitationMessage({
+            ...request,
+            title: `${request.title} ${id}`
+          }),
+          requestedSchema: ORCA_INTERACTION_ELICITATION_REQUESTED_SCHEMA
+        }
+      })
+
+    ask(41, THREAD_ID, 'turn-1')
+    ask(42, THREAD_ID, 'turn-2')
+    ask(43, 'thread-child', 'turn-1')
+    ask(44, THREAD_ID)
+    connection.handlers.onNotification?.('turn/completed', {
+      threadId: THREAD_ID,
+      turn: { id: 'turn-1', status: 'interrupted' }
+    })
+
+    await expect(
+      adapter.answerPrompt({
+        sessionId: 'session-1',
+        itemId: 'mcp-elicitation:41',
+        kind: 'question',
+        optionId: encodeOrcaInteractionResult({ status: 'cancelled' }),
+        fence: 7
+      })
+    ).rejects.toThrow('no longer waiting on')
+    expect([...rows.values()]).toContainEqual(
+      expect.objectContaining({
+        question: 'Choose storage 41',
+        resolution: expect.objectContaining({ state: 'cancelled' })
+      })
+    )
+
+    connection.handlers.onNotification?.('serverRequest/resolved', {
+      threadId: THREAD_ID,
+      requestId: 42
+    })
+    await expect(
+      adapter.answerPrompt({
+        sessionId: 'session-1',
+        itemId: 'mcp-elicitation:42',
+        kind: 'question',
+        optionId: encodeOrcaInteractionResult({ status: 'cancelled' }),
+        fence: 7
+      })
+    ).rejects.toThrow('no longer waiting on')
+
+    for (const id of [43, 44]) {
+      await expect(
+        adapter.answerPrompt({
+          sessionId: 'session-1',
+          itemId: `mcp-elicitation:${id}`,
+          kind: 'question',
+          optionId: encodeOrcaInteractionResult({ status: 'cancelled' }),
+          fence: 7
+        })
+      ).resolves.toBeUndefined()
+    }
+    expect(connection.replies.map(({ id }) => id)).toEqual([43, 44])
   })
 
   it('flushes the final coalesced text before a graceful close', async () => {

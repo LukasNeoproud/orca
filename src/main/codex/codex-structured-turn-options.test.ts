@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
+import { CodexAppServerRequestError } from './codex-app-server-connection'
+import { ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS } from './codex-orca-interaction'
 import {
   dispatchCodexTurn,
   startCodexTurn,
@@ -55,6 +57,91 @@ describe('Codex next-turn settings', () => {
       },
       { timeoutMs: undefined }
     )
+    expect(vi.mocked(session.connection.request).mock.calls[0]![1]).not.toHaveProperty(
+      'additionalContext'
+    )
+  })
+
+  it('adds application context to every resumed turn without changing input or options', async () => {
+    const session = host({ model: 'gpt-live', effort: 'high' })
+    session.resumedInteractiveChat = true
+    const originalBody = structuredClone(body)
+    const originalOptions = [...session.options]
+
+    await startCodexTurn(session, { clientMessageId: 'message-1', body })
+    await startCodexTurn(session, { clientMessageId: 'message-2', body })
+
+    const calls = vi.mocked(session.connection.request).mock.calls
+    expect(calls).toHaveLength(2)
+    for (const [index, call] of calls.entries()) {
+      expect(call).toEqual([
+        'turn/start',
+        {
+          threadId: 'thread-1',
+          clientUserMessageId: `message-${index + 1}`,
+          input: [{ type: 'text', text: 'Keep my\nprepared prompt' }],
+          additionalContext: {
+            'orca.interactive': {
+              kind: 'application',
+              value: ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS
+            }
+          },
+          model: 'gpt-live',
+          effort: 'high'
+        },
+        { timeoutMs: undefined }
+      ])
+    }
+    expect(body).toEqual(originalBody)
+    expect([...session.options]).toEqual(originalOptions)
+  })
+
+  it('retries without application context once and caches that narrow refusal', async () => {
+    const session = host({ model: 'gpt-live' })
+    session.resumedInteractiveChat = true
+    session.connection.request = vi.fn(async (_method, params) => {
+      if (params?.additionalContext) {
+        throw new CodexAppServerRequestError(
+          'turn/start',
+          -32602,
+          'unknown field `additionalContext`'
+        )
+      }
+      return { turn: { id: 'turn-1' } }
+    })
+
+    await startCodexTurn(session, { clientMessageId: 'message-1', body })
+    await startCodexTurn(session, { clientMessageId: 'message-2', body })
+
+    const params = vi
+      .mocked(session.connection.request)
+      .mock.calls.map(([, requestParams]) => requestParams)
+    expect(params).toHaveLength(3)
+    expect(params[0]).toHaveProperty(
+      ['additionalContext', 'orca.interactive', 'kind'],
+      'application'
+    )
+    expect(params[1]).not.toHaveProperty('additionalContext')
+    expect(params[2]).not.toHaveProperty('additionalContext')
+    expect(params.map((requestParams) => requestParams?.input)).toEqual([
+      [{ type: 'text', text: 'Keep my\nprepared prompt' }],
+      [{ type: 'text', text: 'Keep my\nprepared prompt' }],
+      [{ type: 'text', text: 'Keep my\nprepared prompt' }]
+    ])
+  })
+
+  it('does not retry unrelated invalid turn parameters', async () => {
+    const error = new CodexAppServerRequestError('turn/start', -32602, 'invalid value for `model`')
+    const session = host()
+    session.resumedInteractiveChat = true
+    session.connection.request = vi.fn(async () => {
+      throw error
+    })
+
+    await expect(startCodexTurn(session, { clientMessageId: 'message-1', body })).rejects.toBe(
+      error
+    )
+    expect(session.connection.request).toHaveBeenCalledOnce()
   })
 
   it('clears a sticky Fast mode explicitly and retains the original prompt', async () => {

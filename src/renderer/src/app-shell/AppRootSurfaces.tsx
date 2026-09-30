@@ -67,6 +67,11 @@ const UpdateCard = lazy(() =>
 const RemoteServerUpdateDialog = lazy(
   () => import('../components/settings/RemoteServerUpdateDialog')
 )
+const TerminalInteractionDialog = lazy(() =>
+  import('../components/terminal-interaction/TerminalInteractionDialog').then((module) => ({
+    default: module.TerminalInteractionDialog
+  }))
+)
 const ContextualTourOverlay = lazy(() =>
   import('../components/contextual-tours/ContextualTourOverlay').then((module) => ({
     default: module.ContextualTourOverlay
@@ -379,6 +384,11 @@ export function AppRootSurfaces(props: {
         <OverlayBoundary boundaryId="overlay.remote-server-update-dialog">
           <RemoteServerUpdateDialog />
         </OverlayBoundary>
+      </Suspense>
+      <Suspense fallback={null}>
+        <ModalBoundary boundaryId="modal.terminal-interaction">
+          <TerminalInteractionDialog />
+        </ModalBoundary>
       </Suspense>
     </>
   )

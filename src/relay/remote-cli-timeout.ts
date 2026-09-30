@@ -1,5 +1,6 @@
 import { CLI_BOOLEAN_FLAGS } from '../shared/cli-argument-boundary'
 import { clampOrchestrationAskTimeoutMs } from '../shared/orchestration-ask-timeout'
+import { TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS } from '../shared/terminal-interaction'
 import {
   isSafeTimerDelayMs,
   parsePositiveSafeIntegerNumericText,
@@ -25,6 +26,15 @@ export function remoteCliRequestTimeoutMs(params: Record<string, unknown>): numb
   }
   const commandPath = parseRemoteCommandPath(argv)
   const timeoutFlag = findLastTimeoutFlag(argv, 'timeout-ms')
+  if (commandPath[0] === 'interact' && commandPath[1] === 'request') {
+    const explicit =
+      timeoutFlag?.raw === undefined ? null : parsePositiveSafeIntegerNumericText(timeoutFlag.raw)
+    const extended =
+      (explicit ?? TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS) + REMOTE_CLI_LONG_WAIT_GRACE_MS
+    return isSafeTimerDelayMs(extended)
+      ? Math.max(REMOTE_CLI_LONG_WAIT_BASE_MS, extended)
+      : TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS + REMOTE_CLI_LONG_WAIT_GRACE_MS
+  }
   if (commandPath[0] === 'terminal' && commandPath[1] === 'send') {
     const waitFlag = findLastTimeoutFlag(argv, 'wait-submit')
     const seconds =

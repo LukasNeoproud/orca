@@ -204,6 +204,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     })
   },
   {
+    name: 'interact',
+    keys: ['interact request', 'interact mcp', 'interact chat-mcp'],
+    load: async () => (await import('./handlers/interact.js')).INTERACT_HANDLERS
+  },
+  {
     name: 'environment',
     keys: [
       'host list',

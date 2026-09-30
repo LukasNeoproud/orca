@@ -24,6 +24,7 @@ import { arch, platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import {
+  ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME,
   ORCAD_VERSION,
   ORCAD_VERSION_FILENAME,
   orcadArtifactFilenames
@@ -42,6 +43,8 @@ const WATCHER_OUT_FILE = join(OUT_DIR, 'parcel-watcher-process-entry.js')
 // orcad restart would SIGKILL every running terminal.
 const DAEMON_ENTRY = join(ROOT, 'src/main/daemon/daemon-entry.ts')
 const DAEMON_OUT_FILE = join(OUT_DIR, 'daemon-entry.js')
+const INTERACTION_MCP_ENTRY = join(ROOT, 'src/cli/structured-interaction-mcp-entry.ts')
+const INTERACTION_MCP_OUT_FILE = join(OUT_DIR, ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME)
 const AGENT_BROWSER_NAME = `agent-browser-${platform()}-${arch()}${process.platform === 'win32' ? '.exe' : ''}`
 const OUT_FILE = join(OUT_DIR, 'orcad.js')
 const AGENT_BROWSER_SOURCE = join(ROOT, 'node_modules', 'agent-browser', 'bin', AGENT_BROWSER_NAME)
@@ -85,7 +88,7 @@ if (process.platform !== 'win32') {
 }
 
 /** Why one call per child and not one `outdir` build: esbuild mirrors each entry's source
- *  directory under `outdir`, and both children must land flat beside orcad.js — that is where
+ *  directory under `outdir`, and every child must land flat beside orcad.js — that is where
  *  their runtime resolvers look for them. */
 function buildForkedChild(entryPoint, outfile) {
   return build({
@@ -107,7 +110,8 @@ function buildForkedChild(entryPoint, outfile) {
 
 const childResults = await Promise.all([
   buildForkedChild(WATCHER_ENTRY, WATCHER_OUT_FILE),
-  buildForkedChild(DAEMON_ENTRY, DAEMON_OUT_FILE)
+  buildForkedChild(DAEMON_ENTRY, DAEMON_OUT_FILE),
+  buildForkedChild(INTERACTION_MCP_ENTRY, INTERACTION_MCP_OUT_FILE)
 ])
 
 const result = await build({
@@ -229,6 +233,21 @@ if (graphErrors.length > 0) {
         `Expected a clean load check, got status=${daemonSmoke.status ?? 'none'} ` +
         `signal=${daemonSmoke.signal ?? 'none'} ` +
         `error=${daemonSmoke.error?.message ?? 'none'}\n${daemonSmokeOutput.slice(0, 2000)}`
+    )
+    process.exitCode = 1
+  }
+  const interactionMcpSmoke = spawnSync(process.execPath, [INTERACTION_MCP_OUT_FILE], {
+    input: '',
+    encoding: 'utf8',
+    timeout: 60_000
+  })
+  const interactionMcpSmokeOutput = `${interactionMcpSmoke.stdout ?? ''}${interactionMcpSmoke.stderr ?? ''}`
+  if (interactionMcpSmoke.error || interactionMcpSmoke.signal || interactionMcpSmoke.status !== 0) {
+    console.error(
+      `[build-orcad] the interaction MCP child did not load under plain Node.\n` +
+        `Expected a clean EOF exit, got status=${interactionMcpSmoke.status ?? 'none'} ` +
+        `signal=${interactionMcpSmoke.signal ?? 'none'} ` +
+        `error=${interactionMcpSmoke.error?.message ?? 'none'}\n${interactionMcpSmokeOutput.slice(0, 2000)}`
     )
     process.exitCode = 1
   }

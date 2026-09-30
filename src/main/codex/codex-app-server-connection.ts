@@ -13,6 +13,7 @@ import {
 } from './codex-app-server-session'
 import { createCodexAppServerRecordDispatcher } from './codex-app-server-record-dispatch'
 import { createCodexAppServerRecordReader } from './codex-app-server-record-reader'
+import { createCodexInteractionSocketBridge } from './codex-interaction-socket-bridge'
 import type {
   CodexAppServerConnection,
   CodexAppServerConnectionHandlers
@@ -104,8 +105,9 @@ export async function openCodexAppServerConnection(
     return buildCodexAppServerExitError(stderrTail, cause)
   }
 
+  const interactionBridge = createCodexInteractionSocketBridge(handlers)
   const dispatcher = createCodexAppServerRecordDispatcher({
-    handlers,
+    handlers: interactionBridge.handlers,
     writeResponse,
     onProtocolFailure: (error) => {
       handleUnexpectedEnd(error)
@@ -121,6 +123,7 @@ export async function openCodexAppServerConnection(
     if (!terminalError) {
       terminalError = buildExitError(cause)
       dispatcher.failPending(terminalError)
+      void interactionBridge.close()
     }
     // Transport/protocol failures make the connection unusable immediately so
     // callers do not hang, but recovery must not treat that as a child exit
@@ -215,7 +218,17 @@ export async function openCodexAppServerConnection(
         dispatcher.deletePending(id)
         reject(new CodexAppServerTimeoutError(`codex app-server ${method} exceeded ${timeoutMs}ms`))
       }, timeoutMs)
-      dispatcher.addPending(id, { method, resolve, reject, timer })
+      dispatcher.addPending(id, {
+        method,
+        resolve: (result) => {
+          if (method === 'turn/start') {
+            interactionBridge.observeTurnStartResponse(params, result)
+          }
+          resolve(result)
+        },
+        reject,
+        timer
+      })
       try {
         sendLine(params === undefined ? { method, id } : { method, id, params })
       } catch (error) {
@@ -239,10 +252,11 @@ export async function openCodexAppServerConnection(
 
   function close(): Promise<boolean> {
     if (exitObserved) {
-      return Promise.resolve(true)
+      return interactionBridge.close().then(() => true)
     }
     closing = true
     return exitProof.run(async () => {
+      await interactionBridge.close()
       try {
         child.stdin.end()
       } catch {
@@ -273,8 +287,17 @@ export async function openCodexAppServerConnection(
     },
     request,
     notify,
-    respond: (id, result) => writeResponse({ id, result }),
-    respondWithError: (id, code, message) => writeResponse({ id, error: { code, message } }),
+    respond: (id, result) => {
+      if (!interactionBridge.respond(id, result)) {
+        writeResponse({ id, result })
+      }
+    },
+    respondWithError: (id, code, message) => {
+      if (!interactionBridge.respondWithError(id)) {
+        writeResponse({ id, error: { code, message } })
+      }
+    },
+    prepareInteractionBridge: interactionBridge.prepare,
     pauseReading: recordReader.pause,
     resumeReading: recordReader.resume,
     close

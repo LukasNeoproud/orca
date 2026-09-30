@@ -1,3 +1,4 @@
+import { delimiter, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type {
   AgentJournalMessageItem,
@@ -11,6 +12,10 @@ import type {
   openCodexAppServerConnection
 } from './codex-app-server-connection'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
+import {
+  ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS,
+  ORCA_INTERACT_DYNAMIC_TOOLS
+} from './codex-orca-interaction'
 import { CODEX_SPAWN_TOKEN_ENV } from './codex-structured-owner-identity'
 import { ORCA_STRUCTURED_SESSION_ENV } from '../../shared/structured-session-marker'
 import {
@@ -19,6 +24,8 @@ import {
   type CodexStructuredSessionAdapterDeps,
   type CodexStructuredSessionEvent
 } from './codex-structured-session-adapter'
+import { codexInteractionMcpConfig } from './codex-interaction-mcp-config'
+import { CodexAppServerRequestError } from './codex-app-server-connection'
 
 const THREAD_ID = 'thread-abc'
 
@@ -40,6 +47,10 @@ const USER_MESSAGE: AgentJournalMessageItem = {
 
 type Route = (params: Record<string, unknown> | undefined) => unknown
 
+function isContextRefreshConfigRead(params: Record<string, unknown> | undefined): boolean {
+  return params?.includeLayers === false
+}
+
 // `closed` is readonly on the real connection; the fake flips it so a test can
 // kill the child at a chosen moment.
 type FakeConnection = Omit<CodexAppServerConnection, 'closed'> & {
@@ -48,6 +59,7 @@ type FakeConnection = Omit<CodexAppServerConnection, 'closed'> & {
   handlers: CodexAppServerConnectionHandlers
   calls: { method: string; params?: Record<string, unknown> }[]
   replies: { id: number | string; result?: unknown; code?: number; message?: string }[]
+  bridgePrepares: string[]
   closeCount: number
 }
 
@@ -65,6 +77,7 @@ function fakeCodex(routes: Record<string, Route> = {}): {
       handlers,
       calls: [],
       replies: [],
+      bridgePrepares: [],
       closeCount: 0,
       pid: 4321,
       closed: false,
@@ -76,6 +89,13 @@ function fakeCodex(routes: Record<string, Route> = {}): {
       notify: () => {},
       respond: (id, result) => connection.replies.push({ id, result }),
       respondWithError: (id, code, message) => connection.replies.push({ id, code, message }),
+      prepareInteractionBridge: async (threadId) => {
+        connection.bridgePrepares.push(threadId)
+        return {
+          ORCA_INTERACTION_SOCKET: '/tmp/orca-interaction.sock',
+          ORCA_INTERACTION_TOKEN: 'bridge-token'
+        }
+      },
       close: async () => {
         connection.closeCount += 1
         connection.closed = true
@@ -256,7 +276,10 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
     })
     let reads = 0
     const codex = fakeCodex({
-      'config/read': async () => {
+      'config/read': async (params) => {
+        if (!isContextRefreshConfigRead(params)) {
+          return { config: { developer_instructions: null }, origins: {} }
+        }
         reads += 1
         if (reads > 1) {
           await gate
@@ -306,7 +329,10 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
     const initialRate = new Promise<void>((resolve) => (releaseInitialRate = resolve))
     let configReads = 0
     const codex = fakeCodex({
-      'config/read': async () => {
+      'config/read': async (params) => {
+        if (!isContextRefreshConfigRead(params)) {
+          return { config: { developer_instructions: null }, origins: {} }
+        }
         configReads += 1
         const read = configReads
         if (read === 1) {
@@ -343,6 +369,38 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
     expect(adapter.codexWeeklyUsage?.('session-1')).toEqual({ usedPercent: 55 })
   })
 
+  it('advertises the MCP fallback on the first turn of a new thread', async () => {
+    const codex = fakeCodex({
+      'turn/start': () => ({ turn: { id: 'first-turn' } }),
+      'thread/start': (params) => {
+        if (params?.dynamicTools) {
+          throw new CodexAppServerRequestError(
+            'thread/start',
+            -32602,
+            'unknown field `dynamicTools`'
+          )
+        }
+        return { thread: { id: THREAD_ID } }
+      }
+    })
+    const adapter = adapterFor(codex)
+    await adapter.acquire({ identity: identityFor('fallback'), fence: 7, spawnToken: 'fallback' })
+    await adapter.dispatch({
+      sessionId: 'fallback',
+      clientMessageId: 'first',
+      body: USER_MESSAGE,
+      fence: 7
+    })
+    expect(codex.connections[0].bridgePrepares).toEqual([THREAD_ID])
+    expect(
+      codex.connections[0].calls.find(({ method }) => method === 'turn/start')?.params
+    ).toMatchObject({
+      additionalContext: {
+        'orca.interactive': { value: ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS }
+      }
+    })
+  })
+
   it('starts a new thread and reports the process and link the lease will prove', async () => {
     const codex = fakeCodex()
     const adapter = adapterFor(codex, { codexHome: '/codex/home' })
@@ -353,16 +411,28 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
       spawnToken: 'spawn-9'
     })
 
-    expect(codex.connections[0].launch.env).toEqual({
+    const launchEnv = codex.connections[0].launch.env
+    expect(launchEnv).toBeDefined()
+    if (!launchEnv) {
+      throw new Error('Codex child environment was not provided')
+    }
+    expect(launchEnv).toEqual({
       [CODEX_SPAWN_TOKEN_ENV]: 'spawn-9',
       CODEX_HOME: '/codex/home',
-      [ORCA_STRUCTURED_SESSION_ENV]: '1'
+      [ORCA_STRUCTURED_SESSION_ENV]: '1',
+      ORCA_AGENT_SESSION_ID: 'session-1',
+      ORCA_USER_DATA_PATH: expect.any(String),
+      PATH: expect.any(String)
     })
+    expect(launchEnv.PATH?.split(delimiter)).toContain(
+      join(launchEnv.ORCA_USER_DATA_PATH, 'cli', 'bin')
+    )
     expect(codex.connections[0].launch.cwd).toBe('/work/repo')
-    expect(codex.connections[0].calls[0]).toEqual({
+    expect(codex.connections[0].calls.find(({ method }) => method === 'thread/start')).toEqual({
       method: 'thread/start',
-      params: { cwd: '/work/repo' }
+      params: { cwd: '/work/repo', dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS }
     })
+    expect(codex.connections[0].bridgePrepares).toEqual([])
     expect(acquisition.process).toEqual({
       hostId: 'host-1',
       pid: 4321,
@@ -380,7 +450,7 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
   })
 
   it('resumes the thread the durable handle chain names, not the client one', async () => {
-    const codex = fakeCodex()
+    const codex = fakeCodex({ 'turn/start': () => ({ turn: { id: 'turn-resumed' } }) })
     const adapter = adapterFor(codex, {
       resumeThreadId: 'thread-proven',
       resumePath: '/rollouts/thread-proven.jsonl'
@@ -392,16 +462,43 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
       spawnToken: 'spawn-9'
     })
 
-    expect(codex.connections[0].calls[0]).toEqual({
+    expect(codex.connections[0].calls.find(({ method }) => method === 'thread/resume')).toEqual({
       method: 'thread/resume',
       params: expect.objectContaining({
         threadId: 'thread-proven',
         cwd: '/work/repo',
-        path: '/rollouts/thread-proven.jsonl'
+        path: '/rollouts/thread-proven.jsonl',
+        config: codexInteractionMcpConfig({
+          ORCA_INTERACTION_SOCKET: '/tmp/orca-interaction.sock',
+          ORCA_INTERACTION_TOKEN: 'bridge-token'
+        })
       })
     })
+    expect(codex.connections[0].bridgePrepares).toEqual(['thread-proven'])
     expect(acquisition.link.origin).toBe('resumed')
     expect(acquisition.link.handle).toEqual({ provider: 'codex', threadId: 'thread-proven' })
+    await expect(
+      adapter.dispatch({
+        sessionId: 'session-1',
+        clientMessageId: 'client-resumed',
+        body: USER_MESSAGE,
+        fence: 9
+      })
+    ).resolves.toMatchObject({ state: 'accepted' })
+    expect(codex.connections[0].calls.find(({ method }) => method === 'turn/start')).toEqual({
+      method: 'turn/start',
+      params: expect.objectContaining({
+        threadId: 'thread-proven',
+        clientUserMessageId: 'client-resumed',
+        input: [{ type: 'text', text: 'ship it' }],
+        additionalContext: {
+          'orca.interactive': {
+            kind: 'application',
+            value: ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS
+          }
+        }
+      })
+    })
   })
 
   it('restores canonical messages from a metadata-only resume without duplicating a repeat', async () => {

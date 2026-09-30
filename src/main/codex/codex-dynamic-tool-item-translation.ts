@@ -6,6 +6,7 @@ import {
   DEFAULT_JOURNAL_PAYLOAD_LIMITS
 } from '../native-chat/agent-session-journal/journal-payload-bounds'
 import { readString, readTextContent } from './codex-item-field-readers'
+import { summarizeCodexInteractionResult } from './codex-interaction-result-summary'
 import type { CodexThreadItem } from './codex-thread-item-identity'
 
 function dynamicToolArguments(value: unknown): unknown {
@@ -20,7 +21,17 @@ export function codexDynamicToolCallBody(item: CodexThreadItem): AgentJournalToo
   const tool = readString(item, 'tool')
   const status = readString(item, 'status')
   const text = readTextContent({ content: item.contentItems }, 'content')
-  const bounded = text === null ? null : boundInlineText(text, DEFAULT_JOURNAL_PAYLOAD_LIMITS)
+  let output = text
+  if (
+    namespace === 'orca' &&
+    tool === 'interact' &&
+    status === 'completed' &&
+    item.success !== false &&
+    text !== null
+  ) {
+    output = summarizeCodexInteractionResult(text)
+  }
+  const bounded = output === null ? null : boundInlineText(output, DEFAULT_JOURNAL_PAYLOAD_LIMITS)
   return {
     kind: 'tool-call',
     name: tool === null ? 'dynamic tool' : namespace === null ? tool : `${namespace}.${tool}`,

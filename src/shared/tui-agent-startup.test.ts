@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 import {
   buildAgentDraftLaunchPlan,
   buildAgentResumeStartupPlan,
@@ -53,7 +54,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("claude 'fix Bob'\"'\"'s branch'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("claude -- 'fix Bob'\"'\"'s branch'", 'claude', 'posix', 'linux')
+    )
   })
 
   it('uses PowerShell quoting by default when the target shell is Windows', () => {
@@ -64,7 +67,14 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe("claude 'fix Bob''s \"quoted\" branch'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp(
+        "claude -- 'fix Bob''s \"quoted\" branch'",
+        'claude',
+        'powershell',
+        'win32'
+      )
+    )
   })
 
   it('invokes fully quoted argv commands in PowerShell', () => {
@@ -82,7 +92,9 @@ describe('tui agent startup plans', () => {
       shell: 'cmd'
     })
 
-    expect(plan?.launchCommand).toBe('claude "fix ^"quoted^" ^& ^%PATH^%"')
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp('claude -- "fix ^"quoted^" ^& ^%PATH^%"', 'claude', 'cmd', 'win32')
+    )
   })
 
   it('terminates Grok options before a flag-shaped POSIX prompt', () => {
@@ -139,7 +151,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex '--version'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("codex '--version'", 'codex', 'posix', 'linux')
+    )
   })
 
   it.each([
@@ -206,7 +220,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("codex 'fix it'", 'codex', 'posix', 'linux')
+    )
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -221,7 +237,7 @@ describe('tui agent startup plans', () => {
 
     expect(plan).toEqual({
       agent: 'codex',
-      launchCommand: 'codex',
+      launchCommand: withTerminalInteractionMcp('codex', 'codex', 'posix', 'linux'),
       expectedProcess: 'codex',
       followupPrompt: null,
       launchConfig: { agentCommand: 'codex', agentArgs: '', agentEnv: {} }
@@ -236,7 +252,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("claude 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("claude -- 'fix it'", 'claude', 'posix', 'linux')
+    )
     expect(plan?.launchCommand).not.toContain('--settings')
   })
 
@@ -351,7 +369,7 @@ describe('tui agent startup plans', () => {
     })
   })
 
-  it('leaves Claude command overrides untouched', () => {
+  it('preserves Claude command override arguments alongside interactive MCP', () => {
     const plan = buildAgentStartupPlan({
       agent: 'claude',
       prompt: 'fix it',
@@ -359,10 +377,17 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("claude --dangerously-skip-permissions 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp(
+        "claude --dangerously-skip-permissions -- 'fix it'",
+        'claude',
+        'posix',
+        'linux'
+      )
+    )
   })
 
-  it('leaves Codex command overrides untouched', () => {
+  it('preserves Codex command override arguments alongside interactive MCP', () => {
     const plan = buildAgentStartupPlan({
       agent: 'codex',
       prompt: 'fix it',
@@ -370,7 +395,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile work 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("codex --profile work 'fix it'", 'codex', 'posix', 'linux')
+    )
   })
 
   it('builds Windows resume plans that PowerShell can invoke', () => {
@@ -381,7 +408,9 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe("codex 'resume' 's1'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("codex 'resume' 's1'", 'codex', 'powershell', 'win32')
+    )
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -427,7 +456,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile work 'resume' 's1'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp("codex --profile work 'resume' 's1'", 'codex', 'posix', 'linux')
+    )
   })
 
   it('uses a captured launch command when building resume plans after overrides change', () => {
@@ -439,7 +470,14 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile captured 'resume' 's1'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp(
+        "codex --profile captured 'resume' 's1'",
+        'codex',
+        'posix',
+        'linux'
+      )
+    )
     expect(plan?.launchConfig).toEqual({
       agentCommand: 'codex --profile captured',
       agentArgs: '',
@@ -475,7 +513,12 @@ describe('tui agent startup plans', () => {
     })
 
     expect(plan?.launchCommand).toBe(
-      "claude '--model' 'sonnet' '--add-dir' 'path with spaces' 'fix it'"
+      withTerminalInteractionMcp(
+        "claude '--model' 'sonnet' '--add-dir' 'path with spaces' -- 'fix it'",
+        'claude',
+        'posix',
+        'linux'
+      )
     )
   })
 
@@ -488,7 +531,14 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe("claude '--model' 'sonnet' '--name' 'Bob''s' 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp(
+        "claude '--model' 'sonnet' '--name' 'Bob''s' -- 'fix it'",
+        'claude',
+        'powershell',
+        'win32'
+      )
+    )
   })
 
   it('carries agent launch environment defaults into startup plans', () => {

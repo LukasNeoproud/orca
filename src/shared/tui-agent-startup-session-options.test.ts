@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 import {
   buildAgentDraftLaunchPlan,
   buildAgentResumeStartupPlan,
@@ -17,7 +18,14 @@ describe('tui agent startup session options', () => {
       sessionOptions: { model: 'opus', effort: 'xhigh', fastMode: true },
       agentArgs: '--model haiku'
     })
-    expect(plan?.launchCommand).toBe("claude '--model' 'opus' '--effort' 'xhigh' '--model' 'haiku'")
+    expect(plan?.launchCommand).toBe(
+      withTerminalInteractionMcp(
+        "claude '--model' 'opus' '--effort' 'xhigh' '--model' 'haiku'",
+        'claude',
+        'posix',
+        'linux'
+      )
+    )
     expect(plan?.sessionOptions).toBeUndefined()
   })
 
@@ -46,7 +54,12 @@ describe('tui agent startup session options', () => {
       agentArgs: '-m gpt-5.5 -c model_reasoning_effort=low'
     })
     expect(plan?.launchCommand).toBe(
-      "codex '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'"
+      withTerminalInteractionMcp(
+        "codex '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'",
+        'codex',
+        'posix',
+        'linux'
+      )
     )
     expect(plan?.launchConfig.agentCommand).toBe(
       "codex '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=low'"
@@ -66,7 +79,12 @@ describe('tui agent startup session options', () => {
       agentArgs: '--dangerously-bypass-approvals-and-sandbox -- literal'
     })
     expect(plan?.launchCommand).toBe(
-      "codex '--dangerously-bypass-approvals-and-sandbox' '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high' '--' 'literal'"
+      withTerminalInteractionMcp(
+        "codex '--dangerously-bypass-approvals-and-sandbox' '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high' '--' 'literal'",
+        'codex',
+        'posix',
+        'linux'
+      )
     )
   })
 
@@ -136,7 +154,14 @@ describe('tui agent startup session options', () => {
       platform: 'linux',
       sessionOptions: { model: 'opus', effort: 'high' }
     })
-    expect(plan?.launchCommand).toContain("claude '--model' 'opus' '--effort' 'high'")
+    expect(plan?.launchCommand).toContain(
+      withTerminalInteractionMcp(
+        "claude '--model' 'opus' '--effort' 'high'",
+        'claude',
+        'posix',
+        'linux'
+      )
+    )
     expect(plan?.sessionOptions).toEqual({ model: 'opus', effort: 'high' })
   })
 
@@ -151,7 +176,12 @@ describe('tui agent startup session options', () => {
       sessionOptionsOverrideAgentArgs: true
     })
     expect(plan?.launchCommand).toBe(
-      "codex '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'"
+      withTerminalInteractionMcp(
+        "codex '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'",
+        'codex',
+        'posix',
+        'linux'
+      )
     )
     expect(plan?.launchConfig.agentCommand).toBe(
       "codex '-m' 'gpt-5.6-sol' '-c' 'model_reasoning_effort=medium'"

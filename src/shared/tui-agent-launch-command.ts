@@ -11,6 +11,7 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import type { TuiAgent } from './tui-agent'
+import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 
 export type ResolvedAgentLaunchCommand =
   | {
@@ -30,6 +31,8 @@ export function resolveAgentLaunchCommand(args: {
   sessionOptions?: Record<string, SessionOptionValue>
   sessionOptionsOverrideAgentArgs?: boolean
   isRemote?: boolean
+  interactiveUi?: boolean
+  isDev?: boolean
 }): ResolvedAgentLaunchCommand {
   const override = args.cmdOverrides[args.agent]
   const command =
@@ -88,13 +91,24 @@ export function resolveAgentLaunchCommand(args: {
   const commandWithOverrides = overrideTokens.length
     ? `${command} ${overrideTokens.map((token) => quoteStartupArg(token, args.shell)).join(' ')}`
     : command
+  const resolvedCommand = args.sessionOptionsOverrideAgentArgs
+    ? commandWithOverrides
+    : suffix.suffix
+      ? `${commandWithOptions} ${suffix.suffix}`
+      : commandWithOptions
   return {
     ok: true,
-    command: args.sessionOptionsOverrideAgentArgs
-      ? commandWithOverrides
-      : suffix.suffix
-        ? `${commandWithOptions} ${suffix.suffix}`
-        : commandWithOptions,
+    command:
+      args.interactiveUi === false
+        ? resolvedCommand
+        : withTerminalInteractionMcp(
+            resolvedCommand,
+            args.agent,
+            args.shell,
+            args.platform,
+            args.isRemote,
+            args.isDev
+          ),
     commandWithoutSessionOptions,
     appliedSessionOptions: resolvedOptions.appliedValues
   }

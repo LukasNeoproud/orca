@@ -281,6 +281,7 @@ export function createCodexJournalTranslator(
       )
     },
     resolvePrompt: (journalItemId) => prompts.resolve(journalItemId),
+    cancelPrompt: (journalItemId) => prompts.cancel(journalItemId),
     flush: () => {
       items.streams.flush()
       genericFrames.flush()

@@ -1,5 +1,6 @@
 import { parseRemoteCliArgs } from './ssh-remote-cli-args'
 import { clampOrchestrationAskTimeoutMs } from '../../shared/orchestration-ask-timeout'
+import { TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS } from '../../shared/terminal-interaction'
 import {
   isSafeTimerDelayMs,
   parsePositiveSafeIntegerNumericText,
@@ -15,6 +16,14 @@ const KILL_TIMEOUT_GRACE_MS = 2 * 60_000
 export function resolveHostCliKillTimeoutMs(argv: string[]): number {
   const parsed = parseRemoteCliArgs(argv)
   const rawTimeout = parsed.flags.get('timeout-ms')
+  if (parsed.commandPath[0] === 'interact' && parsed.commandPath[1] === 'request') {
+    const explicit =
+      typeof rawTimeout === 'string' ? parsePositiveSafeIntegerNumericText(rawTimeout) : null
+    const extended = (explicit ?? TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS) + KILL_TIMEOUT_GRACE_MS
+    return isSafeTimerDelayMs(extended)
+      ? Math.max(DEFAULT_KILL_TIMEOUT_MS, extended)
+      : TERMINAL_INTERACTION_DEFAULT_TIMEOUT_MS + KILL_TIMEOUT_GRACE_MS
+  }
   if (parsed.commandPath[0] === 'terminal' && parsed.commandPath[1] === 'send') {
     const rawWait = parsed.flags.get('wait-submit')
     const seconds =

@@ -8,6 +8,7 @@ import {
 import { isCodexAppServerUnsupportedError } from './codex-app-server-session'
 import { readCodexTurnId } from './codex-structured-thread-facts'
 import { codexPermissionOverrides } from './codex-structured-permissions'
+import { ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS } from './codex-orca-interaction'
 import {
   codexTurnGenerationMetadata,
   type CodexTurnGenerationMetadata
@@ -24,6 +25,7 @@ export const CODEX_USER_MESSAGE_ORDINAL = 0
 /** Past this the turn is real but unnameable, which the journal renders as
  *  delivery unconfirmed rather than failure. */
 const TURN_ID_WAIT_MS = 10_000
+const additionalContextUnsupported = new WeakSet<object>()
 
 /** Keys Codex accepts as per-turn overrides. An unlisted key would otherwise
  *  become an arbitrary client-controlled `turn/start` parameter. */
@@ -49,6 +51,7 @@ export type CodexTurnHost = {
   threadId: string
   cwd?: string
   supportsDefaultServiceTier?: boolean
+  resumedInteractiveChat?: boolean
   options: Map<string, string>
   reportedOptions?: { model?: string; serviceTier?: string | null }
   pendingTurnGenerationMetadata?: CodexTurnGenerationMetadata
@@ -86,16 +89,42 @@ export async function startCodexTurn(
     setTimeout(() => resolve(null), TURN_ID_WAIT_MS).unref?.()
   })
   try {
-    const started = await host.connection.request(
-      'turn/start',
-      {
-        threadId: host.threadId,
-        clientUserMessageId: input.clientMessageId,
-        input: turnInputFor(input.body),
-        ...codexTurnOptions(host)
-      },
-      { timeoutMs: input.timeoutMs }
-    )
+    const params = {
+      threadId: host.threadId,
+      clientUserMessageId: input.clientMessageId,
+      input: turnInputFor(input.body),
+      ...(host.resumedInteractiveChat && !additionalContextUnsupported.has(host.connection)
+        ? {
+            additionalContext: {
+              'orca.interactive': {
+                kind: 'application',
+                value: ORCA_INTERACTIVE_RESUME_UI_INSTRUCTIONS
+              }
+            }
+          }
+        : {}),
+      ...codexTurnOptions(host)
+    }
+    let started: unknown
+    try {
+      started = await host.connection.request('turn/start', params, { timeoutMs: input.timeoutMs })
+    } catch (error) {
+      if (
+        !params.additionalContext ||
+        !isCodexAppServerRequestError(error) ||
+        error.code !== -32602 ||
+        !/(?:unknown|unexpected|unsupported|unrecognized).{0,80}additionalContext|additionalContext.{0,80}(?:unknown|unexpected|unsupported|unrecognized)/i.test(
+          error.message
+        )
+      ) {
+        throw error
+      }
+      additionalContextUnsupported.add(host.connection)
+      const { additionalContext: _overlay, ...legacyParams } = params
+      started = await host.connection.request('turn/start', legacyParams, {
+        timeoutMs: input.timeoutMs
+      })
+    }
     return readCodexTurnId(started) ?? (await fromNotification)
   } finally {
     const index = notified ? host.turnIdWaiters.indexOf(notified) : -1

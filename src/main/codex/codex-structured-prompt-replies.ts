@@ -9,8 +9,13 @@ import {
   readQuestionIds,
   readQuestionOptionAnswers
 } from './codex-prompt-registry-bounds'
-import { CODEX_DYNAMIC_TOOL_CALL_METHOD, readOrcaInteractionCall } from './codex-orca-interaction'
-import { answerOrcaInteraction } from './codex-interaction-question-fallback'
+import {
+  answerCodexInteraction,
+  isCodexInteractionMethod,
+  readCodexInteraction
+} from './codex-interaction-elicitation'
+import { decodeCodexQuestionOptionId } from './codex-prompt-option-id'
+export { decodeCodexQuestionOptionId, encodeCodexQuestionOptionId } from './codex-prompt-option-id'
 export {
   codexJournalPromptIdPart,
   MAX_CODEX_PROMPT_REGISTRY_ENTRIES,
@@ -43,35 +48,12 @@ export type CodexPendingPrompt = {
    *  bridge re-asks per command under the same `itemId` — so the request's own
    *  `approvalId` is the identity whenever Codex sends one. */
   promptKey: string
-  /** One entry per question for a user-input request; empty for an approval. */
   questionIds: readonly string[]
   /** Journal-facing ids can be bounded; replies still need Codex's exact ids. */
   questionIdAliases: ReadonlyMap<string, string>
   optionAnswers: ReadonlyMap<string, { questionId: string; answer: string }>
   answers: Map<string, string>
   interactionRequest?: OrcaInteractionRequest
-}
-
-/** A multi-question user-input request takes one reply, so option ids name their question. */
-export function encodeCodexQuestionOptionId(questionId: string, answer: string): string {
-  return `${encodeURIComponent(questionId)}:${encodeURIComponent(answer)}`
-}
-
-export function decodeCodexQuestionOptionId(
-  optionId: string
-): { questionId: string; answer: string } | null {
-  const separator = optionId.indexOf(':')
-  if (separator <= 0) {
-    return null
-  }
-  try {
-    return {
-      questionId: decodeURIComponent(optionId.slice(0, separator)),
-      answer: decodeURIComponent(optionId.slice(separator + 1))
-    }
-  } catch {
-    return null
-  }
 }
 
 function readString(params: unknown, key: string): string | null {
@@ -87,7 +69,7 @@ export function isCodexPromptMethod(method: string): boolean {
     method === CODEX_COMMAND_APPROVAL_METHOD ||
     method === CODEX_FILE_CHANGE_APPROVAL_METHOD ||
     method === CODEX_USER_INPUT_METHOD ||
-    method === CODEX_DYNAMIC_TOOL_CALL_METHOD
+    isCodexInteractionMethod(method)
   )
 }
 
@@ -171,16 +153,13 @@ export class CodexPromptRegistry {
     method: string
     params: unknown
   }): CodexPendingPrompt | null {
-    const interaction =
-      request.method === CODEX_DYNAMIC_TOOL_CALL_METHOD
-        ? readOrcaInteractionCall(request.params)
-        : null
+    const interaction = readCodexInteraction(request)
     const codexItemId = interaction?.callId ?? readString(request.params, 'itemId')
     const threadId = interaction?.threadId ?? readString(request.params, 'threadId')
     if (!isCodexPromptMethod(request.method) || !codexItemId || !threadId) {
       return null
     }
-    if (request.method === CODEX_DYNAMIC_TOOL_CALL_METHOD && !interaction) {
+    if (isCodexInteractionMethod(request.method) && !interaction) {
       return null
     }
     const questionIds =
@@ -278,6 +257,26 @@ export class CodexPromptRegistry {
     }
   }
 
+  interactionSettlements(
+    match: { requestId: number | string } | { threadId: string; turnId: string }
+  ): { prompt: CodexPendingPrompt; journalItemIds: string[] }[] {
+    const prompts = new Set([...this.byAddress.values(), ...this.boundPrompts.values()])
+    return [...prompts].flatMap((prompt) => {
+      const matched =
+        isCodexInteractionMethod(prompt.method) &&
+        ('requestId' in match
+          ? prompt.requestId === match.requestId
+          : prompt.threadId === match.threadId && prompt.turnId === match.turnId)
+      if (!matched) {
+        return []
+      }
+      const journalItemIds = [...this.boundPrompts]
+        .filter(([, boundPrompt]) => boundPrompt === prompt)
+        .map(([journalItemId]) => journalItemId)
+      return [{ prompt, journalItemIds }]
+    })
+  }
+
   clear(): void {
     this.byAddress.clear()
     this.journalItemIds.clear()
@@ -294,8 +293,8 @@ export function applyCodexPromptAnswer(
   prompt: CodexPendingPrompt,
   optionId: string
 ): Record<string, unknown> | null {
-  if (prompt.method === CODEX_DYNAMIC_TOOL_CALL_METHOD) {
-    return answerOrcaInteraction(prompt.interactionRequest, optionId)
+  if (isCodexInteractionMethod(prompt.method)) {
+    return answerCodexInteraction(prompt.method, prompt.interactionRequest, optionId)
   }
   if (prompt.method !== CODEX_USER_INPUT_METHOD) {
     if (!(CODEX_APPROVAL_DECISIONS as readonly string[]).includes(optionId)) {

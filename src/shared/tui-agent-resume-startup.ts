@@ -11,6 +11,7 @@ import { resolveStartupShell, type AgentStartupShell } from './tui-agent-startup
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { TuiAgent } from './tui-agent'
 import { buildAgentResumeLaunchCommand } from './agent-resume-launch-command'
+import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 
 export function buildAgentResumeStartupPlan(args: {
   agent: ResumableTuiAgent
@@ -25,6 +26,7 @@ export function buildAgentResumeStartupPlan(args: {
   sessionOptions?: Record<string, SessionOptionValue>
   sessionOptionsOverrideAgentArgs?: boolean
   isRemote?: boolean
+  isDev?: boolean
 }): AgentStartupPlan | null {
   const argv = getAgentResumeArgv(args.agent, args.providerSession, args.ompResumeFilePath)
   if (!argv) {
@@ -47,7 +49,8 @@ export function buildAgentResumeStartupPlan(args: {
         agentArgs: args.agentArgs,
         sessionOptions: args.sessionOptions,
         sessionOptionsOverrideAgentArgs: args.sessionOptionsOverrideAgentArgs,
-        isRemote: args.isRemote
+        isRemote: args.isRemote,
+        interactiveUi: false
       })
   if (!baseCommand.ok) {
     return null
@@ -56,7 +59,14 @@ export function buildAgentResumeStartupPlan(args: {
     ...args,
     agentCommand: baseCommand.commandWithoutSessionOptions
   })
-  const launchCommand = buildAgentResumeLaunchCommand(args.agent, baseCommand.command, argv, shell)
+  const launchCommand = withTerminalInteractionMcp(
+    buildAgentResumeLaunchCommand(args.agent, baseCommand.command, argv, shell),
+    args.agent,
+    shell,
+    args.platform,
+    args.isRemote,
+    args.isDev
+  )
   const applied = baseCommand.appliedSessionOptions
   return {
     agent: args.agent,

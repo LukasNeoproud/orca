@@ -34,6 +34,31 @@ function runHeader(container: HTMLElement): HTMLElement {
 }
 
 describe('NativeChatToolRun', () => {
+  it('keeps an Orca form submission behind the existing tool-run disclosure', () => {
+    const blocks: NativeChatBlock[] = [
+      {
+        type: 'tool-call',
+        name: 'orca.interact',
+        input: { title: 'Persistence' },
+        state: 'completed'
+      },
+      { type: 'tool-result', output: 'Response submitted' }
+    ]
+
+    render(<NativeChatToolRun blocks={blocks} expandSignal={false} />)
+
+    expect(screen.getByRole('button', { name: /orca\.interact/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
+    expect(screen.queryByText('Response submitted')).toBeNull()
+    expect(screen.queryByText(/"status":"submitted"/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /orca\.interact/ }))
+    expect(screen.getAllByText('Response submitted')).toHaveLength(2)
+    expect(screen.queryByText(/"status":"submitted"/)).toBeNull()
+  })
+
   it('uses the shared clean label for a desktop tool row', () => {
     const blocks: NativeChatBlock[] = [
       {

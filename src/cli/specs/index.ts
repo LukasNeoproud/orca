@@ -18,6 +18,7 @@ import { VM_COMMAND_SPECS } from './vm'
 import { SKILL_COMMAND_SPECS } from './skills'
 import { ARTIFACT_COMMAND_SPECS } from './artifacts'
 import { AGENT_CONTEXT_COMMAND_SPECS } from './agent-context'
+import { INTERACT_COMMAND_SPECS } from './interact'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
@@ -38,5 +39,6 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...VM_COMMAND_SPECS,
   ...EMULATOR_COMMAND_SPECS,
   ...AGENT_CONTEXT_COMMAND_SPECS,
+  ...INTERACT_COMMAND_SPECS,
   ...SKILL_COMMAND_SPECS
 ]

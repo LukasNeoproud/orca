@@ -621,7 +621,7 @@ describe('codex item bodies', () => {
     })
   })
 
-  it('renders a dynamic tool call with its namespace, result, and terminal state', () => {
+  it('renders a dynamic tool call without exposing the interaction response JSON', () => {
     expect(
       codexItemBody({
         type: 'dynamicToolCall',
@@ -639,12 +639,22 @@ describe('codex item bodies', () => {
       input: { title: 'Persistence' },
       state: 'completed',
       output: {
-        head: '{"status":"submitted"}',
-        byteLength: 22,
+        head: 'Response submitted',
+        byteLength: 18,
         truncated: false,
         digest: expect.any(String)
       }
     })
+    expect(
+      codexItemBody({
+        type: 'dynamicToolCall',
+        id: 'dynamic-cancelled',
+        namespace: 'orca',
+        tool: 'interact',
+        status: 'completed',
+        contentItems: [{ type: 'inputText', text: '{"status":"cancelled"}' }]
+      })
+    ).toMatchObject({ output: { head: 'Interaction cancelled' } })
     expect(
       codexItemBody({
         type: 'dynamicToolCall',
@@ -654,6 +664,31 @@ describe('codex item bodies', () => {
         success: false
       })
     ).toMatchObject({ name: 'interact', state: 'failed' })
+  })
+
+  it('renders an interaction MCP call without exposing its response JSON', () => {
+    const body = codexItemBody({
+      type: 'mcpToolCall',
+      id: 'mcp-interaction-1',
+      server: 'orca_interactive_chat',
+      tool: 'interact',
+      status: 'completed',
+      result: {
+        content: [
+          {
+            type: 'text',
+            text: '{"status":"submitted","values":{"secret":"do not render"}}'
+          }
+        ]
+      }
+    })
+
+    expect(body).toMatchObject({
+      name: 'orca_interactive_chat/interact',
+      state: 'completed',
+      output: { head: 'Response submitted' }
+    })
+    expect(JSON.stringify(body)).not.toContain('do not render')
   })
 
   it('passes an mcp tool name through with no casing transform', () => {

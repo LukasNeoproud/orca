@@ -85,6 +85,7 @@ export type CodexSession = {
   /** Captured before `turn/start`; the later notification cannot read a newer option write. */
   pendingTurnGenerationMetadata?: CodexTurnGenerationMetadata
   supportsDefaultServiceTier?: boolean
+  resumedInteractiveChat?: boolean
   turnIdWaiters: ((turnId: string) => void)[]
   translator: CodexJournalTranslator | null
   unbindReadingControl?: () => void

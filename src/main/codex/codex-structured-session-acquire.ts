@@ -223,6 +223,7 @@ export async function acquireCodexStructuredSession(input: {
       ...codexSessionLifecycle(acquireInput.fence, acquired.acquisitionGeneration as string),
       threadId: opened.threadId,
       historyPath: opened.historyPath,
+      resumedInteractiveChat: Boolean(launch.resumeThreadId || opened.interactionMcp),
       cwd: launch.cwd,
       historyMode: opened.historyMode,
       activeTurnIds: new Set(),

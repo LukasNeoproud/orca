@@ -53,8 +53,8 @@ export const ORCAD_INSTALL_MODEL: RemoteInstallModel = {
   nativeDepsPackageName: 'orca-orcad',
   versionFilename: ORCAD_VERSION_FILENAME,
   installCompleteFilename: ORCAD_INSTALL_COMPLETE_FILENAME,
-  // Why the parameter is ignored: orcad's forked children are the same three .js files on
-  // every host. The Windows-only console-list agent patch is a relay/node-pty concern.
+  // Why the parameter is ignored: orcad's JavaScript artifacts are identical across hosts.
+  // The Windows-only console-list agent patch is a relay/node-pty concern.
   requiredArtifacts: () => orcadArtifactFilenames()
 }
 

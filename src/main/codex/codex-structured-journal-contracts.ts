@@ -20,6 +20,7 @@ export type CodexJournalTranslator = {
     thread: Record<string, unknown>
   ) => CodexJournalTranslationAdmission
   resolvePrompt: (journalItemId: string) => void
+  cancelPrompt: (journalItemId: string) => CodexJournalTranslationAdmission
   flush: () => void
   dispose: () => void
 }

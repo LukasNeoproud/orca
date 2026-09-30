@@ -1,6 +1,7 @@
 import { toolExecutionMetadata, toolWebSearchResults } from '../../shared/native-chat-tool-identity'
 import type { AgentJournalItemBody } from '../../shared/agent-session-journal-types'
 import type { NativeChatBlock } from '../../shared/native-chat-types'
+import { ORCA_INTERACTION_MCP_SERVER } from '../../shared/orca-interaction-elicitation'
 import {
   boundInlineText,
   boundToolInput,
@@ -10,6 +11,7 @@ import { unhandledProviderFrameJournalItem } from '../native-chat/agent-session-
 import { codexImageItemBody } from './codex-image-item-translation'
 import { commandActionFacts } from './codex-command-action-class'
 import { codexDynamicToolCallBody } from './codex-dynamic-tool-item-translation'
+import { summarizeCodexInteractionResult } from './codex-interaction-result-summary'
 import {
   readFirstString,
   readRecord,
@@ -167,7 +169,15 @@ function mcpToolCallItem(item: CodexThreadItem): CodexJournalItem {
   const tool = readString(item, 'tool')
   const failure = readString(readRecord(item.error), 'message')
   const text = failure ?? readTextContent(readRecord(item.result), 'content')
-  const bounded = text === null ? null : boundInlineText(text, DEFAULT_JOURNAL_PAYLOAD_LIMITS)
+  const output =
+    server === ORCA_INTERACTION_MCP_SERVER &&
+    tool === 'interact' &&
+    failure === null &&
+    readString(item, 'status') === 'completed' &&
+    text !== null
+      ? summarizeCodexInteractionResult(text)
+      : text
+  const bounded = output === null ? null : boundInlineText(output, DEFAULT_JOURNAL_PAYLOAD_LIMITS)
   return {
     body: {
       kind: 'tool-call',

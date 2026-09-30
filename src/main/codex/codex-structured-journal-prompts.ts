@@ -8,6 +8,8 @@ import {
 } from './codex-structured-prompt-items'
 import { CODEX_USER_INPUT_METHOD } from './codex-structured-prompt-replies'
 import { CODEX_DYNAMIC_TOOL_CALL_METHOD, readOrcaInteractionCall } from './codex-orca-interaction'
+import { CODEX_MCP_ELICITATION_METHOD } from '../../shared/orca-interaction-elicitation'
+import { readOrcaInteractionElicitation } from './codex-interaction-elicitation'
 import type {
   CodexJournalTranslationAdmission,
   CodexJournalTranslatorDeps
@@ -36,8 +38,14 @@ export class CodexJournalPrompts {
     codexItemId: string
     promptKey: string
   }): CodexJournalTranslationAdmission {
-    if (event.method === CODEX_DYNAMIC_TOOL_CALL_METHOD) {
-      const interaction = readOrcaInteractionCall(event.params)
+    if (
+      event.method === CODEX_DYNAMIC_TOOL_CALL_METHOD ||
+      event.method === CODEX_MCP_ELICITATION_METHOD
+    ) {
+      const interaction =
+        event.method === CODEX_DYNAMIC_TOOL_CALL_METHOD
+          ? readOrcaInteractionCall(event.params)
+          : readOrcaInteractionElicitation(event.params)
       if (!interaction) {
         return { accepted: false, reason: 'untranslated' }
       }
@@ -108,6 +116,26 @@ export class CodexJournalPrompts {
     this.pending.delete(journalItemId)
   }
 
+  cancel(journalItemId: string): CodexJournalTranslationAdmission {
+    const prompt = this.pending.get(journalItemId)
+    if (!prompt) {
+      return CODEX_JOURNAL_ADMITTED
+    }
+    const cancelled = cancelledJournalPromptBody(prompt.body)
+    if (cancelled) {
+      const admission = appendCodexLifecycleItem(this.deps.sink, prompt.identity, cancelled)
+      if (!admission.accepted) {
+        return admission
+      }
+      const published = publishCodexLifecycle(this.deps.sink)
+      if (!published.accepted) {
+        return published
+      }
+    }
+    this.pending.delete(journalItemId)
+    return CODEX_JOURNAL_ADMITTED
+  }
+
   dispose(): void {
     this.pending.clear()
   }
@@ -131,21 +159,10 @@ export class CodexJournalPrompts {
       if (typeof oldest !== 'string') {
         break
       }
-      const evicted = this.pending.get(oldest)
-      if (evicted) {
-        const cancelled = cancelledJournalPromptBody(evicted.body)
-        if (cancelled) {
-          const admission = appendCodexLifecycleItem(this.deps.sink, evicted.identity, cancelled)
-          if (!admission.accepted) {
-            return admission
-          }
-          const published = publishCodexLifecycle(this.deps.sink)
-          if (!published.accepted) {
-            return published
-          }
-        }
+      const admission = this.cancel(oldest)
+      if (!admission.accepted) {
+        return admission
       }
-      this.pending.delete(oldest)
     }
     return CODEX_JOURNAL_ADMITTED
   }

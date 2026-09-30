@@ -22,6 +22,8 @@ export type CodexAppServerConnection = {
   notify: (method: string, params?: Record<string, unknown>) => void
   respond: (id: number | string, result: unknown) => void
   respondWithError: (id: number | string, code: number, message: string) => void
+  /** Creates the host-local input bridge used only by this resumed root thread. */
+  prepareInteractionBridge?: (threadId: string) => Promise<Record<string, string>>
   /** Stops provider stdout at a record boundary while a durable sink drains. */
   pauseReading?: () => void
   /** Continues with any records retained from the chunk that triggered the pause. */

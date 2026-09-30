@@ -10,6 +10,7 @@
  */
 
 export const ORCAD_VERSION = '0.1.0'
+export const ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME = 'structured-interaction-mcp-entry.js'
 
 export type OrcadArtifact = {
   filename: string
@@ -26,7 +27,9 @@ export const ORCAD_ARTIFACTS: readonly OrcadArtifact[] = [
   // Forked so a native @parcel/watcher fault kills the child, not the server.
   { filename: 'parcel-watcher-process-entry.js' },
   // Forked so PTYs outlive the runtime process; its absence makes every restart destructive.
-  { filename: 'daemon-entry.js' }
+  { filename: 'daemon-entry.js' },
+  // Spawned by resumed Codex chats on this execution host; never substitute a desktop CLI path.
+  { filename: ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME }
 ]
 
 /** Written after the artifacts, so it is never an input to its own hash. */

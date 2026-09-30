@@ -34,6 +34,7 @@ import {
   dispatchCodexStructuredAdapterTurn,
   setCodexStructuredAdapterOption
 } from './codex-structured-session-operations'
+import { readCodexTurnId } from './codex-structured-thread-facts'
 
 export type {
   CodexStructuredLaunch,
@@ -152,9 +153,21 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     session: CodexSession,
     event: CodexStructuredSessionEvent
   ): CodexJournalTranslationAdmission {
+    const settlements = this.promptSettlements(session, event)
+    for (const { journalItemIds } of settlements) {
+      for (const itemId of journalItemIds) {
+        const cancelled = session.translator?.cancelPrompt(itemId) ?? { accepted: true }
+        if (!cancelled.accepted) {
+          return cancelled
+        }
+      }
+    }
     const admission = session.translator?.handle(event) ?? { accepted: true }
     if (!admission.accepted) {
       return admission
+    }
+    for (const { prompt } of settlements) {
+      session.prompts.forget(prompt)
     }
     if (event.type === 'notification') {
       this.compactions.codex(event.sessionId, event.method, event.params)
@@ -164,6 +177,25 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     }
     this.deps.onEvent?.(event)
     return admission
+  }
+
+  private promptSettlements(session: CodexSession, event: CodexStructuredSessionEvent) {
+    if (event.type !== 'notification') {
+      return []
+    }
+    if (event.method === 'serverRequest/resolved') {
+      const requestId =
+        typeof event.params === 'object' && event.params !== null
+          ? (event.params as Record<string, unknown>).requestId
+          : null
+      return typeof requestId === 'string' || typeof requestId === 'number'
+        ? session.prompts.interactionSettlements({ requestId })
+        : []
+    }
+    const turnId = event.method === 'turn/completed' ? readCodexTurnId(event.params) : null
+    return turnId
+      ? session.prompts.interactionSettlements({ threadId: event.threadId, turnId })
+      : []
   }
 
   private handleServerRequest(

@@ -124,7 +124,7 @@ export function interactionResultFromQuestionAnswers(
 export function answerOrcaInteraction(
   request: OrcaInteractionRequest | undefined,
   answer: string
-): Record<string, unknown> {
+): ReturnType<typeof orcaInteractionToolResponse> {
   const fallback = request ? interactionResultFromQuestionAnswers(request, answer) : null
   return orcaInteractionToolResponse(
     request,

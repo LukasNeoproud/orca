@@ -18,6 +18,12 @@ import {
   CODEX_USER_INPUT_METHOD
 } from './codex-structured-prompt-replies'
 import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
+import {
+  CODEX_MCP_ELICITATION_METHOD,
+  encodeOrcaInteractionElicitationMessage,
+  ORCA_INTERACTION_ELICITATION_REQUESTED_SCHEMA,
+  ORCA_INTERACTION_MCP_SERVER
+} from '../../shared/orca-interaction-elicitation'
 import type { CodexStructuredSessionEvent } from './codex-structured-session-adapter'
 
 const SESSION_ID = 'session-1'
@@ -643,56 +649,70 @@ describe('codex journal translation', () => {
     expect(publishes).toHaveLength(1)
   })
 
-  it('publishes an Orca interaction as one durable rich question', () => {
-    const tap = recorder()
-    const translator = createCodexJournalTranslator({
-      sink: tap.sink,
-      bindPromptItemId: tap.bindPromptItemId
-    })
+  it.each([CODEX_DYNAMIC_TOOL_CALL_METHOD, CODEX_MCP_ELICITATION_METHOD])(
+    'publishes %s as one durable rich question',
+    (method) => {
+      const tap = recorder()
+      const translator = createCodexJournalTranslator({
+        sink: tap.sink,
+        bindPromptItemId: tap.bindPromptItemId
+      })
 
-    const admission = translator.handle({
-      type: 'prompt',
-      sessionId: SESSION_ID,
-      threadId: THREAD_ID,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
+      const request = {
+        title: 'Persistence',
+        fields: [
+          {
+            id: 'storage',
+            type: 'single_choice' as const,
+            label: 'Storage',
+            options: [{ id: 'sqlite', label: 'SQLite', recommended: true }]
+          }
+        ]
+      }
+      const admission = translator.handle({
+        type: 'prompt',
+        sessionId: SESSION_ID,
         threadId: THREAD_ID,
-        turnId: TURN_ID,
-        callId: 'interaction-1',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          title: 'Persistence',
-          fields: [
-            {
-              id: 'storage',
-              type: 'single_choice',
-              label: 'Storage',
-              options: [{ id: 'sqlite', label: 'SQLite', recommended: true }]
-            }
-          ]
-        }
-      },
-      codexItemId: 'interaction-1',
-      promptKey: 'interaction-1'
-    })
+        method,
+        params:
+          method === CODEX_MCP_ELICITATION_METHOD
+            ? {
+                threadId: THREAD_ID,
+                turnId: TURN_ID,
+                serverName: ORCA_INTERACTION_MCP_SERVER,
+                mode: 'form',
+                message: encodeOrcaInteractionElicitationMessage(request),
+                requestedSchema: ORCA_INTERACTION_ELICITATION_REQUESTED_SCHEMA
+              }
+            : {
+                threadId: THREAD_ID,
+                turnId: TURN_ID,
+                callId: 'interaction-1',
+                namespace: 'orca',
+                tool: 'interact',
+                arguments: request
+              },
+        codexItemId: 'interaction-1',
+        promptKey: 'interaction-1'
+      })
 
-    expect(admission).toEqual({ accepted: true })
-    expect(tap.rows).toEqual([
-      expect.objectContaining({
-        body: expect.objectContaining({
-          kind: 'question',
-          question: 'Persistence',
-          interaction: expect.objectContaining({
-            fields: [expect.objectContaining({ id: 'storage' })]
+      expect(admission).toEqual({ accepted: true })
+      expect(tap.rows).toEqual([
+        expect.objectContaining({
+          body: expect.objectContaining({
+            kind: 'question',
+            question: 'Persistence',
+            interaction: expect.objectContaining({
+              fields: [expect.objectContaining({ id: 'storage' })]
+            })
           })
         })
-      })
-    ])
-    expect(tap.bound).toEqual([
-      ['orca:codex-prompt%3Athread-abc%3Ainteraction-1', THREAD_ID, 'interaction-1']
-    ])
-  })
+      ])
+      expect(tap.bound).toEqual([
+        ['orca:codex-prompt%3Athread-abc%3Ainteraction-1', THREAD_ID, 'interaction-1']
+      ])
+    }
+  )
 
   it('refuses an untranslated user-input prompt without binding live state', () => {
     const tap = recorder()

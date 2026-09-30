@@ -541,7 +541,7 @@ describe('buildAgentResumeStartupPlan claude selector guard', () => {
       agentArgs: '--resume stale-session --model sonnet',
       platform: 'linux'
     })
-    expect(restored?.launchCommand).toBe(`claude '--model' 'sonnet' '--resume' '${SESSION_ID}'`)
+    expect(restored?.launchCommand).toContain(`'--model' 'sonnet' '--resume' '${SESSION_ID}'`)
   })
 
   it('still launches exotic custom commands that the tokenizer rejects', () => {

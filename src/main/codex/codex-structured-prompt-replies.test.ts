@@ -144,6 +144,51 @@ describe('CodexPromptRegistry', () => {
 
     expect(registry.find('journal-first')).toBe(first)
   })
+
+  it('matches interaction settlement by exact request or non-null thread and turn', () => {
+    const registry = new CodexPromptRegistry()
+    const interaction = registry.register({
+      id: 41,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-root',
+        turnId: 'turn-1',
+        callId: 'call-1',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          title: 'Root turn',
+          fields: [{ id: 'confirm', type: 'boolean', label: 'Continue?' }]
+        }
+      }
+    })
+    registry.bindJournalItemId('journal-interaction', 'thread-root', 'call-1')
+    registry.register({
+      id: 42,
+      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
+      params: {
+        threadId: 'thread-child',
+        turnId: 'turn-1',
+        callId: 'call-child',
+        namespace: 'orca',
+        tool: 'interact',
+        arguments: {
+          title: 'Child turn',
+          fields: [{ id: 'confirm', type: 'boolean', label: 'Continue?' }]
+        }
+      }
+    })
+
+    expect(registry.interactionSettlements({ requestId: 41 })).toEqual([
+      { prompt: interaction, journalItemIds: ['journal-interaction'] }
+    ])
+    expect(registry.interactionSettlements({ threadId: 'thread-root', turnId: 'turn-1' })).toEqual([
+      { prompt: interaction, journalItemIds: ['journal-interaction'] }
+    ])
+    expect(
+      registry.interactionSettlements({ threadId: 'thread-child', turnId: 'turn-other' })
+    ).toEqual([])
+  })
 })
 
 describe('applyCodexPromptAnswer', () => {

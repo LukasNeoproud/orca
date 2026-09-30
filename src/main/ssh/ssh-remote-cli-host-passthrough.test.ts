@@ -160,6 +160,17 @@ describe('buildHostCliEnv', () => {
 })
 
 describe('resolveHostCliKillTimeoutMs', () => {
+  it.each([[], ['--timeout-ms', '1800000'], ['--timeout-ms=5000']])(
+    'keeps terminal interaction within both SSH deadlines: %j',
+    (...flags) => {
+      const argv = ['interact', 'request', '--request-stdin', ...flags]
+      const host = resolveHostCliKillTimeoutMs(argv)
+      expect(host).toBeGreaterThan(
+        flags.length ? Number(flags.at(-1)?.split('=').at(-1)) : 3_600_000
+      )
+      expect(remoteCliRequestTimeoutMs({ argv })).toBeGreaterThan(host)
+    }
+  )
   it.each([
     ['--wait-submit', '3600'],
     ['--wait-submit=3600'],
