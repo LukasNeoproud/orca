@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { Image, Pressable, Text, View } from 'react-native'
+import { type GestureResponderEvent, Image, Pressable, Text, TextInput, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { ArrowUp, Copy, GitBranch } from 'lucide-react-native'
+import { ArrowUp, Copy, GitBranch, MessageSquareQuote, X } from 'lucide-react-native'
 import { splitNativeChatBlocks } from '../../../src/shared/native-chat-tool-fold'
 import { selectActiveToolCall } from '../../../src/shared/native-chat-tool-activity'
 import { isImageRefBlock, isTextBlock } from '../../../src/shared/native-chat-types'
@@ -13,19 +13,21 @@ import type { NativeChatTurnStatus } from './use-mobile-native-chat-turn-status'
 import { colors } from '../theme/mobile-theme'
 import { isRenderableImageUri } from './mobile-native-chat-image-preview'
 import { styles, TEXT_SIZE } from './mobile-native-chat-message-styles'
-import { nativeChatMessageText } from './mobile-native-chat-message-text'
+import { nativeChatCommentableText, nativeChatMessageText } from './mobile-native-chat-message-text'
 import { MobileNativeChatGenerationStats } from './MobileNativeChatGenerationStats'
 
 function Prose({
   block,
   invert,
   fontScale,
-  onOpenFile
+  onOpenFile,
+  selectable = true
 }: {
   block: NativeChatBlock
   invert?: boolean
   fontScale: number
   onOpenFile?: (relativePath: string) => void
+  selectable?: boolean
 }): React.JSX.Element | null {
   if (isTextBlock(block)) {
     // Inverted (user) bubbles use a fixed dark-on-light text rather than the
@@ -38,7 +40,12 @@ function Prose({
       )
     }
     return (
-      <MobileMarkdown content={block.text} textScale={1.25 * fontScale} onOpenFile={onOpenFile} />
+      <MobileMarkdown
+        content={block.text}
+        textScale={1.25 * fontScale}
+        selectable={selectable}
+        onOpenFile={onOpenFile}
+      />
     )
   }
   if (isImageRefBlock(block)) {
@@ -122,7 +129,8 @@ function MobileNativeChatMessageImpl({
   onToggleTurn,
   activeTurnIsWorking,
   structuredActivityUi = false,
-  onBranchMessage
+  onBranchMessage,
+  onCommentQuote
 }: {
   message: NativeChatMessage
   toolsExpanded?: boolean
@@ -147,21 +155,44 @@ function MobileNativeChatMessageImpl({
   structuredActivityUi?: boolean
   /** Present only for a completed structured response with an exact journal boundary. */
   onBranchMessage?: (message: NativeChatMessage) => void
+  /** Long-press response selection snapshots the exact selected range here. */
+  onCommentQuote?: (quote: string) => void
 }): React.JSX.Element {
   const isUser = message.role === 'user'
   const isReasoning = message.role === 'reasoning'
   const isAgent = !isUser
   // Briefly tint the bubble to confirm a copy landed.
   const [copied, setCopied] = useState(false)
+  const responseText = nativeChatCommentableText(message.blocks)
+  const canComment =
+    (message.role === 'assistant' || message.role === 'reasoning' || message.role === 'tool') &&
+    message.id !== 'streaming' &&
+    Boolean(responseText)
+  const [selectingQuote, setSelectingQuote] = useState(false)
+  const [quoteSelection, setQuoteSelection] = useState({ start: 0, end: responseText.length })
+  const quoteInputRef = useRef<TextInput>(null)
+  const quoteLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const quoteTouchStartRef = useRef<{ x: number; y: number } | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
     () => () => {
       if (copyTimer.current) {
         clearTimeout(copyTimer.current)
       }
+      if (quoteLongPressTimerRef.current) {
+        clearTimeout(quoteLongPressTimerRef.current)
+      }
     },
     []
   )
+  useEffect(() => {
+    if (!selectingQuote) {
+      return
+    }
+    setQuoteSelection({ start: 0, end: responseText.length })
+    const timer = setTimeout(() => quoteInputRef.current?.focus(), 0)
+    return () => clearTimeout(timer)
+  }, [responseText, selectingQuote])
   // Separate the agent's words from its tool activity: prose renders first, the
   // tool calls fold into a collapsible run beneath. The user's own messages get
   // an inverted (filled accent) bubble so they stand apart from agent prose.
@@ -180,6 +211,40 @@ function MobileNativeChatMessageImpl({
     !turnExpanded &&
     !toolsExpanded
   const showToolRun = tools.length > 0 && !settledToolsHidden
+
+  const cancelQuoteLongPress = (): void => {
+    if (quoteLongPressTimerRef.current) {
+      clearTimeout(quoteLongPressTimerRef.current)
+      quoteLongPressTimerRef.current = null
+    }
+    quoteTouchStartRef.current = null
+  }
+
+  const handleQuoteTouchStart = (event: GestureResponderEvent): void => {
+    if (!canComment || !onCommentQuote || selectingQuote) {
+      return
+    }
+    quoteTouchStartRef.current = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY
+    }
+    quoteLongPressTimerRef.current = setTimeout(() => {
+      quoteLongPressTimerRef.current = null
+      quoteTouchStartRef.current = null
+      setSelectingQuote(true)
+    }, 450)
+  }
+
+  const handleQuoteTouchMove = (event: GestureResponderEvent): void => {
+    const start = quoteTouchStartRef.current
+    if (
+      start &&
+      (Math.abs(event.nativeEvent.pageX - start.x) > 10 ||
+        Math.abs(event.nativeEvent.pageY - start.y) > 10)
+    ) {
+      cancelQuoteLongPress()
+    }
+  }
 
   const handleCopy = (): void => {
     const text = nativeChatMessageText(message.blocks)
@@ -218,17 +283,73 @@ function MobileNativeChatMessageImpl({
             isReasoning && styles.reasoning,
             copied && styles.copied
           ]}
+          onTouchStart={handleQuoteTouchStart}
+          onTouchMove={handleQuoteTouchMove}
+          onTouchEnd={cancelQuoteLongPress}
+          onTouchCancel={cancelQuoteLongPress}
         >
-          {prose.map((block, index) => (
-            <Prose
-              key={index}
-              block={block}
-              invert={isUser}
-              fontScale={fontScale}
-              onOpenFile={onOpenFile}
-            />
-          ))}
-          {showToolRun ? (
+          {selectingQuote ? (
+            <View style={styles.quoteSelectionWrap}>
+              <TextInput
+                ref={quoteInputRef}
+                style={[styles.quoteSelectionText, { fontSize: TEXT_SIZE * fontScale }]}
+                value={responseText}
+                multiline
+                contextMenuHidden
+                showSoftInputOnFocus={false}
+                selectTextOnFocus
+                selection={quoteSelection}
+                onSelectionChange={(event) => setQuoteSelection(event.nativeEvent.selection)}
+                onChangeText={() => undefined}
+                selectionColor={colors.accentBlue}
+                accessibilityLabel="Selected response quote"
+              />
+              <View style={styles.quoteSelectionActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.quoteSelectionButton,
+                    pressed && styles.controlPressed
+                  ]}
+                  onPress={() => setSelectingQuote(false)}
+                  accessibilityLabel="Cancel comment selection"
+                >
+                  <X size={14} color={colors.textSecondary} />
+                  <Text style={styles.quoteSelectionButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.quoteSelectionButton,
+                    styles.quoteCommentButton,
+                    pressed && styles.controlPressed
+                  ]}
+                  onPress={() => {
+                    const quote = responseText.slice(quoteSelection.start, quoteSelection.end)
+                    if (!quote.trim()) {
+                      return
+                    }
+                    setSelectingQuote(false)
+                    onCommentQuote?.(quote)
+                  }}
+                  accessibilityLabel="Comment on selected text"
+                >
+                  <MessageSquareQuote size={14} color={colors.bgBase} />
+                  <Text style={styles.quoteCommentButtonText}>Comment</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            prose.map((block, index) => (
+              <Prose
+                key={index}
+                block={block}
+                invert={isUser}
+                fontScale={fontScale}
+                onOpenFile={onOpenFile}
+                selectable={!canComment}
+              />
+            ))
+          )}
+          {!selectingQuote && showToolRun ? (
             <ToolRun
               // Why: a global toggle intentionally resets all per-run/per-line
               // overrides in one remount, avoiding an effect-driven second render.
@@ -240,10 +361,10 @@ function MobileNativeChatMessageImpl({
               trailing={controls}
               onOpenFile={onOpenFile}
             />
-          ) : controls ? (
+          ) : !selectingQuote && controls ? (
             <View style={styles.controlsRow}>{controls}</View>
           ) : null}
-          {message.role === 'assistant' ? (
+          {!selectingQuote && message.role === 'assistant' ? (
             <MobileNativeChatGenerationStats generation={message.generation} />
           ) : null}
         </View>

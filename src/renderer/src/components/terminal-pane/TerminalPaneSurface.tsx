@@ -16,6 +16,7 @@ import { SessionRestoredBannerPortals } from './SessionRestoredBannerPortals'
 import { handleInternalTerminalFileDrop } from './terminal-drop-handler'
 import { TerminalQuickCommandEditorDialog } from './TerminalQuickCommandEditorDialog'
 import { TerminalPaneNativeChatPortal } from './TerminalPaneNativeChatPortal'
+import { TerminalResponseComment } from './TerminalResponseComment'
 import {
   TerminalPaneCodexConversationContinuationPortals,
   TerminalPaneCodexRestartPortals,
@@ -241,6 +242,25 @@ export function TerminalPaneSurface({
         paneIds={sessionRestoredBannerPaneIds}
       />
       <TerminalPaneNativeChatPortal controller={controller} />
+      {isActive &&
+        controller.isVisible &&
+        !contextMenu.open &&
+        managedPanes.map((pane) =>
+          effectiveChatViewMode && controller.chatLeafId === pane.leafId ? null : (
+            <TerminalResponseComment
+              key={pane.leafId}
+              pane={pane}
+              context={{
+                managerRef,
+                paneTransportsRef,
+                tabId,
+                worktreeId,
+                forceBracketedMultilineTextPaste: controller.forceBracketedMultilineTextPaste,
+                onPasteError: controller.setTerminalError
+              }}
+            />
+          )
+        )}
       <TerminalContextMenu
         filePath={contextMenu.filePath}
         open={contextMenu.open}

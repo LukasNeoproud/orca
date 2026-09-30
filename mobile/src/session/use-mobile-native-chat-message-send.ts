@@ -32,7 +32,8 @@ export type MobileNativeChatMessageSend = {
   sendWithOutcome: (
     text: string,
     images?: string[],
-    deadline?: number
+    deadline?: number,
+    composerDraftText?: string
   ) => Promise<MobileNativeChatSendOutcome>
   /** Answer to an agent question — never touches the composer draft. */
   answerQuestion: (text: string) => Promise<boolean>
@@ -92,7 +93,8 @@ export function useMobileNativeChatMessageSend(args: {
       images: string[] | undefined,
       syncComposer: boolean,
       recordControlSend: boolean,
-      sharedDeadline?: number
+      sharedDeadline?: number,
+      composerDraftText: string = draftText
     ): Promise<MobileNativeChatSendOutcome> => {
       // The host writes trailing whitespace verbatim onto the agent's input line,
       // where it can glue the next rapid send onto this one (#14262). Only the
@@ -132,7 +134,7 @@ export function useMobileNativeChatMessageSend(args: {
       // round trip is visible, and a lost ack must not strand the sent prompt
       // in the box. Only a definite rejection puts the text back.
       if (syncComposer) {
-        clearDraftForSend(origin, draftText)
+        clearDraftForSend(origin, composerDraftText)
       }
       const seededLaunchDraft = readSeededLaunchDraftSeed()
       const classification = classifyMobileNativeChatSend(agent, text)
@@ -157,7 +159,7 @@ export function useMobileNativeChatMessageSend(args: {
         })
         if (!cleared) {
           if (syncComposer) {
-            restoreRejectedDraft(origin, draftText)
+            restoreRejectedDraft(origin, composerDraftText)
           }
           onSendError('Message not sent')
           return 'rejected'
@@ -203,7 +205,7 @@ export function useMobileNativeChatMessageSend(args: {
       }
       if (outcome === 'rejected') {
         if (syncComposer) {
-          restoreRejectedDraft(origin, draftText)
+          restoreRejectedDraft(origin, composerDraftText)
         }
         onSendError('Message not sent')
         return 'rejected'
@@ -237,8 +239,8 @@ export function useMobileNativeChatMessageSend(args: {
   )
 
   const sendWithOutcome = useCallback(
-    (text: string, images?: string[], deadline?: number) =>
-      sendMessage(text, images, true, true, deadline),
+    (text: string, images?: string[], deadline?: number, composerDraftText?: string) =>
+      sendMessage(text, images, true, true, deadline, composerDraftText),
     [sendMessage]
   )
 

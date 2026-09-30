@@ -4,6 +4,7 @@ import {
   clampFontScale,
   FONT_SCALE_MAX,
   FONT_SCALE_MIN,
+  nativeChatCommentableText,
   nativeChatMessageText
 } from './mobile-native-chat-message-text'
 
@@ -24,6 +25,18 @@ describe('nativeChatMessageText', () => {
 
   it('trims surrounding whitespace', () => {
     expect(nativeChatMessageText([{ type: 'text', text: '  hi  ' }])).toBe('hi')
+  })
+})
+
+describe('nativeChatCommentableText', () => {
+  it('includes prose and rendered tool output', () => {
+    expect(
+      nativeChatCommentableText([
+        { type: 'text', text: 'I checked it.' },
+        { type: 'tool-call', name: 'Read', input: { path: 'a.ts' } },
+        { type: 'tool-result', output: 'line one\nline two' }
+      ])
+    ).toBe('I checked it.\n\nline one\nline two')
   })
 })
 

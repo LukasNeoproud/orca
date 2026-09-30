@@ -1,4 +1,8 @@
-import { isTextBlock, type NativeChatBlock } from '../../../src/shared/native-chat-types'
+import {
+  isTextBlock,
+  isToolResultBlock,
+  type NativeChatBlock
+} from '../../../src/shared/native-chat-types'
 
 /** Concatenate a message's text blocks into a single copyable string. Tool
  *  calls/results and image refs are skipped — Copy is for the agent's prose. */
@@ -6,6 +10,22 @@ export function nativeChatMessageText(blocks: readonly NativeChatBlock[]): strin
   return blocks
     .filter(isTextBlock)
     .map((b) => b.text)
+    .join('\n\n')
+    .trim()
+}
+
+/** Plain text that can be quoted from a rendered response selection surface. */
+export function nativeChatCommentableText(blocks: readonly NativeChatBlock[]): string {
+  return blocks
+    .flatMap((block) => {
+      if (isTextBlock(block)) {
+        return [block.text]
+      }
+      if (isToolResultBlock(block)) {
+        return [block.output]
+      }
+      return []
+    })
     .join('\n\n')
     .trim()
 }

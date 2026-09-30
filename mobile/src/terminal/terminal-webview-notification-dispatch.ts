@@ -29,6 +29,9 @@ export function dispatchTerminalWebViewNotification(
   } else if (msg.type === 'selection') {
     const text = typeof msg.text === 'string' ? msg.text : ''
     handlers.onSelectionCopy?.(text)
+  } else if (msg.type === 'selection-comment') {
+    const text = typeof msg.text === 'string' ? msg.text : ''
+    handlers.onSelectionComment?.(text)
   } else if (msg.type === 'selection-evicted') {
     handlers.onSelectionEvicted?.()
   } else if (msg.type === 'modes') {

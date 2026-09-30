@@ -18,10 +18,13 @@ import { isSlashCommandDraft } from '../../../../shared/native-chat-slash-comman
 import type { NativeChatPickerState } from './use-native-chat-picker-state'
 import type { NativeChatSendLifecycle } from './use-native-chat-send-lifecycle'
 import type { NativeChatPtySessionOptionsSurface } from './native-chat-pty-session-options'
+import type { AiResponseComment } from '../../../../shared/ai-response-comments'
 
 export function useNativeChatPtyComposerSend(args: {
   agent: AgentType
   draft: string
+  formattedDraft: string
+  responseComments: readonly AiResponseComment[]
   imageAttachments: readonly { path: string }[]
   disabled: boolean
   isDispatchingSessionOption: boolean
@@ -36,14 +39,18 @@ export function useNativeChatPtyComposerSend(args: {
   terminalTabId: string
   trackPendingSend: NativeChatSendLifecycle['trackPendingSend']
   setHistory: Dispatch<SetStateAction<HistoryState>>
-  setDraft: (value: string) => void
+  setDraft: (value: string | ((previous: string) => string)) => void
   setCaret: Dispatch<SetStateAction<number>>
   clearSkillOrigin: () => void
   clearImageAttachments: () => void
+  clearResponseComments?: () => void
+  restoreCanceledSend?: (draft: string, comments: readonly AiResponseComment[]) => void
   setNotice: Dispatch<SetStateAction<string | null>>
 }): () => void {
   return useCallback(() => {
-    const text = args.draft
+    const text = args.formattedDraft
+    const submittedDraft = args.draft
+    const submittedComments = args.responseComments
     const imagePaths = args.imageAttachments.map((attachment) => attachment.path)
     if ((text.trim() === '' && imagePaths.length === 0) || args.disabled) {
       return
@@ -83,9 +90,12 @@ export function useNativeChatPtyComposerSend(args: {
     } else {
       submitNativeChatPrompt(target.settings, target.ptyId)
     }
+    const restoreCanceledSend = (): void => {
+      args.restoreCanceledSend?.(submittedDraft, submittedComments)
+    }
     if (classification !== 'chat') {
       if (pendingHandle) {
-        args.trackPendingSend(pendingHandle)
+        args.trackPendingSend(pendingHandle, undefined, restoreCanceledSend)
       }
       if (classification === 'command') {
         args.onSlashCommand?.(text.trim())
@@ -94,7 +104,7 @@ export function useNativeChatPtyComposerSend(args: {
     } else {
       const pendingId = args.onOptimisticSend?.(text, imagePaths)
       if (pendingHandle) {
-        args.trackPendingSend(pendingHandle, pendingId)
+        args.trackPendingSend(pendingHandle, pendingId, restoreCanceledSend)
       }
     }
     emitNativeChatMessageSent({
@@ -106,6 +116,7 @@ export function useNativeChatPtyComposerSend(args: {
     args.setCaret(0)
     args.clearSkillOrigin()
     args.clearImageAttachments()
+    args.clearResponseComments?.()
     args.setNotice(null)
     useAppStore.getState().clearNativeChatLaunchDraft(args.terminalTabId)
   }, [args])

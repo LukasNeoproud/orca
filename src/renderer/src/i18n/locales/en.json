@@ -17856,6 +17856,21 @@
       "criterionUnmet": "Not met:",
       "tasks": "Tasks",
       "linkedConversationHint": "Linked conversation; does not indicate agent activity."
+    },
+    "response-comments": {
+      "saveFailed": "Could not add comment. Try again.",
+      "comment": "Comment",
+      "placeholder": "Add your comment…",
+      "commentText": "Comment text",
+      "cancel": "Cancel",
+      "adding": "Adding…",
+      "addComment": "Add comment",
+      "oneComment": "1 comment",
+      "manyComments": "{{count}} comments",
+      "removeComment": "Remove comment {{number}}",
+      "editComment": "Edit comment {{number}}",
+      "insertIntoPrompt": "Insert into prompt",
+      "terminalChanged": "Comment could not be inserted: the terminal is disconnected or has changed."
     }
   },
   "dashboardPopout": {

@@ -7,6 +7,8 @@ import {
 import {
   clearNativeChatDraftCacheForTests,
   readNativeChatDraftCache,
+  readNativeChatResponseComments,
+  writeNativeChatResponseComments,
   writeNativeChatDraftCache
 } from './native-chat-draft-cache'
 import {
@@ -58,5 +60,24 @@ describe('structured session composer draft transfer', () => {
     expect(readNativeChatDraftCache('destination-pane')).toBe(
       'Read the scoped history reference at /tmp/history.md before replying.\n\nContinue from the failing test.'
     )
+  })
+
+  it('moves a comment-only draft to the selected session', () => {
+    const responseComments = [
+      { id: 'comment-1', quote: 'const value = 1', comment: 'Rename this.' }
+    ]
+    writeNativeChatResponseComments('source-pane', responseComments)
+
+    stageStructuredSessionComposerDraft({
+      sourcePaneKey: 'source-pane',
+      targetSessionId: 'codex_comments'
+    })
+    adoptStructuredSessionComposerDraft({
+      targetPaneKey: 'destination-pane',
+      sessionId: 'codex_comments'
+    })
+
+    expect(readNativeChatDraftCache('destination-pane')).toBe('')
+    expect(readNativeChatResponseComments('destination-pane')).toEqual(responseComments)
   })
 })

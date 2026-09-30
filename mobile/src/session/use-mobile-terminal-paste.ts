@@ -13,6 +13,9 @@ import {
   saveMobileClipboardImageAsTempFile,
   type MobileClipboardImageResizer
 } from './mobile-clipboard-image'
+import { buildMobileTerminalPasteTextPayload } from './mobile-terminal-paste-text'
+
+export { buildMobileTerminalPasteTextPayload } from './mobile-terminal-paste-text'
 
 const CLIPBOARD_IMAGE_DATA_URL_PREFIX_RE = /^data:image\/[a-z0-9.+-]+;base64,/i
 
@@ -57,18 +60,6 @@ const resizeMobileClipboardImage: MobileClipboardImageResizer = async (source, t
       // Best-effort cleanup; the OS reclaims the cache directory regardless.
     }
   }
-}
-
-function buildMobileTerminalClipboardTextPayload(
-  text: string,
-  modes: TerminalModes | undefined
-): string {
-  const wrap = modes?.bracketedPasteMode === true && !modes.altScreen
-  // Why: strip embedded bracketed-paste markers so copied text cannot terminate
-  // paste mode early and turn trailing bytes into shell commands.
-  // eslint-disable-next-line no-control-regex -- intentional bracketed-paste marker stripping
-  const sanitized = wrap ? text.replace(/\x1b\[20[01]~/g, '') : text
-  return wrap ? `\x1b[200~${sanitized}\x1b[201~` : sanitized
 }
 
 type UseMobileTerminalPasteOptions = {
@@ -117,10 +108,7 @@ export function useMobileTerminalPaste({
       const text = await Clipboard.getStringAsync()
       let payload: string | null = null
       if (text.length > 0) {
-        payload = buildMobileTerminalClipboardTextPayload(
-          text,
-          ptyModesRef.current.get(targetHandle)
-        )
+        payload = buildMobileTerminalPasteTextPayload(text, ptyModesRef.current.get(targetHandle))
       } else {
         const image = await Clipboard.getImageAsync({ format: 'png' })
         if (!image) {

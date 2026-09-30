@@ -156,6 +156,7 @@ window.onerror = function(msg) {
   <div id="sel-handle-end" class="sel-handle end"></div>
   <div id="sel-menu">
     <button id="sel-menu-copy">Copy</button>
+    <button id="sel-menu-comment">Comment</button>
     <button id="sel-menu-all">Select All</button>
   </div>
 </div>

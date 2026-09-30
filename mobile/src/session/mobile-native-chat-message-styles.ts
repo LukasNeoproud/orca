@@ -46,6 +46,51 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.diffAddedBg,
     borderRadius: radii.card
   },
+  quoteSelectionWrap: {
+    position: 'relative',
+    borderRadius: radii.card,
+    backgroundColor: colors.editorSurface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    padding: spacing.sm
+  },
+  quoteSelectionText: {
+    minHeight: 72,
+    color: colors.textPrimary,
+    lineHeight: TEXT_SIZE + 6,
+    textAlignVertical: 'top',
+    padding: 0,
+    paddingBottom: 42
+  },
+  quoteSelectionActions: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.xs
+  },
+  quoteSelectionButton: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 15,
+    backgroundColor: colors.bgRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle
+  },
+  quoteCommentButton: { backgroundColor: colors.surfaceBright },
+  quoteSelectionButtonText: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize,
+    fontWeight: '700'
+  },
+  quoteCommentButtonText: {
+    color: colors.bgBase,
+    fontSize: typography.metaSize,
+    fontWeight: '700'
+  },
   reasoning: {
     opacity: 0.7
   },

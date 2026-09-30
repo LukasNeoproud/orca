@@ -44,6 +44,7 @@ vi.mock('lucide-react-native', () => ({
   ImagePlus: 'ImagePlus',
   Mic: 'Mic',
   Square: 'Square',
+  MessageSquareQuote: 'MessageSquareQuote',
   X: 'X'
 }))
 
@@ -328,6 +329,27 @@ describe('MobileNativeChatComposer', () => {
         })
       )
     })
+    expect(sendButton().props).toMatchObject({ disabled: false })
+    await act(async () => sendButton().props.onPress())
+    expect(onSend).toHaveBeenCalledWith('')
+  })
+
+  it('sends response comments without prompt text', async () => {
+    const onSend = vi.fn().mockResolvedValue(true)
+    await act(async () => {
+      renderer = create(
+        createElement(MobileNativeChatComposer, {
+          value: '',
+          onChangeText: vi.fn(),
+          onSend,
+          sendSurfaceId: 'tab-a',
+          getSendCompletionGeneration: getCurrentSendCompletionGeneration,
+          responseCommentCount: 1,
+          onOpenResponseComments: vi.fn()
+        })
+      )
+    })
+
     expect(sendButton().props).toMatchObject({ disabled: false })
     await act(async () => sendButton().props.onPress())
     expect(onSend).toHaveBeenCalledWith('')

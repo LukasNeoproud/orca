@@ -61,4 +61,14 @@ describe('dispatchTerminalWebViewNotification', () => {
       url: 'https://example.com'
     })
   })
+
+  it('routes selected response text to the comment handler verbatim', () => {
+    const onSelectionComment = vi.fn()
+    dispatchTerminalWebViewNotification(
+      { type: 'selection-comment', text: '  exact\nquote  ' },
+      { onSelectionComment, reportEngineError: vi.fn() }
+    )
+
+    expect(onSelectionComment).toHaveBeenCalledWith('  exact\nquote  ')
+  })
 })

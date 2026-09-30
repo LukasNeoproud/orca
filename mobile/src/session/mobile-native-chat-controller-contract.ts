@@ -17,6 +17,25 @@ import type { AgentJournalRenderItem } from '../../../src/shared/agent-session-j
 import type { useMobileStructuredTopicIndex } from './use-mobile-structured-topic-index'
 import type { useMobileStructuredSessionHandoff } from './use-mobile-structured-session-handoff'
 import type { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
+import type { useMobileAiResponseComments } from './use-mobile-ai-response-comments'
+import type { RpcClient } from '../transport/rpc-client'
+import type { ConnectionState } from '../transport/types'
+import type { MobileNativeChatTab } from './mobile-native-chat-eligibility'
+
+export type MobileNativeChatControllerOptions = {
+  client: RpcClient | null
+  hostId: string
+  worktreeId: string
+  activeSessionTab: MobileNativeChatTab | null
+  activeSessionTabId: string | null
+  activeHandleRef: MutableRefObject<string | null>
+  deviceTokenRef: MutableRefObject<string | null>
+  nativeChatTranscriptIsLocalReadable: boolean
+  nativeChatInputLeaseReady: boolean
+  connState: ConnectionState
+  onSendError: (message: string) => void
+  onSendResolved: () => void
+}
 
 export type MobileNativeChatController = {
   /** Whether a tab's effective view is chat (per-tab override, else the default). */
@@ -31,6 +50,7 @@ export type MobileNativeChatController = {
   getChatComposerEditGeneration: () => number
   chatPending: MobileNativeChatPendingMessage[]
   chatImagePreviewsByMessageId: Record<string, string[]>
+  responseComments: ReturnType<typeof useMobileAiResponseComments>
   nativeChatSession: ReturnType<typeof useMobileNativeChatSession>
   /** Structured lane: drives the per-turn status row and live tool progress. */
   nativeChatStructured: boolean

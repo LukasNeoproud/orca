@@ -7,16 +7,20 @@ import { dispatchNativeChatStructuredComposerText } from './native-chat-structur
 import { pushHistory, type HistoryState } from './native-chat-composer-state'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
+import type { AiResponseComment } from '../../../../shared/ai-response-comments'
 
 export type UseNativeChatStructuredComposerSendArgs = {
   agent: AgentType
   draft?: string
   imageAttachments: readonly NativeChatComposerImageAttachment[]
+  responseComments?: readonly AiResponseComment[]
   structuredTransport?: NativeChatStructuredComposerTransport
   clearImageAttachments: () => void
+  clearSubmittedResponseComments?: (comments: readonly AiResponseComment[]) => void
   clearSkillOrigin: () => void
+  isComposing?: () => boolean
   setHistory: (updater: (previous: HistoryState) => HistoryState) => void
-  setDraft: (value: string) => void
+  setDraft: (value: string | ((previous: string) => string)) => void
   setCaret: (caret: number) => void
 }
 
@@ -26,22 +30,26 @@ export function useNativeChatStructuredComposerSend({
   agent,
   draft,
   imageAttachments,
+  responseComments = [],
   structuredTransport,
   clearImageAttachments,
+  clearSubmittedResponseComments = () => {},
   clearSkillOrigin,
+  isComposing = () => false,
   setHistory,
   setDraft,
   setCaret
 }: UseNativeChatStructuredComposerSendArgs): (
   text: string,
-  attachments?: readonly NativeChatComposerImageAttachment[]
+  attachments?: readonly NativeChatComposerImageAttachment[],
+  comments?: readonly AiResponseComment[]
 ) => void {
-  const composition = useRef({ draft, imageAttachments })
+  const composition = useRef({ draft, imageAttachments, responseComments })
   useLayoutEffect(() => {
-    composition.current = { draft, imageAttachments }
-  }, [draft, imageAttachments])
+    composition.current = { draft, imageAttachments, responseComments }
+  }, [draft, imageAttachments, responseComments])
   return useCallback(
-    (text: string, attachments = imageAttachments): void => {
+    (text: string, attachments = imageAttachments, comments = []): void => {
       if (!structuredTransport) {
         return
       }
@@ -65,11 +73,13 @@ export function useNativeChatStructuredComposerSend({
             structuredTransport.runtimeEnvironmentId
           )
           setHistory((previous) => pushHistory(previous, text))
-          if (
-            isStructuredAgentSessionComposerCommand(text, agent) &&
-            (composition.current.draft !== submitted.draft ||
-              composition.current.imageAttachments !== submitted.imageAttachments)
-          ) {
+          if (comments.length > 0) {
+            clearSubmittedResponseComments(comments)
+          }
+          if (composition.current.imageAttachments !== submitted.imageAttachments) {
+            return
+          }
+          if (composition.current.draft !== submitted.draft && !isComposing()) {
             return
           }
           setDraft('')
@@ -85,7 +95,9 @@ export function useNativeChatStructuredComposerSend({
       agent,
       clearImageAttachments,
       clearSkillOrigin,
+      clearSubmittedResponseComments,
       imageAttachments,
+      isComposing,
       setCaret,
       setDraft,
       setHistory,

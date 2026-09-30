@@ -69,6 +69,7 @@ export function MobileSessionActiveContent({
     handleTerminalQueryReply,
     handleSelectionMode,
     handleSelectionCopy,
+    handleSelectionComment,
     handleSelectionEvicted,
     handleModesChanged,
     handleKeyboardAvoidanceMetrics,
@@ -232,6 +233,7 @@ export function MobileSessionActiveContent({
           onWebReady={handleTerminalWebReady}
           onSelectionMode={handleSelectionMode}
           onSelectionCopy={handleSelectionCopy}
+          onSelectionComment={handleSelectionComment}
           onSelectionEvicted={handleSelectionEvicted}
           onModesChanged={handleModesChanged}
           onKeyboardAvoidanceMetrics={handleKeyboardAvoidanceMetrics}

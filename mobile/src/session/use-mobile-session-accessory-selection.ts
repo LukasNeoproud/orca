@@ -17,6 +17,7 @@ import { clearTerminalLiveInputFocusTimer } from '../terminal/terminal-live-inpu
 import { getRepoIdFromMobileWorktreeId } from './mobile-session-route-helpers'
 import type { RuntimeRepoSummary } from './mobile-session-route-types'
 import type { MobileSessionTerminalInputModel } from './use-mobile-session-terminal-input'
+import { useMobileTerminalResponseComment } from './use-mobile-terminal-response-comment'
 
 export function useMobileSessionAccessorySelection(scope: MobileSessionTerminalInputModel) {
   const {
@@ -41,6 +42,7 @@ export function useMobileSessionAccessorySelection(scope: MobileSessionTerminalI
     handleAccessoryKey,
     clearSessionTabActionSheetKeyboardListener
   } = scope
+  const responseComment = useMobileTerminalResponseComment(scope)
   // Why: hold-to-repeat matches iOS cadence (400ms then 45ms); non-repeatable keys fire once (holding is destructive).
   const repeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -222,7 +224,8 @@ export function useMobileSessionAccessorySelection(scope: MobileSessionTerminalI
     handleKeyboardAvoidanceMetrics,
     handleHaptic,
     getActiveWorktreeConnectionId,
-    refreshCanPaste
+    refreshCanPaste,
+    ...responseComment
   }
 }
 

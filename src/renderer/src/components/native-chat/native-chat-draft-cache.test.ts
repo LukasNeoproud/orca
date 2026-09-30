@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   clearNativeChatDraftCacheForTests,
+  appendNativeChatResponseComment,
   readNativeChatDraftCache,
-  writeNativeChatDraftCache
+  readNativeChatResponseComments,
+  writeNativeChatDraftCache,
+  writeNativeChatDraftDocument
 } from './native-chat-draft-cache'
 import { NATIVE_CHAT_COMPOSER_SCOPE_CACHE_MAX } from './native-chat-composer-scope-cache'
 
@@ -26,6 +29,24 @@ describe('native-chat draft cache', () => {
     writeNativeChatDraftCache('pty-1', 'hello')
     writeNativeChatDraftCache('pty-1', '')
     expect(readNativeChatDraftCache('pty-1')).toBe('')
+  })
+
+  it('keeps response comments beside an empty draft until they are sent', () => {
+    appendNativeChatResponseComment('pty-1', '  selected code\n', 'Explain this')
+    writeNativeChatDraftCache('pty-1', 'temporary prompt')
+    writeNativeChatDraftCache('pty-1', '')
+
+    expect(readNativeChatDraftCache('pty-1')).toBe('')
+    expect(readNativeChatResponseComments('pty-1')).toMatchObject([
+      { quote: '  selected code\n', comment: 'Explain this' }
+    ])
+  })
+
+  it('keeps comment-only state when the rich editor writes an empty document', () => {
+    appendNativeChatResponseComment('pty-1', 'answer', 'Reconsider this')
+    writeNativeChatDraftDocument('pty-1', '', { type: 'doc' })
+
+    expect(readNativeChatResponseComments('pty-1')).toHaveLength(1)
   })
 
   it('bounds the cache so unsent drafts for removed panes cannot accumulate', () => {

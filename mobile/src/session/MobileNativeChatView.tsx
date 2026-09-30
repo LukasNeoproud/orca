@@ -31,10 +31,17 @@ import type { MobileNativeChatViewProps } from './mobile-native-chat-view-types'
 import { useMobileConversationAnchorScroll } from './use-mobile-conversation-anchor-scroll'
 import { mobileNativeChatComposerPlaceholder } from './mobile-native-chat-composer-placeholder'
 import { MobileStructuredSendRetryStatus } from './MobileStructuredSendRetryStatus'
+import type { AiResponseComment } from '../../../src/shared/ai-response-comments'
+import { useMobileNativeChatResponseCommentUi } from './use-mobile-native-chat-response-comment-ui'
+import { useMobileNativeChatViewSend } from './use-mobile-native-chat-view-send'
 
 export type { MobileNativeChatInputLockReason } from './mobile-native-chat-view-types'
 
 const INPUT_LOCK_SETTLE_MS = 600
+const NO_RESPONSE_COMMENTS: readonly AiResponseComment[] = []
+const ignoreAddResponseComment = (): void => undefined
+const ignoreUpdateResponseComment = (): void => undefined
+const ignoreDeleteResponseComment = (): void => undefined
 
 export function MobileNativeChatView({
   messages,
@@ -62,6 +69,10 @@ export function MobileNativeChatView({
   imagePreviewsByMessageId,
   composerText,
   onComposerTextChange,
+  responseComments = NO_RESPONSE_COMMENTS,
+  onAddResponseComment = ignoreAddResponseComment,
+  onUpdateResponseComment = ignoreUpdateResponseComment,
+  onDeleteResponseComment = ignoreDeleteResponseComment,
   onAttachImage,
   attachments,
   onRemoveAttachment,
@@ -98,24 +109,17 @@ export function MobileNativeChatView({
   const insets = useSafeAreaInsets()
   const listRef = useRef<FlatList<NativeChatMessage>>(null)
   const [toolsExpanded, setToolsExpanded] = useState(false)
-  // Lift the composer clear of the keyboard, plus the bottom safe-area so it
-  // never sits under the home indicator / nav bar (mirrors the terminal dock).
+  const responseCommentUi = useMobileNativeChatResponseCommentUi({
+    sendSurfaceId,
+    comments: responseComments,
+    onAdd: onAddResponseComment,
+    onUpdate: onUpdateResponseComment,
+    onDelete: onDeleteResponseComment
+  })
   const bottomPad = keyboardInset > 0 ? keyboardInset + insets.bottom : insets.bottom
   const [atBottom, setAtBottom] = useState(true)
-  const sendScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { fontScale, pinchGesture } = useMobileNativeChatPinchGesture()
-  useEffect(
-    () => () => {
-      if (sendScrollTimerRef.current) {
-        clearTimeout(sendScrollTimerRef.current)
-      }
-    },
-    []
-  )
 
-  // `data` is the list source: folded transcript + synthetic streaming bubble +
-  // route-owned accepted echoes. Memoize on the same deps so the
-  // downstream autoscroll effects/`renderItem` keep referential stability.
   const { data } = useMemo(
     () =>
       buildMobileNativeChatTransientData({
@@ -137,10 +141,6 @@ export function MobileNativeChatView({
     onConsumed: onConversationAnchorConsumed
   })
 
-  // Follow the tail as the conversation grows and keep the newest message above
-  // the keyboard when it opens — but only when already pinned to the bottom, so
-  // we don't yank the user away while they read history. (Also fires on keyboard
-  // close, which is harmless while atBottom.)
   useEffect(() => {
     if (data.length === 0 || !atBottom) {
       return
@@ -149,35 +149,18 @@ export function MobileNativeChatView({
     return () => clearTimeout(t)
   }, [data.length, atBottom, keyboardInset])
 
-  const handleSend = useCallback(
-    async (text: string): Promise<boolean> => {
-      const accepted = await onSend(text)
-      if (!accepted) {
-        return false
-      }
-      // The route-owned banner outlives this send; a success must retire it too,
-      // or a stale "Message not sent" sits above the delivered message.
-      onClearSendError?.()
-      // Always jump to the newest message when the user sends.
-      setAtBottom(true)
-      if (sendScrollTimerRef.current) {
-        clearTimeout(sendScrollTimerRef.current)
-      }
-      sendScrollTimerRef.current = setTimeout(() => {
-        sendScrollTimerRef.current = null
-        listRef.current?.scrollToEnd({ animated: true })
-      }, 60)
-      return true
-    },
-    [onSend, onClearSendError]
-  )
+  const handleSend = useMobileNativeChatViewSend({
+    onSend,
+    onClearSendError,
+    listRef,
+    setAtBottom
+  })
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
       const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height)
       setAtBottom(distanceFromBottom < 80)
-      // Near the top — page in older history.
       if (contentOffset.y < 60 && hasMore && !loadingEarlier) {
         onLoadEarlier?.()
       }
@@ -185,13 +168,10 @@ export function MobileNativeChatView({
     [hasMore, loadingEarlier, onLoadEarlier]
   )
 
-  // Align a single message's top to the top of the viewport.
   const onScrollToMessage = useCallback((index: number) => {
     listRef.current?.scrollToIndex({ index, viewPosition: 0, animated: true })
   }, [])
 
-  // Per-turn "Thinking / Working for N / Worked for N" rows. The structured lane
-  // owns them; the bridge lane keeps its three-dot indicator.
   const turns = useMobileNativeChatTurnDisclosure({
     messages: data,
     enabled: structuredActivityUi,
@@ -212,6 +192,7 @@ export function MobileNativeChatView({
         onToggleTurn={turns.onToggleTurn}
         {...turns.resolveRow(index, item)}
         onBranchMessage={onBranchMessage && canBranchMessage?.(item) ? onBranchMessage : undefined}
+        onCommentQuote={responseCommentUi.onCommentQuote}
       />
     ),
     [
@@ -222,14 +203,14 @@ export function MobileNativeChatView({
       structuredActivityUi,
       turns,
       canBranchMessage,
-      onBranchMessage
+      onBranchMessage,
+      responseCommentUi.onCommentQuote
     ]
   )
 
   const emptyState = mobileNativeChatEmptyState(status, agent ?? null, error)
   const showLoading = status === 'loading' && messages.length === 0
 
-  // A dead PTY emits subscribed→end; settle both edges so its false lease cannot flash the composer enabled.
   const rawLockReason = inputLockReason ?? null
   const rawLockHeld = rawLockReason !== null
   const [lockHeld, setLockHeld] = useState(false)
@@ -257,8 +238,6 @@ export function MobileNativeChatView({
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              // Let link/file taps land while the composer keyboard is up
-              // instead of being swallowed by the dismiss gesture.
               keyboardShouldPersistTaps="handled"
               onScroll={onScroll}
               scrollEventThrottle={32}
@@ -316,8 +295,6 @@ export function MobileNativeChatView({
               }
             />
           </GestureDetector>
-          {/* Jump-to-latest control. The scroll-to-top affordance now lives
-              per-message (the up-arrow in each agent message's controls). */}
           {!atBottom ? (
             <Pressable
               accessibilityLabel="Scroll to latest"
@@ -348,8 +325,6 @@ export function MobileNativeChatView({
         activeTurn={agentWorking === true}
       />
       <MobileStructuredSendRetryStatus retry={sendRetry ?? null} />
-      {/* Chrome row above the composer: the working indicator and the global
-          tool-calls expand/collapse toggle on the left, Stop in the far corner. */}
       <View style={styles.chromeRow}>
         <View style={styles.chromeLeft}>
           <MobileCodexUsageStatus usage={codexUsage ?? null} />
@@ -394,7 +369,6 @@ export function MobileNativeChatView({
         ) : null}
       </View>
       {sendErrorMessage ? (
-        // This banner is the only channel for a send failure — announce it.
         <View
           style={styles.sendError}
           accessibilityRole="alert"
@@ -409,6 +383,8 @@ export function MobileNativeChatView({
         }
         value={composerText}
         onChangeText={onComposerTextChange}
+        responseCommentCount={responseComments.length}
+        onOpenResponseComments={responseCommentUi.openComments}
         onSend={handleSend}
         sendSurfaceId={sendSurfaceId}
         {...{ getSendCompletionGeneration, getComposerEditGeneration }}
@@ -428,6 +404,7 @@ export function MobileNativeChatView({
         filePaths={filePaths}
         onNeedFiles={onNeedFiles}
       />
+      {responseCommentUi.drawers}
     </View>
   )
 }

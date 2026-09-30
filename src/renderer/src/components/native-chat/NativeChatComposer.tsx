@@ -1,7 +1,6 @@
 import type { NativeChatComposerInput } from './native-chat-composer-input'
-import { forwardRef, useCallback, useImperativeHandle, useState } from 'react'
+import { forwardRef, useCallback, useState } from 'react'
 import { useAppStore } from '../../store'
-import { sendRuntimePtyInput } from '@/runtime/runtime-terminal-inspection'
 import { getSettingsForAgentTabRuntimeOwner } from '@/lib/agent-paste-draft'
 import {
   applyMentionSuggestion,
@@ -33,17 +32,14 @@ import { useNativeChatPtyComposerSend } from './use-native-chat-pty-composer-sen
 import { useNativeChatStructuredComposerSend } from './use-native-chat-structured-composer-send'
 import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
 import { useNativeChatComposerAppMenuSelection } from './use-native-chat-composer-app-menu-selection'
+import { useNativeChatComposerHandle } from './use-native-chat-composer-handle'
+import { useNativeChatComposerSend } from './use-native-chat-composer-send'
+import { useNativeChatInterrupt } from './use-native-chat-interrupt'
 
 export type {
   NativeChatComposerHandle,
   NativeChatComposerProps
 } from './native-chat-composer-types'
-
-// Why: a plain ESC byte is what the agent TUIs read as the interrupt key over a
-// PTY (matching how xterm forwards Escape). The richer interrupt-intent
-// inference (agent-interrupt-intent.ts) is driven by the existing PTY input
-// observers, so writing ESC through the same send path feeds that machinery.
-const ESC = '\x1b'
 
 /**
  * Rich native input for the chat view. Sends prompts into the running agent
@@ -79,7 +75,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     // images survive both TUI/GUI toggles and PTY replacement on reconnect.
     // Why: local, SSH, and runtime reconnects can replace or temporarily clear
     // the PTY id. Pane identity is the stable ownership key for unsent input.
-    const { draft, setDraft } = useNativeChatDraft(paneKey)
+    const { draft, setDraft, responseCommentDraft } = useNativeChatDraft(paneKey)
+    const { comments: responseComments, formattedDraft } = responseCommentDraft
     const [caret, setCaret] = useState(draft.length)
     useNativeChatLaunchDraftAdoption({
       terminalTabId,
@@ -178,9 +175,11 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     // A pasted image has no agent-readable path until its save lands; sending
     // mid-save would ship the message without the image the chip promises.
     const hasPendingAttachment = imageAttachments.some((attachment) => attachment.pending)
+    const hasSendContent =
+      draft.trim() !== '' || imageAttachments.length > 0 || responseCommentDraft.hasValidComments
     const sendButtonDisabled = isWorking
       ? !hasPty || !onStop
-      : disabled || hasPendingAttachment || (draft.trim() === '' && imageAttachments.length === 0)
+      : disabled || hasPendingAttachment || !hasSendContent
 
     const { insertTypedText, focus } = useNativeChatTypedInsertion({
       textareaRef,
@@ -214,11 +213,13 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       setNotice
     })
 
-    useImperativeHandle(
-      ref,
-      () => ({ focus, insertTypedText, handlePasteEvent: handlePaste, pasteFromClipboard }),
-      [focus, insertTypedText, handlePaste, pasteFromClipboard]
-    )
+    useNativeChatComposerHandle(ref, {
+      focus,
+      insertTypedText,
+      addResponseComment: responseCommentDraft.add,
+      handlePasteEvent: handlePaste,
+      pasteFromClipboard
+    })
 
     const { pickAttachment } = useNativeChatFileAttachmentActions(paneKey, attachExternalPaths)
     const { toggleDictation, startHoldDictation, stopHoldDictation } =
@@ -248,9 +249,12 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       agent,
       draft,
       imageAttachments,
+      responseComments,
       structuredTransport,
       clearImageAttachments,
+      clearSubmittedResponseComments: responseCommentDraft.clearSubmitted,
       clearSkillOrigin,
+      isComposing: imeEnterGesture.isComposing,
       setHistory,
       setDraft,
       setCaret
@@ -259,6 +263,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     const sendPty = useNativeChatPtyComposerSend({
       agent,
       draft,
+      formattedDraft,
+      responseComments,
       imageAttachments,
       disabled,
       isDispatchingSessionOption,
@@ -277,39 +283,27 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       setCaret,
       clearSkillOrigin,
       clearImageAttachments,
+      clearResponseComments: responseCommentDraft.clear,
+      restoreCanceledSend: responseCommentDraft.restoreCanceledSend,
       setNotice
     })
-    const send = useCallback(() => {
-      if (hasPendingAttachment) {
-        return
-      }
-      if (!structuredTransport) {
-        sendPty()
-      } else if ((draft.trim() !== '' || imageAttachments.length > 0) && !disabled) {
-        sendStructured(draft, imageAttachments)
-      }
-    }, [
-      disabled,
-      draft,
-      hasPendingAttachment,
+    const send = useNativeChatComposerSend({
+      structuredTransport,
+      formattedDraft,
+      responseComments,
       imageAttachments,
+      disabled,
+      hasPendingAttachment,
       sendPty,
-      sendStructured,
-      structuredTransport
-    ])
+      sendStructured
+    })
 
-    const interrupt = useCallback(() => {
-      cancelPendingSends()
-      if (isWorking && onStop) {
-        onStop()
-        return
-      }
-      const target = resolveTarget()
-      if (!target) {
-        return
-      }
-      sendRuntimePtyInput(target.settings, target.ptyId, ESC)
-    }, [cancelPendingSends, isWorking, onStop, resolveTarget])
+    const interrupt = useNativeChatInterrupt({
+      cancelPendingSends,
+      isWorking,
+      onStop,
+      resolveTarget
+    })
 
     const dispatchPtyPickerCommand = useNativeChatPickerCommandDispatch({
       agent,
@@ -383,6 +377,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         activeSuggestion={activeSuggestion}
         notice={notice}
         imageAttachments={imageAttachments}
+        responseComments={responseComments}
         sendButtonDisabled={sendButtonDisabled}
         isWorking={isWorking}
         attachDisabled={disabled}
@@ -419,6 +414,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
           requestAnimationFrame(() => textarea?.setSelectionRange(result.caret, result.caret))
         }}
         onRemoveImageAttachment={(id) => removeImageAttachment(id)}
+        onResponseCommentChange={responseCommentDraft.update}
+        onResponseCommentRemove={responseCommentDraft.remove}
         onAttach={pickAttachment}
         onDictationToggle={toggleDictation}
         onDictationHoldStart={startHoldDictation}

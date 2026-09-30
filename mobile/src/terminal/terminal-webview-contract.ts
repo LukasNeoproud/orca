@@ -51,6 +51,7 @@ export type TerminalLinkActionTarget =
 export type TerminalSelectionEvents = {
   onSelectionMode?: (active: boolean) => void
   onSelectionCopy?: (text: string) => void
+  onSelectionComment?: (text: string) => void
   onSelectionEvicted?: () => void
   onModesChanged?: (modes: TerminalModes) => void
   onKeyboardAvoidanceMetrics?: (metrics: TerminalKeyboardAvoidanceMetrics) => void

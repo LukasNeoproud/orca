@@ -10,6 +10,7 @@ import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 import type { MobileConversationAnchorRequest } from './mobile-conversation-anchor-request'
 import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
 import type { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
+import type { AiResponseComment } from '../../../src/shared/ai-response-comments'
 
 /** Why the composer input is locked: the transport is disconnected, or the
  * terminal subscription has not acknowledged its input lease yet. */
@@ -41,6 +42,10 @@ export type MobileNativeChatViewProps = {
   imagePreviewsByMessageId?: Record<string, string[]>
   composerText: string
   onComposerTextChange: (text: string) => void
+  responseComments: readonly AiResponseComment[]
+  onAddResponseComment: (quote: string, comment: string) => void
+  onUpdateResponseComment: (comment: AiResponseComment) => void
+  onDeleteResponseComment: (id: string) => void
   onAttachImage?: () => void
   attachments?: PendingNativeChatImage[]
   onRemoveAttachment?: (id: string) => void

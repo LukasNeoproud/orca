@@ -55,6 +55,7 @@ import { useNativeChatFileLinkContext } from './use-native-chat-file-link-contex
 import { matchNativeChatSplitShortcut } from './native-chat-split-shortcut'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { formatShortcutLabel } from '@/hooks/useShortcutLabel'
+import { NativeChatResponseComments } from './NativeChatResponseComments'
 
 /** Renders the bridge UI after NativeChatSessionGate resolves its agent session. */
 export function NativeChatResolvedView({
@@ -441,6 +442,12 @@ export function NativeChatResolvedView({
         />
       )}
       {contextMenu.menu}
+      <NativeChatResponseComments
+        key={[sessionId, transcriptPath, targetPtyId].join('\u0000')}
+        paneKey={paneKey}
+        rootRef={rootRef}
+        composerRef={composerRef}
+      />
       <LinkActionPopover request={linkActionRequest} onClose={closeLinkActions} />
     </div>
   )

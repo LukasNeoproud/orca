@@ -32,7 +32,8 @@ export function useMobileStructuredNativeChatSendBridge(args: {
     text: string,
     images?: string[],
     deadline?: number,
-    attachments?: readonly StructuredNativeChatAttachment[]
+    attachments?: readonly StructuredNativeChatAttachment[],
+    composerDraftText?: string
   ) => Promise<MobileNativeChatSendOutcome>
 } {
   const {
@@ -49,14 +50,15 @@ export function useMobileStructuredNativeChatSendBridge(args: {
       text: string,
       images?: string[],
       deadline?: number,
-      attachments?: readonly StructuredNativeChatAttachment[]
+      attachments?: readonly StructuredNativeChatAttachment[],
+      composerDraftText: string = text
     ): Promise<MobileNativeChatSendOutcome> => {
       const origin = captureSendOrigin(text.trimEnd())
       if (!origin) {
         onSendError('Message not sent (disconnected)')
         return 'rejected'
       }
-      clearDraftForSend(origin, text)
+      clearDraftForSend(origin, composerDraftText)
       const outcome =
         attachments !== undefined
           ? await sendStructured(text, images, deadline, attachments)
@@ -79,7 +81,7 @@ export function useMobileStructuredNativeChatSendBridge(args: {
           isStructuredAgentSessionComposerCommand(text, 'codex') ||
           isStructuredAgentSessionComposerCommand(text, 'claude')
         ) {
-          restoreRejectedDraft(origin, text)
+          restoreRejectedDraft(origin, composerDraftText)
           return 'unknown'
         }
         holdUnconfirmedSend(origin, text.trimEnd(), () =>
@@ -87,7 +89,7 @@ export function useMobileStructuredNativeChatSendBridge(args: {
         )
         return 'unknown'
       }
-      restoreRejectedDraft(origin, text)
+      restoreRejectedDraft(origin, composerDraftText)
       return 'rejected'
     },
     [

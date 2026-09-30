@@ -25,6 +25,18 @@ export const TERMINAL_HTML_SURFACE_TOUCH_GESTURES = `  ${TERMINAL_TAP_DISPATCH_J
     }
   });
 
+  btnComment.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!term) return;
+    var text = term.getSelection ? term.getSelection() : '';
+    if (text && text.length > 0) {
+      notify({ type: 'selection-comment', text: text });
+    } else {
+      cancelSelect();
+    }
+  });
+
   btnSelAll.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();

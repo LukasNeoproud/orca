@@ -19,6 +19,7 @@ export const TERMINAL_HTML_SELECTION_STATE_AND_EVICTION = `  // ================
   var handleEnd = document.getElementById('sel-handle-end');
   var selMenu = document.getElementById('sel-menu');
   var btnCopy = document.getElementById('sel-menu-copy');
+  var btnComment = document.getElementById('sel-menu-comment');
   var btnSelAll = document.getElementById('sel-menu-all');
 
   // mode: 'navigate' | 'select'

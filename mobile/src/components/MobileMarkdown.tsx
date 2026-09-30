@@ -22,6 +22,7 @@ type Props = {
   /** Multiplier for prose font size (paragraphs, lists, quotes). Defaults to 1;
    *  the chat view passes >1 so agent prose reads larger than the compact base. */
   textScale?: number
+  selectable?: boolean
   /** When provided, detected file paths and file-target hrefs render as tappable
    *  and invoke this with the path text (worktree-relative or absolute, with an
    *  optional :line(:col) suffix). Omitted on screens with no file viewer, where
@@ -259,6 +260,7 @@ function MobileMarkdownInner({
   content,
   fallback = '',
   textScale = 1,
+  selectable = true,
   onOpenFile,
   onOpenUrl,
   onShowLinkActions
@@ -286,7 +288,7 @@ function MobileMarkdownInner({
           return (
             <Text
               key={index}
-              selectable
+              selectable={selectable}
               style={[styles.heading, block.level <= 2 ? styles.headingLarge : null]}
             >
               {renderInline(block.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
@@ -296,7 +298,7 @@ function MobileMarkdownInner({
         if (block.type === 'quote') {
           return (
             <View key={index} style={styles.quote}>
-              <Text selectable style={styles.quoteText}>
+              <Text selectable={selectable} style={styles.quoteText}>
                 {renderInline(block.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
               </Text>
             </View>
@@ -320,7 +322,7 @@ function MobileMarkdownInner({
           return (
             <View key={index} style={styles.codeBlock}>
               {block.language ? <Text style={styles.codeLanguage}>{block.language}</Text> : null}
-              <Text selectable style={styles.codeText}>
+              <Text selectable={selectable} style={styles.codeText}>
                 {block.text}
               </Text>
             </View>
@@ -353,7 +355,11 @@ function MobileMarkdownInner({
               <View style={styles.table}>
                 <View style={styles.tableRow}>
                   {visibleHeaders.map((header, cellIndex) => (
-                    <Text key={cellIndex} selectable style={[styles.tableCell, styles.tableHeader]}>
+                    <Text
+                      key={cellIndex}
+                      selectable={selectable}
+                      style={[styles.tableCell, styles.tableHeader]}
+                    >
                       {renderInline(header, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
                     </Text>
                   ))}
@@ -361,7 +367,7 @@ function MobileMarkdownInner({
                 {visibleRows.map((row, rowIndex) => (
                   <View key={rowIndex} style={styles.tableRow}>
                     {visibleHeaders.map((_, cellIndex) => (
-                      <Text key={cellIndex} selectable style={styles.tableCell}>
+                      <Text key={cellIndex} selectable={selectable} style={styles.tableCell}>
                         {renderInline(
                           row[cellIndex] ?? '',
                           onOpenFile,
@@ -397,7 +403,7 @@ function MobileMarkdownInner({
                         ? '[x]'
                         : '[ ]'}
                   </Text>
-                  <Text selectable style={[styles.listText, listScale]}>
+                  <Text selectable={selectable} style={[styles.listText, listScale]}>
                     {renderInline(item.text, onOpenFile, resolvedOpenUrl, resolvedShowLinkActions)}
                   </Text>
                 </View>
@@ -409,7 +415,7 @@ function MobileMarkdownInner({
           return <View key={index} style={styles.rule} />
         }
         return (
-          <Text key={index} style={[styles.paragraph, proseScale]}>
+          <Text key={index} selectable={selectable} style={[styles.paragraph, proseScale]}>
             {block.text.split('\n').map((line, lineIndex) => (
               <Fragment key={lineIndex}>
                 {lineIndex > 0 ? '\n' : null}

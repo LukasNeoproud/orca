@@ -28,6 +28,7 @@ import {
   adoptStructuredSessionComposerDraft,
   stageStructuredSessionComposerDraft
 } from './structured-agent-session-draft-transfer'
+import { NativeChatResponseComments } from './NativeChatResponseComments'
 
 type StoppingBackgroundTasks = {
   sessionId: string
@@ -374,6 +375,12 @@ export function NativeChatStructuredSession(
         />
       )}
       {paneCommands.menu}
+      <NativeChatResponseComments
+        key={props.sessionId}
+        paneKey={paneKey}
+        rootRef={rootRef}
+        composerRef={composerRef}
+      />
       <LinkActionPopover request={linkActionRequest} onClose={closeLinkActions} />
     </div>
   )

@@ -66,6 +66,7 @@ vi.mock('../dictation/dictation-control-events', () => ({
 }))
 
 import { NativeChatComposer } from './NativeChatComposer'
+import { appendNativeChatResponseComment } from './native-chat-draft-cache'
 
 type Dispatched = { handled: boolean; accepted: boolean; error: string | null }
 
@@ -237,5 +238,49 @@ describe('structured send racing the next IME composition', () => {
     expect(structured.onError).toHaveBeenCalledWith('nope')
     expect(structured.send).not.toHaveBeenCalled()
     expect(promptValue(input)).toBe('/model')
+  })
+
+  it('sends a response comment without prompt text and clears it only after acceptance', async () => {
+    const structured = transport()
+    paneCounter += 1
+    const paneKey = `tab-${paneCounter}:structured`
+    appendNativeChatResponseComment(paneKey, '  const answer = 42', 'Use a named constant')
+    render(
+      <NativeChatComposer
+        terminalTabId={`tab-${paneCounter}`}
+        paneKey={paneKey}
+        targetPtyId={null}
+        agent="codex"
+        structuredTransport={structured}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: '1 comment' })).not.toBeNull()
+    await act(async () => pressEnter(textarea()))
+    expect(structured.send).toHaveBeenCalledWith(
+      '>   const answer = 42\n\nComment: Use a named constant',
+      []
+    )
+    expect(screen.queryByRole('button', { name: '1 comment' })).toBeNull()
+  })
+
+  it('retains response comments when a structured send is rejected', async () => {
+    const structured = transport({ send: vi.fn(() => false) })
+    paneCounter += 1
+    const paneKey = `tab-${paneCounter}:structured`
+    appendNativeChatResponseComment(paneKey, 'quoted answer', 'Check this')
+    render(
+      <NativeChatComposer
+        terminalTabId={`tab-${paneCounter}`}
+        paneKey={paneKey}
+        targetPtyId={null}
+        agent="claude"
+        structuredTransport={structured}
+      />
+    )
+
+    await act(async () => pressEnter(textarea()))
+    expect(promptValue(textarea())).toBe('')
+    expect(screen.queryByRole('button', { name: '1 comment' })).not.toBeNull()
   })
 })

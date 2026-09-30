@@ -19,6 +19,7 @@ type TerminalPaneViewProps = {
   onWebReady: (handle: string) => void
   onSelectionMode: (handle: string, active: boolean) => void
   onSelectionCopy: (handle: string, text: string) => void
+  onSelectionComment: (handle: string, text: string) => void
   onSelectionEvicted: (handle: string) => void
   onModesChanged: (handle: string, modes: TerminalModes) => void
   onKeyboardAvoidanceMetrics: (handle: string, metrics: TerminalKeyboardAvoidanceMetrics) => void
@@ -42,6 +43,7 @@ export function TerminalPaneView({
   onWebReady,
   onSelectionMode,
   onSelectionCopy,
+  onSelectionComment,
   onSelectionEvicted,
   onModesChanged,
   onKeyboardAvoidanceMetrics,
@@ -80,6 +82,7 @@ export function TerminalPaneView({
         onWebReady={() => onWebReady(handle)}
         onSelectionMode={(a) => onSelectionMode(handle, a)}
         onSelectionCopy={(t) => onSelectionCopy(handle, t)}
+        onSelectionComment={(t) => onSelectionComment(handle, t)}
         onSelectionEvicted={() => onSelectionEvicted(handle)}
         onModesChanged={(m) => onModesChanged(handle, m)}
         onKeyboardAvoidanceMetrics={(m) => onKeyboardAvoidanceMetrics(handle, m)}

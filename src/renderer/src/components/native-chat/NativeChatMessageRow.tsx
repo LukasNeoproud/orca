@@ -117,7 +117,11 @@ export const MessageRow = memo(function MessageRow({
     : undefined
   if (notice?.type === 'text') {
     return (
-      <div ref={rowRef} data-native-chat-message-id={message.id}>
+      <div
+        ref={rowRef}
+        data-native-chat-message-id={message.id}
+        data-response-comment-selectable="true"
+      >
         <NativeChatNoticeRow
           block={notice}
           onLinkClick={onLinkClick}
@@ -129,7 +133,11 @@ export const MessageRow = memo(function MessageRow({
 
   if (providerFrame) {
     return (
-      <div ref={rowRef} data-native-chat-message-id={message.id}>
+      <div
+        ref={rowRef}
+        data-native-chat-message-id={message.id}
+        data-response-comment-selectable="true"
+      >
         <ProviderFrameRow block={providerFrame} />
       </div>
     )
@@ -193,6 +201,7 @@ export const MessageRow = memo(function MessageRow({
     <div
       ref={rowRef}
       data-native-chat-message-id={message.id}
+      data-response-comment-selectable="true"
       className={cn(
         'group relative max-w-full select-text text-sm leading-relaxed text-foreground',
         // Reasoning is the agent thinking aloud — quieter, italic, like an aside.

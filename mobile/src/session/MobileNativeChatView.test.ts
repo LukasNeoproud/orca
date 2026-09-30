@@ -10,6 +10,7 @@ vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
   Text: 'Text',
+  TextInput: 'TextInput',
   View: 'View'
 }))
 
@@ -30,11 +31,23 @@ vi.mock('react-native-gesture-handler', () => {
   }
 })
 
+vi.mock('../components/BottomDrawer', async () => {
+  const React = await import('react')
+  return {
+    BottomDrawer: ({ visible, children }: { visible: boolean; children?: unknown }) =>
+      visible ? React.createElement('BottomDrawer', { visible }, children) : null
+  }
+})
+
 vi.mock('lucide-react-native', () => ({
   ArrowDown: 'ArrowDown',
   ChevronsDownUp: 'ChevronsDownUp',
   ChevronsUpDown: 'ChevronsUpDown',
-  Square: 'Square'
+  MessageSquareQuote: 'MessageSquareQuote',
+  Pencil: 'Pencil',
+  Square: 'Square',
+  Trash2: 'Trash2',
+  X: 'X'
 }))
 
 vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
@@ -245,6 +258,17 @@ describe('MobileNativeChatView', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('closes a response comment editor when the chat surface changes', async () => {
+    const messages = [assistantTurn('a1', 'response')]
+    await render({ messages, folded: messages, sendSurfaceId: 'tab-a' })
+    act(() => renderedRow('a1').props.onCommentQuote('response'))
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'Comment' })).toHaveLength(1)
+
+    await update({ messages, folded: messages, sendSurfaceId: 'tab-b' })
+
+    expect(renderer!.root.findAllByProps({ accessibilityLabel: 'Comment' })).toHaveLength(0)
   })
 
   describe('structured turn status wiring', () => {

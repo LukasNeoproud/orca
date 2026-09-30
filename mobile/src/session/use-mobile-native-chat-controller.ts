@@ -1,7 +1,4 @@
-import { useLayoutEffect, useRef, type MutableRefObject } from 'react'
-import type { RpcClient } from '../transport/rpc-client'
-import type { ConnectionState } from '../transport/types'
-import type { MobileNativeChatTab } from './mobile-native-chat-eligibility'
+import { useLayoutEffect, useRef } from 'react'
 import { useMobileNativeChatPermissionSend } from './mobile-native-chat-permission-send'
 import { useMobileNativeChatAnswerSend } from './use-mobile-native-chat-answer-send'
 import { useMobileNativeChatAskDismiss } from './use-mobile-native-chat-ask-dismiss'
@@ -20,24 +17,13 @@ import { useThrottledLatestValue } from './use-throttled-latest-value'
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { readMobileStructuredLaunchDraft } from './mobile-structured-launch-drafts'
 import { projectMobileStructuredChatState } from './mobile-native-chat-structured-state'
+import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
+import { useMobileNativeChatResponseCommentSend } from './use-mobile-native-chat-response-comment-send'
+import type { MobileNativeChatControllerOptions } from './mobile-native-chat-controller-contract'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 
-export function useMobileNativeChatController(args: {
-  client: RpcClient | null
-  hostId: string
-  worktreeId: string
-  activeSessionTab: MobileNativeChatTab | null
-  activeSessionTabId: string | null
-  activeHandleRef: MutableRefObject<string | null>
-  deviceTokenRef: MutableRefObject<string | null>
-  nativeChatTranscriptIsLocalReadable: boolean
-  nativeChatInputLeaseReady: boolean
-  connState: ConnectionState
-  onSendError: (message: string) => void
-  /** Any accepted chat write clears the held failure banner. */
-  onSendResolved: () => void
-}) {
+export function useMobileNativeChatController(args: MobileNativeChatControllerOptions) {
   const {
     client,
     hostId,
@@ -113,20 +99,16 @@ export function useMobileNativeChatController(args: {
     launchDraft: activeSessionTab?.launchDraft ?? stagedLaunchDraft?.text ?? null,
     launchDraftCreatedAt:
       activeSessionTab?.launchDraftCreatedAt ?? stagedLaunchDraft?.createdAt ?? null,
-    // Preserve a host draft while the terminal view temporarily covers chat.
     chatActive: showNativeChat,
     transcriptLoading: nativeChatSession.transcriptLoading,
     transcriptSettled: nativeChatSession.status === 'ready'
   })
-
   const nativeChatAgentWorking = activeChatStructured
     ? structuredNativeChat.isWorking
     : activeChatResolution != null && activeTabAgentWorking
-  // The streaming gate distinguishes a hidden live turn from a settled turn.
   const nativeChatStreamLive = activeChatStructured
     ? structuredNativeChat.isWorking
     : activeTabAgentWorking
-  // Avoid re-parsing accumulated markdown for every streamed status frame.
   const nativeChatStreamingText = useThrottledLatestValue(
     activeChatStructured
       ? undefined
@@ -144,7 +126,6 @@ export function useMobileNativeChatController(args: {
     messages: nativeChatSession.messages,
     transcriptLoading: nativeChatSession.transcriptLoading
   })
-  // A never-read transcript cannot prove that a dismissed prompt cleared.
   const nativeChatTranscriptSettled =
     nativeChatSession.status === 'ready' ||
     (nativeChatSession.status === 'error' && nativeChatSession.messages.length > 0)
@@ -160,7 +141,6 @@ export function useMobileNativeChatController(args: {
     observing: showNativeChat && (nativeChatDetectedAsk != null || nativeChatTranscriptSettled)
   })
 
-  // The socket verdict collapses one render before the input lease on disconnect.
   const inputSendable = activeChatStructured
     ? client != null && activeChatSessionId != null && connState === 'connected'
     : nativeChatInputLeaseReady && connState === 'connected'
@@ -209,11 +189,9 @@ export function useMobileNativeChatController(args: {
     worktreeId
   })
 
-  // A ref breaks the command dispatcher/options tracking dependency cycle.
   const recordSessionOptionCommandRef = useRef<(command: string) => void>(() => {})
 
   const {
-    send: handleNativeChatSend,
     sendWithOutcome: handleNativeChatSendWithOutcome,
     answerQuestion: legacyHandleNativeChatQuestionAnswer,
     dispatchCommand: handleNativeChatDispatchCommand
@@ -243,6 +221,17 @@ export function useMobileNativeChatController(args: {
     onSendError
   })
 
+  const {
+    responseComments,
+    send: handleNativeChatSendWithCommentsBoolean,
+    sendWithOutcome: handleNativeChatSendWithComments
+  } = useMobileNativeChatResponseCommentSend({
+    scopeKey: mobileNativeChatScopeKey(hostId, worktreeId, activeSessionTabId),
+    structured: activeChatStructured,
+    legacySend: handleNativeChatSendWithOutcome,
+    structuredSend: structuredNativeChatSend.sendWithOutcome
+  })
+
   const { nativeChatSessionOptions, recordCommand: recordNativeChatSessionOptionCommand } =
     useMobileNativeChatSessionOptionController({
       activeChatStructured,
@@ -267,7 +256,6 @@ export function useMobileNativeChatController(args: {
   useLayoutEffect(() => {
     recordSessionOptionCommandRef.current = recordNativeChatSessionOptionCommand
   }, [recordNativeChatSessionOptionCommand])
-  // Card actions retire the route's held failure banner too, not just sends.
   const answerAsk = useNativeChatAcceptedAction(handleNativeChatAnswerAsk, onSendResolved)
   const cancelAsk = useNativeChatAcceptedAction(handleNativeChatCancelAsk, onSendResolved)
   const handleNativeChatRespondPermission = activeChatStructured
@@ -286,6 +274,7 @@ export function useMobileNativeChatController(args: {
     getChatComposerEditGeneration,
     chatPending,
     chatImagePreviewsByMessageId,
+    responseComments,
     nativeChatSession,
     nativeChatStructured: activeChatStructured,
     ...projectMobileStructuredChatState(
@@ -310,12 +299,8 @@ export function useMobileNativeChatController(args: {
     handleNativeChatQuestionAnswer: activeChatStructured
       ? structuredNativeChat.respondQuestion
       : legacyHandleNativeChatQuestionAnswer,
-    handleNativeChatSend: activeChatStructured
-      ? structuredNativeChatSend.send
-      : handleNativeChatSend,
-    handleNativeChatSendWithOutcome: activeChatStructured
-      ? structuredNativeChatSend.sendWithOutcome
-      : handleNativeChatSendWithOutcome,
+    handleNativeChatSend: handleNativeChatSendWithCommentsBoolean,
+    handleNativeChatSendWithOutcome: handleNativeChatSendWithComments,
     readSeededLaunchDraft,
     nativeChatSessionOptions,
     conversationBranch: structuredNativeChat.conversationBranch

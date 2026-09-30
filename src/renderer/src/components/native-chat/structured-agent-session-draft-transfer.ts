@@ -2,11 +2,17 @@ import {
   readNativeChatAttachmentCache,
   writeNativeChatAttachmentCache
 } from './use-native-chat-composer-attachments'
-import { readNativeChatDraftCache, writeNativeChatDraftCache } from './native-chat-draft-cache'
+import {
+  readNativeChatDraftCache,
+  readNativeChatResponseComments,
+  writeNativeChatDraftCache,
+  writeNativeChatResponseComments
+} from './native-chat-draft-cache'
 
 type PendingStructuredDraft = {
   text: string
   attachments: ReturnType<typeof readNativeChatAttachmentCache>
+  responseComments: ReturnType<typeof readNativeChatResponseComments>
 }
 
 const pendingBySessionId = new Map<string, PendingStructuredDraft>()
@@ -22,10 +28,11 @@ export function stageStructuredSessionComposerDraft(input: {
     .filter((value): value is string => Boolean(value))
     .join('\n\n')
   const attachments = readNativeChatAttachmentCache(input.sourcePaneKey)
-  if (!text && attachments.length === 0) {
+  const responseComments = readNativeChatResponseComments(input.sourcePaneKey)
+  if (!text && attachments.length === 0 && responseComments.length === 0) {
     return
   }
-  pendingBySessionId.set(input.targetSessionId, { text, attachments })
+  pendingBySessionId.set(input.targetSessionId, { text, attachments, responseComments })
 }
 
 export function adoptStructuredSessionComposerDraft(input: {
@@ -39,6 +46,7 @@ export function adoptStructuredSessionComposerDraft(input: {
   pendingBySessionId.delete(input.sessionId)
   writeNativeChatDraftCache(input.targetPaneKey, pending.text)
   writeNativeChatAttachmentCache(input.targetPaneKey, pending.attachments)
+  writeNativeChatResponseComments(input.targetPaneKey, pending.responseComments)
 }
 
 export function clearStructuredSessionComposerDraftTransfersForTests(): void {

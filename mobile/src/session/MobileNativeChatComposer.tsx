@@ -30,21 +30,18 @@ import {
   type MobileNativeChatSessionOptionPickersProps
 } from './MobileNativeChatSessionOptionPickers'
 import type { PendingNativeChatImage } from './mobile-native-chat-image-attachment'
+import { MobileAiResponseCommentsChip } from './MobileAiResponseCommentSheets'
 
 const NO_FILE_PATHS: string[] = []
 const NO_ATTACHMENTS: PendingNativeChatImage[] = []
 
 type Props = {
   structuredCommands?: readonly AgentSessionConversationCommand[]
-  /** Controlled composer text — owned by the parent so dictation can write to it. */
   value: string
   onChangeText: (text: string) => void
   onSend: (text: string) => Promise<boolean>
-  /** Changes whenever the route focuses a different chat composer surface. */
   sendSurfaceId: string
-  /** Reads the retained route's focus generation without forcing a screen render. */
   getSendCompletionGeneration: () => number
-  /** Reads user draft mutations owned above this renderable composer. */
   getComposerEditGeneration: () => number
   /** Active tab's agent — the slash autocomplete serves its command catalog. */
   agent?: string | null
@@ -67,6 +64,8 @@ type Props = {
   placeholder?: string
   filePaths?: string[]
   onNeedFiles?: (query: string) => void
+  responseCommentCount?: number
+  onOpenResponseComments?: () => void
 }
 
 export function MobileNativeChatComposer({
@@ -91,7 +90,9 @@ export function MobileNativeChatComposer({
   disabled = false,
   placeholder = 'Message, @files, /commands',
   filePaths = NO_FILE_PATHS,
-  onNeedFiles
+  onNeedFiles,
+  responseCommentCount = 0,
+  onOpenResponseComments
 }: Props): React.JSX.Element {
   const [cursor, setCursor] = useState(0)
   // Transiently drives the native caret after a mid-text autocomplete insert,
@@ -111,12 +112,11 @@ export function MobileNativeChatComposer({
     }
   }, [sendSurfaceId])
   const [sending, setSending] = useState(false)
-  const trimmed = value.trim()
   const sessionOptionDispatching = sessionOptions?.controller.pendingId != null
   // An attached image alone is a valid send (desktop parity), so the image rides
   // along even when the user sends no accompanying text.
   const canSend =
-    (trimmed.length > 0 || attachments.length > 0) &&
+    (value.trim().length > 0 || attachments.length > 0 || responseCommentCount > 0) &&
     !disabled &&
     !sending &&
     !isAttaching &&
@@ -267,6 +267,10 @@ export function MobileNativeChatComposer({
             textAlignVertical="top"
           />
           <View style={styles.actionRow} testID="native-chat-composer-actions">
+            <MobileAiResponseCommentsChip
+              count={responseCommentCount}
+              onPress={onOpenResponseComments}
+            />
             {onAttachImage ? (
               <Pressable
                 accessibilityLabel="Attach image"

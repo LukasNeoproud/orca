@@ -17,6 +17,11 @@ import type {
 } from '../../../../shared/native-chat-session-options'
 import type { NativeChatOptionPickerRequest } from './native-chat-composer-types'
 import { NativeChatImageAttachmentPreview } from './NativeChatImageAttachmentPreview'
+import type { AiResponseComment } from '../../../../shared/ai-response-comments'
+import { ResponseCommentsChip } from '@/components/response-comments/ResponseCommentsChip'
+
+const EMPTY_RESPONSE_COMMENTS: readonly AiResponseComment[] = []
+const ignoreResponseCommentChange = (): void => {}
 
 export type NativeChatComposerFieldProps = {
   codexStatus?: React.ComponentProps<typeof NativeChatCodexSessionStatus>
@@ -32,6 +37,7 @@ export type NativeChatComposerFieldProps = {
   activeSuggestion: number
   notice: string | null
   imageAttachments: readonly NativeChatComposerImageAttachment[]
+  responseComments?: readonly AiResponseComment[]
   sendButtonDisabled: boolean
   isWorking: boolean
   attachDisabled: boolean
@@ -49,6 +55,8 @@ export type NativeChatComposerFieldProps = {
   onRetrySkills: () => void
   onAcceptMention: () => void
   onRemoveImageAttachment: (id: string) => void
+  onResponseCommentChange?: (id: string, comment: string) => void
+  onResponseCommentRemove?: (id: string) => void
   onAttach: () => void
   onDictationToggle: () => void
   onDictationHoldStart: () => void
@@ -105,6 +113,7 @@ export function NativeChatComposerField({
   activeSuggestion,
   notice,
   imageAttachments,
+  responseComments = EMPTY_RESPONSE_COMMENTS,
   sendButtonDisabled,
   isWorking,
   attachDisabled,
@@ -122,6 +131,8 @@ export function NativeChatComposerField({
   onRetrySkills,
   onAcceptMention,
   onRemoveImageAttachment,
+  onResponseCommentChange = ignoreResponseCommentChange,
+  onResponseCommentRemove = ignoreResponseCommentChange,
   onAttach,
   onDictationToggle,
   onDictationHoldStart,
@@ -267,6 +278,11 @@ export function NativeChatComposerField({
               )}
             />
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <ResponseCommentsChip
+                comments={responseComments}
+                onChange={onResponseCommentChange}
+                onRemove={onResponseCommentRemove}
+              />
               <NativeChatComposerActions
                 sessionStatus={
                   codexStatus ? <NativeChatCodexSessionStatus {...codexStatus} /> : undefined

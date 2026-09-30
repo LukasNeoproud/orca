@@ -168,6 +168,10 @@ export function MobileNativeChatOverlay({
         imagePreviewsByMessageId={controller.chatImagePreviewsByMessageId}
         composerText={controller.chatComposerText}
         onComposerTextChange={controller.setChatComposerText}
+        responseComments={controller.responseComments.comments}
+        onAddResponseComment={controller.responseComments.addComment}
+        onUpdateResponseComment={controller.responseComments.updateComment}
+        onDeleteResponseComment={controller.responseComments.deleteComment}
         onAttachImage={() => void images.attachImage('library')}
         attachments={images.attachments}
         onRemoveAttachment={images.removeAttachment}
