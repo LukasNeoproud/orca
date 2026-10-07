@@ -2,7 +2,12 @@ import type { HostStackRouteTarget } from '../navigation/host-stack-navigation'
 import { mobileSessionRouteTarget } from '../session/mobile-session-route'
 import type { HostCredentialStatus } from '../transport/types'
 
-export type DesktopNotificationSource = 'agent-task-complete' | 'terminal-bell' | 'test'
+export type DesktopNotificationSource =
+  | 'agent-task-complete'
+  | 'terminal-bell'
+  | 'test'
+  | 'plugin'
+  | 'host-system'
 
 export type DesktopNotificationEvent = {
   source: DesktopNotificationSource
@@ -49,6 +54,8 @@ export type NotificationNavigationTarget = Readonly<{
   hostId: string
   sessionTarget: HostStackRouteTarget | null
   credentialRecovery?: 'retry' | 're-pair'
+  /** Host-level alerts (thermal, disk) open the host's system screen. */
+  opensHostSystem?: boolean
 }>
 
 export function notificationCredentialRecoveryRoute(
@@ -82,6 +89,7 @@ export function getNotificationNavigationTarget(
   return {
     hostId,
     sessionTarget: worktreeId ? mobileSessionRouteTarget({ hostId, worktreeId }) : null,
+    ...(record.source === 'host-system' ? { opensHostSystem: true } : {}),
     ...(credentialStatus === 'missing'
       ? { credentialRecovery: 're-pair' as const }
       : credentialStatus === 'temporarily-unavailable'

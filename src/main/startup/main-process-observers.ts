@@ -19,6 +19,7 @@ import { ClaudeUsageStore } from '../claude-usage/store'
 import { CodexUsageStore } from '../codex-usage/store'
 import { OpenCodeUsageStore } from '../opencode-usage/store'
 import { installRepoMaintenanceIdleGate } from '../repo-maintenance-idle-gate'
+import { installHostSystemWatchdog } from '../host-system/host-system-watchdog-install'
 import { mainProcessState as state } from './main-process-state'
 
 export function initializeMainProcessObservers(): void {
@@ -40,6 +41,8 @@ export function initializeMainProcessObservers(): void {
     isQuitting: () => state.isQuitting,
     getWorkingAgentCount: () => state.agentAwakeService?.getWorkingAgentCount() ?? 0
   })
+  // Thermal and disk alerts must fire on the host itself: a phone in a bag is often offline.
+  state.uninstallHostSystemWatchdog = installHostSystemWatchdog(() => state.runtime)
   const collectChangedProviderSessionWorktrees = createHookProviderSessionInvalidator()
   const publishProviderSessionChanges = (identities: AgentHookProviderSessionIdentity[]): void => {
     const ownedIdentities = identities.map((identity) => ({

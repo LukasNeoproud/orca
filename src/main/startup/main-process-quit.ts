@@ -108,6 +108,8 @@ function installWillQuitHandler(): void {
     }
     state.unsubscribeSystemResumeBroadcast?.()
     state.unsubscribeSystemResumeBroadcast = null
+    state.uninstallHostSystemWatchdog?.()
+    state.uninstallHostSystemWatchdog = null
     // Why: renderer guards can still cancel before this committed phase; `log stream` must survive those vetoes.
     stopTccPromptNotice()
     const updateQuitInProgress = isQuittingForUpdate()

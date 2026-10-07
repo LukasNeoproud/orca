@@ -11,7 +11,7 @@ import { useMobilePairingDevicePolling } from './mobile-pairing-device-polling'
 import type { MobileNetworkInterface } from './mobile-network-interface-selection'
 import { MobilePairingQrSection } from './MobilePairingQrSection'
 import { MobilePairedDevicesSection } from './MobilePairedDevicesSection'
-import { MobileDeviceApprovalsSection } from './MobileDeviceApprovalsSection'
+import { MobileMacHostSections } from './MobileMacHostSections'
 import { MobileAutoRestoreFitSection } from './MobileAutoRestoreFitSection'
 import { MobilePairingConnectionOptions } from './MobilePairingConnectionOptions'
 import { MobilePairingSetupSection } from './MobilePairingSetupSection'
@@ -457,7 +457,7 @@ export function MobilePane(): React.JSX.Element {
         hasQrCode={qrDataUrl != null}
         onRevokeDevice={(deviceId) => void revokeDevice(deviceId)}
       />
-      <MobileDeviceApprovalsSection />
+      <MobileMacHostSections />
       <MobileAutoRestoreFitSection
         autoRestoreFitMs={autoRestoreFitMs}
         onAutoRestoreFitChange={(ms) => void updateSettings({ mobileAutoRestoreFitMs: ms })}

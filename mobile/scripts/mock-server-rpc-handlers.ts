@@ -14,6 +14,7 @@ import { handleMockAccountRequest } from './mock-server-account-rpc'
 import { handleMockNativeChatRequest } from './mock-server-native-chat-scenario'
 import { handleMockSessionTabsRequest } from './mock-server-session-tabs-fixture'
 import { handleMockTerminalRequest } from './mock-server-terminal-stream'
+import { handleMockHostSystemRequest } from './mock-server-host-system'
 import { createMockRepos, createMockWorktrees, readScenarioNumber } from './mobile-lag-scenario'
 
 const MOCK_REPO_COUNT = readScenarioNumber('MOCK_REPO_COUNT', 2)
@@ -128,6 +129,7 @@ export function handleRequest(
     handleMockGitRequest(request, respond, success) ||
     handleMockFilePreviewRequest(request, respond, success, error) ||
     handleMockAccountRequest(request, respond, success, error) ||
+    handleMockHostSystemRequest(request, respond, success, error) ||
     handleMockNativeChatRequest(request, respond, success, error, ws) ||
     handleMockSessionTabsRequest(request, respond, success, terminalListWorktreeId) ||
     handleMockTerminalRequest(request, respond, success, ws, terminalListWorktreeId)
@@ -142,7 +144,7 @@ export function handleRequest(
           runtimeId: 'mock-runtime',
           protocolVersion: DESKTOP_PROTOCOL_VERSION,
           minCompatibleMobileVersion: MIN_COMPATIBLE_MOBILE_VERSION,
-          capabilities: ['accounts.codex-reset-credit.v1'],
+          capabilities: ['accounts.codex-reset-credit.v1', 'host-system.v1'],
           graphStatus: 'ready',
           windowCount: 1,
           tabCount: 2,

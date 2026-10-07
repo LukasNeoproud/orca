@@ -23,6 +23,7 @@ import {
   type WindowsMobileFirewallEnvironment
 } from '../runtime/windows-mobile-firewall'
 import { deviceApprovalEnrollment } from '../device-approval/device-approval-enrollment'
+import { registerPowerModeSetupHandlers } from './power-mode-setup'
 
 // Why: only an explicit "This computer only" pick skips the one-way widen, and only when the address it
 // advertises really is loopback — a mismatch (a LAN address under a this-computer reach) would otherwise
@@ -70,6 +71,7 @@ export function registerMobileHandlers(
   }
   const getDefaultRouteInterfaceNames =
     dependencies.getDefaultRouteInterfaceNames ?? getWindowsDefaultRouteInterfaceNames
+  registerPowerModeSetupHandlers()
   ipcMain.handle(
     'mobile:listNetworkInterfaces',
     async (): Promise<{ interfaces: NetworkInterface[] }> => ({

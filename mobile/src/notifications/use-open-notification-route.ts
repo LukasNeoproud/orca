@@ -22,6 +22,10 @@ export function useOpenNotificationRoute(): (target: NotificationNavigationTarge
         openHostStackRoute(target.hostId, target.sessionTarget)
         return
       }
+      if (target.opensHostSystem) {
+        router.push(`/h/${target.hostId}/system`)
+        return
+      }
       router.push(hostStackHostRoute(target.hostId))
     },
     [openHostStackRoute, router]

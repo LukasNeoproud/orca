@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import {
+  Activity,
   ChevronLeft,
   Filter,
   Layers,
@@ -224,6 +225,16 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
               />
             </Pressable>
 
+            {/* Stays enabled offline: the screen shows the host's last known state. */}
+            <Pressable
+              style={styles.embeddedToolbarIconButton}
+              onPress={() => actions.navigateFromHostList(`/h/${hostId}/system`)}
+              accessibilityRole="button"
+              accessibilityLabel="System"
+            >
+              <Activity size={16} color={colors.textSecondary} />
+            </Pressable>
+
             {floatingWorkspaceEnabled ? (
               <Pressable
                 style={[
@@ -334,6 +345,15 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
               size={16}
               color={connState === 'connected' ? colors.textSecondary : colors.textMuted}
             />
+          </Pressable>
+
+          <Pressable
+            style={styles.searchToggle}
+            onPress={() => actions.navigateFromHostList(`/h/${hostId}/system`)}
+            accessibilityRole="button"
+            accessibilityLabel="System"
+          >
+            <Activity size={16} color={colors.textSecondary} />
           </Pressable>
 
           <Pressable style={styles.searchToggle} onPress={() => state.setShowSearch((s) => !s)}>
