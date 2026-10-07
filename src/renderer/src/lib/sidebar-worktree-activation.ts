@@ -6,11 +6,14 @@ import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { ExecutionHostId } from '../../../shared/execution-host'
+import { closeIndependentTerminalsView } from './independent-terminals-view'
 
 export async function activateWorktreeFromSidebar(
   worktreeId: string,
   executionHostId?: ExecutionHostId
 ): Promise<void> {
+  // Why: re-picking the already-active workspace changes no store state to close on.
+  closeIndependentTerminalsView()
   const workspaceScope = parseWorkspaceKey(worktreeId)
   if (workspaceScope?.type === 'folder') {
     if (executionHostId) {

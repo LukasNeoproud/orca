@@ -1,3 +1,4 @@
+import { useAppStore } from '@/store'
 import { useContextualTour } from '@/components/contextual-tours/use-contextual-tour'
 import { createFloatingTerminalPanelDragActions } from './floating-terminal-panel-drag-actions'
 import type { FloatingTerminalPanelProps } from './floating-terminal-panel-types'
@@ -18,6 +19,7 @@ import { useFloatingTerminalPanelMaximize } from './use-floating-terminal-panel-
 import { useFloatingTerminalPanelShortcuts } from './use-floating-terminal-panel-shortcuts'
 import { useFloatingTerminalPanelStoreState } from './use-floating-terminal-panel-store-state'
 import { useFloatingTerminalShortcutDetails } from './use-floating-terminal-shortcut-details'
+import { useIndependentTerminalsDockRect } from './use-independent-terminals-dock-rect'
 
 export function useFloatingTerminalPanelController({
   open,
@@ -78,6 +80,8 @@ export function useFloatingTerminalPanelController({
     ...maximize
   })
   const orchestrationDismissal = useFloatingTerminalOrchestrationDismissal(localState)
+  const dockRect = useIndependentTerminalsDockRect(open)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
 
   return {
     open,
@@ -95,6 +99,8 @@ export function useFloatingTerminalPanelController({
     ...maximize,
     ...shortcuts,
     ...dragActions,
-    ...orchestrationDismissal
+    ...orchestrationDismissal,
+    dockRect,
+    sidebarOpen
   }
 }

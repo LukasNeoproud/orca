@@ -110,7 +110,7 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
             onPress={actions.openFloatingWorkspace}
             disabled={connState !== 'connected'}
             accessibilityRole="button"
-            accessibilityLabel="Floating Workspace"
+            accessibilityLabel="Independent terminals"
             hitSlop={8}
           >
             <SquareTerminal
@@ -244,7 +244,7 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
                 onPress={actions.openFloatingWorkspace}
                 disabled={connState !== 'connected'}
                 accessibilityRole="button"
-                accessibilityLabel="Floating Workspace"
+                accessibilityLabel="Independent terminals"
               >
                 <SquareTerminal
                   size={18}

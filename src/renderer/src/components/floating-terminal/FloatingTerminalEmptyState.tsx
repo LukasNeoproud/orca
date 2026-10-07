@@ -10,7 +10,8 @@ type FloatingTerminalEmptyStateProps = {
   onOpenMarkdown: () => void
   onNewBrowser: () => void
   showNewBrowser: boolean
-  onClose: () => void
+  // Omitted when docked: there is no panel to minimize.
+  onClose?: () => void
   onFocusPanel: () => void
   newTerminalShortcut: ShortcutKeyComboDetails
   newBrowserShortcut: ShortcutKeyComboDetails
@@ -105,21 +106,23 @@ export function FloatingTerminalEmptyState({
             <FloatingEmptyStateShortcut shortcut={newBrowserShortcut} />
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
-          onClick={onClose}
-        >
-          <Minus className="size-3.5 opacity-90" />
-          <span className="truncate text-left leading-none">
-            {translate(
-              'auto.components.floating.terminal.FloatingTerminalPanel.fc1042e92b',
-              'Minimize'
-            )}
-          </span>
-          <FloatingEmptyStateShortcut shortcut={closeShortcut} />
-        </Button>
+        {onClose ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
+            onClick={onClose}
+          >
+            <Minus className="size-3.5 opacity-90" />
+            <span className="truncate text-left leading-none">
+              {translate(
+                'auto.components.floating.terminal.FloatingTerminalPanel.fc1042e92b',
+                'Minimize'
+              )}
+            </span>
+            <FloatingEmptyStateShortcut shortcut={closeShortcut} />
+          </Button>
+        ) : null}
       </div>
     </div>
   )

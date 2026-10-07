@@ -92,8 +92,14 @@ export function renderFloatingTerminalPanelSurface({
   saveDialogFile,
   handleFloatingSaveDialogCancel,
   handleFloatingSaveDialogDiscard,
-  handleFloatingSaveDialogSave
+  handleFloatingSaveDialogSave,
+  dockRect,
+  sidebarOpen
 }: ReturnType<typeof useFloatingTerminalPanelController>): React.JSX.Element {
+  // Why: independent terminals dock over the workbench like a workspace; the floating
+  // geometry only applies when no workbench anchor is mounted.
+  const docked = dockRect !== null
+  const renderedBounds = dockRect ?? bounds
   return (
     // Why: sit above the z-40 notification cards so the floating workspace is
     // never buried behind them, but stay under the z-50 modal layer so its own
@@ -106,16 +112,20 @@ export function renderFloatingTerminalPanelSurface({
       data-floating-terminal-panel
       aria-hidden={!open}
       tabIndex={-1}
-      className={`fixed z-[45] flex min-h-[280px] min-w-[420px] rounded-lg bg-transparent text-card-foreground shadow-[0_4px_12px_rgba(0,0,0,0.16),0_24px_64px_rgba(0,0,0,0.32)] outline-none dark:shadow-[0_8px_20px_rgba(0,0,0,0.35),0_28px_72px_rgba(0,0,0,0.58)] ${open ? 'opacity-100' : 'invisible pointer-events-none opacity-0'}`}
+      className={`fixed z-[45] flex text-card-foreground outline-none ${
+        docked
+          ? 'bg-card'
+          : 'min-h-[280px] min-w-[420px] rounded-lg bg-transparent shadow-[0_4px_12px_rgba(0,0,0,0.16),0_24px_64px_rgba(0,0,0,0.32)] dark:shadow-[0_8px_20px_rgba(0,0,0,0.35),0_28px_72px_rgba(0,0,0,0.58)]'
+      } ${open ? 'opacity-100' : 'invisible pointer-events-none opacity-0'}`}
       style={{
         visibility: open ? 'visible' : 'hidden',
-        left: bounds.left,
-        top: bounds.top,
-        width: bounds.width,
-        height: bounds.height
+        left: renderedBounds.left,
+        top: renderedBounds.top,
+        width: renderedBounds.width,
+        height: renderedBounds.height
       }}
       onMouseUp={(event) => {
-        if (maximized || !stagedBoundsRef.current) {
+        if (docked || maximized || !stagedBoundsRef.current) {
           return
         }
         const rect = event.currentTarget.getBoundingClientRect()
@@ -135,16 +145,35 @@ export function renderFloatingTerminalPanelSurface({
       }}
       onKeyDownCapture={handleShortcutSurfaceKeyDown}
     >
-      <div className="relative flex h-full w-full min-h-0 flex-col overflow-hidden rounded-lg border border-black/14 bg-card dark:border-white/14">
+      <div
+        className={`relative flex h-full w-full min-h-0 flex-col overflow-hidden bg-card ${
+          docked
+            ? 'border-l border-border'
+            : 'rounded-lg border border-black/14 dark:border-white/14'
+        }`}
+      >
         <div
-          className="flex h-9 shrink-0 cursor-grab items-center border-b border-border bg-[var(--bg-titlebar,var(--card))] active:cursor-grabbing"
+          className={`flex h-9 shrink-0 items-center border-b border-border bg-[var(--bg-titlebar,var(--card))] ${
+            docked ? '' : 'cursor-grab active:cursor-grabbing'
+          }`}
           data-floating-terminal-shortcut-surface
-          onPointerDown={handleDragStart}
-          onPointerMove={handleDragMove}
-          onPointerUp={handleDragEnd}
-          onPointerCancel={handleDragEnd}
-          onDoubleClick={handleTitlebarDoubleClick}
+          {...(docked
+            ? {}
+            : {
+                onPointerDown: handleDragStart,
+                onPointerMove: handleDragMove,
+                onPointerUp: handleDragEnd,
+                onPointerCancel: handleDragEnd,
+                onDoubleClick: handleTitlebarDoubleClick
+              })}
         >
+          {/* Why: the collapsed sidebar's titlebar controls float above this strip's left edge. */}
+          {docked && !sidebarOpen ? (
+            <div
+              className="h-full shrink-0"
+              style={{ width: 'var(--collapsed-sidebar-header-width)' }}
+            />
+          ) : null}
           <FloatingWorkspaceTabDragContext enabled={open}>
             <TabBar
               tabs={terminalItems}
@@ -196,6 +225,7 @@ export function renderFloatingTerminalPanelSurface({
             />
           </FloatingWorkspaceTabDragContext>
           <FloatingTerminalWindowControls
+            docked={docked}
             maximized={maximized}
             onToggleMaximized={toggleMaximized}
             onMinimize={() => onOpenChange(false)}
@@ -309,7 +339,7 @@ export function renderFloatingTerminalPanelSurface({
               onOpenMarkdown={openFloatingMarkdownTab}
               onNewBrowser={createFloatingBrowserTab}
               showNewBrowser={managedBrowserCreationEnabled}
-              onClose={() => onOpenChange(false)}
+              onClose={docked ? undefined : () => onOpenChange(false)}
               onFocusPanel={focusPanelForShortcuts}
               newTerminalShortcut={newTerminalShortcut}
               newBrowserShortcut={newBrowserShortcut}
@@ -325,7 +355,7 @@ export function renderFloatingTerminalPanelSurface({
         onDismiss: dismissOrchestrationSetup,
         onEnable: () => setOrchestrationDialogOpen(true)
       })}
-      {!maximized && (
+      {!maximized && !docked && (
         <FloatingTerminalResizeHandles
           bounds={bounds}
           onPreviewBounds={previewUserBounds}

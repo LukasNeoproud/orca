@@ -11,6 +11,7 @@ import { TitlebarLeftControls } from './TitlebarLeftControls'
 import { RightSidebarToggle, TitlebarMainStrip } from './TitlebarMainStrip'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
+import { useIndependentTerminalsViewOpen } from '@/lib/independent-terminals-view'
 
 const Landing = lazy(() => import('../components/Landing'))
 const WorktreeCreationPanel = lazy(
@@ -95,6 +96,7 @@ export function AppWorkspaceShell(props: {
   floatingWorkspace: FloatingWorkspacePanelState
 }): React.JSX.Element {
   const { layout, floatingWorkspace } = props
+  const independentTerminalsViewOpen = useIndependentTerminalsViewOpen()
   const titlebarLeftControls = <TitlebarLeftControls layout={layout} />
   const titlebarMainStrip = <TitlebarMainStrip layout={layout} />
   // Why: keep virtualized scroll memory above the sidebar's workspace/landing remount so the left list doesn't restart at scrollTop 0.
@@ -135,7 +137,10 @@ export function AppWorkspaceShell(props: {
                     // Why: floating titlebar-left occludes the center column's border-l seam; border-r restores that line, w-max sizes it to its own controls.
                     className={`titlebar-left${
                       layout.leftTitlebarChromeLayout.isFloating
-                        ? ' titlebar-left-floating absolute top-0 left-0 z-10 w-max border-r border-border'
+                        ? ` titlebar-left-floating absolute top-0 left-0 ${
+                            // Why: stay reachable above the docked independent terminals view (z-45).
+                            independentTerminalsViewOpen ? 'z-[46]' : 'z-10'
+                          } w-max border-r border-border`
                         : ''
                     }`}
                     style={{
@@ -163,7 +168,11 @@ export function AppWorkspaceShell(props: {
               layout.activeView !== 'artifacts' ? (
                 <div className="titlebar">{titlebarMainStrip}</div>
               ) : null}
-              <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+              <div
+                className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden"
+                // Why: the independent terminals view docks over this area.
+                data-independent-terminals-dock=""
+              >
                 {/* Why: match the RightSidebar header's 36px/top-0 so the toggle's vertical center is identical open vs closed — else the icon jitters. */}
                 {layout.workspaceChromeActive && !layout.rightSidebarOpen && (
                   <div

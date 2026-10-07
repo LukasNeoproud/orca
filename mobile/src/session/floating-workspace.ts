@@ -2,7 +2,7 @@
 // Floating Workspace's synthetic id (no backing repo/worktree; always local runtime).
 export const FLOATING_WORKSPACE_WORKTREE_ID = 'global-floating-terminal'
 
-export const FLOATING_WORKSPACE_TITLE = 'Floating Workspace'
+export const FLOATING_WORKSPACE_TITLE = 'Independent terminals'
 
 export function isFloatingWorkspaceWorktreeId(worktreeId: string | null | undefined): boolean {
   return worktreeId === FLOATING_WORKSPACE_WORKTREE_ID

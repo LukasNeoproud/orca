@@ -4,6 +4,10 @@ import {
   TOGGLE_FLOATING_TERMINAL_EVENT,
   requestFloatingTerminalOpenMaximized
 } from '@/lib/floating-terminal'
+import {
+  CLOSE_INDEPENDENT_TERMINALS_VIEW_EVENT,
+  setIndependentTerminalsViewOpen
+} from '@/lib/independent-terminals-view'
 import { createFloatingWorkspaceTourInteractionSnapshot } from '@/lib/floating-workspace-tour-interaction-snapshot'
 import {
   persistFloatingTerminalPanelOpen,
@@ -107,6 +111,11 @@ export function useFloatingWorkspacePanel() {
     [enabled, open, rememberReturnFocus, restoreReturnFocus]
   )
 
+  const setOpenWithFocusRef = useRef(setOpenWithFocus)
+  useEffect(() => {
+    setOpenWithFocusRef.current = setOpenWithFocus
+  }, [setOpenWithFocus])
+
   const openMaximized = useCallback((): void => {
     requestFloatingTerminalOpenMaximized()
     setOpenWithFocus(true)
@@ -130,6 +139,37 @@ export function useFloatingWorkspacePanel() {
       window.removeEventListener(OPEN_FLOATING_TERMINAL_EVENT, openFloatingTerminal)
     }
   }, [enabled, setOpenWithFocus])
+
+  useEffect(() => {
+    setIndependentTerminalsViewOpen(enabled && open)
+  }, [enabled, open])
+
+  const openRef = useRef(open)
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
+  useEffect(() => {
+    // Why: the view docks over the workbench like a workspace, so picking a workspace or
+    // another page replaces it.
+    const close = (): void => {
+      if (openRef.current) {
+        setOpenWithFocusRef.current(false)
+      }
+    }
+    const unsubscribe = useAppStore.subscribe((state, previous) => {
+      if (
+        state.activeWorktreeId !== previous.activeWorktreeId ||
+        state.activeView !== previous.activeView
+      ) {
+        close()
+      }
+    })
+    window.addEventListener(CLOSE_INDEPENDENT_TERMINALS_VIEW_EVENT, close)
+    return () => {
+      unsubscribe()
+      window.removeEventListener(CLOSE_INDEPENDENT_TERMINALS_VIEW_EVENT, close)
+    }
+  }, [])
 
   useEffect(() => {
     // Why the hydration gate: this effect fires on every boot while settings are still

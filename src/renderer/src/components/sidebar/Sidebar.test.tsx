@@ -54,6 +54,9 @@ vi.mock('./SetupScriptPromptCard', () => ({
   default: () => <div data-testid="setup-script-prompt-card" />
 }))
 
+vi.mock('./IndependentTerminalsSidebarSection', () => ({
+  IndependentTerminalsSidebarSection: () => null
+}))
 vi.mock('./WorktreeList', () => ({
   default: () => <div data-testid="worktree-list" />
 }))

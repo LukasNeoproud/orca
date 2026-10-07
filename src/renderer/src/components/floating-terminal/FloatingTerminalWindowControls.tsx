@@ -22,6 +22,8 @@ import { translate } from '@/i18n/i18n'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 
 type FloatingTerminalWindowControlsProps = {
+  // Docked over the workbench: no window geometry to maximize or minimize.
+  docked?: boolean
   maximized: boolean
   onToggleMaximized: () => void
   onMinimize: () => void
@@ -39,6 +41,7 @@ function withShortcutHint(label: string, shortcutLabel: string | null): string {
 }
 
 export function FloatingTerminalWindowControls({
+  docked = false,
   maximized,
   onToggleMaximized,
   onMinimize
@@ -128,7 +131,11 @@ export function FloatingTerminalWindowControls({
   }, [activateTab, createTab, defaultAgent, defaultAgentLabel, setActiveTabForWorktree])
 
   return (
-    <div className="flex items-center gap-1 px-2" data-floating-terminal-no-drag>
+    <div
+      className="flex items-center gap-1 px-2"
+      data-floating-terminal-no-drag
+      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+    >
       {defaultAgent ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -156,74 +163,82 @@ export function FloatingTerminalWindowControls({
           </TooltipContent>
         </Tooltip>
       ) : null}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-xs"
-            className={controlButtonClassName}
-            aria-label={
-              maximized
-                ? translate(
-                    'auto.components.floating.terminal.FloatingTerminalWindowControls.1c79cba25d',
-                    'Restore floating workspace'
+      {docked ? null : (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-xs"
+                className={controlButtonClassName}
+                aria-label={
+                  maximized
+                    ? translate(
+                        'auto.components.floating.terminal.FloatingTerminalWindowControls.1c79cba25d',
+                        'Restore floating workspace'
+                      )
+                    : translate(
+                        'auto.components.floating.terminal.FloatingTerminalWindowControls.3f4ca29961',
+                        'Maximize floating workspace'
+                      )
+                }
+                aria-pressed={maximized}
+                onClick={onToggleMaximized}
+              >
+                {maximized ? (
+                  <Minimize2 className="size-3.5" />
+                ) : (
+                  <Maximize2 className="size-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {maximized
+                ? withShortcutHint(
+                    translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.b5686fee1e',
+                      'Restore'
+                    ),
+                    maximizeShortcutLabel
                   )
-                : translate(
-                    'auto.components.floating.terminal.FloatingTerminalWindowControls.3f4ca29961',
-                    'Maximize floating workspace'
-                  )
-            }
-            aria-pressed={maximized}
-            onClick={onToggleMaximized}
-          >
-            {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          {maximized
-            ? withShortcutHint(
+                : withShortcutHint(
+                    translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.109870e023',
+                      'Maximize'
+                    ),
+                    maximizeShortcutLabel
+                  )}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-xs"
+                className={controlButtonClassName}
+                aria-label={translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.1bbaa0302f',
+                  'Minimize floating workspace'
+                )}
+                onClick={onMinimize}
+              >
+                <Minus className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {withShortcutHint(
                 translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.b5686fee1e',
-                  'Restore'
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.2f6054342c',
+                  'Minimize'
                 ),
-                maximizeShortcutLabel
-              )
-            : withShortcutHint(
-                translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.109870e023',
-                  'Maximize'
-                ),
-                maximizeShortcutLabel
+                minimizeShortcutLabel
               )}
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-xs"
-            className={controlButtonClassName}
-            aria-label={translate(
-              'auto.components.floating.terminal.FloatingTerminalWindowControls.1bbaa0302f',
-              'Minimize floating workspace'
-            )}
-            onClick={onMinimize}
-          >
-            <Minus className="size-3.5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          {withShortcutHint(
-            translate(
-              'auto.components.floating.terminal.FloatingTerminalWindowControls.2f6054342c',
-              'Minimize'
-            ),
-            minimizeShortcutLabel
-          )}
-        </TooltipContent>
-      </Tooltip>
+            </TooltipContent>
+          </Tooltip>
+        </>
+      )}
     </div>
   )
 }

@@ -24,7 +24,7 @@ export function HostIndependentTerminalsEntry({
       onPress={onPress}
       disabled={!available}
       accessibilityRole="button"
-      accessibilityLabel="Floating Workspace, independent terminals"
+      accessibilityLabel="Independent terminals"
       accessibilityHint={description}
       accessibilityState={{ disabled: !available }}
     >
@@ -32,7 +32,7 @@ export function HostIndependentTerminalsEntry({
         <SquareTerminal size={20} color={available ? colors.textPrimary : colors.textMuted} />
       </View>
       <View style={styles.copy}>
-        <Text style={[styles.title, !available && styles.disabledText]}>Floating Workspace</Text>
+        <Text style={[styles.title, !available && styles.disabledText]}>Independent terminals</Text>
         <Text style={styles.description}>{description}</Text>
       </View>
       {available ? <ChevronRight size={17} color={colors.textSecondary} /> : null}
