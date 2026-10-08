@@ -5,7 +5,11 @@ import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
-import { buildAzureDevOpsReviewAgentPrompt } from '../../../shared/azure-devops-review-prompt'
+import {
+  azureDevOpsReviewCliCommand,
+  buildAzureDevOpsReviewAgentPrompt
+} from '../../../shared/azure-devops-review-prompt'
+import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 
 /** Launches the default agent in the review worktree with the review prompt. */
@@ -37,7 +41,10 @@ export async function startAzureDevOpsReviewAgent(
     agent,
     worktreeId,
     groupId: worktreeId,
-    prompt: buildAzureDevOpsReviewAgentPrompt(pullRequest),
+    prompt: buildAzureDevOpsReviewAgentPrompt(
+      pullRequest,
+      azureDevOpsReviewCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
+    ),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })
