@@ -10,6 +10,7 @@ import type { HooksApi } from './api/agent-hook-api'
 import type { SkillsApi } from './api/agent-skill-api'
 import type { AgentAwakeApi, AgentStatusApi, AgentTrustApi } from './api/agent-status-api'
 import type { PowerModeSetupApi } from './api/power-mode-setup-bridge'
+import type { AzureDevOpsConnectionsApi } from './api/azure-devops-connections-bridge'
 import type {
   ClaudeUsageApi,
   CodexUsageApi,
@@ -101,6 +102,7 @@ export type PreloadApi = {
   agentAwake: AgentAwakeApi
   /** Local macOS desktop only; web clients have no privileged host access. */
   powerModeSetup?: PowerModeSetupApi
+  azureDevOpsConnections?: AzureDevOpsConnectionsApi
   localhostWorktreeLabels: LocalhostWorktreeLabelsApi
   keybindings: KeybindingsApi
   codexAccounts: CodexAccountsApi

@@ -1,6 +1,7 @@
 // Kept import-free for main/CLI project isolation; a parity test prevents drift.
 export const CLI_COMMAND_NAMES = [
   'account',
+  'ado',
   'agent',
   'agent-context',
   'artifacts',

@@ -12,6 +12,10 @@ import { RightSidebarToggle, TitlebarMainStrip } from './TitlebarMainStrip'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 import { useIndependentTerminalsViewOpen } from '@/lib/independent-terminals-view'
+import {
+  AzureDevOpsPullRequestPageHost,
+  useAzureDevOpsPullRequestPageVisible
+} from '../components/azure-devops-review/AzureDevOpsPullRequestPageHost'
 
 const Landing = lazy(() => import('../components/Landing'))
 const WorktreeCreationPanel = lazy(
@@ -68,6 +72,7 @@ function WorktreeSidebar({
 
 function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
   const { activeView, activeWorktreeId, activePendingCreationId, creationLayoutActive } = layout
+  const pullRequestPageVisible = useAzureDevOpsPullRequestPageVisible(layout)
   return (
     <>
       {activeView === 'settings' ? <Settings /> : null}
@@ -85,7 +90,12 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
           reserveCollapsedSidebarHeaderSpace={layout.leftTitlebarChromeLayout.isFloating}
         />
       ) : null}
-      {activeView === 'terminal' && !activeWorktreeId && !creationLayoutActive ? <Landing /> : null}
+      {activeView === 'terminal' &&
+      !activeWorktreeId &&
+      !creationLayoutActive &&
+      !pullRequestPageVisible ? (
+        <Landing />
+      ) : null}
     </>
   )
 }
@@ -97,6 +107,7 @@ export function AppWorkspaceShell(props: {
 }): React.JSX.Element {
   const { layout, floatingWorkspace } = props
   const independentTerminalsViewOpen = useIndependentTerminalsViewOpen()
+  const pullRequestPageVisible = useAzureDevOpsPullRequestPageVisible(layout)
   const titlebarLeftControls = <TitlebarLeftControls layout={layout} />
   const titlebarMainStrip = <TitlebarMainStrip layout={layout} />
   // Why: keep virtualized scroll memory above the sidebar's workspace/landing remount so the left list doesn't restart at scrollTop 0.
@@ -190,7 +201,9 @@ export function AppWorkspaceShell(props: {
                 )}
                 <div className="flex flex-1 min-w-0 min-h-0 flex-col">
                   {layout.shouldMountTerminalWorkbench ? (
-                    <TerminalWorkbenchContainer isVisible={layout.terminalWorkbenchVisible}>
+                    <TerminalWorkbenchContainer
+                      isVisible={layout.terminalWorkbenchVisible && !pullRequestPageVisible}
+                    >
                       <Suspense fallback={null}>
                         <RecoverableRenderErrorBoundary
                           boundaryId="terminal.workbench"
@@ -222,6 +235,13 @@ export function AppWorkspaceShell(props: {
                       )}
                     >
                       <ActivePage layout={layout} />
+                      <AzureDevOpsPullRequestPageHost
+                        layout={layout}
+                        reserveLeftHeaderSpace={layout.leftTitlebarChromeLayout.isFloating}
+                        reserveRightHeaderSpace={
+                          layout.workspaceChromeActive && !layout.rightSidebarOpen
+                        }
+                      />
                     </RecoverableRenderErrorBoundary>
                   </Suspense>
                 </div>

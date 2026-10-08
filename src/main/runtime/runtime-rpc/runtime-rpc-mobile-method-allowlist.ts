@@ -1,4 +1,4 @@
-import { MOBILE_RPC_BACKLOG_METHODS } from './runtime-rpc-mobile-backlog-methods'
+import { MOBILE_RPC_PANEL_METHODS } from './runtime-rpc-mobile-panel-methods'
 import { MOBILE_RPC_AGENT_CONVERSATION_METHODS } from './runtime-rpc-mobile-agent-conversation-methods'
 import { MOBILE_RPC_JIRA_SOURCE_METHODS } from './runtime-rpc-mobile-jira-methods'
 import { MOBILE_RPC_PROJECT_METHODS } from './runtime-rpc-mobile-project-methods'
@@ -19,7 +19,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'aiVault.listSessions',
   'aiVault.resolveSessionTitles',
   'aiVault.prepareSessionResume',
-  ...MOBILE_RPC_BACKLOG_METHODS,
+  ...MOBILE_RPC_PANEL_METHODS,
   'browser.back',
   'browser.dialogAccept',
   'browser.dialogDismiss',

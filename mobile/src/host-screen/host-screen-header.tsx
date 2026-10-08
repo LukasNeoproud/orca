@@ -4,6 +4,7 @@ import {
   Activity,
   ChevronLeft,
   Filter,
+  GitPullRequest,
   Layers,
   List,
   PanelLeftClose,
@@ -235,6 +236,22 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
               <Activity size={16} color={colors.textSecondary} />
             </Pressable>
 
+            <Pressable
+              style={[
+                styles.embeddedToolbarIconButton,
+                connState !== 'connected' && styles.toolbarIconDisabled
+              ]}
+              onPress={() => actions.navigateFromHostList(`/h/${hostId}/pull-requests`)}
+              disabled={connState !== 'connected'}
+              accessibilityRole="button"
+              accessibilityLabel="Pull requests"
+            >
+              <GitPullRequest
+                size={16}
+                color={connState === 'connected' ? colors.textSecondary : colors.textMuted}
+              />
+            </Pressable>
+
             {floatingWorkspaceEnabled ? (
               <Pressable
                 style={[
@@ -354,6 +371,19 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
             accessibilityLabel="System"
           >
             <Activity size={16} color={colors.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            style={styles.searchToggle}
+            onPress={() => actions.navigateFromHostList(`/h/${hostId}/pull-requests`)}
+            disabled={connState !== 'connected'}
+            accessibilityRole="button"
+            accessibilityLabel="Pull requests"
+          >
+            <GitPullRequest
+              size={16}
+              color={connState === 'connected' ? colors.textSecondary : colors.textMuted}
+            />
           </Pressable>
 
           <Pressable style={styles.searchToggle} onPress={() => state.setShowSearch((s) => !s)}>

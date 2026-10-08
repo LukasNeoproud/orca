@@ -12,6 +12,7 @@ const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktr
 const FolderWorkspacePrChecksPanel = lazy(() => import('./FolderWorkspacePrChecksPanel'))
 const PluginPanel = lazy(() => import('./PluginPanel'))
 const BacklogPanel = lazy(() => import('./BacklogPanel'))
+const AzureDevOpsPullRequestsPanel = lazy(() => import('./AzureDevOpsPullRequestsPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -37,6 +38,11 @@ export function RightSidebarPanelContent({
         {effectiveTab === 'vault' && <AiVaultPanel />}
         {effectiveTab === 'backlog' && (
           <BacklogPanel isVisible={rightSidebarOpen && effectiveTab === 'backlog'} />
+        )}
+        {effectiveTab === 'pull-requests' && (
+          <AzureDevOpsPullRequestsPanel
+            isVisible={rightSidebarOpen && effectiveTab === 'pull-requests'}
+          />
         )}
         {effectiveTab === 'workspaces' && <FolderWorkspaceWorktreesPanel />}
         {effectiveTab === 'pr-checks' && (

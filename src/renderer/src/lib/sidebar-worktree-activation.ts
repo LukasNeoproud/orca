@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import { closeIndependentTerminalsView } from './independent-terminals-view'
+import { closeAzureDevOpsPullRequestPage } from './azure-devops-review-page'
 
 export async function activateWorktreeFromSidebar(
   worktreeId: string,
@@ -14,6 +15,7 @@ export async function activateWorktreeFromSidebar(
 ): Promise<void> {
   // Why: re-picking the already-active workspace changes no store state to close on.
   closeIndependentTerminalsView()
+  closeAzureDevOpsPullRequestPage()
   const workspaceScope = parseWorkspaceKey(worktreeId)
   if (workspaceScope?.type === 'folder') {
     if (executionHostId) {

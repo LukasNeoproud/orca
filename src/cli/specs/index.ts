@@ -19,6 +19,7 @@ import { SKILL_COMMAND_SPECS } from './skills'
 import { ARTIFACT_COMMAND_SPECS } from './artifacts'
 import { AGENT_CONTEXT_COMMAND_SPECS } from './agent-context'
 import { INTERACT_COMMAND_SPECS } from './interact'
+import { AZURE_DEVOPS_COMMAND_SPECS } from './azure-devops'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
@@ -40,5 +41,6 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...EMULATOR_COMMAND_SPECS,
   ...AGENT_CONTEXT_COMMAND_SPECS,
   ...INTERACT_COMMAND_SPECS,
+  ...AZURE_DEVOPS_COMMAND_SPECS,
   ...SKILL_COMMAND_SPECS
 ]

@@ -220,6 +220,19 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/environment.js')).ENVIRONMENT_HANDLERS
   },
   {
+    name: 'azure-devops',
+    keys: [
+      'ado prs',
+      'ado pr',
+      'ado drafts',
+      'ado draft create',
+      'ado draft update',
+      'ado draft rm',
+      'ado mcp'
+    ],
+    load: async () => (await import('./handlers/azure-devops.js')).AZURE_DEVOPS_HANDLERS
+  },
+  {
     name: 'linear',
     keys: [
       'linear save-issue',

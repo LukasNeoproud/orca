@@ -1,4 +1,6 @@
 import type { ExecutionHostId } from '../../shared/execution-host'
+import { resolveAzureDevOpsConnectionAuthHeaders } from './azure-devops-credentials'
+import { listAzureDevOpsConnections } from './azure-devops-connection-store'
 import { hostedReviewSshConnectionId } from '../source-control/hosted-review-execution-host'
 import { Buffer } from 'node:buffer'
 import type { CreateHostedReviewInput, CreateHostedReviewResult } from '../../shared/hosted-review'
@@ -44,7 +46,7 @@ function getAuthConfig(): AzureDevOpsCreateAuthConfig {
 
 export function isAzureDevOpsReviewCreationAuthenticated(): boolean {
   const config = getAuthConfig()
-  return Boolean(config.pat || config.accessToken)
+  return Boolean(config.pat || config.accessToken) || listAzureDevOpsConnections().length > 0
 }
 
 function authHeaders(config: AzureDevOpsCreateAuthConfig): Record<string, string> {
@@ -232,7 +234,8 @@ export async function createAzureDevOpsPullRequest(
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          ...authHeaders(getAuthConfig())
+          ...((await resolveAzureDevOpsConnectionAuthHeaders(new URL(repo.apiBaseUrl))) ??
+            authHeaders(getAuthConfig()))
         },
         body: JSON.stringify(requestBody)
       }

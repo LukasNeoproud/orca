@@ -4,11 +4,17 @@ import { IntegrationCardDetails, IntegrationCardShell } from './integration-card
 import { usePreflightCardStatuses } from './source-control-preflight-card-status'
 import { translate } from '@/i18n/i18n'
 import { tokenProviderStatusLabel } from './token-source-control-status'
+import {
+  AzureDevOpsConnectionsSection,
+  useAzureDevOpsConnections
+} from './AzureDevOpsConnectionsSection'
 
 export function AzureDevOpsIntegrationCard(): React.JSX.Element {
   const { statuses, unavailable, refresh } = usePreflightCardStatuses('azureDevOps')
+  const connections = useAzureDevOpsConnections()
+  const hasConnections = (connections.status?.connections.length ?? 0) > 0
   const status = unavailable ? 'unavailable' : statuses.azureDevOpsStatus
-  const configured = status === 'configured'
+  const configured = status === 'configured' || hasConnections
 
   return (
     <IntegrationCardShell
@@ -45,6 +51,9 @@ export function AzureDevOpsIntegrationCard(): React.JSX.Element {
         status
       })}
     >
+      {connections.status ? (
+        <AzureDevOpsConnectionsSection status={connections.status} reload={connections.reload} />
+      ) : null}
       {status !== 'checking' && !configured ? (
         <IntegrationCardDetails>
           <p className="text-xs text-muted-foreground">

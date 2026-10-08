@@ -215,6 +215,9 @@ export const AUTOMATION_CREATE_IDEMPOTENCY_RUNTIME_CAPABILITY =
 // hostSystem.snapshot / setPowerMode / terminateProcess for the paired-client system panel.
 export const HOST_SYSTEM_RUNTIME_CAPABILITY = 'host-system.v1' as const
 
+// azureDevOpsReview.* for the Azure DevOps pull request review surfaces.
+export const AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY = 'azure-devops-review.v1' as const
+
 // Generic native clients include the CLI and must not claim Electron-only page
 // placement support.
 export const NATIVE_REMOTE_RUNTIME_CLIENT_CAPABILITIES = [
@@ -240,6 +243,7 @@ export const ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES = [
 
 export const RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY,
   AGENT_CONTEXT_TRANSITIONS_RUNTIME_CAPABILITY,
   AGENT_CONTEXT_STRUCTURED_MOBILE_RUNTIME_CAPABILITY,
   'conversation.continuation.v1',
