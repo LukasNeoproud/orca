@@ -62,6 +62,11 @@ vi.mock('react', async () => {
   }
 })
 
+vi.mock('../azure-devops-review/AzureDevOpsReviewTabChip', () => ({
+  AzureDevOpsReviewTabChip: () => null,
+  AzureDevOpsReviewTabMenuItem: () => null
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},

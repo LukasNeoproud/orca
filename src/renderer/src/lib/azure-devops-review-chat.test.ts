@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest'
+import { findAzureDevOpsReviewChatTab } from './azure-devops-review-chat'
+import type { TerminalTab } from '../../../shared/terminal-tab-types'
+
+function tab(id: string, worktreeId = 'wt-review'): TerminalTab {
+  return { id, worktreeId } as TerminalTab
+}
+
+describe('findAzureDevOpsReviewChatTab', () => {
+  const state = { tabsByWorktree: { 'wt-review': [tab('a'), tab('b')], 'wt-main': [tab('c')] } }
+
+  it('returns the most recently linked live tab for the pull request', () => {
+    const links = {
+      a: { pullRequestKey: 'pr-1', linkedAt: 1 },
+      b: { pullRequestKey: 'pr-1', linkedAt: 2 },
+      c: { pullRequestKey: 'pr-2', linkedAt: 3 }
+    }
+    expect(findAzureDevOpsReviewChatTab(state, links, 'pr-1')?.id).toBe('b')
+    expect(findAzureDevOpsReviewChatTab(state, links, 'pr-2')?.id).toBe('c')
+  })
+
+  it('ignores links to closed tabs', () => {
+    const links = { gone: { pullRequestKey: 'pr-1', linkedAt: 5 } }
+    expect(findAzureDevOpsReviewChatTab(state, links, 'pr-1')).toBeNull()
+  })
+})

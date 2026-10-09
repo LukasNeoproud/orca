@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, ExternalLink, FolderGit2, RefreshCw, X } from 'lucide-react'
+import { ExternalLink, FolderGit2, RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,6 +19,8 @@ import { useAzureDevOpsReviewDetail } from './use-azure-devops-review-detail'
 import { AzureDevOpsReviewFiles } from './AzureDevOpsReviewFiles'
 import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
 import { AzureDevOpsReviewDrafts } from './AzureDevOpsReviewDrafts'
+import { AzureDevOpsReviewAiButton } from './AzureDevOpsReviewAiButton'
+import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 
 type ReviewMode = 'workspace' | 'agent'
 
@@ -81,6 +83,9 @@ export function AzureDevOpsPullRequestPage({
         toast.error(result.message)
         return
       }
+      useAzureDevOpsReviewChatLinks
+        .getState()
+        .setWorktreePullRequest(result.worktree.worktreeId, result.worktree.pullRequestKey)
       const opened =
         mode === 'agent'
           ? await startAzureDevOpsReviewAgent(pr, result.worktree)
@@ -153,26 +158,11 @@ export function AzureDevOpsPullRequestPage({
                   )}
             </TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={-1}>
-                <Button
-                  size="sm"
-                  disabled={!pr || busy !== null || forkBlocked}
-                  onClick={() => void review('agent')}
-                >
-                  <Bot className="size-3.5" />
-                  {translate('azureDevOpsReview.reviewWithAi', 'Review with AI')}
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-72">
-              {translate(
-                'azureDevOpsReview.reviewWithAgentHint',
-                'Opens the review workspace and starts your default agent there. It writes findings as drafts; nothing is published until you do it.'
-              )}
-            </TooltipContent>
-          </Tooltip>
+          <AzureDevOpsReviewAiButton
+            pullRequestKey={pullRequestKey}
+            disabled={!pr || busy !== null || forkBlocked}
+            onStartReview={() => void review('agent')}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

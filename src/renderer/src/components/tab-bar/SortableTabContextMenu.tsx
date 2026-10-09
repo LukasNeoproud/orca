@@ -23,6 +23,7 @@ import { formatShortcutLabel, useOptionalShortcutLabel } from '@/hooks/useShortc
 import { translate } from '@/i18n/i18n'
 import { TerminalTabSplitMenuSection } from './TerminalTabSplitMenuSection'
 import { TAB_CONTEXT_MENU_CONTENT_CLASS } from './tab-context-menu-sizing'
+import { AzureDevOpsReviewTabMenuItem } from '../azure-devops-review/AzureDevOpsReviewTabChip'
 
 const TAB_COLORS = [
   {
@@ -193,6 +194,7 @@ export function SortableTabContextMenu({
             </DropdownMenuItem>
           </>
         ) : null}
+        <AzureDevOpsReviewTabMenuItem tab={tab} />
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onTogglePin}>
           {isPinned ? (

@@ -14,6 +14,8 @@ import { resolveTuiAgentLaunchArgs } from '../../../shared/tui-agent-launch-defa
 import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
 import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
+import { pruneAzureDevOpsReviewChatLinks } from '@/lib/azure-devops-review-chat'
+import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 
 /** Launches the default agent in the review worktree with the review prompt. */
@@ -70,6 +72,12 @@ export async function startAzureDevOpsReviewAgent(
     return false
   }
   if (result.tabId) {
+    pruneAzureDevOpsReviewChatLinks()
+    useAzureDevOpsReviewChatLinks.getState().linkTab(result.tabId, pullRequest.key)
+    // Why: the tab's PR chip carries the number; the agent's own OSC titles would hide which tab reviews.
+    useAppStore
+      .getState()
+      .setTabCustomTitle(result.tabId, translate('azureDevOpsReview.agentTabTitle', 'Review'))
     focusTerminalTabSurface(result.tabId)
   }
   return true

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getAzureDevOpsReviewDetail } from '@/lib/azure-devops-review-client'
 import { useAzureDevOpsReviewStore } from '@/store/azure-devops-review-store'
+import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 
 export type AzureDevOpsReviewDetailState = {
@@ -24,6 +25,14 @@ export function useAzureDevOpsReviewDetail(pullRequestKey: string): AzureDevOpsR
       const next = await getAzureDevOpsReviewDetail(pullRequestKey)
       if (current === generation.current) {
         setDetail(next)
+        if (next.reviewWorktree) {
+          useAzureDevOpsReviewChatLinks
+            .getState()
+            .setWorktreePullRequest(
+              next.reviewWorktree.worktreeId,
+              next.reviewWorktree.pullRequestKey
+            )
+        }
         // Why: keep the sidebar's draft badge in step without refetching every PR.
         const store = useAzureDevOpsReviewStore.getState()
         if (store.list) {
