@@ -6,9 +6,13 @@ import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import {
-  azureDevOpsReviewCliCommand,
+  azureDevOpsReviewMcpAgentArgs,
   buildAzureDevOpsReviewAgentPrompt
 } from '../../../shared/azure-devops-review-prompt'
+import { orcaLaunchCliCommand } from '../../../shared/terminal-interaction-launch'
+import { resolveTuiAgentLaunchArgs } from '../../../shared/tui-agent-launch-defaults'
+import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
+import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 
@@ -37,14 +41,25 @@ export async function startAzureDevOpsReviewAgent(
     )
     return false
   }
+  // Why local shell: review worktrees are never on SSH hosts.
+  const shell = resolveStartupShell(
+    CLIENT_PLATFORM,
+    resolveLocalWindowsAgentStartupShell({
+      platform: CLIENT_PLATFORM,
+      isRemote: false,
+      terminalWindowsShell: store.settings?.terminalWindowsShell
+    })
+  )
+  const cli = orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
+  const mcpArgs = azureDevOpsReviewMcpAgentArgs(agent, shell, cli)
+  const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
   const result = launchAgentInNewTab({
     agent,
     worktreeId,
     groupId: worktreeId,
-    prompt: buildAzureDevOpsReviewAgentPrompt(
-      pullRequest,
-      azureDevOpsReviewCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
-    ),
+    // Why first: user defaults may end with `--`, after which flags are literal.
+    agentArgs: mcpArgs ? [mcpArgs, defaultArgs].filter(Boolean).join(' ') : undefined,
+    prompt: buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })

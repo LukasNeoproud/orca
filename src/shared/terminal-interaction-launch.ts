@@ -17,6 +17,34 @@ const MCP_ENV = [
   'ORCA_REMOTE_PAIRING'
 ]
 
+/** The Orca CLI an agent in this build's terminals must call; dev builds expose `orca-dev`. */
+export function orcaLaunchCliCommand(platform: NodeJS.Platform, isDev: boolean): string {
+  if (isDev) {
+    return platform === 'win32' ? 'orca-dev.cmd' : 'orca-dev'
+  }
+  return getOrcaCliCommandNameForPlatform(platform)
+}
+
+/** Inline, per-launch registration of an Orca CLI stdio MCP server for Codex or Claude. */
+export function orcaMcpServerLaunchArgs(
+  agent: 'codex' | 'claude',
+  server: string,
+  cli: string,
+  cliArgs: readonly string[]
+): string[] {
+  if (agent === 'codex') {
+    // Why env_vars: Codex starts MCP servers with a scrubbed environment.
+    return [
+      '-c',
+      `mcp_servers.${server}={command=${JSON.stringify(cli)},args=${JSON.stringify(cliArgs)},env_vars=${JSON.stringify(MCP_ENV)},tool_timeout_sec=3600}`
+    ]
+  }
+  return [
+    '--mcp-config',
+    JSON.stringify({ mcpServers: { [server]: { command: cli, args: cliArgs } } })
+  ]
+}
+
 export function withTerminalInteractionMcp(
   command: string,
   agent: TuiAgent,
@@ -47,23 +75,10 @@ export function withTerminalInteractionMcp(
   if (hasInteractionConfig(parsed.tokens.slice(index + 1), agent)) {
     return command
   }
-  const cli = isDev
-    ? platform === 'win32'
-      ? 'orca-dev.cmd'
-      : 'orca-dev'
-    : getOrcaCliCommandNameForPlatform(platform)
-  const config =
-    agent === 'codex'
-      ? [
-          '-c',
-          `mcp_servers.${MCP_SERVER}={command=${JSON.stringify(cli)},args=["interact","mcp"],env_vars=${JSON.stringify(MCP_ENV)},tool_timeout_sec=3600}`
-        ]
-      : [
-          '--mcp-config',
-          JSON.stringify({
-            mcpServers: { [MCP_SERVER]: { command: cli, args: ['interact', 'mcp'] } }
-          })
-        ]
+  const config = orcaMcpServerLaunchArgs(agent, MCP_SERVER, orcaLaunchCliCommand(platform, isDev), [
+    'interact',
+    'mcp'
+  ])
   const suffix = config.map((arg) => quoteStartupArg(arg, shell)).join(' ')
   const end = parsed.spans[index].end
   return `${command.slice(0, end)} ${suffix}${command.slice(end)}`
