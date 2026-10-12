@@ -9,14 +9,18 @@ import { resolveWslInteropSpawnCwd } from '../wsl-interop-spawn-directory'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type { BacklogTarget } from '../backlog/backlog-service'
 import { parseExecutionHostId } from '../../shared/execution-host'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import { resolveWorktreeHostRouting } from '../runtime/worktree-launch-host-repo'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
 import { parseWslPath, toLinuxPath } from '../wsl'
 import { spawnBacklogProcess, type BacklogProcessRoute } from './backlog-process'
 
-export type ResolvedBacklogTarget =
-  | { kind: 'local'; target: BacklogTarget; workspaceId: string; executionHostId: string }
-  | { kind: 'ssh'; connectionId: string; cwd: string; workspaceId: string; executionHostId: string }
+export type ResolvedBacklogTarget = {
+  kind: 'local'
+  target: BacklogTarget
+  workspaceId: string
+  executionHostId: string
+}
 
 async function canonicalWslCwd(distro: string, cwd: string): Promise<string> {
   const captured = buildWslCapturedLoginShellCommand(`cd ${quotePosixShell(cwd)} && pwd -P`)
@@ -65,13 +69,8 @@ export async function resolveBacklogTarget(
     throw new Error('backlog_runtime_host_must_be_called_directly')
   }
   if (host.kind === 'ssh') {
-    return {
-      kind: 'ssh',
-      connectionId: host.targetId,
-      cwd: worktree.path,
-      workspaceId: worktree.id,
-      executionHostId: host.id
-    }
+    // An SSH workspace's Backlog runs in the orcad that serves it; this app has no SSH route.
+    throw new SshHostNotServedError(host.targetId)
   }
 
   const projectRuntime = runtime.resolveProjectRuntimeForWorktree(workspaceId)

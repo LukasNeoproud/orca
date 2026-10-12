@@ -6,20 +6,14 @@ import type { Store } from '../../../persistence'
 import { gitExecFileAsync } from '../../../git/runner'
 import { listWorktrees } from '../../../git/worktree'
 import { resolveDefaultBaseRefViaExec } from '../../../git/repo'
-import { requireSshGitProvider } from '../../../providers/ssh-git-dispatch'
-import { requireSshFilesystemProvider } from '../../../providers/ssh-filesystem-dispatch'
+import { SshHostNotServedError } from '../../../providers/ssh-host-not-served-error'
 import {
   getLocalProjectWorktreeGitOptions,
   getWorktreeMirrorDistro
 } from '../../../project-runtime-git-options'
 import { requireWorktreeCreateRoute } from '../../../worktree-create-execution-host-route'
-import {
-  computeWorktreePathAsync,
-  computeRemoteWorktreePath,
-  getWorktreePathSettings
-} from '../../worktree-logic'
+import { computeWorktreePathAsync, getWorktreePathSettings } from '../../worktree-logic'
 import { isENOENT } from '../../filesystem-path-containment'
-import { registerRequiredSshWorktreeCreateRoots } from '../../ssh-worktree-create-root-registration'
 import { previewExplicitWorktreeCreation } from '../../../worktree-explicit-creation'
 
 export async function previewWorktreeCreation(
@@ -32,20 +26,27 @@ export async function previewWorktreeCreation(
     throw new Error('Explicit creation options are required.')
   }
   const route = requireWorktreeCreateRoute(repo)
-  const ssh = route.kind === 'ssh' ? requireSshGitProvider(route.repo.connectionId!) : undefined
-  const fs =
-    route.kind === 'ssh' ? requireSshFilesystemProvider(route.repo.connectionId!) : undefined
   if (route.kind === 'ssh') {
-    await registerRequiredSshWorktreeCreateRoots(route.repo.connectionId!, [repo.path])
+    throw new SshHostNotServedError(route.connectionId)
   }
   const options = getLocalProjectWorktreeGitOptions(store, repo)
-  const exec = (argv: string[]) =>
-    ssh ? ssh.exec(argv, repo.path) : gitExecFileAsync(argv, { cwd: repo.path, ...options })
+  const exec = (argv: string[]) => gitExecFileAsync(argv, { cwd: repo.path, ...options })
   const settings = getWorktreePathSettings(
     { ...repo, worktreeBasePath: undefined },
     store.getSettings(),
-    ssh ? undefined : getWorktreeMirrorDistro(store, repo)
+    getWorktreeMirrorDistro(store, repo)
   )
+  const exists = async (path: string, symbolicLinkOnly: boolean): Promise<boolean> => {
+    try {
+      const stat = await lstat(path)
+      return !symbolicLinkOnly || stat.isSymbolicLink()
+    } catch (error) {
+      if (isENOENT(error)) {
+        return false
+      }
+      throw error
+    }
+  }
   return previewExplicitWorktreeCreation(
     args.explicitCreation,
     args.baseBranch,
@@ -54,56 +55,13 @@ export async function previewWorktreeCreation(
       configuredBase: repo.worktreeBaseRef || undefined,
       defaultBase: () => resolveDefaultBaseRefViaExec(exec),
       defaultPath: (directory, mainPath = repo.path) =>
-        ssh
-          ? computeRemoteWorktreePath(directory, mainPath, settings, {
-              useConfiguredAbsolutePath: false
-            })
-          : computeWorktreePathAsync(directory, mainPath, settings),
+        computeWorktreePathAsync(directory, mainPath, settings),
       exec,
-      worktrees: () => (ssh ? ssh.listWorktrees(repo.path) : listWorktrees(repo.path, options)),
-      isIgnored: async (relative, mainPath) => {
-        const ignored = ssh
-          ? await ssh.checkIgnoredPaths(mainPath, [relative])
-          : await checkIgnoredPaths(mainPath, [relative], options)
-        return ignored.length > 0
-      },
-      isSymbolicLink: async (path) => {
-        try {
-          if (fs) {
-            if (!fs.lstat) {
-              throw new Error(
-                'This SSH host does not support safe destination inspection. Reconnect to update it.'
-              )
-            }
-            return (await fs.lstat(path)).type === 'symlink'
-          }
-          return (await lstat(path)).isSymbolicLink()
-        } catch (error) {
-          if (isENOENT(error)) {
-            return false
-          }
-          throw error
-        }
-      },
-      exists: async (path) => {
-        try {
-          await (fs
-            ? fs.lstat
-              ? fs.lstat(path)
-              : Promise.reject(
-                  new Error(
-                    'This SSH host does not support safe destination inspection. Reconnect to update it.'
-                  )
-                )
-            : lstat(path))
-          return true
-        } catch (error) {
-          if (isENOENT(error)) {
-            return false
-          }
-          throw error
-        }
-      }
+      worktrees: () => listWorktrees(repo.path, options),
+      isIgnored: async (relative, mainPath) =>
+        (await checkIgnoredPaths(mainPath, [relative], options)).length > 0,
+      isSymbolicLink: (path) => exists(path, true),
+      exists: (path) => exists(path, false)
     },
     strictNewBranch
   )

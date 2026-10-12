@@ -1,3 +1,4 @@
+import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import { useEffect, useMemo, useRef } from 'react'
 import { searchRuntimeRepoBaseRefDetails } from '@/runtime/runtime-repo-client'
 import { lookupLinearIssueUrl } from '@/lib/linear-issue-url-lookup'
@@ -38,7 +39,6 @@ export function useSmartWorkspaceSecondarySearches({
     mode,
     selectedRepo,
     debouncedQuery,
-    selectedRepoOwnerSettings,
     setBranches,
     setBranchResultsSource,
     setBranchesLoading,
@@ -99,8 +99,10 @@ export function useSmartWorkspaceSecondarySearches({
     ]
   )
 
+  // Why: branches are searched on the selected repo's own host.
+  const selectedRepoHostId = selectedRepo ? getRepoExecutionHostId(selectedRepo) : null
   useEffect(() => {
-    if (!branchSearchRequest) {
+    if (!branchSearchRequest || !selectedRepoHostId) {
       setBranches([])
       setBranchResultsSource(null)
       setBranchesLoading(false)
@@ -110,7 +112,7 @@ export function useSmartWorkspaceSecondarySearches({
     // Why: visibility retains prior rows while typing ahead of the debounced query.
     setBranchesLoading(true)
     void searchRuntimeRepoBaseRefDetails(
-      selectedRepoOwnerSettings,
+      selectedRepoHostId,
       branchSearchRequest.repoId,
       branchSearchRequest.query,
       branchSearchRequest.limit
@@ -140,7 +142,7 @@ export function useSmartWorkspaceSecondarySearches({
     }
   }, [
     branchSearchRequest,
-    selectedRepoOwnerSettings,
+    selectedRepoHostId,
     setBranches,
     setBranchResultsSource,
     setBranchesLoading

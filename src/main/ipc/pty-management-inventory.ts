@@ -1,9 +1,8 @@
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
-import { PTY_SESSION_ID_SEPARATOR } from '../../shared/pty-session-id-format'
+import { PTY_SESSION_ID_SEPARATOR, parsePtySessionId } from '../../shared/pty-session-id-format'
 import { sameEndpointIdentity } from '../daemon/daemon-endpoint-incarnation'
 import type { DaemonEndpointIdentity } from '../daemon/daemon-hello-protocol'
 import type { DaemonPtyAdapter } from '../daemon/daemon-pty-adapter'
-import { parsePtySessionId } from '../daemon/pty-session-id'
 import type { DaemonSessionInfo } from '../daemon/types'
 
 export const MAX_TERMINATION_POLL_ATTEMPTS = 65
@@ -168,4 +167,41 @@ export async function verifyManagementSessionExit(
     }
   }
   return lastStatus
+}
+
+/** Sessions still live under the same daemon incarnation; owners that cannot prove it are named. */
+export async function preflightOwnedSessions(sessions: OwnedSession[]): Promise<{
+  liveSessions: OwnedSession[]
+  unverifiableOwners: Set<DaemonPtyAdapter>
+}> {
+  const unverifiableOwners = new Set<DaemonPtyAdapter>()
+  const sessionsByOwner = new Map<DaemonPtyAdapter, OwnedSession[]>()
+  for (const owned of sessions) {
+    const group = sessionsByOwner.get(owned.owner) ?? []
+    group.push(owned)
+    sessionsByOwner.set(owned.owner, group)
+  }
+  const results = await Promise.all(
+    [...sessionsByOwner].map(async ([owner, ownedSessions]) => {
+      try {
+        const live = await owner.listSessions()
+        const currentIdentity = owner.getLastAuthenticatedDaemonIdentity()
+        if (!sameKnownDaemonIdentity(ownedSessions[0].ownerIdentity, currentIdentity)) {
+          unverifiableOwners.add(owner)
+          return []
+        }
+        return ownedSessions.filter(({ session }) =>
+          live.some(
+            (candidate) =>
+              candidate.sessionId === session.sessionId &&
+              sameSessionIncarnation(candidate, session.incarnationId)
+          )
+        )
+      } catch {
+        unverifiableOwners.add(owner)
+        return []
+      }
+    })
+  )
+  return { liveSessions: results.flat(), unverifiableOwners }
 }

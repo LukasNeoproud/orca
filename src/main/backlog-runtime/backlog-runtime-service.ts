@@ -2,7 +2,6 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type { BacklogBoard, BacklogSnapshot, BacklogTask } from '../../shared/backlog-types'
 import { createBacklogService } from '../backlog/backlog-service'
 import { resolveBacklogTarget, type ResolvedBacklogTarget } from './backlog-target'
-import { requestRelay } from './backlog-relay-client'
 import {
   beginBacklogWorkspaceRetirement,
   trackBacklogOperation
@@ -20,7 +19,6 @@ type SnapshotLease = {
 const snapshotLeases = new Map<string, SnapshotLease>()
 const snapshotLeaseTargets = new Map<string, ResolvedBacklogTarget>()
 const activeTargets = new Map<string, ResolvedBacklogTarget>()
-const remoteSnapshotTargets = new Map<string, Extract<ResolvedBacklogTarget, { kind: 'ssh' }>>()
 const boardTargets = new Map<
   string,
   { target: ResolvedBacklogTarget; timer: ReturnType<typeof setTimeout> }
@@ -39,9 +37,10 @@ function requestLeaseKey(
 }
 
 function rememberTarget(target: ResolvedBacklogTarget): ResolvedBacklogTarget {
-  const targetKey =
-    target.kind === 'ssh' ? `${target.connectionId}\0${target.cwd}` : target.target.key
-  activeTargets.set(JSON.stringify([target.workspaceId, target.executionHostId, targetKey]), target)
+  activeTargets.set(
+    JSON.stringify([target.workspaceId, target.executionHostId, target.target.key]),
+    target
+  )
   return target
 }
 
@@ -70,7 +69,6 @@ function releaseSnapshotLease(key: string): void {
   clearTimeout(lease.expires)
   lease.release()
   snapshotLeaseTargets.delete(key)
-  remoteSnapshotTargets.delete(key)
 }
 
 export async function getBacklogSnapshot(
@@ -82,33 +80,13 @@ export async function getBacklogSnapshot(
   return trackBacklogOperation(workspaceId, async () => {
     const key = requestLeaseKey(workspaceId, executionHostId, leaseId)
     const existing = snapshotLeases.get(key)
-    if (existing && !remoteSnapshotTargets.has(key)) {
+    if (existing) {
       renewLease(key, existing)
       return existing.snapshot
     }
-    const resolved =
-      remoteSnapshotTargets.get(key) ??
-      rememberTarget(await resolveBacklogTarget(runtime, workspaceId, executionHostId))
-    if (resolved.kind === 'ssh') {
-      const snapshot = await requestRelay<BacklogSnapshot>(
-        resolved.connectionId,
-        'backlog.snapshot',
-        {
-          cwd: resolved.cwd,
-          leaseId
-        }
-      )
-      let lease = snapshotLeases.get(key)
-      if (!lease) {
-        lease = { snapshot, release: () => {} }
-        snapshotLeases.set(key, lease)
-      }
-      lease.snapshot = snapshot
-      snapshotLeaseTargets.set(key, resolved)
-      remoteSnapshotTargets.set(key, resolved)
-      renewLease(key, lease)
-      return snapshot
-    }
+    const resolved = rememberTarget(
+      await resolveBacklogTarget(runtime, workspaceId, executionHostId)
+    )
     let lease = snapshotLeases.get(key)
     if (!lease) {
       lease = {
@@ -135,21 +113,7 @@ export async function releaseBacklogSnapshot(
   executionHostId?: string
 ): Promise<void> {
   return trackBacklogOperation(workspaceId, async () => {
-    const key = requestLeaseKey(workspaceId, executionHostId, leaseId)
-    const resolved = remoteSnapshotTargets.get(key)
-    if (!resolved) {
-      releaseSnapshotLease(key)
-      return
-    }
-    if (resolved.kind === 'ssh') {
-      await requestRelay(resolved.connectionId, 'backlog.releaseSnapshot', {
-        cwd: resolved.cwd,
-        leaseId
-      })
-      releaseSnapshotLease(key)
-      return
-    }
-    releaseSnapshotLease(key)
+    releaseSnapshotLease(requestLeaseKey(workspaceId, executionHostId, leaseId))
   })
 }
 
@@ -163,12 +127,6 @@ export async function getBacklogTask(
     const resolved = rememberTarget(
       await resolveBacklogTarget(runtime, workspaceId, executionHostId)
     )
-    if (resolved.kind === 'ssh') {
-      return requestRelay<BacklogTask>(resolved.connectionId, 'backlog.task', {
-        cwd: resolved.cwd,
-        taskId
-      })
-    }
     return service.getTaskDetail(resolved.target, taskId)
   })
 }
@@ -184,13 +142,7 @@ export async function acquireBacklogBoard(
     const resolved =
       boardTargets.get(key)?.target ??
       rememberTarget(await resolveBacklogTarget(runtime, workspaceId, executionHostId))
-    const board =
-      resolved.kind === 'ssh'
-        ? await requestRelay<BacklogBoard>(resolved.connectionId, 'backlog.acquireBoard', {
-            cwd: resolved.cwd,
-            leaseId
-          })
-        : await service.acquireBoard(resolved.target, leaseId)
+    const board = await service.acquireBoard(resolved.target, leaseId)
     rememberBoardTarget(key, resolved)
     return board
   })
@@ -210,15 +162,7 @@ export async function releaseBacklogBoard(
     }
     clearTimeout(record.timer)
     boardTargets.delete(key)
-    const resolved = record.target
-    if (resolved.kind === 'ssh') {
-      await requestRelay(resolved.connectionId, 'backlog.releaseBoard', {
-        cwd: resolved.cwd,
-        leaseId
-      })
-      return
-    }
-    await service.releaseBoard(resolved.target, leaseId)
+    await service.releaseBoard(record.target.target, leaseId)
   })
 }
 
@@ -236,11 +180,7 @@ export async function releaseBacklogWorkspace(
       if (!matches(target)) {
         continue
       }
-      releases.push(
-        target.kind === 'ssh'
-          ? requestRelay(target.connectionId, 'backlog.releaseWorkspace', { cwd: target.cwd })
-          : service.releaseTarget(target.target)
-      )
+      releases.push(service.releaseTarget(target.target))
     }
     const settled = await Promise.allSettled(releases)
     const failure = settled.find((result) => result.status === 'rejected')

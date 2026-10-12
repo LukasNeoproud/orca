@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { NativeChatLinkPreviewCard } from './NativeChatLinkPreviewCard'
 
 const mocks = vi.hoisted(() => ({ usePreview: vi.fn() }))
@@ -11,7 +11,7 @@ vi.mock('./useNativeChatFilePreview', () => ({
 }))
 
 const context: RuntimeFileOperationArgs = {
-  settings: null,
+  target: { kind: 'local' },
   worktreeId: 'worktree-1',
   worktreePath: '/repo/worktree'
 }

@@ -1,10 +1,7 @@
 import { useAppStore } from '@/store'
-import {
-  assertRuntimeEnvironmentCapability,
-  callRuntimeRpc,
-  RuntimeRpcCallError,
-  type RuntimeClientTarget
-} from '@/runtime/runtime-rpc-client'
+import { assertRuntimeEnvironmentCapability, callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY } from '../../../shared/backlog-task-association'
 import { BACKLOG_RUNTIME_CAPABILITY } from '../../../shared/backlog-types'
 import type { ExecutionHostId } from '../../../shared/execution-host'

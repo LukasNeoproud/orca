@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { FileQuestion } from 'lucide-react'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { translate } from '@/i18n/i18n'
 import { NativeChatHighlightedCode } from './NativeChatHighlightedCode'
 import { nativeChatPreviewKind } from './native-chat-preview-kind'

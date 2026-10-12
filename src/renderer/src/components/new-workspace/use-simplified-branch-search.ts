@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store'
-import { settingsForRepoOwner } from '@/store/slices/worktrees/listing/worktree-owner-settings'
+import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import { searchRuntimeRepoBaseRefDetails } from '@/runtime/runtime-repo-client'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { BaseRefSearchResult } from '../../../../shared/repo-types'
@@ -23,12 +23,12 @@ export function useSimplifiedBranchSearch(
     }
     let stale = false
     const timer = setTimeout(() => {
-      void searchRuntimeRepoBaseRefDetails(
-        settingsForRepoOwner(useAppStore.getState(), repoId, hostId),
-        repoId,
-        query,
-        30,
-        hostId ?? undefined
+      const repo = useAppStore.getState().repos.find((entry) => entry.id === repoId)
+      const ownerHostId = hostId ?? (repo ? getRepoExecutionHostId(repo) : null)
+      void (
+        ownerHostId
+          ? searchRuntimeRepoBaseRefDetails(ownerHostId, repoId, query, 30)
+          : Promise.resolve([])
       )
         .then((rows) => {
           if (!stale) {

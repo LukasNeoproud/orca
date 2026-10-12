@@ -24,7 +24,6 @@ export type MobileSessionKeyboardScope = Pick<
   | 'customKeys'
   | 'deviceTokenRef'
   | 'hostId'
-  | 'initializedHandlesRef'
   | 'router'
   | 'setAccessoryLayout'
   | 'setCustomKeys'
@@ -72,7 +71,6 @@ export function useMobileSessionKeyboardState(scope: MobileSessionKeyboardScope)
     viewportRef,
     viewportMeasuredRef,
     terminalRefs,
-    initializedHandlesRef,
     activeHandleRef,
     terminalFrameRef,
     showNativeChatRef,
@@ -94,7 +92,6 @@ export function useMobileSessionKeyboardState(scope: MobileSessionKeyboardScope)
     nativeChatCoveredRef: showNativeChatRef,
     clientRef,
     deviceTokenRef,
-    initializedHandlesRef,
     connState,
     tabStripVisible: terminals.length > 1,
     textScale: terminalTextScale,

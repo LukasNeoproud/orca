@@ -1,3 +1,5 @@
+import { isImageStreamMethod } from './rpc-client-server-subscription'
+
 /** The binary image lane (browser screencast or emulator video) belongs to one stream at a time. */
 export class ImageStreamSlot {
   active: string | null = null
@@ -10,6 +12,11 @@ export class ImageStreamSlot {
     )
     this.reset(id)
     return displaced
+  }
+
+  /** `replace` for image-stream methods; any other method displaces nothing. */
+  admit(method: string, id: string): string[] {
+    return isImageStreamMethod(method) ? this.replace(id) : []
   }
 
   /** A ready reply promotes its stream unless a newer subscribe already displaced it. */

@@ -25,7 +25,7 @@ import {
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
 import { addLocalRepoFromPath } from './local-repo-registration'
-import { addRemoteRepoFromPath } from './remote-repo-registration'
+import { sshTargetNotConnectedMessage } from '../../providers/ssh-host-not-served-error'
 
 export function registerProjectHostSetupHandlers(mainWindow: BrowserWindow, store: Store): void {
   ipcMain.handle(
@@ -102,12 +102,7 @@ export function registerProjectHostSetupHandlers(mainWindow: BrowserWindow, stor
         parsedHost.kind === 'local'
           ? await addLocalRepoFromPath(store, args.path, args.kind)
           : parsedHost.kind === 'ssh'
-            ? await addRemoteRepoFromPath(store, {
-                connectionId: parsedHost.targetId,
-                remotePath: args.path,
-                displayName: args.displayName,
-                kind: args.kind
-              })
+            ? { error: sshTargetNotConnectedMessage(parsedHost.targetId) }
             : {
                 error:
                   'Runtime hosts must be set up through the runtime projectHostSetup.setupExistingFolder RPC.'

@@ -96,8 +96,6 @@ export type IFilesystemProvider = {
   createFile(filePath: string): Promise<void>
   createDir(dirPath: string): Promise<void>
   createDirNoClobber(dirPath: string): Promise<void>
-  reserveEmptyDirectory?(dirPath: string): Promise<void>
-  removeEmptyDirectory?(dirPath: string): Promise<void>
   rename(oldPath: string, newPath: string): Promise<void>
   renameNoClobber(oldPath: string, newPath: string): Promise<void>
   copy(source: string, destination: string): Promise<void>

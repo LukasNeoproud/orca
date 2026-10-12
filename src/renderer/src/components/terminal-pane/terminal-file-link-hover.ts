@@ -44,10 +44,7 @@ export function createTerminalFileLinkHoverHandlers({
     hover: (event) => {
       // Why: only local paths can offer the Shift+modifier system
       // default escape hatch; remote paths may not exist locally.
-      const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(
-        fileContext,
-        mappedPath
-      )
+      const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(fileContext)
       const showActions = getLinkActionContext ? getLinkActionContext() !== null : true
       const hint = isWorktreeRoot
         ? getTerminalWorktreePathOpenHint(canOpenWithSystemDefault, showActions)

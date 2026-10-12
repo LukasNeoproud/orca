@@ -1,4 +1,5 @@
 import { BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY } from './backlog-task-association'
+import { ORCAD_RUNTIME_CAPABILITIES } from './orcad-runtime-capabilities'
 
 export const PROJECT_HOST_SETUP_HOST_LOCAL_LINK_RUNTIME_CAPABILITY =
   'project-host-setup.host-local-link.v1' as const
@@ -19,4 +20,10 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,
   PROJECT_HOST_SETUP_HOST_LOCAL_LINK_RUNTIME_CAPABILITY,
   TERMINAL_INTERACTION_RUNTIME_CAPABILITY
+] as const
+
+// Joined here because protocol-version.ts sits at its line cap; the order matches the old spreads.
+export const HOST_FEATURE_AND_ORCAD_RUNTIME_CAPABILITIES = [
+  ...HOST_FEATURE_RUNTIME_CAPABILITIES,
+  ...ORCAD_RUNTIME_CAPABILITIES
 ] as const

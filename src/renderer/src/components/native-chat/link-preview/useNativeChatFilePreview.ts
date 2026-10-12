@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FsChangedPayload } from '../../../../../shared/filesystem-entry-types'
-import {
-  readRuntimeFilePreview,
-  statRuntimePath,
-  subscribeRuntimeFileChanges,
-  type RuntimeFileOperationArgs
-} from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
+import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
+import { readRuntimeFilePreview } from '@/runtime/runtime-file-read-client'
+import { statRuntimePath } from '@/runtime/runtime-file-metadata-client'
+import { subscribeRuntimeFileChanges } from '@/runtime/runtime-file-watch-client'
 import { normalizeRuntimePathForComparison } from '../../../../../shared/cross-platform-path'
 import { hasRuntimeRpcErrorCode } from '../../../../../shared/runtime-rpc-error-code'
 
@@ -36,7 +35,7 @@ const inFlightPreviews = new Map<string, Promise<LoadedPreview>>()
 
 function operationKey(context: RuntimeFileOperationArgs, filePath: string): string {
   return [
-    context.settings?.activeRuntimeEnvironmentId ?? '',
+    runtimeTargetEnvironmentId(context.target) ?? '',
     context.worktreeId ?? '',
     context.worktreePath ?? '',
     context.connectionId ?? '',

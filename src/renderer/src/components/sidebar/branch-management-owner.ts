@@ -3,9 +3,9 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import { toRuntimeExecutionHostId } from '../../../../shared/execution-host'
 import {
   resolveWorktreeOperationRoute,
-  resolveWorktreeOperationRouteForHost,
-  settingsForWorktreeOperationRoute
+  resolveWorktreeOperationRouteForHost
 } from '@/lib/worktree-operation-route'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
 
 export function getBranchManagementOwner(state: AppState, worktree: Worktree) {
   const explicitHost =
@@ -21,6 +21,6 @@ export function getBranchManagementOwner(state: AppState, worktree: Worktree) {
   }
   return {
     executionHostId: route.executionHostId,
-    settings: settingsForWorktreeOperationRoute(state.settings, route)
+    target: runtimeTargetForOwnerEnvironment(route.runtimeEnvironmentId)
   }
 }

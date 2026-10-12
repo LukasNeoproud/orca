@@ -2,8 +2,9 @@ import { realpath } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { resolveBacklogTarget } from './backlog-target'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 
-function runtimeFor(hostId: string | undefined): OrcaRuntimeService {
+function runtimeFor(hostId: string | undefined, repoHostId = 'local'): OrcaRuntimeService {
   const workspace = {
     id: 'repo::/work',
     repoId: 'repo',
@@ -12,7 +13,7 @@ function runtimeFor(hostId: string | undefined): OrcaRuntimeService {
   }
   return {
     showManagedTerminalWorkspace: vi.fn(async () => workspace),
-    listRepos: () => [{ id: 'repo', path: process.cwd(), executionHostId: 'local' }],
+    listRepos: () => [{ id: 'repo', path: process.cwd(), executionHostId: repoHostId }],
     resolveProjectRuntimeForWorktree: () => undefined
   } as unknown as OrcaRuntimeService
 }
@@ -37,6 +38,12 @@ describe('resolveBacklogTarget', () => {
     await expect(
       resolveBacklogTarget(runtimeFor('local'), 'repo::/work', 'ssh:other')
     ).rejects.toThrow('backlog_execution_host_mismatch')
+  })
+
+  it('refuses a direct SSH owner, whose Backlog only its orcad can serve', async () => {
+    await expect(
+      resolveBacklogTarget(runtimeFor(undefined, 'ssh:box'), 'repo::/work', 'ssh:box')
+    ).rejects.toThrow(SshHostNotServedError)
   })
 
   it('accepts a paired-runtime routing key only after resolving local ownership', async () => {

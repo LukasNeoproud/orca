@@ -7,20 +7,23 @@ import {
   canOpenWorkspaceBrowserTabOnSsh
 } from '@/lib/workspace-browser-tab-open'
 import { resolvePaneWslDistro } from './terminal-pane-wsl-distro'
-import { resolveTerminalHttpLinkSourceOwner } from './terminal-http-link-source-owner'
+import {
+  resolveTerminalHttpLinkSourceOwner,
+  resolveTerminalRuntimeHandle
+} from './terminal-http-link-source-owner'
 import {
   getTerminalFileOpenHint,
   getTerminalUrlOpenHint,
   terminalUrlOpenHintOptionsFor
 } from './terminal-link-open-hints'
 import type { LinkHandlerDeps } from './terminal-link-handlers'
-import type { TerminalLinkActionContext } from './terminal-link-action-request'
+import { linkRequesters, type TerminalLinkActionContext } from './terminal-link-action-request'
 import type { TerminalHttpLinkActionDestinations } from './terminal-url-link-hit-testing'
 import type { PtyConnectionDeps } from './pty-connection-types'
 import type { UseTerminalPaneLifecycleDeps } from './terminal-pane-lifecycle-types'
 import type { TerminalPaneLifecycleRefs } from './use-terminal-pane-lifecycle-refs'
 import { fitAndFocusPanes, fitPanes } from './pane-helpers'
-import { registerRuntimeTerminalTab } from '@/runtime/sync-runtime-graph'
+import { registerRuntimeTerminalTab } from '@/runtime/mounted-terminal-tab-registry'
 import { normalizeTerminalLayoutSnapshot } from './layout-serialization'
 import { applyTerminalAppearance } from './terminal-appearance'
 import { terminalLinkClickBehaviorFor } from './terminal-link-click-behavior'
@@ -147,9 +150,7 @@ export function prepareTerminalPaneMount(
       paneId,
       pointerGesture,
       claimPtyMouse: suppression.claimAction,
-      request: deps.requestTerminalLinkAction,
-      requestPreview: deps.requestTerminalLinkPreview,
-      leavePreview: deps.leaveTerminalLinkPreview,
+      ...linkRequesters(deps),
       focusTerminal: () => pane.terminal.focus(),
       plainClickBehavior,
       middleClickBehavior,
@@ -171,6 +172,7 @@ export function prepareTerminalPaneMount(
       const sourceOwner = getHttpLinkSourceOwnerForPane(paneId)
       return sourceOwner.kind === 'runtime' ? sourceOwner.runtimeEnvironmentId : null
     },
+    getRuntimeTerminalHandleForPane: (id) => resolveTerminalRuntimeHandle(paneTransports.get(id)),
     getLinkActionContext
   }
   let resizeRaf: number | null = null

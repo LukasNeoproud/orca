@@ -79,7 +79,7 @@ export async function createFloatingWorkspaceMarkdownTab(
     floatingMarkdownDirectory,
     FLOATING_TERMINAL_WORKTREE_ID,
     getConnectionId(FLOATING_TERMINAL_WORKTREE_ID) ?? undefined,
-    { activeRuntimeEnvironmentId: null }
+    { kind: 'local' }
   )
   if (!fileInfo) {
     return

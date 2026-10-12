@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { resolveChatPreviewTarget } from './native-chat-preview-groups'
 
 const context: RuntimeFileOperationArgs = {
-  settings: null,
+  target: { kind: 'local' },
   worktreeId: 'worktree-1',
   worktreePath: '/repo/worktree'
 }

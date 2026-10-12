@@ -42,10 +42,9 @@ export class RuntimeBrowserCommandsWithBrowserTabCreate extends RuntimeBrowserCo
       navigation: params.navigation,
       clientKind: caller?.clientKind
     })
+    // Why: every placement must accept folder workspaces, not only client-hosted pages (#21353).
     const worktree = params.worktree
-      ? params.backlogBoardBinding || params.placement?.kind === 'client'
-        ? await this.host.resolveBrowserWorkspace(params.worktree)
-        : await this.host.resolveWorktreeSelector(params.worktree)
+      ? await this.host.resolveBrowserWorkspace(params.worktree)
       : undefined
     const worktreeId = worktree?.id
     if (

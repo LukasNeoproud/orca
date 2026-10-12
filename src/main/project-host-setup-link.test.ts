@@ -205,11 +205,11 @@ describe('durable host-local project links', () => {
       getStore: () => store as never,
       listRepos: repos,
       addRepo: async () => repos()[0],
-      addRemoteRepo: vi.fn(),
       cloneRepo: vi.fn(),
       invalidateResolvedWorktrees: vi.fn(),
       invalidateWorktreeScan: vi.fn(),
-      notifyReposChanged: vi.fn()
+      notifyReposChanged: vi.fn(),
+      countLiveTerminalsForRepo: () => 0
     })
     expect((await controller.setupExistingFolder(args)).project.id).toBe('repo:source')
   })

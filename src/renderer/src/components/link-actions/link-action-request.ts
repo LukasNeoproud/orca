@@ -1,5 +1,5 @@
 import type { HttpLinkAction } from '@/lib/http-link-destinations'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import type { ChatPreviewTarget } from '@/components/native-chat/link-preview/native-chat-preview-groups'
 
 export type LinkActionKind = 'url' | 'file' | 'workspace' | 'terminal' | 'task'

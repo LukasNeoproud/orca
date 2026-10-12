@@ -3,9 +3,15 @@ import { DegradedDaemonPtyProvider } from '../daemon/degraded-daemon-pty-provide
 import type { DaemonPtyAdapter } from '../daemon/daemon-pty-adapter'
 import {
   getCurrentDaemonMacTccAttributionHealth,
-  getDaemonProvider,
-  restartDaemon
-} from '../daemon/daemon-init'
+  getDaemonProvider
+} from '../daemon/daemon-provider-state'
+import { restartDaemon } from '../daemon/daemon-provider-restart'
+import {
+  readSeveredDaemonStatus,
+  restartSeveredDaemon,
+  type SeveredDaemonIncarnation,
+  type SeveredDaemonRestartResult
+} from '../daemon/daemon-host-image-state'
 import { getAllDaemonAdapters, getCurrentDaemonAdapter } from '../daemon/daemon-provider-routing'
 import {
   getDaemonFolderAccessMismatch,
@@ -21,6 +27,7 @@ import {
   collectManagementSessions,
   resolveManagementSessionCwds,
   MAX_TERMINATION_POLL_ATTEMPTS,
+  preflightOwnedSessions,
   sameKnownDaemonIdentity,
   sameSessionIncarnation,
   sleepForTerminationPoll,
@@ -28,7 +35,6 @@ import {
   verifyManagementSessionExit,
   type InventoryStatus,
   type ManagementSession,
-  type OwnedSession,
   type TerminationStatus
 } from './pty-management-inventory'
 import type { DaemonEndpointIdentity } from '../daemon/daemon-hello-protocol'
@@ -61,6 +67,24 @@ export function registerDaemonManagementHandlers(): void {
   ipcMain.removeHandler('pty:management:restart')
   ipcMain.removeHandler('pty:management:macTccAttribution')
   ipcMain.removeHandler('pty:management:resetFolderAccess')
+  ipcMain.removeHandler('pty:management:severedDaemon')
+  ipcMain.removeHandler('pty:management:restartSeveredDaemon')
+
+  // Why: a Linux AppImage daemon kept for its live terminals after its files vanished; the
+  // banner polls this and offers the verified restart below.
+  ipcMain.handle('pty:management:severedDaemon', async () => ({
+    severed: await readSeveredDaemonStatus().catch(() => null)
+  }))
+  ipcMain.handle(
+    'pty:management:restartSeveredDaemon',
+    async (_event, args: unknown): Promise<SeveredDaemonRestartResult> => {
+      const expected = parseSeveredDaemonIncarnation(args)
+      if (!expected) {
+        return { status: 'refused', reason: 'unverifiable' }
+      }
+      return restartSeveredDaemon(expected)
+    }
+  )
 
   // Why: lets Settings warn that macOS privacy grants no longer reach daemon terminals (STA-3491),
   // and carries the folder-access evidence the notice needs (STA-7948) on the same focus-time poll.
@@ -138,39 +162,12 @@ export function registerDaemonManagementHandlers(): void {
         }
       }
 
-      const preflightUnverifiableAdapters = new Set<DaemonPtyAdapter>()
-      const sessionsByOwner = new Map<DaemonPtyAdapter, OwnedSession[]>()
-      for (const owned of initial.sessions) {
-        const sessions = sessionsByOwner.get(owned.owner) ?? []
-        sessions.push(owned)
-        sessionsByOwner.set(owned.owner, sessions)
-      }
-      const preflightResults = await Promise.all(
-        [...sessionsByOwner].map(async ([owner, ownedSessions]) => {
-          try {
-            const live = await owner.listSessions()
-            const currentIdentity = owner.getLastAuthenticatedDaemonIdentity()
-            if (!sameKnownDaemonIdentity(ownedSessions[0].ownerIdentity, currentIdentity)) {
-              preflightUnverifiableAdapters.add(owner)
-              return []
-            }
-            return ownedSessions.filter(({ session }) =>
-              live.some(
-                (candidate) =>
-                  candidate.sessionId === session.sessionId &&
-                  sameSessionIncarnation(candidate, session.incarnationId)
-              )
-            )
-          } catch {
-            preflightUnverifiableAdapters.add(owner)
-            return []
-          }
-        })
-      )
+      const { liveSessions, unverifiableOwners: preflightUnverifiableAdapters } =
+        await preflightOwnedSessions(initial.sessions)
 
       // Why: no retry — session.kill() is idempotent and runs its own kill ladder; allSettled so one rejection doesn't abort the rest.
       await Promise.allSettled(
-        preflightResults.flat().map(async ({ session, owner }) => {
+        liveSessions.map(async ({ session, owner }) => {
           // Why: immediate=true only matters to legacy/future adapters; swallow rejections since remainingCount reports stuck sessions.
           await owner.shutdown(session.sessionId, { immediate: true }).catch(() => {})
         })
@@ -298,4 +295,24 @@ export function registerDaemonManagementHandlers(): void {
       return { success: false }
     }
   })
+}
+
+function parseSeveredDaemonIncarnation(args: unknown): SeveredDaemonIncarnation | null {
+  if (
+    typeof args !== 'object' ||
+    args === null ||
+    !('pid' in args) ||
+    !('linuxStartTicks' in args) ||
+    !('bootId' in args)
+  ) {
+    return null
+  }
+  const { pid, linuxStartTicks, bootId } = args
+  return typeof pid === 'number' &&
+    Number.isSafeInteger(pid) &&
+    pid > 0 &&
+    typeof linuxStartTicks === 'string' &&
+    typeof bootId === 'string'
+    ? { pid, linuxStartTicks, bootId }
+    : null
 }

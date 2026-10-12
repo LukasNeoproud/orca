@@ -1,6 +1,5 @@
-// Upstream Codex tests pin the app-server's own thread params; Orca's interaction overlay is
-// pinned in codex-structured-thread-open-interaction.test.ts. Use with:
-//   vi.mock('./codex-thread-interaction-overlay', () => import('./codex-thread-interaction-overlay.test-fixture'))
+// Installed for every test by config/scripts/vitest-orca-interaction-neutral.ts; Orca's overlay is
+// pinned in codex-structured-thread-open-interaction.test.ts.
 export const readInteractiveDeveloperInstructions = async (): Promise<undefined> => undefined
 
 export const interactiveThreadStartFields = (): Record<string, never> => ({})

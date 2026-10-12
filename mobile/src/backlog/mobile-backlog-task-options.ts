@@ -77,6 +77,10 @@ export function readMobileBacklogConversationOptions(
 
 function readConversationTab(tab: MobileSessionTab): MobileBacklogConversationOption[] {
   if (tab.type === 'agent-session') {
+    // Registry-provided structured agents have no TUI identity a Backlog handoff can name.
+    if (!isMobileTuiAgent(tab.agent)) {
+      return []
+    }
     return [
       {
         id: `structured:${tab.sessionId}`,

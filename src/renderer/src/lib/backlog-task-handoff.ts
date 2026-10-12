@@ -18,7 +18,7 @@ import {
 } from '../../../shared/structured-agent-session-send-mutation'
 import { createStructuredAgentSessionOperationId } from '../../../shared/structured-agent-session-mutation'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { callBacklog, type BacklogRoute } from './backlog-rpc'
 import {
   confirmBacklogTaskAssociation,

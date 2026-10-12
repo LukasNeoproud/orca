@@ -54,3 +54,13 @@ export function resolveMobileChatLaunchDraft(
     createdAt: tab?.launchDraftCreatedAt ?? staged?.createdAt ?? null
   }
 }
+
+/** The launch draft as the controller's props; one spread keeps that hook under its line cap. */
+export function mobileChatLaunchDraftProps(
+  hostId: string,
+  sessionId: string | null,
+  tab: { launchDraft?: string | null; launchDraftCreatedAt?: number | null } | null
+): { launchDraft: string | null; launchDraftCreatedAt: number | null } {
+  const draft = resolveMobileChatLaunchDraft(hostId, sessionId, tab)
+  return { launchDraft: draft.text, launchDraftCreatedAt: draft.createdAt }
+}

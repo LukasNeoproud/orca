@@ -50,9 +50,8 @@ describe('emulator video transport routing', () => {
     let id = 0
     const registry = new RpcClientStreamRegistry({
       nextId: () => `rpc-${++id}`,
-      deviceToken: 'token',
       getState: () => 'connected',
-      sendEncrypted: () => true
+      sendFrame: () => true
     })
     const frames = vi.fn()
     const first = registry.subscribe('emulator.mobile.stream', {}, vi.fn(), {
@@ -120,9 +119,8 @@ describe('emulator video transport routing', () => {
   it('keeps browser screencast frames on the legacy callback', async () => {
     const direct = new RpcClientStreamRegistry({
       nextId: () => 'direct',
-      deviceToken: 'token',
       getState: () => 'connected',
-      sendEncrypted: () => true
+      sendFrame: () => true
     })
     const relay = new MobileRelayRpcStreams({
       nextId: () => 'relay',

@@ -2,7 +2,7 @@
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 
 const mocks = vi.hoisted(() => ({
   readRuntimeFilePreview: vi.fn(),
@@ -10,9 +10,13 @@ const mocks = vi.hoisted(() => ({
   subscribeRuntimeFileChanges: vi.fn()
 }))
 
-vi.mock('@/runtime/runtime-file-client', () => ({
-  readRuntimeFilePreview: (...args: unknown[]) => mocks.readRuntimeFilePreview(...args),
-  statRuntimePath: (...args: unknown[]) => mocks.statRuntimePath(...args),
+vi.mock('@/runtime/runtime-file-read-client', () => ({
+  readRuntimeFilePreview: (...args: unknown[]) => mocks.readRuntimeFilePreview(...args)
+}))
+vi.mock('@/runtime/runtime-file-metadata-client', () => ({
+  statRuntimePath: (...args: unknown[]) => mocks.statRuntimePath(...args)
+}))
+vi.mock('@/runtime/runtime-file-watch-client', () => ({
   subscribeRuntimeFileChanges: (...args: unknown[]) => mocks.subscribeRuntimeFileChanges(...args)
 }))
 
@@ -22,7 +26,7 @@ import {
 } from './useNativeChatFilePreview'
 
 const CONTEXT: RuntimeFileOperationArgs = {
-  settings: { activeRuntimeEnvironmentId: null },
+  target: { kind: 'local' },
   worktreeId: 'worktree-1',
   worktreePath: '/repo'
 }
@@ -216,7 +220,7 @@ describe('useNativeChatFilePreview', () => {
     mocks.readRuntimeFilePreview.mockResolvedValueOnce({ content: 'new owner', isBinary: false })
     const nextContext: RuntimeFileOperationArgs = {
       ...CONTEXT,
-      settings: { activeRuntimeEnvironmentId: 'runtime-2' }
+      target: { kind: 'environment', environmentId: 'runtime-2' }
     }
     const { result, rerender } = renderHook(
       ({ context }: { context: RuntimeFileOperationArgs }) =>

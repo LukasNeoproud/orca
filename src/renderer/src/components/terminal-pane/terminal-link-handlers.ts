@@ -42,6 +42,8 @@ export type LinkHandlerDeps = {
   terminalHomePath?: string | null
   wslDistro?: string | null
   getRuntimeEnvironmentIdForPane?: (paneId: number) => string | null
+  /** The pane's terminal on its paired server, which may grant files it printed. */
+  getRuntimeTerminalHandleForPane?: (paneId: number) => string | null
   getLinkActionContext?: (paneId: number) => TerminalLinkActionContext | null
 }
 
@@ -119,7 +121,10 @@ export function createFilePathLinkProvider(
               if (!target || !range) {
                 return null
               }
-              if (!(await fileLinkTargetExists(target, pathExistsCache, pathExists))) {
+              const terminalHandle = deps.getRuntimeTerminalHandleForPane?.(paneId) ?? null
+              if (
+                !(await fileLinkTargetExists(target, pathExistsCache, pathExists, terminalHandle))
+              ) {
                 return null
               }
               const { absolutePath: mappedPath, fileContext } = target
@@ -140,7 +145,8 @@ export function createFilePathLinkProvider(
                           worktreeId,
                           worktreePath,
                           runtimeEnvironmentId,
-                          wslDistro: deps.wslDistro
+                          wslDistro: deps.wslDistro,
+                          terminalHandle
                         },
                         deps.getLinkActionContext?.(paneId)
                       )
@@ -153,7 +159,8 @@ export function createFilePathLinkProvider(
                       worktreeId,
                       worktreePath,
                       runtimeEnvironmentId,
-                      wslDistro: deps.wslDistro
+                      wslDistro: deps.wslDistro,
+                      terminalHandle
                     },
                     column: target.column,
                     fileContext,

@@ -11,7 +11,6 @@ import type {
   TerminalMultiplexSubscribeFrame
 } from './stream-schemas'
 import type { TerminalMultiplexStream } from './terminal-stream-types'
-import type { TerminalSourceRangeRegistry } from '../../terminal-source-range-registry'
 import type { TerminalStreamEndVerdict } from '../../../../../shared/terminal-stream-end-verdict'
 
 export type MultiplexSubscribeRequest = z.infer<typeof TerminalMultiplexSubscribeFrame>
@@ -29,7 +28,6 @@ export type TerminalMultiplexConnectionBase = {
   closed: boolean
   cursor: number
   streams: Map<number, TerminalMultiplexStream>
-  sourceRangeRegistry: TerminalSourceRangeRegistry
   pendingPtyWaitControllers: Map<number, Set<AbortController>>
   ackTotalInFlightBytes: number
   ackTotalWindowBytes: number
@@ -44,8 +42,7 @@ export type TerminalMultiplexFrameDelivery = {
     streamId: number,
     opcode: TerminalStreamOpcode,
     payload?: Uint8Array<ArrayBufferLike>,
-    frameSeq?: number,
-    onRejected?: () => void
+    frameSeq?: number
   ) => boolean
   sendStreamError: (streamId: number, message: string) => void
   notifyStreamWriteUnavailable: (
@@ -72,12 +69,6 @@ export type TerminalMultiplexFlowControl = {
   flushAckPendingOutput: (stream: TerminalMultiplexStream, maxChunks?: number) => number
   flushAllAckPendingOutput: () => void
   acknowledgeOutput: (stream: TerminalMultiplexStream, bytes: number) => void
-  acknowledgeSourceRanges: (
-    stream: TerminalMultiplexStream,
-    streamGeneration: string,
-    ackedEndByte: number
-  ) => void
-  detachSourceRangeConsumer: (stream: TerminalMultiplexStream, reason: string) => void
 }
 
 export type TerminalMultiplexCleanup = {

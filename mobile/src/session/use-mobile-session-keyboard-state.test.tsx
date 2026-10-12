@@ -73,7 +73,6 @@ function Harness(): null {
     activeHandleRef: { current: null },
     clientRef: { current: null },
     deviceTokenRef: { current: null },
-    initializedHandlesRef: { current: new Set() },
     showNativeChatRef: { current: false },
     subscribeToTerminal: () => {},
     terminalFrameRef: { current: null },

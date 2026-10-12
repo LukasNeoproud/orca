@@ -8,11 +8,6 @@ import {
 import { codexStructuredPermissionPolicyForSettings } from './codex-structured-permission-policy'
 import { openCodexThread } from './codex-structured-thread-open'
 
-vi.mock(
-  './codex-thread-interaction-overlay',
-  () => import('./codex-thread-interaction-overlay.test-fixture')
-)
-
 function connectionFor(
   request: CodexAppServerConnection['request']
 ): Pick<CodexAppServerConnection, 'request'> {

@@ -35,6 +35,7 @@ export function installFilePathLinkClickFallback(
         worktreePath: deps.worktreePath,
         runtimeEnvironmentId,
         wslDistro: deps.wslDistro,
+        terminalHandle: deps.getRuntimeTerminalHandleForPane?.(paneId) ?? null,
         pathExistsCache: deps.pathExistsCache,
         openWithSystemDefault: Boolean(event.shiftKey)
       }

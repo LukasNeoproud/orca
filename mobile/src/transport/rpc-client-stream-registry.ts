@@ -22,6 +22,7 @@ import {
 } from './rpc-subscription-result-shapes'
 import { RpcClientTerminalStreamRouter } from './rpc-client-terminal-stream-router'
 import * as sessionTabsStream from './rpc-client-session-tabs-stream'
+import type { RpcEnvelopeFields, RpcRequestFrame } from './rpc-envelope-fields'
 import type { ConnectionState, RpcResponse, RpcSuccess } from './types'
 import { ImageStreamSlot } from './image-stream-slot'
 
@@ -30,11 +31,13 @@ export type RpcStreamingListener = (result: unknown) => void
 export type RpcStreamSubscribeOptions = {
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
   onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
+  envelope?: RpcEnvelopeFields
 }
 
 type StreamRequest = {
   method: string
   params: unknown
+  envelope?: RpcEnvelopeFields
   listener?: RpcStreamingListener
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
   onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
@@ -47,9 +50,8 @@ type StreamRequest = {
 
 type StreamRegistryOptions = {
   nextId: () => string
-  deviceToken: string
   getState: () => ConnectionState
-  sendEncrypted: (request: unknown) => boolean
+  sendFrame: (frame: RpcRequestFrame) => boolean
 }
 
 export class RpcClientStreamRegistry {
@@ -69,6 +71,7 @@ export class RpcClientStreamRegistry {
     const stream: StreamRequest = {
       method,
       params,
+      envelope: subscribeOptions?.envelope,
       listener,
       onBinaryFrame: subscribeOptions?.onBinaryFrame,
       onEmulatorVideoFrame: subscribeOptions?.onEmulatorVideoFrame
@@ -232,7 +235,7 @@ export class RpcClientStreamRegistry {
     }
     const unsubscribe = buildRequestStreamUnsubscribe(stream?.method, stream?.params, id)
     if (unsubscribe) {
-      this.sendRpc(unsubscribe.method, unsubscribe.params)
+      this.sendRpc(unsubscribe.method, unsubscribe.params, stream?.envelope)
     }
     this.remove(id)
   }
@@ -253,26 +256,18 @@ export class RpcClientStreamRegistry {
     }
     const unsubscribe = buildReadyStreamUnsubscribe(stream.method, stream.subscriptionId)
     if (unsubscribe) {
-      this.sendRpc(unsubscribe.method, unsubscribe.params)
+      this.sendRpc(unsubscribe.method, unsubscribe.params, stream.envelope)
     }
   }
 
-  private sendRpc(method: string, params: unknown): boolean {
-    return this.options.sendEncrypted({
-      id: this.options.nextId(),
-      deviceToken: this.options.deviceToken,
-      method,
-      params
-    })
+  // The stream's envelope rides its unsubscribes too: a routing field must reach the same host.
+  private sendRpc(method: string, params: unknown, envelope?: RpcEnvelopeFields): boolean {
+    return this.options.sendFrame({ id: this.options.nextId(), method, params, envelope })
   }
 
   private send(id: string, stream: StreamRequest): boolean {
-    return this.options.sendEncrypted({
-      id,
-      deviceToken: this.options.deviceToken,
-      method: stream.method,
-      params: stream.params
-    })
+    const { method, params, envelope } = stream
+    return this.options.sendFrame({ id, method, params, envelope })
   }
 
   private remove(id: string): void {

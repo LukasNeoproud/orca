@@ -8,6 +8,7 @@ import {
   decodeBrowserScreencastFrame,
   type BrowserScreencastFrame
 } from './browser-screencast-protocol'
+import { buildReadyStreamUnsubscribe, isImageStreamMethod } from './rpc-client-server-subscription'
 
 type EmulatorVideoStream = {
   method: string
@@ -65,4 +66,33 @@ export function routeMobileImageFrame(
     stream.onEmulatorVideoFrame?.(frame)
   }
   return true
+}
+
+/**
+ * Applies a relayed image stream's reply. Returns what the stream owes when a newer image stream
+ * already holds the single slot: it must unsubscribe (when its id is known) and be dropped.
+ */
+export function settleRelayedImageStreamReply(
+  stream: { method: string; videoCodec?: EmulatorVideoCodec },
+  metadata: { subscriptionId?: unknown; type?: unknown },
+  claimSlot: () => boolean
+): { unsubscribe: { method: string; params: Record<string, unknown> } | null } | null {
+  if (stream.method === 'emulator.mobile.stream') {
+    if (metadata.type === 'ready') {
+      stream.videoCodec = emulatorVideoCodec(metadata)
+    } else if (metadata.type === 'starting' || metadata.type === 'reconnecting') {
+      stream.videoCodec = undefined
+    }
+  }
+  // Why also untyped: an older host's first reply carries only the subscription id.
+  const settles = metadata.type === 'ready' || metadata.type === undefined
+  if (!isImageStreamMethod(stream.method) || !settles || claimSlot()) {
+    return null
+  }
+  return {
+    unsubscribe:
+      typeof metadata.subscriptionId === 'string'
+        ? buildReadyStreamUnsubscribe(stream.method, metadata.subscriptionId)
+        : null
+  }
 }

@@ -70,7 +70,7 @@
       "files": [
         "**/vitest-bun-node-builtins.ts",
         "**/hang-watchdog-process-metrics.test.mjs",
-        "**/vitest-terminal-interaction-launch-neutral.ts"
+        "**/vitest-orca-interaction-neutral.ts"
       ],
       "rules": {
         "anti-slop/no-module-mocking": "off"

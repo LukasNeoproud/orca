@@ -22,11 +22,11 @@ type QuickCreationExecutionInput = Pick<
   | 'resetForNextCreate'
   | 'resolvedInitialWorkspaceStatus'
   | 'selectedEphemeralVmRecipeId'
-  | 'selectedRepoAgentLaunchPlatform'
+  | 'selectedRepoAgentLaunchFact'
   | 'selectedRepoExecutionHostId'
   | 'selectedRepoIsGit'
   | 'selectedRepoIsRemote'
-  | 'selectedRepoSettings'
+  | 'selectedRepoTarget'
   | 'selectedRepoStartupShell'
   | 'selectedWorkspaceTarget'
   | 'settings'
@@ -40,7 +40,6 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 import { useAppStore } from '@/store'
 import { settleComposerSubmit } from '@/lib/composer-submit-cancellation'
-import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import { translate } from '@/i18n/i18n'
 import { resolveQuickCreateLinkedWorkItemPrompt } from '@/lib/linked-work-item-context'
 import { buildQuickComposerStartup } from './quick-startup-plan'
@@ -69,11 +68,11 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
     resetForNextCreate,
     resolvedInitialWorkspaceStatus,
     selectedEphemeralVmRecipeId,
-    selectedRepoAgentLaunchPlatform,
+    selectedRepoAgentLaunchFact,
     selectedRepoExecutionHostId,
     selectedRepoIsGit,
     selectedRepoIsRemote,
-    selectedRepoSettings,
+    selectedRepoTarget,
     selectedRepoStartupShell,
     selectedWorkspaceTarget,
     settings,
@@ -137,7 +136,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         prompt: quickPrompt,
         draftPrompt: quickDraftPrompt,
         settings,
-        platform: selectedRepoAgentLaunchPlatform,
+        launchHost: selectedRepoAgentLaunchFact,
         shell: selectedRepoStartupShell,
         isRemote: selectedRepoIsRemote,
         telemetrySource
@@ -199,8 +198,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         repoId,
         ephemeralVmRecipe,
         indeterminateProgress:
-          Boolean(activeEphemeralVmRecipeId) ||
-          getActiveRuntimeTarget(selectedRepoSettings).kind !== 'local',
+          Boolean(activeEphemeralVmRecipeId) || selectedRepoTarget?.kind === 'environment',
         taskSourceContext,
         linkedWorkItem: submitLinkedWorkItem,
         workspaceRunContext,
@@ -286,11 +284,11 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
       resetForNextCreate,
       resolvedInitialWorkspaceStatus,
       selectedEphemeralVmRecipeId,
-      selectedRepoAgentLaunchPlatform,
+      selectedRepoAgentLaunchFact,
       selectedRepoExecutionHostId,
       selectedRepoIsGit,
       selectedRepoIsRemote,
-      selectedRepoSettings,
+      selectedRepoTarget,
       selectedRepoStartupShell,
       selectedWorkspaceTarget,
       settings,

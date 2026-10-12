@@ -7,11 +7,11 @@ import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/Comme
 import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
 
 type PreviewLinkHandler = CommentMarkdownLinkClickHandler & CommentMarkdownLinkPreviewHooks
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { NativeChatPreviewLink } from './NativeChatPreviewLink'
 
 const context: RuntimeFileOperationArgs = {
-  settings: null,
+  target: { kind: 'local' },
   worktreeId: 'worktree-1',
   worktreePath: '/repo/worktree'
 }

@@ -45,7 +45,6 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
     creatingMarkdown,
     setCreateError,
     deviceTokenRef,
-    initializedHandlesRef,
     activeHandleRef,
     activeSessionTabTypeRef,
     pendingSelectionRef,
@@ -164,7 +163,6 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
       const prev = activeHandleRef.current
       if (prev) {
         unsubscribeTerminal(prev)
-        initializedHandlesRef.current.delete(prev)
       }
       pendingSelectionRef.current = { kind: 'tab', tabId: created.id }
       activeSessionTabTypeRef.current = 'terminal'

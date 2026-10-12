@@ -1,7 +1,7 @@
 import { isPathInsideWorktree } from '@/lib/terminal-links'
 import { translate } from '@/i18n/i18n'
 import { useEffect, useRef, useState } from 'react'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { Button } from '@/components/ui/button'
 import NativeChatFilePreviewContent from './NativeChatFilePreviewContent'

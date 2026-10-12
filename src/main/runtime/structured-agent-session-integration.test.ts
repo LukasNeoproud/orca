@@ -47,11 +47,6 @@ import {
 import { createStructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import { codexProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
 
-vi.mock(
-  '../codex/codex-thread-interaction-overlay',
-  () => import('../codex/codex-thread-interaction-overlay.test-fixture')
-)
-
 const journals = createTrackedJournalOpener()
 
 const SESSION = 'session-integration-1'
@@ -362,7 +357,10 @@ beforeEach(async () => {
           }
         },
         resolveShellEnvironmentPolicy: () => shellEnvironmentPolicy,
-        resolveCodexOverrides: () => {
+        resolveAgentLaunchEnv: (agent): Record<string, string> => {
+          if (agent !== 'codex') {
+            return {}
+          }
           codexOverrideReads += 1
           return { CODEX_PROFILE: configuredCodexProfile }
         },

@@ -1,12 +1,10 @@
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { RuntimeTerminalWait } from '../../../shared/runtime-types'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { useAppStore } from '@/store'
-import {
-  callRuntimeRpc,
-  getActiveRuntimeTarget,
-  type RuntimeClientTarget
-} from '@/runtime/runtime-rpc-client'
-import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { findActiveRuntimeTerminal, getActiveTerminalNoteTarget } from './active-agent-note-target'
 import type { ActiveTerminalNoteTarget } from './active-agent-note-target'
 import type { ActiveAgentNotesSendResult } from './active-agent-note-send-result'
@@ -87,7 +85,7 @@ async function sendNotesToActiveAgentSessionInternal({
   }
   const runtimeTarget =
     explicitRuntimeTarget ??
-    getActiveRuntimeTarget(getSettingsForWorktreeRuntimeOwner(state, worktreeId))
+    runtimeTargetForOwnerEnvironment(getRuntimeEnvironmentIdForWorktree(state, worktreeId))
   const terminal = await findActiveRuntimeTerminal(
     runtimeTarget,
     worktreeId,
@@ -194,7 +192,7 @@ async function sendNotesToActiveAgentSessionInternal({
 }
 
 async function sendPromptToExplicitAgentTarget(
-  runtimeTarget: ReturnType<typeof getActiveRuntimeTarget>,
+  runtimeTarget: RuntimeClientTarget,
   terminalHandle: string,
   prompt: string
 ): Promise<ActiveAgentNotesSendResult> {

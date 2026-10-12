@@ -117,3 +117,16 @@ export function leaveTerminalLinkPreview(
     context.leavePreview(context.paneId)
   }
 }
+
+/** Action and preview requesters as one spread; the mount preparation sits at its line cap. */
+export function linkRequesters(deps: {
+  requestTerminalLinkAction: TerminalLinkActionRequester
+  requestTerminalLinkPreview: TerminalLinkPreviewRequester
+  leaveTerminalLinkPreview: (paneId: number) => void
+}) {
+  return {
+    request: deps.requestTerminalLinkAction,
+    requestPreview: deps.requestTerminalLinkPreview,
+    leavePreview: deps.leaveTerminalLinkPreview
+  }
+}

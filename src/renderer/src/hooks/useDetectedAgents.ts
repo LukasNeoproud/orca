@@ -10,6 +10,8 @@ export type UseDetectedAgentsResult = {
   /** True when the first probe for this mounted remote target finished without a result. */
   detectionFailed: boolean
   isRefreshing: boolean
+  /** True when the runtime host is too old to list this workspace's agents. */
+  needsServerUpdate: boolean
   /** Forces a re-detect on the target host (`preflight.refreshAgents` for
    *  local/runtime targets, a fresh probe for SSH) and updates every
    *  subscribed surface in the same tick. Idempotent while in flight:
@@ -81,6 +83,14 @@ export function useDetectedAgents(
       : targetKind === 'runtime' && recordKey
         ? `runtime:${recordKey}`
         : null
+  // Why: a re-pair clears the record; re-running the effect re-probes for a surface still waiting.
+  const pairingRevision = useAppStore((s) => {
+    if (targetKind !== 'runtime' || !targetId) {
+      return undefined
+    }
+    const environment = s.runtimeEnvironments.find((entry) => entry.id === targetId)
+    return environment ? (environment.pairingRevision ?? environment.createdAt) : undefined
+  })
 
   const detectedIds = useAppStore((s) => {
     if (isUnknown) {
@@ -124,6 +134,11 @@ export function useDetectedAgents(
       ? (s.isRefreshingLocalAgentsByContext[localContextKey] ?? false)
       : s.isRefreshingAgents
   })
+  const needsServerUpdate = useAppStore((s) =>
+    targetKind === 'runtime' && recordKey
+      ? s.runtimeAgentDetectionNeedsServerUpdate[recordKey] === true
+      : false
+  )
   const detectionFailed =
     detectedIds === null &&
     !isLoading &&
@@ -192,11 +207,12 @@ export function useDetectedAgents(
     targetKind,
     targetId,
     remoteTargetKey,
+    pairingRevision,
     detectedIds,
     localWorktreeId,
     runtimeWorktreeId,
     localContextKey
   ])
 
-  return { detectedIds, isLoading, detectionFailed, isRefreshing, refresh }
+  return { detectedIds, isLoading, detectionFailed, isRefreshing, needsServerUpdate, refresh }
 }

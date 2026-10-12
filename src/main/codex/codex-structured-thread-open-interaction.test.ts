@@ -10,6 +10,8 @@ import {
   ORCA_INTERACT_DYNAMIC_TOOLS
 } from './codex-orca-interaction'
 
+vi.unmock('./codex-thread-interaction-overlay')
+
 function connectionFor(
   request: CodexAppServerConnection['request'],
   prepareInteractionBridge?: CodexAppServerConnection['prepareInteractionBridge']

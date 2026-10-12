@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { HOST_SYSTEM_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import { HOST_SYSTEM_RUNTIME_CAPABILITY } from '../../../src/shared/host-feature-runtime-capabilities'
 import type {
   HostProcessEntry,
   HostProcessTerminationVerdict,

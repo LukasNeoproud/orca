@@ -9,9 +9,8 @@ const mocks = vi.hoisted(() => ({
     { refName: 'origin/main', localBranchName: 'main' }
   ])
 }))
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
-vi.mock('@/store/slices/worktrees/listing/worktree-owner-settings', () => ({
-  settingsForRepoOwner: () => null
+vi.mock('@/store', () => ({
+  useAppStore: { getState: () => ({ repos: [{ id: 'repo', path: '/repo' }] }) }
 }))
 vi.mock('@/runtime/runtime-repo-client', () => ({
   searchRuntimeRepoBaseRefDetails: mocks.search
@@ -37,7 +36,7 @@ describe('Create from branch suggestions', () => {
     const input = screen.getByRole('combobox', { name: 'Create from' })
     fireEvent.focus(input)
     await screen.findByRole('option', { name: 'origin/main' })
-    expect(mocks.search).toHaveBeenCalledWith(null, 'repo', 'ma', 30, 'ssh:server')
+    expect(mocks.search).toHaveBeenCalledWith('ssh:server', 'repo', 'ma', 30)
     expect(screen.queryByText(/Create branch/)).toBeNull()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'ArrowDown' })

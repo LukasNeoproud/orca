@@ -19,7 +19,7 @@ import { useMobileBridgeChatPromptWrites } from './use-mobile-bridge-chat-prompt
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { useMobileNativeChatPromptCards } from './use-mobile-native-chat-prompt-cards'
 import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
-import { resolveMobileChatLaunchDraft } from './mobile-structured-launch-drafts'
+import { mobileChatLaunchDraftProps } from './mobile-structured-launch-drafts'
 import { useMobileNativeChatResponseCommentSend } from './use-mobile-native-chat-response-comment-send'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
@@ -91,7 +91,6 @@ export function useMobileNativeChatController(args: {
   // append reaches the drafts state through this ref, set below once they exist.
   // Until the drafts mount, nothing is copied, so Edit deletes nothing.
   const appendComposerTextRef = useRef<(text: string) => boolean>(() => false)
-  const launchDraft = resolveMobileChatLaunchDraft(hostId, activeChatSessionId, activeSessionTab)
   const { structuredSession: structuredNativeChat, session: nativeChatSession } =
     useMobileNativeChatSessionLane({
       client,
@@ -128,8 +127,7 @@ export function useMobileNativeChatController(args: {
     tabId: activeSessionTabId,
     sessionId: activeChatSessionId,
     messages: nativeChatSession.messages,
-    launchDraft: launchDraft.text,
-    launchDraftCreatedAt: launchDraft.createdAt,
+    ...mobileChatLaunchDraftProps(hostId, activeChatSessionId, activeSessionTab),
     // Why: pass the raw draft plus this flag rather than nulling it off-chat —
     // a null is indistinguishable from a host retraction, and peeking at the
     // terminal view would permanently decline the prefill.
@@ -228,7 +226,7 @@ export function useMobileNativeChatController(args: {
   })
 
   const structuredNativeChatSend = useMobileStructuredNativeChatSendBridge({
-    agent: activeChatResolution?.agent === 'claude' ? 'claude' : 'codex',
+    agent: activeChatResolution?.agent,
     sendStructured: structuredNativeChat.sendWithOutcome,
     captureSendOrigin,
     clearDraftForSend,
@@ -337,6 +335,8 @@ export function useMobileNativeChatController(args: {
     handleNativeChatSend: comments.send,
     handleNativeChatSendWithOutcome: comments.sendWithOutcome,
     readSeededLaunchDraft,
-    nativeChatSessionOptions
+    nativeChatSessionOptions,
+    // A terminal-backed chat pastes images into the agent's own input instead.
+    nativeChatAcceptsImages: !activeChatStructured || structuredNativeChat.acceptsImages
   }
 }

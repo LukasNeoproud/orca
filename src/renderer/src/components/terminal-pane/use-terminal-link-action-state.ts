@@ -5,9 +5,15 @@ import {
   type TerminalLinkActionRequester,
   type TerminalLinkPreviewRequester
 } from './terminal-link-action-request'
+import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 
 const TERMINAL_LINK_PREVIEW_OPEN_DELAY_MS = 250
 const TERMINAL_LINK_PREVIEW_CLOSE_DELAY_MS = 150
+
+function previewEnvironmentId(request: TerminalLinkActionRequest): string | null | undefined {
+  const context = request.preview?.runtimeContext
+  return context ? runtimeTargetEnvironmentId(context.target) : undefined
+}
 
 function isSamePreview(
   left: TerminalLinkActionRequest | null,
@@ -23,8 +29,7 @@ function isSamePreview(
     left.preview.target.line === right.preview.target.line &&
     left.preview.runtimeContext?.worktreeId === right.preview.runtimeContext?.worktreeId &&
     left.preview.runtimeContext?.connectionId === right.preview.runtimeContext?.connectionId &&
-    left.preview.runtimeContext?.settings?.activeRuntimeEnvironmentId ===
-      right.preview.runtimeContext?.settings?.activeRuntimeEnvironmentId
+    previewEnvironmentId(left) === previewEnvironmentId(right)
   )
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
 
@@ -22,7 +22,7 @@ vi.mock('./NativeChatLinkPreviewCard', () => ({
 }))
 
 const context: RuntimeFileOperationArgs = {
-  settings: null,
+  target: { kind: 'local' },
   worktreeId: 'worktree-1',
   worktreePath: '/repo/worktree'
 }

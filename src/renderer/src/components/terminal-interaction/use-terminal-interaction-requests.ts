@@ -4,13 +4,10 @@ import type {
   TerminalInteractionRespondParams
 } from '../../../../shared/terminal-interaction'
 import type { OrcaInteractionResult } from '../../../../shared/orca-interaction'
-import { TERMINAL_INTERACTION_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
+import { TERMINAL_INTERACTION_RUNTIME_CAPABILITY } from '../../../../shared/host-feature-runtime-capabilities'
 import { useAppStore } from '@/store'
-import {
-  callRuntimeRpc,
-  runtimeEnvironmentSupportsCapability,
-  type RuntimeClientTarget
-} from '@/runtime/runtime-rpc-client'
+import { callRuntimeRpc, runtimeEnvironmentSupportsCapability } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 
 const POLL_INTERVAL_MS = 1_000
 const POLL_TIMEOUT_MS = 5_000

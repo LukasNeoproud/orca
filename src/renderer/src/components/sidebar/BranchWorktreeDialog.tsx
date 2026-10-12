@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '@/store'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { translate } from '@/i18n/i18n'
@@ -40,9 +40,9 @@ export function BranchWorktreeDialog({
   const rpc = useCallback(
     <T,>(method: string, extra = {}) => {
       const state = useAppStore.getState()
-      const { settings } = getBranchManagementOwner(state, worktree)
+      const { target } = getBranchManagementOwner(state, worktree)
       return callRuntimeRpc<T>(
-        getActiveRuntimeTarget(settings),
+        target,
         method,
         { worktree: toRuntimeWorktreeSelector(worktree.id), ...extra },
         { timeoutMs: 30000 }

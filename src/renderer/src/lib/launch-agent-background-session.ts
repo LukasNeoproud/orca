@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
 import { buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import type {
   LaunchAgentBackgroundSessionArgs,
@@ -20,8 +21,8 @@ import {
   type EagerPtyHandle
 } from '@/components/terminal-pane/pty-dispatcher'
 import { subscribeToPtyData } from '@/components/terminal-pane/pty-data-sidecar-subscriptions'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
-import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { retireProvider } from '@/lib/retire-unowned-background-terminal'
 import { createRuntimeAgentBackgroundTerminal } from '@/lib/runtime-agent-background-create'
 import {
@@ -57,13 +58,12 @@ export async function launchAgentBackgroundSession(
     worktreePath: worktree.path,
     repo
   })
-  const { platform: launchPlatform, isRemote } = launchHost
+  const { platform: launchPlatform, isRemote, isLocalHost } = launchHost
   // Route by the worktree's owner host, not the focused runtime.
-  const ownerSettings = getSettingsForWorktreeRuntimeOwner(store, worktreeId)
-  const runtimeTarget = getActiveRuntimeTarget(
+  const runtimeTarget = runtimeTargetForOwnerEnvironment(
     args.runtimeEnvironmentId !== undefined
-      ? { ...ownerSettings, activeRuntimeEnvironmentId: args.runtimeEnvironmentId }
-      : ownerSettings
+      ? args.runtimeEnvironmentId
+      : getRuntimeEnvironmentIdForWorktree(store, worktreeId)
   )
   if (hasExtraAgentArgs(args.extraAgentArgs) && runtimeTarget.kind === 'environment') {
     // Why: that server rebuilds the command from its own settings and would drop the extras.
@@ -72,7 +72,10 @@ export async function launchAgentBackgroundSession(
   // Why before any tab or PTY: an invalid launch must fail the run without creating a terminal.
   const planInputs = resolveAgentStartupPlanInputs({
     agent,
-    settings: store.settings ?? {},
+    // Why: the client's Windows shell setting describes this machine, not a remote host.
+    settings: isLocalHost
+      ? (store.settings ?? {})
+      : { ...store.settings, terminalWindowsShell: undefined },
     platform: launchPlatform,
     isRemote,
     extraAgentArgs: args.extraAgentArgs
@@ -246,7 +249,6 @@ export async function launchAgentBackgroundSession(
         throw new Error('Runtime terminal id is invalid.')
       }
       unsubscribeData = await subscribeToRuntimeTerminalData(
-        store.settings,
         ptyId,
         `desktop:background:${tab.id}`,
         handleData

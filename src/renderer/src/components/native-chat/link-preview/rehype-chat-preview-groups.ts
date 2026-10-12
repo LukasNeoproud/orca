@@ -1,5 +1,5 @@
 import type { Element, Root, RootContent } from 'hast'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { resolveChatPreviewTarget } from './native-chat-preview-groups'
 
 const groupTags = new Set([

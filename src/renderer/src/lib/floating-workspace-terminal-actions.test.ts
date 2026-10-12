@@ -30,10 +30,16 @@ const createUntitledMarkdownFileWithTemplateSelectionMock = vi.hoisted(() => vi.
 const focusTerminalTabSurfaceMock = vi.hoisted(() => vi.fn())
 const isWebRuntimeSessionActiveMock = vi.hoisted(() => vi.fn())
 
-vi.mock('@/runtime/web-runtime-session', () => ({
-  activateWebRuntimeSessionTab: activateWebRuntimeSessionTabMock,
-  createWebRuntimeSessionBrowserTab: createWebRuntimeSessionBrowserTabMock,
-  createWebRuntimeSessionTerminal: createWebRuntimeSessionTerminalMock,
+vi.mock('@/runtime/web-runtime-session-tab-lifecycle', () => ({
+  activateWebRuntimeSessionTab: activateWebRuntimeSessionTabMock
+}))
+vi.mock('@/runtime/web-runtime-browser-creation', () => ({
+  createWebRuntimeSessionBrowserTab: createWebRuntimeSessionBrowserTabMock
+}))
+vi.mock('@/runtime/web-runtime-terminal-creation', () => ({
+  createWebRuntimeSessionTerminal: createWebRuntimeSessionTerminalMock
+}))
+vi.mock('@/runtime/web-runtime-session-environment', () => ({
   isWebRuntimeSessionActive: isWebRuntimeSessionActiveMock
 }))
 
@@ -573,7 +579,7 @@ describe('createFloatingWorkspaceMarkdownTab', () => {
       '/tmp/orca/floating-workspace',
       FLOATING_TERMINAL_WORKTREE_ID,
       undefined,
-      { activeRuntimeEnvironmentId: null }
+      { kind: 'local' }
     )
     expect(store.openFile).toHaveBeenCalledWith(fileInfo, {
       preview: false,
@@ -595,7 +601,7 @@ describe('createFloatingWorkspaceMarkdownTab', () => {
       '/tmp/orca/floating-workspace',
       FLOATING_TERMINAL_WORKTREE_ID,
       undefined,
-      { activeRuntimeEnvironmentId: null }
+      { kind: 'local' }
     )
     expect(store.openFile).not.toHaveBeenCalled()
   })

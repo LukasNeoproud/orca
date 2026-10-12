@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CLAUDE_HOOK_SETTINGS,
   OPENCLAUDE_HOOK_SETTINGS,
+  getManagedEventHook,
   getManagedLifecycleHook,
-  getRemoteManagedCommand as getClaudeRemoteCommand
+  getRemoteManagedCommand as getClaudeRemoteCommand,
+  getRemoteManagedEventCommand
 } from '../claude/hook-settings'
 import {
   getManagedCommand as getCodexCommand,
@@ -65,21 +67,22 @@ function antigravityPosixCommands(path: string): string[] {
   )
 }
 
+function claudeFamilyBuilders(settings: typeof CLAUDE_HOOK_SETTINGS): CommandBuilders {
+  return {
+    local: (path) => [
+      getManagedLifecycleHook(path, settings).command,
+      getManagedEventHook('PostCompact', path, settings).command
+    ],
+    remote: (path) => [
+      getClaudeRemoteCommand(path),
+      getRemoteManagedEventCommand('PostCompact', path)
+    ]
+  }
+}
+
 const buildersByAgent = new Map<string, CommandBuilders>([
-  [
-    'claude',
-    {
-      local: (path) => [getManagedLifecycleHook(path, CLAUDE_HOOK_SETTINGS).command],
-      remote: (path) => [getClaudeRemoteCommand(path)]
-    }
-  ],
-  [
-    'openclaude',
-    {
-      local: (path) => [getManagedLifecycleHook(path, OPENCLAUDE_HOOK_SETTINGS).command],
-      remote: (path) => [getClaudeRemoteCommand(path)]
-    }
-  ],
+  ['claude', claudeFamilyBuilders(CLAUDE_HOOK_SETTINGS)],
+  ['openclaude', claudeFamilyBuilders(OPENCLAUDE_HOOK_SETTINGS)],
   [
     'qoder',
     {
@@ -129,8 +132,7 @@ const buildersByAgent = new Map<string, CommandBuilders>([
         getManagedLifecycleHook(path, {
           configDirName: '.codebuddy',
           scriptBaseName: 'codebuddy-hook',
-          usesWindowsCompatLauncher: true,
-          windowsHookShell: 'powershell'
+          usesWindowsCompatLauncher: true
         }).command
       ],
       remote: (path) => [getClaudeRemoteCommand(path)]
@@ -279,10 +281,7 @@ describe('managed hook command contract', () => {
         // Native PowerShell hooks evaluate these variables without Grok's dollar-byte scanner.
         const scannedCommand =
           platform === 'win32' &&
-          (agent === 'qoder' ||
-            agent === 'qoder-cn' ||
-            agent === 'qwen-code' ||
-            agent === 'codebuddy') &&
+          (agent === 'qoder' || agent === 'qoder-cn' || agent === 'qwen-code') &&
           command.startsWith('$scriptPath = Join-Path')
             ? command
                 .replaceAll('$LASTEXITCODE', '')

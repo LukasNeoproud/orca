@@ -27,6 +27,15 @@ export function orcadChildOutputFilename(entryPoint) {
 
 export const ORCAD_EXTERNAL_MODULES = ['electron', 'node-pty', '@parcel/watcher', 'fsevents']
 
+// Bundled ESM resolves from the deployed bundle, like CommonJS __filename.
+export const ORCAD_COMMONJS_MODULE_OPTIONS = {
+  banner: {
+    js: 'var __orcadModuleUrl = require("node:url").pathToFileURL(__filename).href;'
+  },
+  define: { 'import.meta.url': '__orcadModuleUrl' },
+  logOverride: { 'empty-import-meta': 'error' }
+}
+
 // Native binaries are staged separately from every JavaScript entry.
 export const externalNativeAddons = {
   name: 'external-native-addons',
@@ -47,6 +56,7 @@ const jsoncParserEsm = {
 
 export function buildOrcadEntry(outfile) {
   return build({
+    ...ORCAD_COMMONJS_MODULE_OPTIONS,
     entryPoints: [join(root, ORCAD_ENTRY_POINT)],
     bundle: true,
     platform: 'node',
@@ -58,7 +68,10 @@ export function buildOrcadEntry(outfile) {
     metafile: true,
     minify: true,
     sourcemap: false,
-    define: { 'process.env.NODE_ENV': '"production"' },
+    define: {
+      ...ORCAD_COMMONJS_MODULE_OPTIONS.define,
+      'process.env.NODE_ENV': '"production"'
+    },
     logLevel: 'error'
   })
 }
@@ -83,6 +96,7 @@ export function buildOrcadLauncher(outfile) {
     .update(readFileSync(join(dirname(outfile), ORCAD_SERVER_ENTRY_FILENAME)))
     .digest('hex')
   return build({
+    ...ORCAD_COMMONJS_MODULE_OPTIONS,
     entryPoints: [join(root, ORCAD_LAUNCHER_ENTRY_POINT)],
     bundle: true,
     platform: 'node',
@@ -92,7 +106,10 @@ export function buildOrcadLauncher(outfile) {
     metafile: true,
     minify: true,
     sourcemap: false,
-    define: { ORCAD_SERVER_SHA256: JSON.stringify(serverSha256) },
+    define: {
+      ...ORCAD_COMMONJS_MODULE_OPTIONS.define,
+      ORCAD_SERVER_SHA256: JSON.stringify(serverSha256)
+    },
     logLevel: 'error'
   })
 }

@@ -3,7 +3,6 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
 const mocks = vi.hoisted(() => ({
   resolveTarget: vi.fn(),
-  activeMux: vi.fn(),
   subscribe: vi.fn(),
   release: vi.fn(),
   getTask: vi.fn(),
@@ -11,7 +10,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('./backlog-target', () => ({ resolveBacklogTarget: mocks.resolveTarget }))
-vi.mock('../ssh/ssh-target-registry', () => ({ getActiveMultiplexer: mocks.activeMux }))
 vi.mock('../backlog/backlog-service', () => ({
   createBacklogService: () => ({
     subscribe: mocks.subscribe,
@@ -37,14 +35,6 @@ const localTarget = {
   executionHostId: 'local',
   target: { key: 'local\0/work', spawn: vi.fn() }
 } as const
-const sshTarget = {
-  kind: 'ssh',
-  workspaceId: 'work',
-  executionHostId: 'ssh:host',
-  connectionId: 'host',
-  cwd: '/srv/work'
-} as const
-
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.resolveTarget.mockResolvedValue(localTarget)
@@ -68,47 +58,6 @@ describe('Backlog runtime leases', () => {
     await releaseBacklogSnapshot(runtime, 'work', 'consumer')
     expect(mocks.release).toHaveBeenCalledOnce()
     expect(mocks.resolveTarget).toHaveBeenCalledOnce()
-  })
-
-  it('reports an unreachable SSH owner without starting a local watcher', async () => {
-    mocks.resolveTarget.mockResolvedValue(sshTarget)
-    mocks.activeMux.mockReturnValue(undefined)
-    await expect(getBacklogSnapshot(runtime, 'work', 'ssh-lease', 'ssh:host')).rejects.toThrow(
-      'backlog_ssh_connection_unverifiable'
-    )
-    expect(mocks.subscribe).not.toHaveBeenCalled()
-  })
-
-  it('probes each connected SSH relay once and caches unsupported old relays', async () => {
-    mocks.resolveTarget.mockResolvedValue(sshTarget)
-    const first = {
-      request: vi.fn(async (method: string) =>
-        method === 'backlog.capabilities' ? { capabilities: ['backlog.v1'] } : { id: '1' }
-      )
-    }
-    mocks.activeMux.mockReturnValue(first)
-    await getBacklogTask(runtime, 'work', '1', 'ssh:host')
-    await getBacklogTask(runtime, 'work', '1', 'ssh:host')
-    expect(
-      first.request.mock.calls.filter(([method]) => method === 'backlog.capabilities')
-    ).toHaveLength(1)
-
-    const second = {
-      request: vi.fn(async (method: string) => {
-        if (method === 'backlog.capabilities') {
-          throw Object.assign(new Error('Method not found'), { code: -32601 })
-        }
-        return { id: '1' }
-      })
-    }
-    mocks.activeMux.mockReturnValue(second)
-    await expect(getBacklogTask(runtime, 'work', '1', 'ssh:host')).rejects.toThrow(
-      'does not support'
-    )
-    await expect(getBacklogTask(runtime, 'work', '1', 'ssh:host')).rejects.toThrow(
-      'does not support'
-    )
-    expect(second.request).toHaveBeenCalledOnce()
   })
 
   it('releases every remembered folder path after a retarget and deletion', async () => {

@@ -1,11 +1,13 @@
+import {
+  createClaudeStructuredLaunchResolver,
+  createCodexStructuredLaunchResolver
+} from '../runtime/structured-agent-launch-composition.test-support'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { createClaudeStructuredLaunchResolver } from '../claude/claude-structured-launch-resolution'
 import { CLAUDE_PLUGIN_DIR_FLAG, type ClaudeCliFlag } from '../claude/claude-cli-flag-support'
-import { createCodexStructuredLaunchResolver } from '../codex/codex-structured-launch-resolution'
 import {
   adapterFor,
   fakeCodex,
@@ -17,11 +19,6 @@ import {
   NATIVE_CHAT_VISUALS_DIR_ENV
 } from './native-chat-visuals-delivery'
 import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
-
-vi.mock(
-  '../codex/codex-thread-interaction-overlay',
-  () => import('../codex/codex-thread-interaction-overlay.test-fixture')
-)
 
 const SKILL = { pluginDir: '/app/plugin', skillsRoot: '/app/plugin/skills' }
 const MANUAL = { approvalPolicy: 'on-request', sandbox: 'workspace-write' } as const

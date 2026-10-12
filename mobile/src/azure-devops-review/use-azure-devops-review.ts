@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import { AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY } from '../../../src/shared/host-feature-runtime-capabilities'
 import {
   DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS,
   type AzureDevOpsReviewFilters

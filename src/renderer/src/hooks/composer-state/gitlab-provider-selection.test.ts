@@ -5,11 +5,8 @@ import { useGitLabProviderSelection } from './gitlab-provider-selection'
 import type { GitLabWorkItem } from '../../../../shared/gitlab-types'
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), toast: vi.fn() }))
-vi.mock('@/lib/repo-runtime-owner', () => ({ getSettingsForRepoRuntimeOwner: () => null }))
-vi.mock('@/runtime/runtime-rpc-client', () => ({
-  getActiveRuntimeTarget: () => ({ kind: 'local' }),
-  callRuntimeRpc: vi.fn()
-}))
+vi.mock('@/lib/repo-runtime-owner', () => ({ runtimeTargetForRepoOwner: () => ({ kind: 'local' }) }))
+vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: mocks.toast } }))
 vi.mock('@/components/sidebar/folder-workspace-composer-helpers', () => ({
   toGitLabLinkedWorkItem: vi.fn(),
@@ -40,7 +37,8 @@ function input() {
     setName: vi.fn(),
     setPushTarget: vi.fn(),
     setStartFromResetHint: vi.fn(),
-    settings: null
+    settings: null,
+    smartSourceSelectionRef: { current: null }
   } as unknown as Parameters<typeof useGitLabProviderSelection>[0]
 }
 function item(number: number, type: 'mr' | 'issue' = 'mr'): GitLabWorkItem {
@@ -84,7 +82,8 @@ describe('GitLab review selection', () => {
       'first-head',
       item(1),
       undefined,
-      undefined
+      undefined,
+      { sourceAlreadyLinked: true }
     )
     vi.mocked(state.setBaseBranch).mockClear()
     act(() => result.current.handleSmartGitLabItemSelect(item(2)))
@@ -96,7 +95,8 @@ describe('GitLab review selection', () => {
       'second-head',
       item(2),
       undefined,
-      undefined
+      undefined,
+      { sourceAlreadyLinked: true }
     )
   })
 

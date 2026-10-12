@@ -10,7 +10,7 @@ import {
   isGitHubUserAttachmentVideoLink
 } from '@/components/sidebar/comment-markdown-github-attachment-media'
 import { useAppStore } from '@/store'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { NativeChatLinkPreviewCard } from './NativeChatLinkPreviewCard'
 import { NativeChatPreviewLink } from './NativeChatPreviewLink'
 import { resolveChatPreviewTarget } from './native-chat-preview-groups'

@@ -1,6 +1,6 @@
 import { routeNativeChatHref } from '../../../../../shared/native-chat-href-routing'
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
 import { resolveChatPreviewTarget } from './native-chat-preview-groups'
@@ -84,7 +84,7 @@ export function NativeChatPreviewLink({
       target="_blank"
       rel="noreferrer"
       aria-haspopup={previewAvailable ? 'dialog' : undefined}
-      className="text-foreground/80 underline underline-offset-2 hover:text-foreground"
+      className="text-chat-foreground underline underline-offset-2 hover:text-chat-foreground-strong"
       onClick={(event) => {
         clearOpenTimer()
         const plainActivation =

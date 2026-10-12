@@ -7,10 +7,8 @@ import {
   toSshExecutionHostId,
   type ExecutionHostId
 } from '../../../src/shared/execution-host'
-import {
-  PROJECT_HOST_SETUP_RUNTIME_CAPABILITY,
-  PROJECT_HOST_SETUP_HOST_LOCAL_LINK_RUNTIME_CAPABILITY
-} from '../../../src/shared/protocol-version'
+import { PROJECT_HOST_SETUP_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import { PROJECT_HOST_SETUP_HOST_LOCAL_LINK_RUNTIME_CAPABILITY } from '../../../src/shared/host-feature-runtime-capabilities'
 import {
   getProjectIdentityKey,
   getProjectProviderIdentity,

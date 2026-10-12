@@ -1,6 +1,7 @@
 import { routeNativeChatHref } from '../../../../../shared/native-chat-href-routing'
 import { resolveNativeChatFileLink } from '../native-chat-file-link'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
+import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 
 export type ChatPreviewTarget = {
   href: string
@@ -28,7 +29,7 @@ export function resolveChatPreviewTarget(
   const file = resolveNativeChatFileLink(href, {
     worktreeId: context.worktreeId,
     worktreePath: context.worktreePath,
-    runtimeEnvironmentId: context.settings?.activeRuntimeEnvironmentId ?? null
+    runtimeEnvironmentId: runtimeTargetEnvironmentId(context.target)
   })
   return file
     ? { href, key: file.absolutePath, path: file.absolutePath, line: file.line, kind: 'file' }

@@ -54,7 +54,8 @@ export const EMULATOR_MOBILE_METHODS = [
         profile: params.profile,
         videoCodecs: params.videoCodecs ?? ['jpeg'],
         connectionId,
-        sendBinary,
+        // Without dropWhenBacklogged the sender never answers 'backlogged'; only false is unsent.
+        sendBinary: (bytes) => sendBinary(bytes) !== false,
         signal,
         emit,
         registerCleanup: (id, cleanup, owner) =>

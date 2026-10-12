@@ -4,10 +4,7 @@ import { ignoreCreationLocally } from '../ipc/worktrees/create/ignore-creation-l
 import { previewWorktreeCreation } from '../ipc/worktrees/create/explicit-creation-preview'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import type { LocalGitExecOptions } from '../git/repo-default-base-ref'
-import type { Repo } from '../../shared/repo-types'
-import type { RuntimeRemoteWorktreeCreateArgs } from './runtime-remote-worktree-create-request'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
-import { createRuntimeRemoteManagedWorktree } from './runtime-remote-managed-worktree-create'
 import type { RemoteFetchResult, RemoteTrackingBase } from './runtime-remote-fetch-controller'
 import type { WorktreeBaseStatusEvent } from '../../shared/worktree/base-ref-drift-types'
 import { probeRuntimeWorktreeDrift } from './runtime-worktree-drift-probe'
@@ -19,6 +16,12 @@ import {
 } from './runtime-managed-worktree-metadata'
 import { resolveRuntimeGitHubWorktreeBase } from './runtime-github-worktree-base'
 import { resolveRuntimeGitLabWorktreeBase } from './runtime-gitlab-worktree-base'
+import { listWorktreesStrict } from '../git/worktree-listing'
+import {
+  adoptRuntimeProvisionedRoot,
+  readLocalSparseCheckoutEnabled,
+  type RuntimeProvisionedRootRequest
+} from './runtime-provisioned-root-adoption'
 
 export class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRuntimeWithCreateManagedWorktree {
   async ignoreManagedWorktreeCreationLocally(args: RuntimeManagedWorktreeCreateArgs) {
@@ -35,36 +38,6 @@ export class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRuntimeWithC
     }
     const repo = await this.resolveRepoSelector(args.repoSelector)
     return previewWorktreeCreation(args, repo, this.store)
-  }
-
-  protected createManagedRemoteWorktree(
-    repo: Repo,
-    args: RuntimeRemoteWorktreeCreateArgs
-  ): Promise<CreateWorktreeResult> {
-    if (!this.store) {
-      throw new Error('runtime_unavailable')
-    }
-    return createRuntimeRemoteManagedWorktree(repo, args, {
-      store: this.store,
-      canSpawn: () => Boolean(this.ptyController?.spawn),
-      provisionInBackground: () => this.shouldProvisionWorktreeInBackground(args.navigation),
-      createTerminal: (selector, options) => this.createTerminal(selector, options),
-      pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
-      sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
-      provision: (options) => this.provisionManagedWorktreeTerminals(options),
-      activate: (repoId, worktreeId, setup, startup, defaultTabs) =>
-        this.notifyActivateWorktree(
-          repoId,
-          worktreeId,
-          setup,
-          startup,
-          defaultTabs,
-          args.navigation
-        ),
-      invalidateResolvedWorktrees: () => this.invalidateResolvedWorktreeCache(),
-      invalidateWorktreeScan: (repoId) => this.invalidateWorktreeScanCacheForRepo(repoId),
-      notifyWorktreesChanged: (repoId) => this.notifyWorktreesChanged(repoId)
-    })
   }
 
   async getCanonicalFetchKey(
@@ -190,6 +163,27 @@ export class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRuntimeWithC
     })
   }
 
+  adoptManagedProvisionedRoot(
+    repoSelector: string,
+    request: RuntimeProvisionedRootRequest
+  ): Promise<CreateWorktreeResult> {
+    if (!this.store) {
+      throw new Error('runtime_unavailable')
+    }
+    return adoptRuntimeProvisionedRoot(repoSelector, request, {
+      store: this.store,
+      resolveRepo: (selector) => this.resolveRepoSelector(selector),
+      listWorktrees: (repoPath) => listWorktreesStrict(repoPath),
+      isSparseCheckoutEnabled: readLocalSparseCheckoutEnabled,
+      invalidateScan: (repoId) => {
+        this.invalidateResolvedWorktreeCache()
+        this.invalidateWorktreeScanCacheForRepo(repoId)
+      },
+      notifyChanged: (repoId) => this.notifyWorktreesChanged(repoId),
+      showWorktree: (selector) => this.showManagedWorktree(selector)
+    })
+  }
+
   persistManagedWorktreeSortOrder(orderedIds: string[]): { updated: number } {
     if (!this.store) {
       throw new Error('runtime_unavailable')
@@ -198,7 +192,8 @@ export class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRuntimeWithC
       orderedIds,
       store: this.store,
       invalidateResolved: () => this.invalidateResolvedWorktreeCache(),
-      notifyChanged: (repoId) => this.notifyWorktreesChanged(repoId)
+      notifyChanged: (repoId) =>
+        this.notifyWorktreesChanged(repoId, { invalidateGitScans: false, sortOrderOnly: true })
     })
   }
 

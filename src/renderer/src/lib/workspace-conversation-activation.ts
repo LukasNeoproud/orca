@@ -15,7 +15,7 @@ export type WorkspaceConversationRoute = {
   executionHostId: ExecutionHostId
   runtimeEnvironmentId: string | null
 }
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 export function activateConversationWorkspace(route: WorkspaceConversationRoute): boolean {
   const scope = parseWorkspaceKey(route.workspaceId)

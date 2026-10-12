@@ -20,8 +20,7 @@ import {
   resolveComposerCreateSelection,
   resolveMobileComposerBranchOverride,
   resolveSelectedLinearName,
-  resolveWorkItemAutoName,
-  shouldApplyAutoName
+  resolveWorkItemAutoName
 } from './composer-linked-work-item'
 import {
   resolveComposerMrBase,
@@ -33,6 +32,7 @@ import type {
   MobileComposerCreateSelection,
   MobileLinkedWorkItem
 } from './mobile-composer-source-types'
+import { useMobileComposerName } from './use-mobile-composer-name'
 const EMPTY_BASE: ComposerBaseState = {}
 
 export type UseMobileComposerSourceArgs = {
@@ -44,7 +44,6 @@ export type UseMobileComposerSourceArgs = {
 
 export function useMobileComposerSource(args: UseMobileComposerSourceArgs) {
   const { client, selectedRepoId, worktreeBranches = [], onError } = args
-  const [name, setNameState] = useState('')
   const [linkedWorkItem, setLinkedWorkItem] = useState<MobileLinkedWorkItem | null>(null)
   const [base, setBase] = useState<ComposerBaseState>(EMPTY_BASE)
   const [reuseEligibleBranch, setReuseEligibleBranch] = useState<string | null>(null)
@@ -53,18 +52,11 @@ export function useMobileComposerSource(args: UseMobileComposerSourceArgs) {
   const [resolvingBase, setResolvingBase] = useState(false)
   const [branchCreateIntent, setBranchCreateIntent] = useState(false)
 
-  const lastAutoNameRef = useRef('')
   const branchSelectionRef = useRef<{ refName: string; localBranchName: string } | null>(null)
   const resolveTokenRef = useRef(0)
 
-  const setName = useCallback((value: string) => setNameState(value), [])
-
-  const applyAutoName = useCallback((suggested: string, currentName: string) => {
-    if (suggested && shouldApplyAutoName({ currentName, lastAutoName: lastAutoNameRef.current })) {
-      setNameState(suggested)
-      lastAutoNameRef.current = suggested
-    }
-  }, [])
+  const { name, setName, setNameState, lastAutoNameRef, applyAutoName, isNameAutoManaged } =
+    useMobileComposerName(linkedWorkItem)
 
   const clearBaseAndBranch = useCallback(() => {
     branchSelectionRef.current = null
@@ -196,7 +188,8 @@ export function useMobileComposerSource(args: UseMobileComposerSourceArgs) {
     const suggested = resolveSelectedLinearName({
       issue,
       currentName: name,
-      lastAutoName: lastAutoNameRef.current
+      lastAutoName: lastAutoNameRef.current,
+      lookupTextIsQuery: !linkedWorkItem
     })
     if (suggested) {
       setNameState(suggested)
@@ -286,8 +279,6 @@ export function useMobileComposerSource(args: UseMobileComposerSourceArgs) {
       }),
     [base, branchCreateIntent, linkedWorkItem, name, reuseEligibleBranch, reuseSelectedBranch]
   )
-
-  const isNameAutoManaged = !name.trim() || name === lastAutoNameRef.current
 
   return {
     name,

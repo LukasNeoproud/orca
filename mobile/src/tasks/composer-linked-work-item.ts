@@ -74,7 +74,11 @@ export function buildLinearLinkedWorkItem(issue: {
 // Faithful port of desktop applyLinkedWorkItem's name gate: the derived name
 // replaces the current field only when it's empty, still the last auto-name, or
 // a lookup query — never a name the user deliberately typed.
-export function shouldApplyAutoName(args: { currentName: string; lastAutoName: string }): boolean {
+export function shouldApplyAutoName(args: {
+  currentName: string
+  lastAutoName: string
+  lookupTextIsQuery?: boolean
+}): boolean {
   return shouldApplyWorkspaceSourceAutoName(args)
 }
 
@@ -96,13 +100,13 @@ export function resolveSelectedLinearName(args: {
   issue: LinearIssue
   currentName: string
   lastAutoName: string
+  lookupTextIsQuery: boolean
 }): string | undefined {
   const suggested = resolveLinearAutoName(args.issue)
-  return suggested &&
-    (args.currentName.trim().toLowerCase() === args.issue.identifier.toLowerCase() ||
-      shouldApplyAutoName({ currentName: args.currentName, lastAutoName: args.lastAutoName }))
-    ? suggested
-    : undefined
+  const identifierTyped =
+    args.lookupTextIsQuery &&
+    args.currentName.trim().toLowerCase() === args.issue.identifier.toLowerCase()
+  return suggested && (identifierTyped || shouldApplyAutoName(args)) ? suggested : undefined
 }
 
 // Derives the pill descriptor from the linked item (or a plain branch base),
