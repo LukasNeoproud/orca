@@ -1,5 +1,4 @@
 import { app, type BrowserWindow } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import {
   getCanonicalUserDataPath,
   migrateMobilePairingDataToCanonicalUserDataPath
@@ -45,6 +44,7 @@ import { resolveUpdateInstallMode } from '../updater'
 import { scheduleAgentLaunchRecordWarmup } from './agent-launch-record-warmup'
 import { emitServeBrowserIdentityActionLine } from '../server/serve-stdout-boundary'
 import { getBrowserIdentityModeStatus } from '../browser/browser-identity-mode-store'
+import { hasDevIdentity } from './dev-identity-build'
 
 type RuntimeService = NonNullable<typeof state.runtime>
 
@@ -77,7 +77,7 @@ function installRuntimeRpc(
     throw new Error(`Invalid ORCA_E2E_RUNTIME_WS_PORT value: ${requestedE2EWsPort}`)
   }
   // Why: pin dev to 6769 so `pnpm dev` doesn't race packaged Orca on 6768 and fall back to a random port, breaking deterministic mobile pairing/repro (STA-1511).
-  const devWsPort = is.dev && !isE2E ? 6769 : undefined
+  const devWsPort = hasDevIdentity() && !isE2E ? 6769 : undefined
   const runtimeRpc = new OrcaRuntimeRpcServer({
     runtime,
     // Why: mobile pairing needs the stable pre-setName() path (getCanonicalUserDataPath), not a late app.getPath('userData') that drops paired devices across restarts.

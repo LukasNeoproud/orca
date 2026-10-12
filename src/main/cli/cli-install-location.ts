@@ -29,6 +29,7 @@ import {
   readWindowsUserPathRegistry,
   type WindowsUserPathReadResult
 } from './windows-user-path-registry'
+import { isLocalDevBuild } from '../startup/local-dev-build'
 
 export abstract class CliInstallLocation {
   protected abstract inspectSymlink(
@@ -61,8 +62,8 @@ export abstract class CliInstallLocation {
   protected readonly appImageDeadlineAt?: number
 
   protected get commandName(): string {
-    if (!this.isPackaged && !this.commandPathOverride) {
-      // Why: development builds must not claim the production shell command.
+    if ((!this.isPackaged || isLocalDevBuild()) && !this.commandPathOverride) {
+      // Why: development builds, packaged Orca Dev included, must not claim the production command.
       return DEV_COMMAND_NAME
     }
     // Why: packaged Linux uses `orca-ide` to avoid shadowing GNOME Orca's /usr/bin/orca.
@@ -85,10 +86,13 @@ export abstract class CliInstallLocation {
     this.commandPathOverride =
       options.commandPathOverride ?? process.env.ORCA_CLI_INSTALL_PATH ?? null
     // Why: resolved once here (getStatus is hot); /usr/local/bin is absent on Apple Silicon, so fall back to user-writable ~/.local/bin.
-    const candidateMacPath = options.defaultMacCommandPath ?? DEFAULT_MAC_COMMAND_PATH
+    const macCommandName = isLocalDevBuild() ? DEV_COMMAND_NAME : 'orca'
+    const candidateMacPath =
+      options.defaultMacCommandPath ??
+      (isLocalDevBuild() ? `/usr/local/bin/${DEV_COMMAND_NAME}` : DEFAULT_MAC_COMMAND_PATH)
     this.macCommandPath = existsSync(dirname(candidateMacPath))
       ? candidateMacPath
-      : join(this.homePath, '.local', 'bin', 'orca')
+      : join(this.homePath, '.local', 'bin', macCommandName)
     this.privilegedRunner = options.privilegedRunner ?? runMacPrivilegedCommand
     this.userPathReader = options.userPathReader ?? readWindowsUserPathRegistry
     this.userPathMutationReader =

@@ -32,6 +32,17 @@ describe('dev-instance-identity', () => {
     expect(shouldApplyPreReadyAppName({ isDev: false })).toBe(false)
   })
 
+  it('gives a packaged Orca Dev the dev Keychain name and its own label without launcher env', () => {
+    const identity = getDevInstanceIdentity(false, {}, true)
+    expect(identity).toMatchObject({
+      name: 'Orca Dev',
+      appName: 'Orca Dev',
+      isDev: true,
+      devLabel: 'Orca Dev'
+    })
+    expect(shouldApplyPreReadyAppName(identity)).toBe(true)
+  })
+
   it('applies the dev name before ready so safeStorage sees it', () => {
     expect(shouldApplyPreReadyAppName(getDevInstanceIdentity(true, {}))).toBe(true)
   })

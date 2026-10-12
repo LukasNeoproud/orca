@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import type { UpdateCheckOptions, UpdateStatus } from '../../shared/update-status-types'
 import type {
   RemoteServerUpdateInstallResult,
@@ -10,6 +9,7 @@ import { hasServeUpdateSupervisor } from '../serve-update-handoff'
 import { getLinuxPackageType } from '../linux-update-package-type'
 import { UpdaterNudge } from './updater-nudge'
 import type { UpdateInstallMode } from './updater-state'
+import { hasDevIdentity } from '../startup/dev-identity-build'
 
 /** Exposes updater state to runtime RPC callers without leaking internal mutators. */
 export abstract class UpdaterRemoteStatus extends UpdaterNudge {
@@ -18,7 +18,7 @@ export abstract class UpdaterRemoteStatus extends UpdaterNudge {
   }
 
   protected getRemoteServerUpdateSupport(): RemoteServerUpdateSupport {
-    if (!app.isPackaged || is.dev) {
+    if (!app.isPackaged || hasDevIdentity()) {
       return {
         installMode: this.updateInstallMode,
         automatic: false,

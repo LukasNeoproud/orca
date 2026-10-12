@@ -96,7 +96,13 @@ const devChannelRepo = isHourlyChannel
     : isAdhocChannel
       ? 'orca-adhoc'
       : null
-const appId = 'com.stablyai.orca'
+// Why: Orca Dev is installed beside Orca, so it needs its own bundle id, name and icon; its runtime
+// identity comes from ORCA_LOCAL_DEV_BUILD baked into the main bundle (electron.vite.config.ts).
+const isLocalDevBuild = process.env.ORCA_LOCAL_DEV_BUILD === '1'
+if (isLocalDevBuild && (isMacRelease || !process.env.ORCA_LOCAL_DEV_ICON)) {
+  throw new Error('An Orca Dev build is local only and needs ORCA_LOCAL_DEV_ICON.')
+}
+const appId = isLocalDevBuild ? 'com.stablyai.orca.dev' : 'com.stablyai.orca'
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
   to: 'onboarding/feature-wall'
@@ -226,8 +232,9 @@ const ORCA_MAC_TEAM_ID = '6CX3WHS9HZ'
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
+  productName: isLocalDevBuild ? 'Orca Dev' : 'Orca',
+  // Why: like `pnpm dev`, Orca Dev leaves orca:// links to the installed Orca.
+  protocols: isLocalDevBuild ? [] : [{ name: 'Orca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
   ...(devChannelBuildVersion
     ? { extraMetadata: { version: devChannelBuildVersion } }
@@ -589,7 +596,7 @@ module.exports = {
         rank: 'Alternate'
       }))
     ],
-    icon: 'resources/build/icon.icns',
+    icon: isLocalDevBuild ? process.env.ORCA_LOCAL_DEV_ICON : 'resources/build/icon.icns',
     entitlements: 'resources/build/entitlements.mac.plist',
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
     signIgnore: [

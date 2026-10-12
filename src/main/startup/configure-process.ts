@@ -15,6 +15,7 @@ import {
   readActiveProfileId,
   readPersistedHttp1CompatibilityMode
 } from './http1-compatibility-profile-state'
+import { isLocalDevBuild } from './local-dev-build'
 
 const DEV_PARENT_SHUTDOWN_GRACE_MS = 3000
 const HTTP1_COMPATIBILITY_ENV_VAR = 'ORCA_DISABLE_HTTP2'
@@ -212,7 +213,8 @@ export function configureDevUserDataPath(isDev: boolean): void {
     return
   }
 
-  if (!isDev) {
+  // Why: a packaged Orca Dev shares the dev profile, never the installed Orca's.
+  if (!isDev && !isLocalDevBuild()) {
     return
   }
   const overrideUserDataPath = process.env.ORCA_DEV_USER_DATA_PATH

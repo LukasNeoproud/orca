@@ -1,5 +1,5 @@
 import { app, session } from 'electron'
-import { electronApp, is } from '@electron-toolkit/utils'
+import { electronApp } from '@electron-toolkit/utils'
 import { applyBackgroundActivationPolicy } from '../window/foreground-activation-policy'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { installElectronProxyRequestGuard } from '../network/electron-proxy-request-guard'
@@ -50,6 +50,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { reportProfileStateWriteFailure } from './profile-state-write-failure'
 import { reportProfileStateSaveDelay } from './profile-state-save-delay'
+import { hasDevIdentity } from './dev-identity-build'
 
 export async function initializeReadyFoundation(): Promise<void> {
   logStartupMilestone('app-ready')
@@ -169,7 +170,7 @@ export async function initializeReadyFoundation(): Promise<void> {
     dataFile: profile.dataFile,
     force: process.env.ORCA_ALWAYS_REPORT_SECRET_PROTECTION === '1',
     deferUntilFirstWindow: !state.isServeMode,
-    skipInDevelopment: is.dev
+    skipInDevelopment: hasDevIdentity()
   })
   // Why here: the host key store is a sidecar of the same profile, and every SSH connect consults
   // it. Left unbound it reports nothing trusted, which is safe but silently discards our own
@@ -252,7 +253,7 @@ export async function initializeReadyFoundation(): Promise<void> {
     }
   })
   applyAppIcon(store.getSettings().appIcon)
-  if (shouldSuppressDevEducation({ isDev: is.dev })) {
+  if (shouldSuppressDevEducation({ isDev: hasDevIdentity() })) {
     suppressDevEducationForStore(store)
   }
   // Why: the partition installer reads the proxy through this resolver, so register it before sessions materialize.

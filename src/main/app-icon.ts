@@ -5,7 +5,6 @@ import {
 } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { app, BrowserWindow, nativeImage } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import classicIcon from '../../resources/icon.png?asset'
 import classicDevIcon from '../../resources/icon-dev.png?asset'
 import watercolorIcon from '../../resources/app-icons/orca-watercolor.png?asset'
@@ -13,9 +12,10 @@ import watercolorMacDockIcon from '../../resources/app-icons/orca-watercolor.png
 import blueIcon from '../../resources/app-icons/orca-blue.png?asset'
 import blueMacDockIcon from '../../resources/app-icons/orca-blue.png?asset&asarUnpack'
 import { normalizeAppIconId, type AppIconId } from '../shared/app-icon'
+import { hasDevIdentity } from './startup/dev-identity-build'
 
 const APP_ICON_PATHS = {
-  classic: is.dev ? classicDevIcon : classicIcon,
+  classic: hasDevIdentity() ? classicDevIcon : classicIcon,
   watercolor: watercolorIcon,
   blue: blueIcon
 } satisfies Record<AppIconId, string>
@@ -261,7 +261,8 @@ function clearMacCustomIconMetadata(execFile: ExecFile, appBundlePath: string): 
 
 export function persistMacDockIcon(value: unknown, options: PersistMacDockIconOptions = {}): void {
   const platform = options.platform ?? process.platform
-  const isDevApp = options.isDevApp ?? (is.dev || !app.isPackaged)
+  // Why also the Orca Dev build: writing a custom icon into its bundle would break the seal.
+  const isDevApp = options.isDevApp ?? (hasDevIdentity() || !app.isPackaged)
   if (platform !== 'darwin' || isDevApp) {
     return
   }

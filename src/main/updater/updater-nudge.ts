@@ -1,13 +1,13 @@
 import { app } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import { fetchNudge, shouldApplyNudge } from '../updater-nudge'
 import { NUDGE_ACTIVATION_COOLDOWN_MS, NUDGE_POLL_INTERVAL_MS } from './updater-state'
 import { UpdaterBuildSelection } from './updater-build-selection'
+import { hasDevIdentity } from '../startup/dev-identity-build'
 
 /** Polls update campaigns and exposes their dismissal actions. */
 export abstract class UpdaterNudge extends UpdaterBuildSelection {
   protected async checkForUpdateNudge(): Promise<void> {
-    if (!app.isPackaged || is.dev) {
+    if (!app.isPackaged || hasDevIdentity()) {
       return
     }
     if (this.nudgeCheckInFlight) {
