@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import type { HostProcessEntry } from '../../shared/host-system-types'
 
 const PS_TIMEOUT_MS = 5_000

@@ -2,9 +2,10 @@ import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 import type { PersistedHeadlessBacklogBoardPage } from '../../shared/headless-backlog-board-page'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 import type { BrowserBackend } from '../browser/browser-backend'
+import { getRuntimeBrowserPageRegistry } from './runtime-browser-page-registry'
 
-const liveBindings = new WeakMap<object, Map<string, BacklogBoardBinding>>()
-const restoringPages = new WeakMap<object, Set<string>>()
+const liveBindings = new WeakMap<WeakKey, Map<string, BacklogBoardBinding>>()
+const restoringPages = new WeakMap<WeakKey, Set<string>>()
 
 export function collectHeadlessBacklogBoardWorktreeIds(
   sessions: Iterable<WorkspaceSessionState | null | undefined>
@@ -19,14 +20,14 @@ export function collectHeadlessBacklogBoardWorktreeIds(
 }
 
 export function getHeadlessBacklogBoardBinding(
-  owner: object,
+  owner: WeakKey,
   pageId: string
 ): BacklogBoardBinding | undefined {
   return liveBindings.get(owner)?.get(pageId)
 }
 
 export function rememberHeadlessBacklogBoardPage(
-  owner: object,
+  owner: WeakKey,
   worktreeId: string,
   page: PersistedHeadlessBacklogBoardPage,
   getSession: (worktreeId: string) => WorkspaceSessionState | null,
@@ -49,7 +50,7 @@ export function rememberHeadlessBacklogBoardPage(
 }
 
 export function forgetHeadlessBacklogBoardPage(
-  owner: object,
+  owner: WeakKey,
   worktreeId: string,
   pageId: string,
   getSession: (worktreeId: string) => WorkspaceSessionState | null,
@@ -74,7 +75,7 @@ export function forgetHeadlessBacklogBoardPage(
   setSession(worktreeId, { ...session, headlessBacklogBoardPagesByWorktree: next })
 }
 
-export function setLiveBinding(owner: object, pageId: string, binding: BacklogBoardBinding): void {
+export function setLiveBinding(owner: WeakKey, pageId: string, binding: BacklogBoardBinding): void {
   let bindings = liveBindings.get(owner)
   if (!bindings) {
     bindings = new Map()
@@ -84,7 +85,7 @@ export function setLiveBinding(owner: object, pageId: string, binding: BacklogBo
 }
 
 export async function restoreHeadlessBacklogBoardPages(
-  owner: object,
+  owner: WeakKey,
   backend: BrowserBackend,
   worktreeIds: Iterable<string>,
   getSession: (worktreeId: string) => WorkspaceSessionState | null,
@@ -128,4 +129,17 @@ export async function restoreHeadlessBacklogBoardPages(
     }
   }
   await Promise.all(restores)
+}
+
+// Headless and client-hosted board pages both publish their binding on the session tab.
+export function withBacklogBoardBindings<T extends { browserPageId: string }>(
+  owner: WeakKey,
+  tabs: T[]
+): (T & { backlogBoardBinding?: BacklogBoardBinding })[] {
+  return tabs.map((tab) => {
+    const binding =
+      getHeadlessBacklogBoardBinding(owner, tab.browserPageId) ??
+      getRuntimeBrowserPageRegistry(owner).getPage(tab.browserPageId)?.backlogBoardBinding
+    return binding ? { ...tab, backlogBoardBinding: binding } : tab
+  })
 }

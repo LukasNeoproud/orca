@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MessageSquareQuote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
-import type { ResponseCommentSelection } from './response-comment-selection'
-import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
+import { ResponseCommentForm } from './ResponseCommentForm'
+
+export type ResponseCommentSelection = {
+  quote: string
+  rect: { left: number; top: number; right: number; bottom: number; width: number; height: number }
+}
 
 export type ResponseCommentPopoverProps = {
   selection: ResponseCommentSelection | null
@@ -23,9 +26,6 @@ export function ResponseCommentPopover({
   submitLabel
 }: ResponseCommentPopoverProps): React.JSX.Element | null {
   const [editing, setEditing] = useState(false)
-  const [comment, setComment] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => () => onEditingChange?.(false), [onEditingChange])
@@ -48,33 +48,8 @@ export function ResponseCommentPopover({
   const dismiss = useCallback(() => {
     setEditing(false)
     onEditingChange?.(false)
-    setComment('')
-    setError(null)
     onDismiss()
   }, [onDismiss, onEditingChange])
-
-  const save = useCallback(async () => {
-    if (!comment.trim() || saving) {
-      return
-    }
-    setSaving(true)
-    setError(null)
-    try {
-      if (await onSave(comment.trim())) {
-        dismiss()
-      } else {
-        setError(
-          translate('components.response-comments.saveFailed', 'Could not add comment. Try again.')
-        )
-      }
-    } catch {
-      setError(
-        translate('components.response-comments.saveFailed', 'Could not add comment. Try again.')
-      )
-    } finally {
-      setSaving(false)
-    }
-  }, [comment, dismiss, onSave, saving])
 
   if (!selection) {
     return null
@@ -128,53 +103,14 @@ export function ResponseCommentPopover({
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
-        <div className="space-y-3">
-          <blockquote className="max-h-28 whitespace-pre-wrap overflow-y-auto border-l-2 border-border pl-3 text-xs text-muted-foreground scrollbar-sleek">
-            {selection.quote}
-          </blockquote>
-          <Textarea
-            ref={editorRef}
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            onKeyDown={(event) => {
-              if (isImeCompositionKeyDown(event)) {
-                return
-              }
-              const isMac = navigator.userAgent.includes('Mac')
-              if (
-                event.key === 'Enter' &&
-                (isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey)
-              ) {
-                event.preventDefault()
-                void save()
-              }
-            }}
-            placeholder={translate('components.response-comments.placeholder', 'Add your comment…')}
-            aria-label={translate('components.response-comments.commentText', 'Comment text')}
-            className="min-h-20 resize-y text-sm"
-            data-response-comment-ui="true"
-          />
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-              {translate('components.response-comments.cancel', 'Cancel')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={!comment.trim() || saving}
-              onClick={() => void save()}
-            >
-              {saving
-                ? translate('components.response-comments.adding', 'Adding…')
-                : (submitLabel ??
-                  translate('components.response-comments.addComment', 'Add comment'))}
-            </Button>
-          </div>
-        </div>
+        <ResponseCommentForm
+          quote={selection.quote}
+          onSave={onSave}
+          onDone={dismiss}
+          editorRef={editorRef}
+          submitLabel={submitLabel}
+        />
       </PopoverContent>
     </Popover>
   )
 }
-
-export type { ResponseCommentSelection } from './response-comment-selection'

@@ -1,6 +1,7 @@
 import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
 import { parsePtySessionId } from '../../shared/pty-session-id-format'
+import { LOCAL_EXECUTION_HOST_ID, normalizeExecutionHostId } from '../../shared/execution-host'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { observeStructuredWorker } from './structured-worker-authority'
 import type { RuntimePtyController } from './runtime-pty-controller-contract'
@@ -14,13 +15,13 @@ export async function getBranchManagementSessions(
     return null
   }
   try {
-    const connectionId = target.executionHostId.startsWith('ssh:')
-      ? target.executionHostId.slice(4)
-      : null
-    const processes = await controller.listProcesses(connectionId, {
-      deadlineMs: Date.now() + 10000,
-      includeForegroundProcessEvidence: true
-    })
+    const processes = await controller.listProcesses(
+      normalizeExecutionHostId(target.executionHostId) ?? LOCAL_EXECUTION_HOST_ID,
+      {
+        deadlineMs: Date.now() + 10000,
+        includeForegroundProcessEvidence: true
+      }
+    )
     const sessions = processes
       .filter((process) => {
         const owner = process.worktreeId ?? parsePtySessionId(process.id).worktreeId

@@ -282,9 +282,9 @@ export class TerminalInteractionRegistry {
   }
 }
 
-const registries = new WeakMap<object, TerminalInteractionRegistry>()
+const registries = new WeakMap<WeakKey, TerminalInteractionRegistry>()
 
-export function getTerminalInteractionRegistry(runtime: object): TerminalInteractionRegistry {
+export function getTerminalInteractionRegistry(runtime: WeakKey): TerminalInteractionRegistry {
   const existing = registries.get(runtime)
   if (existing) {
     return existing

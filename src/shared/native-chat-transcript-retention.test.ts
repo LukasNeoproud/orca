@@ -33,28 +33,6 @@ describe('native chat transcript retention', () => {
     expect(retention.visible({ identity: 'source', messages: fresh, settled: true })).toBe(fresh)
   })
 
-  it('merges live appends over retained history without changing references on rerender', () => {
-    const retention = createNativeChatTranscriptRetention()
-    retention.capture('source', [message('history')])
-    const input = {
-      identity: 'source',
-      messages: [message('live')],
-      settled: false,
-      includeUnsettledMessages: true
-    }
-    const visible = retention.visible(input)
-    expect(visible.map((entry) => entry.id)).toEqual(['history', 'live'])
-    expect(retention.visible(input)).toBe(visible)
-  })
-
-  it('withholds unfenced messages from another source by default', () => {
-    const retention = createNativeChatTranscriptRetention()
-    retention.capture('old', [message('old')])
-    expect(
-      retention.visible({ identity: 'new', messages: [message('old')], settled: false })
-    ).toEqual([])
-  })
-
   it('encodes identity components without delimiter collisions', () => {
     expect(encodeNativeChatTranscriptIdentity(['host\0workspace', 'session'])).not.toBe(
       encodeNativeChatTranscriptIdentity(['host', 'workspace\0session'])

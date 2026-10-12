@@ -62,8 +62,7 @@ export function bindDeferredColdRestoreAndSnapshot(session: ConnectPanePtySessio
     options: FreshSpawnOptions = {}
   ): Promise<string | null> => {
     session.applyColdRestoreAgentResumeStartup(startup)
-    const explicitStartupPending = !session.startupPtyBound && Boolean(session.paneStartup?.command)
-    return session.startFreshSpawn(startup ?? (explicitStartupPending ? undefined : null), options)
+    return session.startFreshSpawn(startup, options)
   }
   // Why: the hibernation wake fires from noteVisibilityResume in the outer
   // connection scope, long after this deferred-connect closure has run.
@@ -92,7 +91,7 @@ export function bindDeferredColdRestoreAndSnapshot(session: ConnectPanePtySessio
     if (result.status !== 'pasted' || !isStartupPasteTargetCurrent(ptyId)) {
       return false
     }
-    return session.transport.sendInput('\r')
+    return session.transport.sendInput('\r', 'launch')
   }
   session.schedulePendingStartupCommandDelivery = (): void => {
     const startup = session.pendingStartupCommand
@@ -117,7 +116,7 @@ export function bindDeferredColdRestoreAndSnapshot(session: ConnectPanePtySessio
         const command = startup.command
         const submitted = session.shouldDeliverStartupViaTerminalPaste
           ? await runTerminalPasteStartupCommand(command)
-          : session.transport.sendInput(`${command}\r`)
+          : session.transport.sendInput(`${command}\r`, 'launch')
         if (submitted) {
           session.armStartupDraftReadinessObservation()
         } else {
@@ -160,7 +159,9 @@ export function bindDeferredColdRestoreAndSnapshot(session: ConnectPanePtySessio
       ...(meta.alternateScreen !== undefined ? { alternateScreen: meta.alternateScreen } : {}),
       ...(meta.snapshotCols !== undefined && meta.snapshotRows !== undefined
         ? { snapshotCols: meta.snapshotCols, snapshotRows: meta.snapshotRows }
-        : {})
+        : {}),
+      ...(meta.carriesNormalBuffer ? { carriesNormalBuffer: true } : {}),
+      ...(meta.carriesHistory ? { carriesHistory: true } : {})
     }
     session.scheduleReplayDataDrain()
   }

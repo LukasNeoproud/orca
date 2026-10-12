@@ -112,48 +112,6 @@ describe('useNativeChatLiveSession visibility', () => {
     vi.useRealTimers()
   })
 
-  it('keeps history and live appends visible while a revealed transcript is pending', async () => {
-    await render(BASE_ARGS)
-    await emit(0, {
-      type: 'snapshot',
-      messages: [assistant('history', 1)],
-      hasMore: false
-    })
-    await render({ ...BASE_ARGS, enabled: false })
-    await render(BASE_ARGS)
-    await emit(1, { type: 'snapshot', pending: true, messages: [], hasMore: false })
-    await emit(1, { type: 'appended', messages: [assistant('live', 2)] })
-
-    expect(latest?.readPhase).toBe('awaiting')
-    expect(latest?.messages.map((message) => message.id)).toEqual(['history', 'live'])
-  })
-
-  it('retains the same conversation when its authoritative transcript path arrives', async () => {
-    await render({ ...BASE_ARGS, transcriptPath: null })
-    await emit(0, {
-      type: 'snapshot',
-      messages: [assistant('history', 1)],
-      hasMore: false
-    })
-    await render(BASE_ARGS)
-
-    expect(latest?.readPhase).toBe('loading')
-    expect(latest?.messages.map((message) => message.id)).toEqual(['history'])
-    await emit(0, { type: 'appended', messages: [assistant('stale-path', 2)] })
-    expect(latest?.messages.map((message) => message.id)).toEqual(['history'])
-    await emit(1, { type: 'snapshot', messages: [assistant('resolved', 3)], hasMore: false })
-    expect(latest?.messages.map((message) => message.id)).toEqual(['resolved'])
-  })
-
-  it('shows loading while a recognized agent resolves its identity or transcript', async () => {
-    await render({ ...BASE_ARGS, sessionId: null })
-    expect(latest?.status).toBe('loading')
-    expect(transport.readSession).not.toHaveBeenCalled()
-    await render(BASE_ARGS)
-    await emit(0, { type: 'snapshot', pending: true, messages: [], hasMore: false })
-    expect(latest?.status).toBe('loading')
-  })
-
   it('does no transcript IO when initially hidden', async () => {
     await render({ ...BASE_ARGS, enabled: false })
 
@@ -184,8 +142,8 @@ describe('useNativeChatLiveSession visibility', () => {
     expect(latest?.status).toBe('working')
 
     const readsAfterHide = transport.readSession.mock.calls.length
-    staleLoadEarlier?.()
-    latest?.loadEarlier()
+    void staleLoadEarlier?.()
+    void latest?.loadEarlier()
     expect(transport.readSession).toHaveBeenCalledTimes(readsAfterHide)
 
     const rendersAfterHide = renders.mock.calls.length
@@ -349,7 +307,7 @@ describe('useNativeChatLiveSession visibility', () => {
     await render(BASE_ARGS)
     await emit(0, { type: 'snapshot', messages: initialMessages, hasMore: true })
     await act(async () => {
-      latest?.loadEarlier()
+      void latest?.loadEarlier()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -417,7 +375,9 @@ describe('useNativeChatLiveSession visibility', () => {
 
     await render(BASE_ARGS)
     await emit(0, { type: 'snapshot', messages: initialMessages, hasMore: true })
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
     expect(transport.readSession).toHaveBeenCalledTimes(2)
 
     await render({ ...BASE_ARGS, enabled: false })

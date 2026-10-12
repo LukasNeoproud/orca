@@ -4,6 +4,7 @@ import { supportsMobileQuickCommands } from '../terminal/quick-commands'
 import { MOBILE_AI_VAULT_CAPABILITY } from '../agent-history/agent-history-capability'
 import { BACKLOG_RUNTIME_CAPABILITY } from '../../../src/shared/backlog-types'
 import { TERMINAL_QUERY_REPLY_INPUT_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import { structuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
 import { runAcceptedMobileSessionTabsEffects } from './mobile-session-tabs-accepted-effects'
 import type { SessionTabsStreamSource } from './mobile-session-tabs-stream-health'
 import { useMobileSessionTabsFetchReporting } from './use-mobile-session-tabs-fetch-reporting'
@@ -34,6 +35,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
     setEmulatorStreamSupported,
     setAgentSessionHistorySupported,
     setBacklogSupported,
+    setAgentSessionHostSupport,
     setQuickCommandsSupported,
     nativeChatStream,
     fetchTerminals,
@@ -153,6 +155,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
       setEmulatorStreamSupported(null)
       setAgentSessionHistorySupported(null)
       setBacklogSupported(null)
+      setAgentSessionHostSupport(null)
       setQuickCommandsSupported(null)
       setShowQuickCommands(false)
       hostQueryReplyInputSupportedRef.current = false
@@ -164,6 +167,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
     setEmulatorStreamSupported(null)
     setAgentSessionHistorySupported(null)
     setBacklogSupported(null)
+    setAgentSessionHostSupport(null)
     setQuickCommandsSupported(null)
     setShowQuickCommands(false)
     hostQueryReplyInputSupportedRef.current = false
@@ -174,6 +178,7 @@ export function useMobileSessionTabReconciliation(scope: MobileSessionMarkdownAc
       setEmulatorStreamSupported(capabilities.includes('emulator.mobile-stream.v1'))
       setAgentSessionHistorySupported(capabilities.includes(MOBILE_AI_VAULT_CAPABILITY))
       setBacklogSupported(capabilities.includes(BACKLOG_RUNTIME_CAPABILITY))
+      setAgentSessionHostSupport(structuredAgentSessionHostSupport(capabilities))
       setQuickCommandsSupported(supportsMobileQuickCommands(capabilities))
       // Why: hosts without this capability strip inputKind from terminal.send,
       // so a forwarded xterm reply would become floor-stealing shell input.

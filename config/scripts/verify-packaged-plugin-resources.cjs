@@ -68,7 +68,6 @@ function readJsonFile(path, label) {
 }
 
 function verifyPackagedPluginResources(resourcesDir) {
-  verifyCodexContextPluginResources(resourcesDir)
   const launchRoot = join(resourcesDir, 'plugins', 'launch')
   if (!statSync(launchRoot).isDirectory()) {
     throw new Error(`[verify-packaged-plugin-resources] missing launch directory at ${launchRoot}`)
@@ -107,53 +106,6 @@ function verifyPackagedPluginResources(resourcesDir) {
   console.log(
     `[verify-packaged-plugin-resources] OK — verified ${index.plugins.length} bundled plugin(s)`
   )
-}
-
-function verifyCodexContextPluginResources(resourcesDir) {
-  const marketplaceRoot = join(resourcesDir, 'codex-plugins')
-  const marketplace = readJsonFile(
-    join(marketplaceRoot, '.agents', 'plugins', 'marketplace.json'),
-    'Codex plugin marketplace'
-  )
-  const entry = marketplace?.plugins?.find?.((plugin) => plugin?.name === 'orca-context-management')
-  if (
-    marketplace?.name !== 'orca-local' ||
-    entry?.source?.source !== 'local' ||
-    entry?.source?.path !== './plugins/orca-context-management' ||
-    entry?.policy?.installation !== 'AVAILABLE' ||
-    entry?.policy?.authentication !== 'ON_INSTALL' ||
-    entry?.category !== 'Productivity'
-  ) {
-    throw new Error('[verify-packaged-plugin-resources] Codex plugin marketplace is invalid')
-  }
-  const pluginRoot = join(marketplaceRoot, 'plugins', 'orca-context-management')
-  if (!statSync(pluginRoot).isDirectory()) {
-    throw new Error(`[verify-packaged-plugin-resources] missing Codex plugin at ${pluginRoot}`)
-  }
-  const manifest = readJsonFile(
-    join(pluginRoot, '.codex-plugin', 'plugin.json'),
-    'Codex plugin manifest'
-  )
-  if (manifest?.name !== 'orca-context-management' || manifest?.mcpServers !== './.mcp.json') {
-    throw new Error('[verify-packaged-plugin-resources] Codex context plugin manifest is invalid')
-  }
-  const server = readJsonFile(join(pluginRoot, '.mcp.json'), 'Codex context MCP config')
-    ?.mcpServers?.['orca-context-management']
-  const requiredEnv = [
-    'ORCA_AGENT_SESSION_ID',
-    'ORCA_AGENT_SESSION_SPAWN_TOKEN',
-    'ORCA_TERMINAL_HANDLE',
-    'ORCA_PANE_KEY',
-    'ORCA_USER_DATA_PATH'
-  ]
-  if (
-    server?.command !== 'orca' ||
-    JSON.stringify(server?.args) !== JSON.stringify(['agent-context', 'mcp']) ||
-    JSON.stringify(server?.env_vars) !== JSON.stringify(requiredEnv) ||
-    !statSync(join(pluginRoot, 'skills', 'orca-context-management', 'SKILL.md')).isFile()
-  ) {
-    throw new Error('[verify-packaged-plugin-resources] Codex context MCP config is invalid')
-  }
 }
 
 module.exports = { verifyPackagedPluginResources }

@@ -166,7 +166,7 @@ export function useMobileBacklog(hostId: string, worktreeId: string) {
   const refresh = useCallback(() => setRefreshKey((key) => key + 1), [])
   const retry = useCallback(() => {
     if (connState !== 'connected') {
-      void forceReconnect(hostId)
+      void forceReconnect?.(hostId)
     }
     refresh()
   }, [connState, forceReconnect, hostId, refresh])

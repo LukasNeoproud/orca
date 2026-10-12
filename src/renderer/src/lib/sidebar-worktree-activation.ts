@@ -18,17 +18,15 @@ export async function activateWorktreeFromSidebar(
   closeAzureDevOpsPullRequestPage()
   const workspaceScope = parseWorkspaceKey(worktreeId)
   if (workspaceScope?.type === 'folder') {
-    if (executionHostId) {
-      activateAndRevealFolderWorkspace(workspaceScope.folderWorkspaceId, {
-        executionHostId
-      })
-    } else {
-      activateAndRevealFolderWorkspace(workspaceScope.folderWorkspaceId)
-    }
+    activateAndRevealFolderWorkspace(workspaceScope.folderWorkspaceId, {
+      navigationIntent: 'user-open',
+      ...(executionHostId ? { executionHostId } : {})
+    })
     return
   }
   // Keep navigation independent from an optional runtime wake IPC.
   activateAndRevealWorktree(worktreeId, {
+    navigationIntent: 'user-open',
     revealInSidebar: false,
     ...(executionHostId ? { executionHostId } : {})
   })

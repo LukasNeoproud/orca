@@ -42,6 +42,7 @@ function createInput(
     startupPlan: null,
     quickPrompt: '',
     launchDraftPrompt: '',
+    promptDelivery: 'auto-submit',
     quickTelemetry: null,
     suppressTerminalFocusOnCompletion: false,
     ...overrides
@@ -104,6 +105,7 @@ describe('quick composer creation request', () => {
       note: '',
       startupPlan: null,
       quickPrompt: '',
+      promptDelivery: 'auto-submit',
       quickTelemetry: null
     })
     expect(request).not.toHaveProperty('baseBranch')
@@ -134,6 +136,7 @@ describe('quick composer creation request', () => {
         linkedGitLabMR: 9,
         linkedGitLabIssue: 8,
         launchDraftPrompt: 'draft',
+        promptDelivery: 'draft',
         suppressTerminalFocusOnCompletion: true
       })
     )
@@ -152,6 +155,7 @@ describe('quick composer creation request', () => {
       branchNameOverride: 'feature',
       parentWorktreeId: 'repo-1::/worktrees/parent',
       launchDraftPrompt: 'draft',
+      promptDelivery: 'draft',
       suppressTerminalFocusOnCompletion: true
     })
   })

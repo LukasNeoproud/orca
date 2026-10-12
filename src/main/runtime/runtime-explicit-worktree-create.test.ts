@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gitExecFileAsync } from '../git/runner'
 import { createRuntimeLocalManagedWorktree } from './runtime-local-worktree-create'
+import { createWorktreeCreateTimingRecorder } from '../worktree-create-timing'
 import { ignoreCreationLocally } from '../ipc/worktrees/create/ignore-creation-locally'
 import { previewWorktreeCreation } from '../ipc/worktrees/create/explicit-creation-preview'
 import type { Store } from '../persistence'
@@ -74,6 +75,8 @@ it.each([false, true])(
       )
     }
     const result = await createRuntimeLocalManagedWorktree({
+      rearm: { fire: () => {} },
+      timing: createWorktreeCreateTimingRecorder(),
       request: {
         repoSelector: 'repo',
         recoverCompletedCheckoutFailure,
@@ -100,7 +103,14 @@ it.each([false, true])(
     expect(result.worktree.displayNameMode).toBe('fixed')
     expect(metadata.get(result.worktree.id)?.pendingFirstAgentMessageRename).not.toBe(true)
     await gitExecFileAsync(['remote', 'add', 'foo', root], { cwd: root })
-    await gitExecFileAsync(['remote', 'add', 'foo/bar', root], { cwd: root })
+    // Newer Git refuses to add a nested remote name, but configs written earlier still carry one.
+    await gitExecFileAsync(['config', 'remote.foo/bar.url', root], { cwd: root })
+    await gitExecFileAsync(
+      ['config', 'remote.foo/bar.fetch', '+refs/heads/*:refs/remotes/foo/bar/*'],
+      {
+        cwd: root
+      }
+    )
     await gitExecFileAsync(
       ['config', 'remote.foo.fetch', '+refs/heads/master:refs/remotes/foo/master'],
       { cwd: root }
@@ -108,6 +118,8 @@ it.each([false, true])(
     await gitExecFileAsync(['update-ref', 'refs/remotes/foo/bar/topic', 'HEAD'], { cwd: root })
     await gitExecFileAsync(['config', 'branch.autoSetupMerge', 'false'], { cwd: root })
     const tracked = await createRuntimeLocalManagedWorktree({
+      rearm: { fire: () => {} },
+      timing: createWorktreeCreateTimingRecorder(),
       request: {
         repoSelector: 'repo',
         name: 'topic',

@@ -117,6 +117,9 @@ export function mobileContextualPreviewSignature(preview: MobileFilePreviewResul
   if (preview.status !== 'ready') {
     return null
   }
+  if (preview.kind === 'media') {
+    return `media:${preview.media.mimeType}:${preview.media.relativePath}`
+  }
   const content = preview.kind === 'image' ? preview.dataUri : preview.content
   let hash = 2166136261
   for (let index = 0; index < content.length; index += 1) {

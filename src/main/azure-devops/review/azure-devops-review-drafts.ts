@@ -106,7 +106,7 @@ function requireBody(body: string | undefined): string {
   return trimmed
 }
 
-function validateShape(
+function assertDraftAnchorFields(
   draft: Pick<AzureDevOpsReviewDraft, 'kind' | 'filePath' | 'anchor' | 'threadId'>
 ): void {
   if ((draft.kind === 'inline' || draft.kind === 'file') && !draft.filePath) {
@@ -163,7 +163,7 @@ export function buildAzureDevOpsReviewDraft(
     createdAt: context.now,
     updatedAt: context.now
   }
-  validateShape(draft)
+  assertDraftAnchorFields(draft)
   return draft
 }
 
@@ -198,7 +198,7 @@ export function applyAzureDevOpsReviewDraftPatch(
     publishError: null,
     updatedAt: context.now
   }
-  validateShape(next)
+  assertDraftAnchorFields(next)
   return next
 }
 

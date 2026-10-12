@@ -34,14 +34,13 @@ function historySession(overrides: Partial<AiVaultSession> = {}): AiVaultSession
 }
 
 describe('mobile Agent Session History open planning', () => {
-  it('reveals the existing tab after restart when the host reports a live structured owner', () => {
+  it('reveals the existing tab after restart when the host reports a structured owner', () => {
     expect(
       resolveMobileAgentHistoryOpenPlan(
         historySession({
           structuredSession: {
             sessionId: 'codex_structured_1',
-            workspaceId: 'workspace-1',
-            ownerState: 'live'
+            workspaceId: 'workspace-1'
           }
         }),
         [
@@ -51,28 +50,6 @@ describe('mobile Agent Session History open planning', () => {
       )
     ).toEqual({ kind: 'reveal', sessionId: 'codex_structured_1', worktreeId: 'workspace-1' })
   })
-
-  it.each([undefined, 'unverifiable' as const])(
-    'preserves an %s owner as unverifiable instead of launching a second writer',
-    (ownerState) => {
-      expect(
-        resolveMobileAgentHistoryOpenPlan(
-          historySession({
-            structuredSession: {
-              sessionId: 'codex_structured_1',
-              workspaceId: 'workspace-1',
-              ...(ownerState ? { ownerState } : {})
-            }
-          }),
-          [
-            STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY,
-            STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
-            STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY
-          ]
-        )
-      ).toMatchObject({ kind: 'blocked' })
-    }
-  )
 
   it('does not fall back to a terminal on a structured host too old for ownership-safe reveal', () => {
     expect(

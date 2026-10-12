@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
-import { useCallback, useState } from 'react'
+import { TerminalPaneFileDropOwner } from './TerminalPaneFileDropOwner'
+import { makePaneKey } from '../../../../shared/stable-pane-id'
 import TerminalSearch from '@/components/TerminalSearch'
 import { DaemonActionDialog } from '@/components/shared/useDaemonActions'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
@@ -8,6 +9,7 @@ import CloseTerminalDialog from './CloseTerminalDialog'
 import TerminalContextMenu from './TerminalContextMenu'
 import TerminalPaneHeaderOverlay from './TerminalPaneHeaderOverlay'
 import { isPaneOwnerUnverifiedError, TerminalErrorToast } from './TerminalErrorToast'
+import { AgentLaunchPaneNoticePortal } from './AgentLaunchPaneNotice'
 import { requestTerminalPaneRecovery } from './terminal-pane-recovery'
 import { TerminalSessionStateSaveFailureDialog } from './TerminalSessionStateSaveFailureDialog'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
@@ -16,9 +18,8 @@ import { SessionRestoredBannerPortals } from './SessionRestoredBannerPortals'
 import { handleInternalTerminalFileDrop } from './terminal-drop-handler'
 import { TerminalQuickCommandEditorDialog } from './TerminalQuickCommandEditorDialog'
 import { TerminalPaneNativeChatPortal } from './TerminalPaneNativeChatPortal'
-import { TerminalResponseComment } from './TerminalResponseComment'
+import { TerminalResponseComments } from './TerminalResponseComment'
 import {
-  TerminalPaneCodexConversationContinuationPortals,
   TerminalPaneCodexRestartPortals,
   TerminalPaneMobileDriverPortals,
   TerminalPaneProcessExitPortals,
@@ -26,6 +27,9 @@ import {
   TerminalPaneSshReconnectPortals
 } from './TerminalPaneRuntimePortals'
 import type { TerminalPaneController } from './use-terminal-pane-controller'
+import { useAppStore } from '@/store'
+import { getKnownExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 
 export function TerminalPaneSurface({
   controller
@@ -57,9 +61,7 @@ export function TerminalPaneSurface({
     handleContextMenuToggleNativeChat,
     handlePrimarySelectionAuxClick,
     handlePrimarySelectionMiddleMouseDown,
-    handleTerminalLinkPopoverPointerEnter,
-    handleTerminalLinkPopoverPointerLeave,
-    handleTerminalLinkPopoverPin,
+    terminalLinkPopoverHandlers,
     handleRemoveTitle,
     handleRenameBlur,
     handleRenameCancel,
@@ -69,6 +71,7 @@ export function TerminalPaneSurface({
     handleToggleNativeChat,
     hiddenStartupStyle,
     isActive,
+    isTabPinned,
     keybindings,
     managedPanes,
     managerRef,
@@ -95,15 +98,16 @@ export function TerminalPaneSurface({
     saveQuickCommand,
     searchOpen,
     searchStateRef,
+    searchInputRef,
     sessionRestoredBannerPaneIds,
-    sessionStateSaveFailureOpen,
+    sessionStateSaveFailureMessage,
     setAgentSessionContinuation,
     setAgentSessionFork,
     setContainerRef,
     setQuickCommandEditorOpen,
     setRenameValue,
     setSearchOpen,
-    setSessionStateSaveFailureOpen,
+    setSessionStateSaveFailureMessage,
     showSplitButton,
     showSshReconnectOverlay,
     splitTerminalPaneFromHeader,
@@ -113,32 +117,20 @@ export function TerminalPaneSurface({
     terminalLinkActionRequest,
     titleUsesLightSurface,
     visibleQuickCommandHosts,
+    visibleLaunchRefusal,
     visibleTerminalError,
     worktreeId
   } = controller
-  const [continuationHeightsByPaneId, setContinuationHeightsByPaneId] = useState<
-    Readonly<Record<number, number>>
-  >({})
-  const onContinuationHeightChange = useCallback((paneId: number, height: number) => {
-    setContinuationHeightsByPaneId((current) => {
-      if ((current[paneId] ?? 0) === height) {
-        return current
-      }
-      const next = { ...current }
-      if (height > 0) {
-        next[paneId] = height
-      } else {
-        delete next[paneId]
-      }
-      return next
-    })
-  }, [])
+  // Why: an SSH, runtime, or not-yet-known host must not be described with this client's OS/shell.
+  const paneOnClient = useAppStore(
+    (state) => getKnownExecutionHostIdForWorktree(state, worktreeId) === LOCAL_EXECUTION_HOST_ID
+  )
+
   return (
     <>
       <div
         ref={setContainerRef}
         className="absolute inset-0 min-h-0 min-w-0"
-        data-native-file-drop-target="terminal"
         data-terminal-tab-id={tabId}
         data-terminal-chat-view={effectiveChatViewMode && activePaneIsChatLeaf ? 'true' : undefined}
         data-terminal-layout-leaf-ids={expectedLayoutLeafIdsAttr}
@@ -180,10 +172,23 @@ export function TerminalPaneSurface({
           })
         }}
       />
+      {managedPanes.map((pane) => (
+        <TerminalPaneFileDropOwner
+          key={makePaneKey(tabId, pane.leafId)}
+          pane={pane}
+          tabId={tabId}
+          worktreeId={worktreeId}
+          cwd={cwd}
+          managerRef={managerRef}
+          paneTransportsRef={paneTransportsRef}
+        />
+      ))}
       <TerminalPaneCodexRestartPortals controller={controller} />
-      <TerminalPaneCodexConversationContinuationPortals
-        controller={controller}
-        onHeightChange={onContinuationHeightChange}
+      <AgentLaunchPaneNoticePortal
+        refusal={visibleLaunchRefusal}
+        isActive={isActive}
+        pane={activePane}
+        tabId={tabId}
       />
       {/* Why: the reconnect banner already owns SSH recovery UX; the z-50 error
           toast was painting over it (same bottom strip) with the raw ssh:connect failure. */}
@@ -191,6 +196,7 @@ export function TerminalPaneSurface({
         ? createPortal(
             <TerminalErrorToast
               error={visibleTerminalError}
+              paneOnClient={paneOnClient}
               onDismiss={dismissTerminalError}
               onRestartDaemon={() => daemonActions.setPending('restart')}
               onRetry={
@@ -202,7 +208,10 @@ export function TerminalPaneSurface({
                       return requestTerminalPaneRecovery({
                         tabId,
                         ptyId,
-                        reason: 'reattach-unverifiable'
+                        reason: 'reattach-unverifiable',
+                        // The user asking again is the new trigger that reopens
+                        // a reason an observed failure has closed.
+                        trigger: 'user'
                       }).then((recovered) => {
                         if (recovered) {
                           dismissTerminalError()
@@ -222,8 +231,9 @@ export function TerminalPaneSurface({
       <DaemonActionDialog api={daemonActions} />
       {isActive && (
         <TerminalSessionStateSaveFailureDialog
-          open={sessionStateSaveFailureOpen}
-          onDismiss={() => setSessionStateSaveFailureOpen(false)}
+          open={sessionStateSaveFailureMessage !== null}
+          failureMessage={sessionStateSaveFailureMessage ?? ''}
+          onDismiss={() => setSessionStateSaveFailureMessage(null)}
           onOpenSpaceAnalyzer={openDiskSpaceAnalyzer}
         />
       )}
@@ -234,6 +244,7 @@ export function TerminalPaneSurface({
             onClose={() => setSearchOpen(false)}
             searchAddon={activePane.searchAddon ?? null}
             searchStateRef={searchStateRef}
+            inputRef={searchInputRef}
           />,
           activePane.container
         )}
@@ -242,25 +253,20 @@ export function TerminalPaneSurface({
         paneIds={sessionRestoredBannerPaneIds}
       />
       <TerminalPaneNativeChatPortal controller={controller} />
-      {isActive &&
-        controller.isVisible &&
-        !contextMenu.open &&
-        managedPanes.map((pane) =>
-          effectiveChatViewMode && controller.chatLeafId === pane.leafId ? null : (
-            <TerminalResponseComment
-              key={pane.leafId}
-              pane={pane}
-              context={{
-                managerRef,
-                paneTransportsRef,
-                tabId,
-                worktreeId,
-                forceBracketedMultilineTextPaste: controller.forceBracketedMultilineTextPaste,
-                onPasteError: controller.setTerminalError
-              }}
-            />
-          )
-        )}
+      {isActive && controller.isVisible && !contextMenu.open ? (
+        <TerminalResponseComments
+          panes={managedPanes}
+          hiddenLeafId={effectiveChatViewMode ? controller.chatLeafId : null}
+          context={{
+            managerRef,
+            paneTransportsRef,
+            tabId,
+            worktreeId,
+            forceBracketedMultilineTextPaste: controller.forceBracketedMultilineTextPaste,
+            onPasteError: controller.setTerminalError
+          }}
+        />
+      ) : null}
       <TerminalContextMenu
         filePath={contextMenu.filePath}
         open={contextMenu.open}
@@ -282,6 +288,7 @@ export function TerminalPaneSurface({
         onEqualizePaneSizes={contextMenu.onEqualizePaneSizes}
         onClosePane={contextMenu.onClosePane}
         onClearScreen={contextMenu.onClearScreen}
+        onResetTerminal={contextMenu.onResetTerminal}
         canContinueAgentSessionInNewSession={contextMenuCanContinueInNewSession}
         onContinueAgentSessionInNewSession={contextMenu.onContinueAgentSessionInNewSession}
         onForkAgentSession={() => void contextMenu.onForkAgentSession()}
@@ -311,9 +318,7 @@ export function TerminalPaneSurface({
       <LinkActionPopover
         request={terminalLinkActionRequest}
         onClose={closeTerminalLinkActions}
-        onPointerEnter={handleTerminalLinkPopoverPointerEnter}
-        onPointerLeave={handleTerminalLinkPopoverPointerLeave}
-        onPin={handleTerminalLinkPopoverPin}
+        {...terminalLinkPopoverHandlers}
       />
       {quickCommandEditorOpen ? (
         <TerminalQuickCommandEditorDialog
@@ -349,12 +354,12 @@ export function TerminalPaneSurface({
         cwd={cwd ?? ''}
         showAlwaysOnHeaders={isActive && terminalContentVisible}
         showSplitButton={showSplitButton}
+        isTabPinned={isTabPinned}
         paneCount={paneCount}
         activePaneId={activePane?.id}
         panes={managedPanes}
         paneTitles={paneTitles}
         paneTitleOverlayRects={paneTitleOverlayRects}
-        continuationHeightsByPaneId={continuationHeightsByPaneId}
         renamingPaneId={renamingPaneId}
         renameValue={renameValue}
         renameInputRef={renameInputRef}

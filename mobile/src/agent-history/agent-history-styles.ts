@@ -152,26 +152,12 @@ export const styles = StyleSheet.create({
     fontSize: typography.metaSize,
     fontWeight: '600'
   },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 'auto',
-    gap: spacing.xs
-  },
   resumeButton: {
     minHeight: 28,
     minWidth: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.button
-  },
-  branchButton: {
-    minHeight: 28,
-    minWidth: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginLeft: 'auto',
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
     borderRadius: radii.button

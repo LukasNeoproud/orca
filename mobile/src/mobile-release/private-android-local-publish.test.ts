@@ -463,6 +463,8 @@ describe('local private Android publishing contract', () => {
     )
     vi.resetModules()
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    // Worker-thread pools refuse to set the umask.
+    const umask = vi.spyOn(process, 'umask').mockReturnValue(0o022)
     try {
       const { runLocalPrivateAndroidPublish } =
         await import('../../scripts/publish-private-android-local.mjs')
@@ -477,6 +479,7 @@ describe('local private Android publishing contract', () => {
       expect(writeVersion).toHaveBeenCalledWith(expect.any(String), 1_000_004)
     } finally {
       consoleLog.mockRestore()
+      umask.mockRestore()
       vi.doUnmock('../../scripts/private-android-local-publish-build.mjs')
       vi.doUnmock('../../scripts/private-android-local-publish-runtime.mjs')
       vi.resetModules()

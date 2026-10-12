@@ -11,8 +11,7 @@ import { resolveTerminalHttpLinkSourceOwner } from './terminal-http-link-source-
 import { getTerminalBufferPositionForMouseEvent } from './terminal-mouse-buffer-position'
 import { findFilePathLinkAtBufferPosition } from './terminal-file-link-hit-testing'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
-
-const CLOSE_ALL_CONTEXT_MENUS_EVENT = 'orca-close-all-context-menus'
+import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 
 type UseTerminalContextMenuTriggerDeps = {
   managerRef: React.RefObject<PaneManager | null>

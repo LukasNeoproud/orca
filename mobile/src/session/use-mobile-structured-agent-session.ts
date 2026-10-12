@@ -1,68 +1,44 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { dispatchMobileStructuredCommand } from './mobile-structured-composer-command'
-import type {
-  AgentSessionBackgroundTaskState,
-  AgentSessionSendResult
-} from '../../../src/shared/agent-session-wire'
-import {
-  structuredAgentSessionSendBody,
-  type StructuredAgentSessionAttachment
-} from '../../../src/shared/structured-agent-session-outbox'
+import { useCallback, useMemo, useRef } from 'react'
 import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
-import type { MobileNativeChatSendOutcome } from './mobile-native-chat-send'
-import { activeStructuredAgentSessionTurnId } from '../../../src/shared/structured-agent-session-projection'
+import { projectStructuredAgentSessionMessages } from '../../../src/shared/structured-agent-session-message-projection'
+import { withNativeChatCutTurnNotices } from '../../../src/shared/native-chat-cut-turn-notice'
+import { tuiAgentDisplayName } from '../../../src/shared/tui-agent-display-names'
+import { isStructuredAgentSessionMainAgentWorking } from '../../../src/shared/structured-agent-session-main-agent-working'
+import { isFinalAgentSessionReadRefusal } from '../../../src/shared/structured-agent-session-read-refusal'
+import {
+  isStructuredAgentSessionThinking,
+  runningStructuredAgentSessionTurnId
+} from '../../../src/shared/structured-agent-session-live-turn'
+import { selectStructuredAgentTurnActivity } from '../../../src/shared/native-chat-turn-activity'
 import {
   pendingStructuredApproval,
   pendingStructuredQuestion,
   projectStructuredPermission,
   projectStructuredQuestion
 } from './mobile-structured-agent-prompts'
-import {
-  requestStructuredAgentSessionMutation,
-  retainStructuredSessionOperationId as retainStructuredOpId,
-  timeoutForDeadline
-} from './mobile-structured-agent-session-rpc'
+import type { StructuredMobileSession } from './mobile-structured-agent-session-contract'
+import type { MobileNativeChatVisualSource } from './mobile-native-chat-visual-read'
 import type { RpcClient } from '../transport/rpc-client'
-import type { MobileChatPermission } from './mobile-native-chat-permission'
-import type { MobileChatQuestion } from './mobile-native-chat-question'
-import type { MobileNativeChatSession } from './use-mobile-native-chat-session'
 import { useMobileStructuredAgentState } from './use-mobile-structured-agent-state'
+import { useMobileStructuredStopPress } from './use-mobile-structured-stop-press'
+import { useMobileStructuredSessionHostStopping } from './use-mobile-structured-session-host-stopping'
 import { useMobileStructuredPromptResponses } from './use-mobile-structured-prompt-responses'
+import type { StructuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
 import { useMobileStructuredAgentOptions } from './use-mobile-structured-agent-options'
-import { useMobileConversationBranchSource } from './use-mobile-conversation-branch-source'
-import { useMobileStructuredSessionStops } from './use-mobile-structured-session-stops'
-import { useMobileStructuredTopicIndex } from './use-mobile-structured-topic-index'
-import { useMobileStructuredSessionHandoff } from './use-mobile-structured-session-handoff'
-import { useMobileStructuredSessionMutation } from './use-mobile-structured-session-mutation'
-import { useMobileStructuredSendRetry } from './use-mobile-structured-send-retry'
-
-type StructuredMobileAttachment = StructuredAgentSessionAttachment & { id?: string }
-
-type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgentOptions> & {
-  session: MobileNativeChatSession
-  epoch: string | null
-  branchableMessageIds: ReadonlySet<string>
-  isWorking: boolean
-  turnId: string | null
-  backgroundTasks: AgentSessionBackgroundTaskState | null
-  topicIndex: ReturnType<typeof useMobileStructuredTopicIndex>
-  journalItems: ReturnType<typeof useMobileStructuredAgentState>['state']['items']
-  handoff: ReturnType<typeof useMobileStructuredSessionHandoff>
-  sendRetry: ReturnType<typeof useMobileStructuredSendRetry>
-  canStopBackgroundTasks: boolean
-  stopBackgroundTask: (taskId?: string) => Promise<boolean>
-  sendWithOutcome: (
-    text: string,
-    images?: string[],
-    deadline?: number,
-    attachments?: readonly StructuredMobileAttachment[]
-  ) => Promise<MobileNativeChatSendOutcome>
-  cancel: () => void
-  permission: MobileChatPermission | null
-  question: MobileChatQuestion | null
-  respondPermission: (optionId: string) => Promise<boolean>
-  respondQuestion: (answer: string) => Promise<boolean>
-}
+import { useMobileStructuredAgentTurnTiming } from './use-mobile-structured-agent-turn-timing'
+import {
+  pendingStructuredPromptIdentity,
+  requestMobileStructuredAgentSessionCancel
+} from './mobile-structured-agent-session-cancel'
+import { useMobileStructuredAgentMutate } from './use-mobile-structured-agent-mutation'
+import { agentStopDisplayStatus } from '../../../src/shared/agent-stop-display-status'
+import {
+  mobileStructuredSendQueues,
+  useMobileStructuredSendWithOutcome
+} from './use-mobile-structured-send-with-outcome'
+import type { MobileNativeChatSendErrorReporter } from './use-mobile-native-chat-send-error'
+import { useMobileStructuredQueuedMessageControls } from './use-mobile-structured-queued-message-controls'
+import { useMobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
 
 export function useMobileStructuredAgentSession(args: {
   client: RpcClient | null
@@ -70,50 +46,52 @@ export function useMobileStructuredAgentSession(args: {
   /** Host/workspace scope used to keep same provider ids isolated. */
   sourceIdentity?: string
   enabled: boolean
-  /** Live transport only; gates the connection-scoped hold, nothing else. */
+  /** Live transport only; gates the connection-scoped hold, and whether child rows may read live. */
   connected: boolean
+  /** Capability facts from the shared runtime status probe; null follows the legacy wire. */
+  hostSupport: StructuredAgentSessionHostSupport | null
   agent: string | null
-  onSendError: (message: string) => void
+  /** The active pane's live composer; Edit copies a card's text through it. */
+  appendComposerText?: (text: string) => boolean
+  onSendError: MobileNativeChatSendErrorReporter
+  /** Called on any accepted queued-card action; retires the route's failure banner. */
+  onActionResolved?: () => void
 }): StructuredMobileSession {
-  const { agent, client, connected, sessionId, sourceIdentity = '', enabled, onSendError } = args
+  const {
+    agent,
+    appendComposerText,
+    client,
+    connected,
+    sessionId,
+    sourceIdentity = '',
+    enabled,
+    onActionResolved,
+    onSendError,
+    hostSupport
+  } = args
+  // Only a host that queues sends gets the delivery field; any host's published cards show.
+  const queueCapable = hostSupport?.queuedMessages === true
+  // A /compact waits in line only where its card renders.
+  const commandsWait = queueCapable && hostSupport?.queuedCommands === true
+  const promptCancelSupported = hostSupport?.promptCancel ?? null
+  const hostAnswersRepeatedStops = hostSupport?.quietRepeatedStop ?? null
   const sessionKey = encodeNativeChatTranscriptIdentity([sourceIdentity, agent, sessionId])
-  const operationIdsRef = useRef(new Map<string, string>())
   const commandPendingRef = useRef(false)
-  useEffect(() => () => operationIdsRef.current.clear(), [])
-  const retainOperationId = (key: string, operationId?: string): string =>
-    retainStructuredOpId(operationIdsRef.current, key, operationId)
+  // Against a host that predates the quiet repeated Stop, a Stop of a turn still being stopped joins it.
+  const inFlightStopsRef = useRef(new Map<string, Promise<boolean>>())
   const stateArgs = { client, sessionId, sessionKey, enabled, connected }
-  const { state, stateRef, loadingOlder, loadEarlier } = useMobileStructuredAgentState(stateArgs)
-  const handoff = useMobileStructuredSessionHandoff({ ...stateArgs, state, stateRef })
-  const topicIndex = useMobileStructuredTopicIndex({
-    ...stateArgs,
-    sourceIdentity,
-    epoch: state.epoch,
-    items: state.items
-  })
-  const sendRetry = useMobileStructuredSendRetry({
-    ...stateArgs,
-    ready: state.status === 'ready' && state.fence !== null,
-    submissions: state.submissions
-  })
+  const { state, stateRef, queuedMessages, queuePause, loadingOlder, loadEarlier } =
+    useMobileStructuredAgentState(stateArgs)
 
-  const mutate = useMobileStructuredSessionMutation({
-    ...stateArgs,
+  const mutate = useMobileStructuredAgentMutate({
+    client,
+    sessionId,
+    enabled,
     stateRef,
-    operationIds: operationIdsRef,
     onSendError
   })
 
-  const {
-    codexUsage,
-    conversationCommands,
-    optionPickerRequest,
-    invokeStructuredOption,
-    optionSnapshot,
-    optionSurface,
-    pendingOptionId,
-    setStructuredOption
-  } = useMobileStructuredAgentOptions({
+  const options = useMobileStructuredAgentOptions({
     agent,
     client,
     sessionId,
@@ -121,137 +99,101 @@ export function useMobileStructuredAgentSession(args: {
     fence: state.fence,
     mutate
   })
-
-  const sendWithOutcome = useCallback(
-    async (
-      text: string,
-      images?: string[],
-      deadline?: number,
-      attachments?: readonly StructuredMobileAttachment[]
-    ): Promise<MobileNativeChatSendOutcome> => {
-      const currentFence = stateRef.current.fence
-      if (!client || !sessionId || !enabled || currentFence === null) {
-        onSendError('Message not sent (disconnected)')
-        return 'rejected'
-      }
-      if (!handoff.canSend) {
-        onSendError('Message not sent while the session owner is changing or open in terminal.')
-        return 'rejected'
-      }
-      const timeoutMs = timeoutForDeadline(deadline)
-      if (timeoutMs === null) {
-        onSendError('Message not sent')
-        return 'rejected'
-      }
-      if (attachments === undefined && images !== undefined && images.length > 0) {
-        onSendError('Message not sent')
-        return 'rejected'
-      }
-      const sendAttachments = attachments ?? []
-      const commandOutcome = await dispatchMobileStructuredCommand({
-        text,
-        hasAttachments: Boolean(sendAttachments.length || images?.length),
-        client,
-        sessionId,
-        fence: currentFence,
-        sessionKey,
-        pending: commandPendingRef,
-        operationIds: operationIdsRef.current,
-        controller: {
-          agent: agent === 'claude' ? 'claude' : 'codex',
-          snapshot: optionSnapshot,
-          setOption: setStructuredOption,
-          invokeAction: invokeStructuredOption,
-          conversationCommands
-        },
-        canRun: () =>
-          !activeStructuredAgentSessionTurnId(stateRef.current.items) &&
-          !stateRef.current.items.some(
-            (item) => pendingStructuredApproval(item) || pendingStructuredQuestion(item)
-          ),
-        onError: onSendError,
-        timeoutMs
-      })
-      if (commandOutcome !== null) {
-        return commandOutcome
-      }
-      const body = structuredAgentSessionSendBody(text, sendAttachments)
-      if (body.blocks.length === 0) {
-        return 'rejected'
-      }
-      const fields = { body }
-      const key = `${sessionKey}:agentSession.send:${JSON.stringify(fields)}`
-      const priorOperationId = operationIdsRef.current.get(key)
-      const clientOperationId = retainOperationId(key, priorOperationId)
-      const result = await requestStructuredAgentSessionMutation<AgentSessionSendResult>({
-        client,
-        method: 'agentSession.send',
-        fingerprintMethod: 'agentSession.send',
-        sessionId,
-        expectedRuntimeFence: currentFence,
-        fields,
-        clientOperationId,
-        ...(priorOperationId ? { retryUnknown: true } : {}),
-        timeoutMs
-      })
-      if (result.status === 'accepted') {
-        operationIdsRef.current.delete(key)
-        await sendRetry.clear(clientOperationId)
-        return 'accepted'
-      }
-      if (result.status === 'unknown') {
-        await sendRetry.rememberUnknown({
-          sessionKey,
-          sessionId,
-          operationId: clientOperationId,
-          fence: currentFence,
-          body
-        })
-        return 'unknown'
-      }
-      operationIdsRef.current.delete(key)
-      onSendError(result.message === 'Request not sent' ? 'Message not sent' : result.message)
-      return 'rejected'
-    },
-    [
-      agent,
-      client,
-      conversationCommands,
-      enabled,
-      handoff.canSend,
-      invokeStructuredOption,
-      onSendError,
-      optionSnapshot,
-      sessionId,
-      sessionKey,
-      sendRetry.clear,
-      sendRetry.rememberUnknown,
-      setStructuredOption
-    ]
+  const { conversationCommands, invokeStructuredOption, optionSnapshot, setStructuredOption } =
+    options
+  // Stable across renders, or the send callback is rebuilt on every streamed frame.
+  const sendController = useMemo(
+    () => ({
+      snapshot: optionSnapshot,
+      setOption: setStructuredOption,
+      invokeAction: invokeStructuredOption,
+      conversationCommands
+    }),
+    [conversationCommands, invokeStructuredOption, optionSnapshot, setStructuredOption]
   )
 
+  const sendWithOutcome = useMobileStructuredSendWithOutcome({
+    agent,
+    client,
+    sessionId,
+    enabled,
+    queueCapable,
+    commandsWait,
+    stateRef,
+    commandPending: commandPendingRef,
+    controller: sendController,
+    onSendError
+  })
   const { groupedDraft, respondPermission, respondQuestion } = useMobileStructuredPromptResponses({
     stateRef,
     sessionKey,
     mutate,
+    questionAnswersSupported: hostSupport?.questionAnswers ?? null,
     onSendError
   })
 
-  const { cancel, stopBackgroundTask } = useMobileStructuredSessionStops({
-    client,
-    connected,
-    enabled,
-    sessionId,
+  // What the transcript reads, as desktop does: the journal plus the one notice a cut turn with no
+  // row gets.
+  const transcriptItems = useMemo(
+    () =>
+      withNativeChatCutTurnNotices(state.items, {
+        agentName: agent ? (tuiAgentDisplayName(agent) ?? agent) : undefined
+      }),
+    [agent, state.items]
+  )
+  const messages = useMemo(
+    // Off: the phone hands a rejected message back to its composer, so a row would show it twice.
+    () =>
+      projectStructuredAgentSessionMessages(transcriptItems, [], state.submissions, {
+        rejectedInPlace: false
+      }),
+    [transcriptItems, state.submissions]
+  )
+  const turnId = runningStructuredAgentSessionTurnId(state)
+  const turnTiming = useMobileStructuredAgentTurnTiming(
+    { ...state, items: transcriptItems },
+    turnId
+  )
+  const activityText =
+    selectStructuredAgentTurnActivity(state.items, turnId, state.activity)?.text ?? null
+  const thinking = isStructuredAgentSessionThinking(state)
+  const isWorking = isStructuredAgentSessionMainAgentWorking(turnId, state.submissions, state.fence)
+  const backgroundTasks = useMobileStructuredBackgroundTasks({
     sessionKey,
-    stateRef,
-    operationIds: operationIdsRef.current,
-    mutate,
-    onSendError
+    state,
+    turnId,
+    connected,
+    mutate
   })
-
-  const { messages, branchableMessageIds } = useMobileConversationBranchSource(
-    state.items,
-    state.submissions
+  const hostStopping = useMobileStructuredSessionHostStopping({
+    client,
+    sessionId,
+    enabled: enabled && connected && hostSupport?.statusFeed === true
+  })
+  // The host's word, bridged by this phone's own press until its Stop event lands.
+  const stopPress = useMobileStructuredStopPress(sessionKey)
+  const stopping =
+    agentStopDisplayStatus({
+      working: isWorking,
+      hostStopping,
+      stopPressed: stopPress.pressed
+    }) === 'stopping'
+  const stopRequestInFlight = isWorking && stopPress.pressed
+  const turnIndicator = useMemo(
+    () => ({
+      thinking,
+      activityText,
+      stopping,
+      stopRequestInFlight,
+      ...(stopping
+        ? {
+            afterStop: mobileStructuredSendQueues(queueCapable, state.items)
+              ? ('queue' as const)
+              : ('send' as const)
+          }
+        : {})
+    }),
+    [thinking, activityText, stopping, stopRequestInFlight, queueCapable, state.items]
   )
   const status = state.status === 'idle' ? 'idle' : state.status
   const approvalPrompt = useMemo(
@@ -262,41 +204,87 @@ export function useMobileStructuredAgentSession(args: {
     () => state.items.find(pendingStructuredQuestion) ?? null,
     [state.items]
   )
+  // What a refused command's line on the phone stands on.
+  const commandRefusalCauses = useMemo(
+    () => ({
+      working: turnId !== null,
+      prompt: approvalPrompt !== null || questionPrompt !== null
+    }),
+    [approvalPrompt, questionPrompt, turnId]
+  )
+  const queued = useMobileStructuredQueuedMessageControls({
+    sessionKey,
+    agentName: agent ? (tuiAgentDisplayName(agent) ?? agent) : undefined,
+    journalItems: state.items,
+    queuedMessages,
+    queuePause,
+    submissions: state.submissions,
+    agentWorking: isStructuredAgentSessionMainAgentWorking(turnId, state.submissions, state.fence),
+    mutate,
+    appendComposerText,
+    onSendError,
+    ...(onActionResolved ? { onActionResolved } : {})
+  })
+  // Stop never touches the queue: held cards stay on the host, visible on every
+  // device, and resume only from the user's own next action.
+  const requestCancel = useCallback(
+    (prompt?: { itemId: string; expectedRevision: number }): Promise<boolean> =>
+      requestMobileStructuredAgentSessionCancel({
+        client,
+        enabled,
+        hostAnswersRepeatedStops,
+        inFlight: inFlightStopsRef.current,
+        onSendError,
+        prompt,
+        promptCancelSupported,
+        sessionId,
+        stateRef
+      }),
+    [
+      client,
+      enabled,
+      hostAnswersRepeatedStops,
+      onSendError,
+      promptCancelSupported,
+      sessionId,
+      stateRef
+    ]
+  )
+
+  const visualSource = useMemo<MobileNativeChatVisualSource | null>(
+    () => (client && sessionId ? { client, sessionId } : null),
+    [client, sessionId]
+  )
 
   return {
-    codexUsage,
-    conversationCommands,
-    optionPickerRequest,
+    ...options,
+    visualSource,
     session: {
       messages,
       status,
       transcriptLoading: status === 'loading',
       error: state.error,
+      readFailedFinally: status === 'error' && isFinalAgentSessionReadRefusal(state.readRefusal),
       hasMore: state.hasOlder,
       loadingEarlier: loadingOlder,
       loadEarlier
     },
-    epoch: state.epoch,
-    branchableMessageIds,
-    isWorking: activeStructuredAgentSessionTurnId(state.items) !== null,
-    turnId: activeStructuredAgentSessionTurnId(state.items),
-    backgroundTasks: state.backgroundTasks?.state === 'monitoring' ? state.backgroundTasks : null,
-    topicIndex,
-    journalItems: state.items,
-    handoff,
-    sendRetry,
-    canStopBackgroundTasks: connected && state.fence !== null,
-    stopBackgroundTask,
+    isWorking,
+    turnId,
+    turnIndicator,
+    ...turnTiming,
     sendWithOutcome,
-    cancel,
+    cancel: () => {
+      void stopPress.track(() => requestCancel())
+    },
+    cancelPrompt: (prompt?: { itemId: string; expectedRevision: number }) =>
+      requestCancel(prompt ?? pendingStructuredPromptIdentity(stateRef.current.items)),
     permission: projectStructuredPermission(approvalPrompt),
     question: projectStructuredQuestion(questionPrompt, groupedDraft),
-    optionSnapshot,
-    optionSurface,
-    pendingOptionId,
     respondPermission,
     respondQuestion,
-    setStructuredOption,
-    invokeStructuredOption
+    queued,
+    commandRefusalCauses,
+    backgroundTasks
   }
 }

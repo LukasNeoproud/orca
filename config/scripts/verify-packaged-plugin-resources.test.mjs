@@ -16,11 +16,6 @@ describe('verify packaged plugin resources', () => {
         join(resourcesDir, 'plugins', 'launch'),
         { recursive: true }
       )
-      await cp(
-        join(process.cwd(), 'resources', 'codex-plugins'),
-        join(resourcesDir, 'codex-plugins'),
-        { recursive: true }
-      )
 
       expect(() => verifyPackagedPluginResources(resourcesDir)).not.toThrow()
     } finally {
@@ -35,11 +30,6 @@ describe('verify packaged plugin resources', () => {
       await cp(join(process.cwd(), 'resources', 'plugins', 'launch'), launchRoot, {
         recursive: true
       })
-      await cp(
-        join(process.cwd(), 'resources', 'codex-plugins'),
-        join(resourcesDir, 'codex-plugins'),
-        { recursive: true }
-      )
       await writeFile(
         join(launchRoot, 'stablyai.orca-navigation-shortcuts', 'extra.json'),
         '{"mutated":true}\n'
@@ -53,13 +43,6 @@ describe('verify packaged plugin resources', () => {
     }
   })
 
-  // The tree is hashed by raw bytes, so a CRLF checkout on Windows breaks the
-  // pinned hash. These two guard the `.gitattributes` eol=lf pin that prevents it.
-  it('pins the launch tree to LF so Windows checkouts hash identically', async () => {
-    const attributes = await readFile(join(process.cwd(), '.gitattributes'), 'utf8')
-    expect(attributes).toContain('/resources/plugins/** text eol=lf')
-  })
-
   it('rejects a CRLF checkout of the launch tree', async () => {
     const resourcesDir = await mkdtemp(join(tmpdir(), 'orca-packaged-plugins-'))
     try {
@@ -67,11 +50,6 @@ describe('verify packaged plugin resources', () => {
       await cp(join(process.cwd(), 'resources', 'plugins', 'launch'), launchRoot, {
         recursive: true
       })
-      await cp(
-        join(process.cwd(), 'resources', 'codex-plugins'),
-        join(resourcesDir, 'codex-plugins'),
-        { recursive: true }
-      )
       for (const entry of await readdir(launchRoot, { recursive: true })) {
         const path = join(launchRoot, entry)
         if (!(await stat(path)).isFile()) {

@@ -1,4 +1,4 @@
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import {
   HOST_SYSTEM_ERROR_CODES,
   type HostPowerMode,
@@ -41,6 +41,7 @@ export function parsePmsetPowerMode(stdout: string): HostPowerMode | null {
       return 'low-power'
     case '2':
       return 'high-power'
+    case undefined:
     default:
       return null
   }

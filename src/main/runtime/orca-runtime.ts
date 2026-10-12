@@ -1,22 +1,35 @@
 import { installRuntimeLinearCommandSurface } from './runtime-linear-command-surface'
-import { OrcaRuntimeWithResolveWaiter } from './orca-runtime-resolve-waiter'
+import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
 import type { RuntimeCommandSurfaceHost } from './orca-runtime-core'
-import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import type {
+  AgentLaunchTabPublished,
+  AgentLaunchTabPublishRequest
+} from '../../shared/agent-launch-tab-publication'
+import type {
+  AgentLaunchPaneAddress,
+  AgentLaunchPaneVerdict
+} from '../../shared/agent-launch-pane-verdict'
+import { registerWorktreeChangeInvalidator } from '../ipc/worktree-change-invalidators'
+import type { AgentSessionRecordStore } from './agent-session-record-store'
+import { peekOpenedAgentSessionRecordStore } from './agent-session-record-store-slot'
+import { createAgentLaunchRecordWarmupGate } from './agent-launch-record-warmup-gate'
+import { WorkspaceLayoutStream } from './workspace-layout-stream'
 import {
-  resolveStructuredAgentSessionAdoptionForCreate,
-  structuredAdoptionAccountHomeCandidates
-} from './structured-agent-session-create-adoption'
-import { getSystemCodexHomePath, getOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
-import { resolveCodexSessionResumeProvenance } from '../codex/codex-session-resume-home'
-import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
-import { resolvePinnedCodexRolloutProof } from '../codex/codex-tui-rollout-proof'
-import { readCodexRolloutSessionMeta } from '../codex/codex-rollout-session-meta'
-import { relativePathInsideRoot } from '../../shared/cross-platform-path'
-import { resolveLoginShellEnvironment } from '../startup/login-shell-environment'
-import { resolveCodexCommand } from '../codex-cli/command'
-import { activeStructuredAgentSessionTurnId } from '../../shared/structured-agent-session-projection'
+  shouldWatchLayoutRoundTrip,
+  watchLayoutRoundTrip
+} from './workspace-layout-round-trip-watch'
+import { registerDetectedWorktreeScanInvalidation } from '../ipc/worktrees/listing/register-detected-worktree-scan-invalidation'
+import {
+  listReferenceWorkspaces,
+  selectReferenceWorkspace,
+  listWorkspaceReferences
+} from './runtime-reference-catalog'
+import { findWorkspaceReferences } from './runtime-reference-find'
+import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-reference-agents'
+import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
+import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 
-class OrcaRuntimeService extends OrcaRuntimeWithResolveWaiter {
+class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   private readonly mobileApprovalInputByPty = new Map<string, { clientId: string; at: number }>()
 
   recordMobileApprovalInput(ptyId: string, clientId: string | null): void {
@@ -40,7 +53,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithResolveWaiter {
       return []
     }
     try {
-      const processes = await this.ptyController.listProcesses(null, {
+      const processes = await this.ptyController.listProcesses(LOCAL_EXECUTION_HOST_ID, {
         deadlineMs: Date.now() + 1_000
       })
       return processes.flatMap((entry) => {
@@ -58,166 +71,131 @@ class OrcaRuntimeService extends OrcaRuntimeWithResolveWaiter {
     }
   }
 
-  getAgentContextPaneSnapshot(paneKey: string) {
-    const status = (this.getAgentStatusSnapshotFn?.() ?? []).find(
-      (row) => !row.connectionId && row.paneKey === paneKey
+  private async selectReferenceCatalogWorkspace(selector: string, cwd?: string) {
+    const catalog = listReferenceWorkspaces(
+      this.requireStore(),
+      this.resolvedWorktrees.peek()?.worktrees
     )
-    const provider = (this.getAgentProviderSessionSnapshotFn?.() ?? []).find(
-      (row) => !row.connectionId && row.paneKey === paneKey
-    )
-    return status || provider
-      ? {
-          ...provider,
-          ...status,
-          providerSession: provider?.providerSession ?? status?.providerSession
-        }
-      : null
+    try {
+      return selectReferenceWorkspace(catalog, selector, cwd)
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'selector_not_found') {
+        throw error
+      }
+      // Why: unsaved worktrees and cold-cache branches only resolve after a worktree scan.
+      const warmed = listReferenceWorkspaces(
+        this.requireStore(),
+        await this.listResolvedWorktrees()
+      )
+      return selectReferenceWorkspace(warmed, selector, cwd)
+    }
   }
 
-  getConversationContinuationSettings() {
-    return this.requireStore().getSettings()
+  async listWorkspaceReferences(selector: string, cwd?: string) {
+    return listWorkspaceReferences(await this.selectReferenceCatalogWorkspace(selector, cwd))
   }
 
-  isConversationContinuationBusy(providerSessionId: string): boolean {
-    const rows = this.getAgentStatusSnapshotFn?.() ?? []
-    if (
-      rows.some(
+  async findWorkspaceReferences(params: RuntimeReferenceFindParams) {
+    if (params.worktree && params.repo) {
+      throw new Error('--repo and --worktree cannot be combined')
+    }
+    let workspaces = params.worktree
+      ? [await this.selectReferenceCatalogWorkspace(params.worktree, params.cwd)]
+      : listReferenceWorkspaces(this.requireStore(), this.resolvedWorktrees.peek()?.worktrees)
+    if (params.repo) {
+      const repo = await this.resolveRepoSelector(params.repo)
+      workspaces = workspaces.filter(
         (row) =>
-          row.providerSession?.id === providerSessionId &&
-          (row.state !== 'done' || row.subagents?.some((agent) => agent.state === 'working'))
+          row.kind === 'worktree' &&
+          row.repoId === repo.id &&
+          row.hostId === getRepoExecutionHostId(repo)
       )
-    ) {
-      return true
     }
-    const host = getStructuredAgentSessionHost()
-    const records = host?.deps.store.listRecords() ?? []
-    for (const record of records) {
-      if (
-        !record.providerHandleChain.some(
-          (link) => link.handle.provider === 'codex' && link.handle.threadId === providerSessionId
+    return findWorkspaceReferences(params, {
+      workspaces,
+      agents: async (workspaceKeys) =>
+        createReferenceAgentIndex(
+          this,
+          this.getOrchestrationDbIfAvailable(),
+          await this.openAgentSessionRecordStore(),
+          workspaceKeys,
+          referenceConnectionHosts(this.listRepos())
         )
-      ) {
-        continue
-      }
-      try {
-        if (activeStructuredAgentSessionTurnId(host!.journalSnapshot(record.sessionId).items)) {
-          return true
-        }
-      } catch {
-        // An unloaded session is inspected through its provider transcript.
-      }
-    }
-    return false
+    })
   }
 
-  async resolveConversationContinuationSource(input: {
-    providerSessionId: string
-    workspaceId: string
-  }) {
-    const selector = `id:${input.workspaceId}`
-    const location = await this.resolveStructuredAgentSessionLocation(selector)
-    if (location.executionHostId !== 'local' || location.wslDistro !== null) {
-      throw new Error('Conversation continuation requires the owning host runtime.')
+  constructor(...args: ConstructorParameters<typeof OrcaRuntimeWithMigrationCatalog>) {
+    super(...args)
+    // Why: the runtime listing re-runs a scan the worktree-change generation overtook and re-lists
+    // through this runtime's scan cache, so a worktree change must reach both. The desktop IPC
+    // module registers the generation bump at load; a headless host never loads it.
+    registerDetectedWorktreeScanInvalidation()
+    registerWorktreeChangeInvalidator((repoId) => this.invalidateWorktreeCatalog(repoId))
+    if (this.store && shouldWatchLayoutRoundTrip()) {
+      watchLayoutRoundTrip(this.store)
     }
-    const workspacePath = (await this.resolveRuntimeFileTarget(selector)).worktree.path
-    const settings = this.requireStore().getSettings()
-    const record = getStructuredAgentSessionHost()
-      ?.deps.store.listRecords()
-      .find(
-        (item) =>
-          item.provider === 'codex' &&
-          item.providerHandleChain.some(
-            (link) =>
-              link.handle.provider === 'codex' && link.handle.threadId === input.providerSessionId
-          )
-      )
-    const reportedPaths = [
-      ...new Set(
-        (this.getAgentProviderSessionSnapshotFn?.() ?? [])
-          .filter((row) => !row.connectionId && row.providerSession?.id === input.providerSessionId)
-          .map((row) => row.providerSession?.transcriptPath)
-          .filter((path): path is string => Boolean(path))
-      )
-    ]
-    if (reportedPaths.length > 1) {
-      throw new Error('Codex session has ambiguous transcript ownership.')
+  }
+
+  /** Whether a window owns the layout and can show a launch's tab ahead of its process. */
+  canPublishAgentLaunchTab(): boolean {
+    return Boolean(this.notifier?.publishAgentLaunchTab && this.getAvailableAuthoritativeWindow())
+  }
+
+  /** Shows an agent launch's tab before its process exists, in the window that owns the layout;
+   *  null when no window does, and the launch's tab then appears when it spawns, as before. */
+  publishAgentLaunchTab(
+    request: Omit<AgentLaunchTabPublishRequest, 'requestId'>
+  ): Promise<AgentLaunchTabPublished> | null {
+    if (!this.notifier?.publishAgentLaunchTab || !this.getAvailableAuthoritativeWindow()) {
+      return null
     }
-    const provenance =
-      !record && reportedPaths[0]
-        ? await resolveCodexSessionResumeProvenance({
-            sessionId: input.providerSessionId,
-            transcriptPath: reportedPaths[0],
-            trustedCodexHomes: structuredAdoptionAccountHomeCandidates({
-              settings,
-              agent: 'codex',
-              selectedAccountHomePath: getSystemCodexHomePath()
-            }),
-            getSelectedAccountCodexHome: () => null,
-            systemCodexHomePath: getSystemCodexHomePath(),
-            sharedRuntimeCodexHomePath: getOrcaManagedCodexHomePath()
-          })
-        : null
-    if (provenance?.outcome === 'fresh') {
-      throw new Error('Codex source account could not be verified.')
-    }
-    const source = record
-      ? {
-          accountHomePath: record.accountHome.path,
-          transcriptPath: await resolvePinnedCodexRolloutProof(
-            record.accountHome.path,
-            input.providerSessionId
-          )
-        }
-      : provenance?.outcome === 'resume'
-        ? { accountHomePath: provenance.homePath, transcriptPath: provenance.transcriptPath }
-        : await resolveStructuredAgentSessionAdoptionForCreate({
-            host: null,
-            settings,
-            agent: 'codex',
-            providerSessionId: input.providerSessionId,
-            selfSessionId: '',
-            selectedAccountHomePath: getSystemCodexHomePath()
-          })
-    if (!source.transcriptPath) {
-      throw new Error('Codex transcript is unavailable.')
-    }
-    const metadata = await readCodexRolloutSessionMeta(source.transcriptPath)
-    const cwd = metadata?.payload.cwd
-    if (
-      metadata?.id !== input.providerSessionId ||
-      typeof cwd !== 'string' ||
-      relativePathInsideRoot(workspacePath, cwd) === null
-    ) {
-      throw new Error('Codex source does not belong to this workspace.')
-    }
-    const env: NodeJS.ProcessEnv = {
-      ...(await resolveLoginShellEnvironment()),
-      ...resolveTuiAgentLaunchEnv('codex', settings.agentDefaultEnv),
-      CODEX_HOME: source.accountHomePath
-    }
-    return {
-      providerSessionId: input.providerSessionId,
-      workspaceId: input.workspaceId,
-      cwd,
-      transcriptPath: source.transcriptPath,
-      codexHome: source.accountHomePath,
-      launch: {
-        command: resolveCodexCommand({
-          pathEnv: env.PATH ?? env.Path,
-          homePath: env.HOME ?? env.USERPROFILE
-        }),
-        args: [
-          ...(record?.launchArgs ?? this.resolveConfiguredStructuredLaunchArgs('codex')),
-          'app-server'
-        ],
-        cwd,
-        env: Object.fromEntries(
-          Object.entries(env).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string'
-          )
-        )
-      }
-    }
+    return this.notifier.publishAgentLaunchTab(request)
+  }
+
+  /** Tells the window a launch pane's fate: it keeps a final one on the tab, clears a settled one,
+   *  and takes a withdrawn pane back (the pane alone when the user split the tab). */
+  reportAgentLaunchPaneVerdict(
+    pane: AgentLaunchPaneAddress,
+    verdict: AgentLaunchPaneVerdict
+  ): void {
+    this.notifier?.agentLaunchPaneVerdict?.({ ...pane, verdict })
+  }
+
+  private readonly agentLaunchRecordWarmup = createAgentLaunchRecordWarmupGate({
+    isOpen: () => peekOpenedAgentSessionRecordStore() !== null,
+    open: () => this.openAgentSessionRecordStore()
+  })
+
+  /** Startup is done; the launch record may open once a client that can launch is here too. */
+  noteAgentLaunchStartupSettled(): void {
+    this.agentLaunchRecordWarmup.startupSettled()
+  }
+
+  /** A client that can call `agent.launch` connected; its first launch should not open the record. */
+  noteAgentLaunchClientReady(): void {
+    this.agentLaunchRecordWarmup.launchClientReady()
+  }
+
+  /** Whether a running process holds this pane now: such a pane is attached to, never launched into. */
+  hasLiveTerminalForPaneKey(paneKey: string): boolean {
+    return this.getPtyRecordForPaneKey(paneKey)?.connected === true
+  }
+
+  private readonly workspaceLayoutStream = new WorkspaceLayoutStream({
+    store: () => this.store,
+    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key)
+  })
+
+  /** The read-only layout stream (`layout.subscribe`, not advertised yet). */
+  subscribeWorkspaceLayouts(
+    listener: Parameters<WorkspaceLayoutStream['subscribe']>[0]
+  ): ReturnType<WorkspaceLayoutStream['subscribe']> {
+    return this.workspaceLayoutStream.subscribe(listener)
+  }
+
+  /** The launch record when it is already open, for a reader that must not wait for it. */
+  openedAgentSessionRecordStore(): AgentSessionRecordStore | null {
+    return peekOpenedAgentSessionRecordStore()
   }
 }
 type OrcaRuntimeServiceExport = RuntimeCommandSurfaceHost<OrcaRuntimeService>

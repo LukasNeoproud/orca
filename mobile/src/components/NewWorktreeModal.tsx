@@ -37,6 +37,7 @@ import { useNewWorkspaceRuntimeContext } from './use-new-workspace-runtime-conte
 import { useNewWorkspaceSetupScript } from './use-new-workspace-setup-script'
 import { useNewWorktreeDrawerNavigation } from './use-new-worktree-drawer-navigation'
 import { useMobileWorktreeLocation } from './use-mobile-worktree-location'
+import { newWorktreeParentItems } from './new-worktree-parent-items'
 
 export function NewWorktreeModal(props: NewWorktreeModalProps) {
   // Why: each drawer opening is a fresh form session; remounting resets local
@@ -67,6 +68,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     hostId,
     existingWorktreePaths,
     existingWorktrees,
+    openExternalUrl,
     onCreated,
     onClose,
     onPairHost
@@ -81,7 +83,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const runtime = useNewWorkspaceRuntimeContext(client, visible, hostId)
-  const { tasksSupported, hostPlatform, getWorktreeCreateCutoverSupport } =
+  const { tasksSupported, hostPlatform, getWorktreeCreateCutoverSupport, getAgentLaunchSupport } =
     useNewWorktreeRuntimeCapabilities(client, visible)
   const selectedRepoConnectionId = selectedRepo?.connectionId ?? null
   const executionTarget = useNewWorkspaceExecutionTarget({
@@ -92,24 +94,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   const setupScript = useNewWorkspaceSetupScript({ client, selectedRepo })
   const advanced = useNewWorkspaceAdvancedOptions({ client, visible, repo: selectedRepo })
   const parentItems = useMemo(
-    () => [
-      { id: '__none__', label: 'No parent' },
-      ...(existingWorktrees ?? [])
-        .filter(
-          (worktree) =>
-            worktree.worktreeId &&
-            worktree.repoId === selectedRepo?.id &&
-            !worktree.isArchived &&
-            (!selectedRepo?.executionHostId ||
-              !worktree.hostId ||
-              worktree.hostId === selectedRepo.executionHostId)
-        )
-        .map((worktree) => ({
-          id: worktree.worktreeId!,
-          label: worktree.displayName || worktree.branch,
-          detail: worktree.branch
-        }))
-    ],
+    () => newWorktreeParentItems(existingWorktrees, selectedRepo),
     [existingWorktrees, selectedRepo]
   )
   const selectedParentId = parentItems.some((item) => item.id === advanced.parentWorktreeId)
@@ -177,6 +162,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     trustedOrcaHooks: runtime.trustedOrcaHooks,
     setTrustedOrcaHooks: runtime.setTrustedOrcaHooks,
     getWorktreeCreateCutoverSupport,
+    getAgentLaunchSupport,
     transitionDrawer: navigation.transitionDrawer,
     setError,
     onCreated,
@@ -302,6 +288,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
         creating={createSubmit.creating}
         canCreate={canCreate}
         onClose={onClose}
+        onOpenExternalUrl={openExternalUrl}
         onOpenProject={() => openPicker('project')}
         onOpenRunTarget={() => openPicker('runTarget')}
         onOpenSource={navigation.openSourceDrawer}

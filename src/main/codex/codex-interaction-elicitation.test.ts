@@ -10,8 +10,31 @@ import {
   ORCA_INTERACTION_MCP_SERVER,
   ORCA_INTERACTION_ELICITATION_REQUESTED_SCHEMA
 } from '../../shared/orca-interaction-elicitation'
-import { answerCodexPrompt, CodexPromptRegistry } from './codex-structured-prompt-replies'
+import {
+  answerCodexPrompt,
+  CodexPromptRegistry,
+  prepareCodexPromptAnswer
+} from './codex-structured-prompt-replies'
 import { disposeCodexServerRequest } from './codex-server-request-disposition'
+
+function answerByItem(
+  registry: CodexPromptRegistry,
+  connection: Parameters<typeof answerCodexPrompt>[1],
+  itemId: string,
+  optionId: string
+): void {
+  const claim = registry.claim(itemId) ?? registry.claimBound(itemId)
+  if (!claim) {
+    throw new Error(`codex app-server is no longer waiting on ${itemId}`)
+  }
+  try {
+    const prepared = prepareCodexPromptAnswer(claim.prompt, { kind: 'option', optionId })
+    answerCodexPrompt(registry, connection, claim, prepared)
+  } catch (error) {
+    registry.releaseClaim(claim)
+    throw error
+  }
+}
 
 const form: OrcaInteractionRequest = {
   title: 'Storage',
@@ -61,14 +84,14 @@ describe('Codex resumed interaction elicitation', () => {
     })
     expect(connection.respond).not.toHaveBeenCalled()
     registry.bindJournalItemId('journal-form', 'legacy-thread', 'mcp-elicitation:4')
-    answerCodexPrompt(registry, connection, 'journal-form', encodeOrcaInteractionResult(result))
+    answerByItem(registry, connection, 'journal-form', encodeOrcaInteractionResult(result))
     expect(connection.respond).toHaveBeenCalledOnce()
     expect(connection.respond.mock.calls[0][0]).toBe(4)
     expect(
       decodeOrcaInteractionElicitationResponse(form, connection.respond.mock.calls[0][1])
     ).toEqual(result)
     expect(() =>
-      answerCodexPrompt(registry, connection, 'journal-form', encodeOrcaInteractionResult(result))
+      answerByItem(registry, connection, 'journal-form', encodeOrcaInteractionResult(result))
     ).toThrow('no longer waiting')
   })
 
@@ -79,7 +102,7 @@ describe('Codex resumed interaction elicitation', () => {
       registry.register({ id, method: CODEX_MCP_ELICITATION_METHOD, params })
     }
     expect(() =>
-      answerCodexPrompt(
+      answerByItem(
         registry,
         connection,
         'mcp-elicitation:4',
@@ -87,7 +110,7 @@ describe('Codex resumed interaction elicitation', () => {
       )
     ).toThrow('not a valid')
     expect(connection.respond).not.toHaveBeenCalled()
-    answerCodexPrompt(
+    answerByItem(
       registry,
       connection,
       'mcp-elicitation:5',

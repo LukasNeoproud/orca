@@ -103,7 +103,9 @@ describe('useDeviceApprovals', () => {
     await render(rpc.client)
     await act(async () => latest.approve(latest.pending[0]!))
 
-    await act(async () => vi.advanceTimersByTimeAsync(4_000))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000)
+    })
 
     expect(
       rpc.sendRequest.mock.calls.filter(([method]) => method === 'deviceApproval.list')
@@ -121,7 +123,9 @@ describe('useDeviceApprovals', () => {
     await render(rpc.client)
     expect(latest.error).toBe('Request unavailable')
 
-    await act(async () => vi.advanceTimersByTimeAsync(2_000))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000)
+    })
 
     expect(latest.error).toBeNull()
     expect(latest.pending).toHaveLength(1)

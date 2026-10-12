@@ -9,6 +9,7 @@ import { PROJECT_COMMAND_SPECS } from './project'
 import { ORCHESTRATION_COMMAND_SPECS } from './orchestration'
 import { COMPUTER_COMMAND_SPECS } from './computer'
 import { ENVIRONMENT_COMMAND_SPECS } from './environment'
+import { MANAGED_SERVER_COMMAND_SPECS } from './managed-server'
 import { AGENT_HOOK_COMMAND_SPECS } from './agent-hooks'
 import { DIAGNOSTICS_COMMAND_SPECS } from './diagnostics'
 import { EMULATOR_COMMAND_SPECS } from './emulator'
@@ -17,12 +18,15 @@ import { LINEAR_COMMAND_SPECS } from './linear'
 import { VM_COMMAND_SPECS } from './vm'
 import { SKILL_COMMAND_SPECS } from './skills'
 import { ARTIFACT_COMMAND_SPECS } from './artifacts'
-import { AGENT_CONTEXT_COMMAND_SPECS } from './agent-context'
+import { SEARCH_COMMAND_SPECS } from './search'
+import { PROFILE_STATE_COMMAND_SPECS } from './profile-state'
+import { REFERENCE_COMMAND_SPECS } from './reference'
 import { INTERACT_COMMAND_SPECS } from './interact'
 import { AZURE_DEVOPS_COMMAND_SPECS } from './azure-devops'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
+  ...REFERENCE_COMMAND_SPECS,
   ...ARTIFACT_COMMAND_SPECS,
   ...ACCOUNT_COMMAND_SPECS,
   ...PROJECT_COMMAND_SPECS,
@@ -36,11 +40,13 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...DIAGNOSTICS_COMMAND_SPECS,
   ...INTROSPECTION_COMMAND_SPECS,
   ...ENVIRONMENT_COMMAND_SPECS,
+  ...MANAGED_SERVER_COMMAND_SPECS,
   ...LINEAR_COMMAND_SPECS,
   ...VM_COMMAND_SPECS,
   ...EMULATOR_COMMAND_SPECS,
-  ...AGENT_CONTEXT_COMMAND_SPECS,
+  ...SKILL_COMMAND_SPECS,
+  ...SEARCH_COMMAND_SPECS,
+  ...PROFILE_STATE_COMMAND_SPECS,
   ...INTERACT_COMMAND_SPECS,
-  ...AZURE_DEVOPS_COMMAND_SPECS,
-  ...SKILL_COMMAND_SPECS
+  ...AZURE_DEVOPS_COMMAND_SPECS
 ]

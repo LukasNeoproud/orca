@@ -165,7 +165,6 @@ describe('quick worktree dialog preference', () => {
       expect.objectContaining({
         initialName: 'feature/task',
         initialRepoId: 'repo',
-        createGateMode: 'quick',
         persistDraft: false
       })
     )

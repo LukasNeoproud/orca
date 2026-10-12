@@ -5,8 +5,7 @@ import {
   buildAiVaultOriginalPaneIndex,
   createLazyAiVaultOriginalPaneIndex,
   findAiVaultSessionLiveStateInIndex,
-  findOriginalAiVaultSessionPaneInIndex,
-  findRunningOriginalAiVaultSessionPaneInIndex
+  findOriginalAiVaultSessionPaneInIndex
 } from './ai-vault-original-pane-index'
 import {
   findAiVaultSessionLiveState,
@@ -251,71 +250,5 @@ describe('AI Vault original-pane index', () => {
         findAiVaultSessionLiveState(state, session)
       )
     }
-  })
-
-  it('host-scopes identical provider session ids and treats done live entries as occupied', () => {
-    const localLeafId = '11111111-1111-4111-8111-111111111111'
-    const remoteLeafId = '22222222-2222-4222-8222-222222222222'
-    const localEntry = {
-      ...unrelatedEntry(1),
-      agentType: 'codex',
-      state: 'done',
-      paneKey: `local-tab:${localLeafId}`,
-      tabId: 'local-tab',
-      worktreeId: 'local-worktree',
-      providerSession: { key: 'session_id', id: SESSION.sessionId }
-    } as AgentStatusEntry
-    const remoteEntry = {
-      ...localEntry,
-      paneKey: `remote-tab:${remoteLeafId}`,
-      tabId: 'remote-tab',
-      worktreeId: 'remote-worktree'
-    } as AgentStatusEntry
-    const state = {
-      agentStatusByPaneKey: {
-        [localEntry.paneKey]: localEntry,
-        [remoteEntry.paneKey]: remoteEntry
-      },
-      retainedAgentsByPaneKey: {},
-      sleepingAgentSessionsByPaneKey: {},
-      tabsByWorktree: {
-        'local-worktree': [{ id: 'local-tab', worktreeId: 'local-worktree' }],
-        'remote-worktree': [{ id: 'remote-tab', worktreeId: 'remote-worktree' }]
-      },
-      terminalLayoutsByTabId: {
-        'local-tab': {
-          root: { type: 'leaf', leafId: localLeafId },
-          ptyIdsByLeafId: { [localLeafId]: 'local-pty' }
-        },
-        'remote-tab': {
-          root: { type: 'leaf', leafId: remoteLeafId },
-          ptyIdsByLeafId: { [remoteLeafId]: 'remote-pty' }
-        }
-      },
-      worktreesByRepo: {
-        local: [{ id: 'local-worktree', repoId: 'local', hostId: 'local' }],
-        remote: [
-          {
-            id: 'remote-worktree',
-            repoId: 'remote',
-            hostId: 'runtime:environment-1',
-            runtimeOwnerEnvironmentId: 'environment-1'
-          }
-        ]
-      },
-      detectedWorktreesByRepo: {},
-      repos: [],
-      folderWorkspaces: [],
-      projectGroups: []
-    } as never
-    const index = buildAiVaultOriginalPaneIndex(state)
-
-    expect(findRunningOriginalAiVaultSessionPaneInIndex(index, SESSION)?.tabId).toBe('local-tab')
-    expect(
-      findRunningOriginalAiVaultSessionPaneInIndex(index, {
-        ...SESSION,
-        executionHostId: 'runtime:environment-1'
-      })?.tabId
-    ).toBe('remote-tab')
   })
 })

@@ -2,26 +2,6 @@ import type { HostStackRouteTarget } from '../navigation/host-stack-navigation'
 import { mobileSessionRouteTarget } from '../session/mobile-session-route'
 import type { HostCredentialStatus } from '../transport/types'
 
-export type DesktopNotificationSource =
-  | 'agent-task-complete'
-  | 'terminal-bell'
-  | 'test'
-  | 'plugin'
-  | 'host-system'
-
-export type DesktopNotificationEvent = {
-  source: DesktopNotificationSource
-  worktreeId?: string
-  notificationId?: string
-}
-
-export type LocalNotificationData = {
-  source: DesktopNotificationSource
-  hostId: string
-  worktreeId?: string
-  notificationId?: string
-}
-
 export type NotificationNavigationOptions = {
   knownHostIds?: ReadonlySet<string>
   credentialStatusByHostId?: ReadonlyMap<string, HostCredentialStatus>
@@ -29,23 +9,6 @@ export type NotificationNavigationOptions = {
 
 function readNonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null
-}
-
-export function buildLocalNotificationData(
-  event: DesktopNotificationEvent,
-  hostId: string
-): LocalNotificationData {
-  const data: LocalNotificationData = {
-    source: event.source,
-    hostId
-  }
-  if (event.worktreeId) {
-    data.worktreeId = event.worktreeId
-  }
-  if (event.notificationId) {
-    data.notificationId = event.notificationId
-  }
-  return data
 }
 
 /** Where a tap should land. `sessionTarget` is null for a host-only notification, whose
@@ -88,7 +51,13 @@ export function getNotificationNavigationTarget(
   const credentialStatus = options.credentialStatusByHostId?.get(hostId)
   return {
     hostId,
-    sessionTarget: worktreeId ? mobileSessionRouteTarget({ hostId, worktreeId }) : null,
+    sessionTarget: worktreeId
+      ? mobileSessionRouteTarget({
+          hostId,
+          worktreeId,
+          paneKey: readNonEmptyString(record.paneKey) ?? undefined
+        })
+      : null,
     ...(record.source === 'host-system' ? { opensHostSystem: true } : {}),
     ...(credentialStatus === 'missing'
       ? { credentialRecovery: 're-pair' as const }

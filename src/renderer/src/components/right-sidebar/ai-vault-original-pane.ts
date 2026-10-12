@@ -7,7 +7,6 @@ import type {
   TerminalLayoutSnapshot,
   TerminalPaneLayoutNode
 } from '../../../../shared/terminal-tab-types'
-import type { WorktreeRuntimeOwnerState } from '@/lib/worktree-runtime-owner'
 
 export type AiVaultOriginalPaneTarget = {
   paneKey: string
@@ -23,8 +22,7 @@ export type OriginalPaneState = Pick<
   | 'sleepingAgentSessionsByPaneKey'
   | 'tabsByWorktree'
   | 'terminalLayoutsByTabId'
-> &
-  WorktreeRuntimeOwnerState
+>
 
 function agentMatches(session: AiVaultSession, agent: string | undefined): boolean {
   return agent === session.agent

@@ -5,6 +5,7 @@ import {
   useMobileContextualFilePreview,
   type MobileContextualFilePreviewModel
 } from './use-mobile-contextual-file-preview'
+import type { RpcClient } from '../transport/rpc-client'
 
 function ok(result: unknown) {
   return { id: '1', ok: true as const, result, _meta: { runtimeId: 'runtime-1' } }
@@ -20,7 +21,7 @@ describe('useMobileContextualFilePreview', () => {
     model = null
   })
 
-  function Harness({ client }: { client: { sendRequest: ReturnType<typeof vi.fn> } }) {
+  function Harness({ client }: { client: Pick<RpcClient, 'sendRequest'> }) {
     model = useMobileContextualFilePreview({
       client,
       connectionState: 'connected',

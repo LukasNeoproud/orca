@@ -11,21 +11,8 @@ import {
   parseJsonObject,
   timestampMs
 } from '../ai-vault/session-scanner-values'
-import {
-  createCodexTranscriptLineDecoder as createGenerationDecoder,
-  type CodexTranscriptDecodeDirection,
-  type CodexTranscriptLineDecoder
-} from './transcript-codex-generation'
 import { claudeContentBlocks, toolResultOutput } from './transcript-record-blocks'
 import { CODEX_EVENT_TURN_ABORTED } from './transcript-turn-markers'
-
-export type { CodexTranscriptDecodeDirection, CodexTranscriptLineDecoder }
-
-export function createCodexTranscriptLineDecoder(
-  direction: CodexTranscriptDecodeDirection = 'forward'
-): CodexTranscriptLineDecoder {
-  return createGenerationDecoder(decodeCodexTranscriptLine, direction)
-}
 
 export function decodeCodexTranscriptLine(
   line: string,
@@ -105,10 +92,13 @@ function codexResponseItem(
     payload.type === 'custom_tool_call'
   ) {
     const name = extractString(payload.name) ?? 'tool'
+    const callId = extractString(payload.call_id)
     return {
       id,
       role: 'assistant',
-      blocks: [{ type: 'tool-call', name, input: codexCallInput(payload) }],
+      blocks: [
+        { type: 'tool-call', name, input: codexCallInput(payload), ...(callId ? { callId } : {}) }
+      ],
       timestamp,
       source: 'transcript'
     }
@@ -117,7 +107,7 @@ function codexResponseItem(
     return {
       id,
       role: 'tool',
-      blocks: [codexToolResult(payload.output)],
+      blocks: [codexToolResult(payload.output, extractString(payload.call_id))],
       timestamp,
       source: 'transcript'
     }
@@ -235,12 +225,13 @@ function codexCallInput(payload: Record<string, unknown>): unknown {
   return payload.input ?? payload.action ?? null
 }
 
-function codexToolResult(output: unknown): NativeChatBlock {
+function codexToolResult(output: unknown, callId: string | null): NativeChatBlock {
   const record = asRecord(output)
   const isError = record?.success === false || record?.is_error === true
   return {
     type: 'tool-result',
     output: toolResultOutput(record?.content ?? record?.output ?? output),
+    ...(callId ? { callId } : {}),
     ...(isError ? { isError: true } : {})
   }
 }

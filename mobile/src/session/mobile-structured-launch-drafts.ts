@@ -41,3 +41,16 @@ export function readMobileStructuredLaunchDraft(
 export function clearMobileStructuredLaunchDraft(hostId: string, sessionId: string): void {
   stagedDrafts.delete(key(hostId, sessionId))
 }
+
+/** A Backlog launch stages its prompt on the phone before the host lists the tab's draft. */
+export function resolveMobileChatLaunchDraft(
+  hostId: string,
+  sessionId: string | null,
+  tab: { launchDraft?: string | null; launchDraftCreatedAt?: number | null } | null
+): { text: string | null; createdAt: number | null } {
+  const staged = readMobileStructuredLaunchDraft(hostId, sessionId)
+  return {
+    text: tab?.launchDraft ?? staged?.text ?? null,
+    createdAt: tab?.launchDraftCreatedAt ?? staged?.createdAt ?? null
+  }
+}

@@ -1,9 +1,19 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import type * as ReactModule from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { OMP_SESSION_OPTION_CATALOG } from '../../../../shared/agent-session-option-catalog-omp'
+import {
+  applyStructuredAgentSessionOptions,
+  createStructuredAgentSessionOptionState,
+  structuredAgentSessionOptionSnapshot
+} from '../../../../shared/structured-agent-session-options'
 import type { SessionOptionDescriptor } from '../../../../shared/native-chat-session-options'
+import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
+
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string | number>) => {
@@ -69,12 +79,21 @@ vi.mock('@/components/ui/dropdown-menu', () => {
     ),
     DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     DropdownMenuSeparator: () => <hr />,
+    // Forwards role/aria-* and hands onSelect an event: the switch rows set both,
+    // and preventDefault is how a toggle keeps the menu open.
     DropdownMenuItem: ({
       children,
       disabled,
-      onSelect
-    }: React.ButtonHTMLAttributes<HTMLButtonElement> & { onSelect?: () => void }) => (
-      <button disabled={disabled} onClick={() => onSelect?.()}>
+      onSelect,
+      ...rest
+    }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+      onSelect?: (event: { preventDefault: () => void }) => void
+    }) => (
+      <button
+        {...rest}
+        disabled={disabled}
+        onClick={() => onSelect?.({ preventDefault: () => {} })}
+      >
         {children}
       </button>
     ),
@@ -83,14 +102,17 @@ vi.mock('@/components/ui/dropdown-menu', () => {
     DropdownMenuRadioGroup: ({
       children,
       value,
-      onValueChange
+      onValueChange,
+      'aria-label': ariaLabel
     }: {
       children: React.ReactNode
       value?: string
       onValueChange?: (value: string) => void
+      'aria-label'?: string
     }) => (
       <div
         role="radiogroup"
+        aria-label={ariaLabel}
         data-radio-value={value ?? ''}
         data-on-value-change={onValueChange ? '1' : '0'}
       >
@@ -142,9 +164,35 @@ vi.mock('@/components/ui/dropdown-menu', () => {
   }
 })
 
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+// Same test ids as the dropdown mock: the model pill is a popover, the options pill a menu.
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="dropdown-root" data-open={open ? 'true' : 'false'}>
+      {children}
+    </div>
+  ),
+  PopoverTrigger: ({ children, disabled }: { children: React.ReactNode; disabled?: boolean }) => (
+    <div data-disabled={disabled || undefined}>{children}</div>
+  ),
+  PopoverContent: ({
+    children,
+    side,
+    collisionPadding
+  }: {
+    children: React.ReactNode
+    side?: string
+    collisionPadding?: number
+  }) => (
+    <div
+      data-testid="session-option-menu"
+      data-side={side}
+      data-collision-padding={collisionPadding}
+    >
+      {children}
+    </div>
+  )
+}))
 
-import { toast } from 'sonner'
 import { NativeChatSessionOptionPickers } from './NativeChatSessionOptionPickers'
 
 const surface = {
@@ -174,21 +222,27 @@ function model(overrides: Partial<SessionOptionDescriptor> = {}): SessionOptionD
   }
 }
 
+const EFFORT_CHOICES = [
+  { value: 'low', label: 'Low' },
+  { value: 'high', label: 'High' }
+]
+
 const effort: SessionOptionDescriptor = {
   id: 'effort',
   label: 'Effort',
   category: 'thought_level',
-  kind: {
-    type: 'select',
-    currentValue: 'high',
-    choices: [
-      { value: 'low', label: 'Low' },
-      { value: 'high', label: 'High' }
-    ]
-  },
+  kind: { type: 'select', currentValue: 'high', choices: EFFORT_CHOICES },
   valueSource: 'applied',
   transport: 'catalog',
   settable: true
+}
+
+/** A select with nothing picked. Only a select can be in this shape: it renders
+ *  "nothing selected" truthfully, which is why the boolean kind requires a value. */
+const unknownEffort: SessionOptionDescriptor = {
+  ...effort,
+  kind: { type: 'select', choices: EFFORT_CHOICES },
+  valueSource: 'unknown'
 }
 
 const fast: SessionOptionDescriptor = {
@@ -201,207 +255,9 @@ const fast: SessionOptionDescriptor = {
   settable: true
 }
 
-const permissions = {
-  id: 'permissions',
-  label: 'Permissions',
-  category: 'mode',
-  kind: {
-    type: 'select',
-    currentValue: 'workspace-write',
-    choices: [
-      { value: 'read-only', label: 'Read only' },
-      { value: 'workspace-write', label: 'Workspace' },
-      { value: 'auto-review', label: 'Auto review' },
-      { value: 'full-access', label: 'Full access' }
-    ]
-  },
-  valueSource: 'applied',
-  transport: 'catalog',
-  settable: true
-} satisfies SessionOptionDescriptor
-
 afterEach(() => cleanup())
 
 describe('NativeChatSessionOptionPickers', () => {
-  it('shows Auto review as a selected permission and sets it as a named choice', async () => {
-    const setOption = vi.fn(async () => ({ snapshot: [] }))
-    const { rerender } = render(
-      <NativeChatSessionOptionPickers
-        surface={{ ...surface, setOption }}
-        snapshot={[
-          model(),
-          { ...permissions, kind: { ...permissions.kind, currentValue: 'auto-review' } }
-        ]}
-        isWorking={false}
-      />
-    )
-
-    expect(screen.getByRole('button', { name: 'Permissions Auto review' })).not.toBeNull()
-    expect(screen.getByRole('radio', { name: 'Auto review' }).getAttribute('aria-checked')).toBe(
-      'true'
-    )
-    expect(screen.queryByRole('radio', { name: /Custom/ })).toBeNull()
-
-    rerender(
-      <NativeChatSessionOptionPickers
-        surface={{ ...surface, setOption }}
-        snapshot={[model(), permissions]}
-        isWorking={false}
-      />
-    )
-    await act(async () => screen.getByRole('radio', { name: 'Auto review' }).click())
-    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'auto-review')
-  })
-
-  it('separates permissions from effort and fast, including requested picker routing', () => {
-    const serviceTier: SessionOptionDescriptor = {
-      ...fast,
-      id: 'serviceTier',
-      kind: {
-        type: 'select',
-        currentValue: 'priority',
-        choices: [
-          { value: 'priority', label: 'Fast' },
-          { value: 'default', label: 'Off' }
-        ]
-      }
-    }
-    const snapshot = [model(), effort, serviceTier, permissions]
-    const { rerender } = render(
-      <NativeChatSessionOptionPickers
-        surface={surface}
-        snapshot={snapshot}
-        isWorking={false}
-        pickerRequest={{ id: 'permissions', sequence: 1 }}
-      />
-    )
-    const menus = screen.getAllByTestId('session-option-menu')
-    expect(menus).toHaveLength(3)
-    expect(within(menus[1]).getByText('Effort')).not.toBeNull()
-    expect(within(menus[1]).getByText('Fast mode')).not.toBeNull()
-    expect(within(menus[1]).queryByText('Permissions')).toBeNull()
-    expect(
-      within(menus[2]).getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')
-    ).toBe('true')
-    expect(within(menus[2]).queryByText('Effort')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Session options High · Fast' })).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Permissions Workspace' })).not.toBeNull()
-    expect(
-      screen.getAllByTestId('dropdown-root').map((root) => root.getAttribute('data-open'))
-    ).toEqual(['false', 'false', 'true'])
-    rerender(
-      <NativeChatSessionOptionPickers
-        surface={surface}
-        snapshot={snapshot}
-        isWorking={false}
-        pickerRequest={{ id: 'serviceTier', sequence: 2 }}
-      />
-    )
-    expect(
-      screen.getAllByTestId('dropdown-root').map((root) => root.getAttribute('data-open'))
-    ).toEqual(['false', 'true', 'false'])
-  })
-
-  it('keeps unknown permissions separate and respects unavailable and working states', () => {
-    const unknown: SessionOptionDescriptor = {
-      ...permissions,
-      valueSource: 'unknown',
-      settable: false,
-      disabledReason: 'available-after-session-start',
-      kind: { ...permissions.kind, currentValue: undefined }
-    }
-    const { rerender } = render(
-      <NativeChatSessionOptionPickers
-        surface={surface}
-        snapshot={[model(), unknown]}
-        isWorking={false}
-      />
-    )
-    expect(screen.getAllByTestId('session-option-menu')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Permissions' })).not.toBeNull()
-    expect(screen.getAllByText('Available after the session starts.').length).toBeGreaterThan(0)
-    expect(screen.getByRole('radio', { name: 'Read only' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('radio', { name: 'Read only' }).getAttribute('aria-checked')).toBe(
-      'false'
-    )
-    rerender(
-      <NativeChatSessionOptionPickers
-        surface={surface}
-        snapshot={[model(), effort, permissions]}
-        isWorking
-      />
-    )
-    for (const root of screen.getAllByTestId('dropdown-root')) {
-      expect(root.querySelector('[data-disabled="true"]')).not.toBeNull()
-    }
-  })
-
-  it('shows a reported custom permission policy without making it selectable', async () => {
-    const setOption = vi.fn(async () => ({ snapshot: [] }))
-    const custom: SessionOptionDescriptor = {
-      ...permissions,
-      kind: { ...permissions.kind, currentValue: undefined },
-      valueSource: 'reported',
-      currentValueLabel: 'Custom',
-      currentValueDescription: 'Workspace sandbox · Auto review'
-    }
-    render(
-      <NativeChatSessionOptionPickers
-        surface={{ ...surface, setOption }}
-        snapshot={[model(), custom]}
-        isWorking={false}
-      />
-    )
-
-    expect(screen.getByRole('button', { name: 'Permissions Custom' }).textContent).toContain(
-      'Custom'
-    )
-    const current = screen.getByRole('radio', {
-      name: 'Custom Workspace sandbox · Auto review'
-    })
-    expect(current.getAttribute('aria-checked')).toBe('true')
-    expect(current.hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('radio', { name: 'Workspace' }).getAttribute('aria-checked')).toBe(
-      'false'
-    )
-    current.click()
-    expect(setOption).not.toHaveBeenCalled()
-    await act(async () => screen.getByRole('radio', { name: 'Workspace' }).click())
-    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'workspace-write')
-  })
-
-  it('updates permissions through the surface, blocks all pickers while pending and reports failure', async () => {
-    let rejectUpdate!: (error: Error) => void
-    const setOption = vi.fn(
-      () =>
-        new Promise<never>((_resolve, reject) => {
-          rejectUpdate = reject
-        })
-    )
-    render(
-      <NativeChatSessionOptionPickers
-        surface={{ ...surface, setOption }}
-        snapshot={[model(), effort, fast, permissions]}
-        isWorking={false}
-      />
-    )
-    await act(async () => screen.getByRole('radio', { name: 'Auto review' }).click())
-    expect(setOption).toHaveBeenCalledExactlyOnceWith('permissions', 'auto-review')
-    for (const root of screen.getAllByTestId('dropdown-root')) {
-      expect(root.querySelector('[data-disabled="true"]')).not.toBeNull()
-    }
-    expect(screen.getByRole('radio', { name: 'Low' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('radio', { name: 'Full access' }).hasAttribute('disabled')).toBe(true)
-    await act(async () => rejectUpdate(new Error('Permissions refused')))
-    expect(toast.error).toHaveBeenCalledWith('Could not update option', {
-      description: 'Permissions refused'
-    })
-    expect(screen.getByRole('button', { name: 'Permissions Workspace' })).not.toBeNull()
-    for (const root of screen.getAllByTestId('dropdown-root')) {
-      expect(root.querySelector('[data-disabled="true"]')).toBeNull()
-    }
-  })
-
   it('opens the native picker requested by a structured slash command', async () => {
     const { rerender } = render(
       <NativeChatSessionOptionPickers
@@ -445,6 +301,19 @@ describe('NativeChatSessionOptionPickers', () => {
           ?.getAttribute('data-open')
       ).toBe('true')
     )
+  })
+
+  it('sends a picked model to the session surface', async () => {
+    const setOption = vi.fn().mockResolvedValue({ snapshot: [] })
+    render(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, setOption }}
+        snapshot={[model()]}
+        isWorking={false}
+      />
+    )
+    screen.getByRole('option', { name: 'Sonnet 5' }).click()
+    await waitFor(() => expect(setOption).toHaveBeenCalledExactlyOnceWith('model', 'sonnet'))
   })
 
   it('prefers collision-aware upward placement for model and option menus', () => {
@@ -496,10 +365,7 @@ describe('NativeChatSessionOptionPickers', () => {
     render(
       <NativeChatSessionOptionPickers
         surface={surface}
-        snapshot={[
-          model(),
-          { ...effort, kind: { ...effort.kind, currentValue: undefined }, valueSource: 'unknown' }
-        ]}
+        snapshot={[model(), unknownEffort]}
         isWorking={false}
       />
     )
@@ -523,6 +389,23 @@ describe('NativeChatSessionOptionPickers', () => {
     ).toBe('true')
   })
 
+  it('renders a session with no reported model without an empty model control', () => {
+    const state = applyStructuredAgentSessionOptions(
+      createStructuredAgentSessionOptionState('omp'),
+      OMP_SESSION_OPTION_CATALOG,
+      { models: [], current: { effort: 'off', confirmed: ['effort'] } }
+    )
+    render(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={structuredAgentSessionOptionSnapshot(state)}
+        isWorking={false}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /^Model/ })).toBeNull()
+    expect(screen.queryAllByRole('button', { name: '' })).toEqual([])
+  })
+
   it('does not duplicate titles for unknown values or misname generic controls', () => {
     const { rerender } = render(
       <NativeChatSessionOptionPickers
@@ -532,7 +415,7 @@ describe('NativeChatSessionOptionPickers', () => {
             kind: { type: 'select', choices: [] },
             valueSource: 'unknown'
           }),
-          { ...effort, kind: { ...effort.kind, currentValue: undefined }, valueSource: 'unknown' }
+          unknownEffort
         ]}
         isWorking={false}
       />
@@ -583,7 +466,7 @@ describe('NativeChatSessionOptionPickers', () => {
     expect(screen.queryByText(/not confirmed/)).toBeNull()
   })
 
-  it.each(['catalog', 'agent-session'] as const)(
+  it.each(['catalog'] as const)(
     'does not hedge a reported value on the %s transport',
     (transport) => {
       render(
@@ -627,6 +510,55 @@ describe('NativeChatSessionOptionPickers', () => {
     await waitFor(() => expect(invokeAction).toHaveBeenCalledWith('model'))
   })
 
+  it.each([
+    [
+      "the table's words for a host's refusal, not its message",
+      new RuntimeRpcCallError({
+        id: 'request-1',
+        ok: false,
+        error: {
+          code: 'runtime_error',
+          message: 'agent_session_journal_unreadable',
+          data: {
+            refusal: {
+              code: 'agent_session_journal_unreadable',
+              details: { reason: 'journalCorrupt' }
+            }
+          }
+        },
+        _meta: { runtimeId: 'runtime-1' }
+      }),
+      "Unable to load this chat. The setting wasn't changed."
+    ],
+    [
+      "a local surface's own sentence",
+      new Error('The terminal did not accept the command.'),
+      'The terminal did not accept the command.'
+    ]
+  ])('describes a failed option change with %s', async (_label, error, description) => {
+    toastError.mockClear()
+    const invokeAction = vi.fn().mockRejectedValue(error)
+    render(
+      <NativeChatSessionOptionPickers
+        surface={{ ...surface, invokeAction }}
+        snapshot={[
+          model({
+            kind: { type: 'select', choices: [{ value: 'gpt-5.5', label: 'GPT-5.5' }] },
+            valueSource: 'unknown',
+            action: { type: 'agent-picker' }
+          })
+        ]}
+        isWorking={false}
+      />
+    )
+    screen.getByRole('button', { name: 'Choose in agent picker…' }).click()
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledExactlyOnceWith('Could not update option', {
+        description
+      })
+    )
+  })
+
   it('uses a Toggle action for unknown flip-only options via invokeAction', async () => {
     const invokeAction = vi.fn().mockResolvedValue({ snapshot: [] })
     const setOption = vi.fn().mockResolvedValue({ snapshot: [] })
@@ -638,7 +570,7 @@ describe('NativeChatSessionOptionPickers', () => {
           model(),
           {
             ...fast,
-            kind: { type: 'boolean' },
+            kind: { type: 'boolean', currentValue: false },
             valueSource: 'unknown',
             action: { type: 'toggle-command' }
           }
@@ -654,7 +586,7 @@ describe('NativeChatSessionOptionPickers', () => {
     expect(setOption).not.toHaveBeenCalled()
   })
 
-  it('uses On/Off radios for known boolean options without inventing a selection', async () => {
+  it('uses one switch row for a boolean option without inventing a selection', async () => {
     const setOption = vi.fn().mockResolvedValue({ snapshot: [] })
     const liveSurface = { ...surface, setOption }
     const { rerender } = render(
@@ -673,13 +605,17 @@ describe('NativeChatSessionOptionPickers', () => {
       />
     )
     expect(screen.queryByText('Toggle fast mode')).toBeNull()
-    const onRadio = screen.getByRole('radio', { name: 'On' })
-    expect(onRadio.getAttribute('data-state')).toBe('checked')
-    expect(onRadio.getAttribute('aria-checked')).toBe('true')
-    const fastGroup = onRadio.parentElement
-    expect(fastGroup?.getAttribute('data-radio-value')).toBe('on')
-    expect(fastGroup?.getAttribute('data-on-value-change')).toBe('1')
-    screen.getByRole('radio', { name: 'Off' }).click()
+    // One control, not an On/Off pair, and the row carries the label itself.
+    expect(screen.queryByRole('radio', { name: 'On' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Off' })).toBeNull()
+    const fastSwitch = screen.getByRole('switch', { name: 'Fast mode' })
+    expect(fastSwitch.getAttribute('aria-checked')).toBe('true')
+    expect(
+      fastSwitch.querySelector('[data-slot="switch-indicator"]')?.getAttribute('data-state')
+    ).toBe('checked')
+    // The label is not duplicated by a separate group header.
+    expect(screen.getAllByText('Fast mode')).toHaveLength(1)
+    fastSwitch.click()
     await waitFor(() => expect(setOption).toHaveBeenCalledWith('fastMode', false))
 
     setOption.mockClear()
@@ -692,7 +628,9 @@ describe('NativeChatSessionOptionPickers', () => {
             id: 'thinking',
             label: 'Thinking',
             category: 'mode',
-            kind: { type: 'boolean' },
+            // What the producer now emits for an unreported `thinking`: the
+            // catalog default, with provenance still saying nothing confirmed it.
+            kind: { type: 'boolean', currentValue: true },
             valueSource: 'unknown',
             transport: 'catalog',
             settable: true
@@ -701,12 +639,36 @@ describe('NativeChatSessionOptionPickers', () => {
         isWorking={false}
       />
     )
-    // Unknown composed boolean: hint + radios present, nothing pre-selected.
-    expect(screen.getByText('Current value unknown — pick On or Off')).not.toBeNull()
-    const thinkingGroup = screen.getByRole('radio', { name: 'On' }).parentElement
-    expect(thinkingGroup?.getAttribute('data-radio-value')).toBe('')
-    screen.getByRole('radio', { name: 'Off' }).click()
+    // The producer resolves the value, so the row renders it instead of a caption
+    // apologising for a switch that had already collapsed to off.
+    expect(screen.queryByText('Current value unknown')).toBeNull()
+    const thinkingSwitch = screen.getByRole('switch', { name: 'Thinking' })
+    expect(thinkingSwitch.getAttribute('aria-checked')).toBe('true')
+    thinkingSwitch.click()
     await waitFor(() => expect(setOption).toHaveBeenCalledWith('thinking', false))
+  })
+
+  // The switch row is the label and the switch, whatever said the value; no provenance caption.
+  it.each([
+    { valueSource: 'unknown', transport: 'agent-session' },
+    { valueSource: 'default', transport: 'catalog' },
+    { valueSource: 'reported', transport: 'agent-session' }
+  ] as const)('shows a $valueSource boolean as its switch alone', ({ valueSource, transport }) => {
+    render(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={[
+          model(),
+          { ...fast, kind: { type: 'boolean', currentValue: false }, valueSource, transport }
+        ]}
+        isWorking={false}
+      />
+    )
+    const control = screen.getByRole('switch', { name: 'Fast mode' })
+    expect(control.textContent).toBe('Fast mode')
+    expect(control.hasAttribute('aria-describedby')).toBe(false)
+    expect(screen.queryByText('Not reported')).toBeNull()
+    expect(screen.queryByText('Default')).toBeNull()
   })
 
   it('tooltips a dispatched option pill with the category alone', () => {

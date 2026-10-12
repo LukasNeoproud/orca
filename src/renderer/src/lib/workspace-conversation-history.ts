@@ -1,7 +1,7 @@
 import type { ResumableTuiAgent } from '../../../shared/agent-session-resume'
 import type { AiVaultSession } from '../../../shared/ai-vault-types'
 import { useAppStore } from '@/store'
-import { activateRunningOriginalAiVaultSessionPane } from '@/components/right-sidebar/ai-vault-original-pane-actions'
+import { activateRunningOriginalAiVaultSessionPane } from '@/components/right-sidebar/ai-vault-running-pane-activation'
 import {
   findOriginalAiVaultSessionPaneInIndex,
   getAiVaultOriginalPaneIndex

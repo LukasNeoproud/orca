@@ -2,6 +2,8 @@ import { runInNewContext } from 'node:vm'
 import { expect, it } from 'vitest'
 import { mobileEncoderInitialization } from './mobile-emulator-encoder-page'
 
+type FakeEncodedChunk = Pick<EncodedVideoChunk, 'byteLength' | 'timestamp' | 'type' | 'copyTo'>
+
 it('keeps the requested cadence across rounded timestamps without accepting bursts', async () => {
   let now = 0
   let encoded = 0
@@ -21,7 +23,7 @@ it('keeps the requested cadence across rounded timestamps without accepting burs
         return { supported: true }
       }
       encodeQueueSize = 0
-      constructor(private callbacks: { output: (chunk: object) => void }) {}
+      constructor(private callbacks: { output: (chunk: FakeEncodedChunk) => void }) {}
       configure() {}
       reset() {}
       async flush() {}

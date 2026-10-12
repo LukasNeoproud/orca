@@ -14,6 +14,7 @@ import type {
 } from '../../shared/project-types'
 import type { Repo } from '../../shared/repo-types'
 import {
+  getRepoExecutionHostId,
   getSshTargetIdForExecutionHost,
   parseExecutionHostId,
   type ExecutionHostId
@@ -164,7 +165,10 @@ export class RuntimeProjectHostSetupController {
       return this.linkRepo(args, initialRepo)
     } catch (error) {
       if (repoWasCreated) {
-        this.deps.getStore()?.removeProject?.(initialRepo.id)
+        // Why: host-scoped so a rollback never takes a same-id row on another host.
+        this.deps
+          .getStore()
+          ?.removeProjectForHost?.(initialRepo.id, getRepoExecutionHostId(initialRepo))
         this.deps.invalidateResolvedWorktrees()
         this.deps.invalidateWorktreeScan(initialRepo.id)
         invalidateAuthorizedRootsCache()
@@ -192,7 +196,8 @@ export class RuntimeProjectHostSetupController {
         updateRepo: store.updateRepo.bind(store)
       },
       initialRepo,
-      args
+      // This server links a repo on its own disk; a client's `runtime:` address is not its id here.
+      { ...args, hostId: getRepoExecutionHostId(initialRepo) }
     )
   }
 }

@@ -14,7 +14,8 @@ export type LinkActionRequest = {
   kind: LinkActionKind
   primary: LinkAction
   alternate?: LinkAction
-  additionalActions?: LinkAction[]
+  /** Rows after primary/alternate that have no click shortcut. */
+  secondaryActions?: readonly LinkAction[]
   preview?: { target: ChatPreviewTarget; runtimeContext?: RuntimeFileOperationArgs | null }
   transient?: boolean
   anchorElement?: HTMLElement

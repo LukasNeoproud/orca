@@ -2,12 +2,21 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import {
   encodeOrcaInteractionResult,
+  OrcaInteractionRequestSchema,
   type OrcaInteractionRequest
 } from '../../../../shared/orca-interaction'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { OrcaInteractionForm } from './OrcaInteractionForm'
 import { createOrcaInteractionDrafts } from './orca-interaction-form-state'
+
+export function readQuestionInteraction(value: unknown): OrcaInteractionRequest | null {
+  if (!value) {
+    return null
+  }
+  const parsed = OrcaInteractionRequestSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
 
 export function NativeChatInteractionCard({
   request,

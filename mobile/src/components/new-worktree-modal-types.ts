@@ -33,19 +33,18 @@ export type NewWorktreeModalProps = {
   existingWorktrees?: readonly ({ repoId: string; branch: string } & Partial<
     Pick<MobileWorktree, 'worktreeId' | 'displayName' | 'hostId' | 'isArchived' | 'isMainWorktree'>
   >)[]
-  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
+  openExternalUrl: (url: string) => void
+  onCreated: (
+    worktreeId: string,
+    name: string,
+    warning?: string,
+    checkoutWarning?: WorktreeCheckoutWarning
+  ) => void
   onPairHost?: () => void
   onClose: () => void
 }
 
 export type SetupRunPolicy = 'ask' | 'run-by-default' | 'skip-by-default'
-
-export type RepoHooksResponse = {
-  hooks: { scripts?: { setup?: string } } | null
-  source: string | null
-  setupRunPolicy?: SetupRunPolicy
-  setupTrust?: SetupHookTrust
-}
 
 export type SetupHookDetails = {
   repoId: string

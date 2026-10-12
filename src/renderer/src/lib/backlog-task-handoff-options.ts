@@ -146,10 +146,7 @@ export async function getBacklogTaskConversationOptions(
     const history = optionHistory(session)
     const updatedAt = session.updatedAt ?? session.modifiedAt ?? null
     if (session.structuredSession) {
-      if (
-        session.structuredSession.workspaceId === targetRoute.workspaceId &&
-        session.structuredSession.ownerState !== 'unverifiable'
-      ) {
+      if (session.structuredSession.workspaceId === targetRoute.workspaceId) {
         options.push({
           id: `structured:${session.structuredSession.sessionId}`,
           title: session.title,

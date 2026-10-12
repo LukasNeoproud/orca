@@ -228,7 +228,10 @@ export function MobileDeviceApprovalsSection(): React.JSX.Element | null {
               </div>
               <p
                 className="select-text break-all rounded-md border border-border px-3 py-2 font-mono text-xs"
-                aria-label="Full phone fingerprint"
+                aria-label={translate(
+                  'auto.components.settings.MobileDeviceApprovalsSection.fullFingerprint',
+                  'Full phone fingerprint'
+                )}
               >
                 {fingerprint}
               </p>

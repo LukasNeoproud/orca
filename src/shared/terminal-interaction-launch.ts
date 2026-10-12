@@ -39,9 +39,9 @@ export function orcaMcpServerLaunchArgs(
       `mcp_servers.${server}={command=${JSON.stringify(cli)},args=${JSON.stringify(cliArgs)},env_vars=${JSON.stringify(MCP_ENV)},tool_timeout_sec=3600}`
     ]
   }
+  // Why the `=` form: Claude's variadic `--mcp-config` would otherwise swallow a following prompt.
   return [
-    '--mcp-config',
-    JSON.stringify({ mcpServers: { [server]: { command: cli, args: cliArgs } } })
+    `--mcp-config=${JSON.stringify({ mcpServers: { [server]: { command: cli, args: cliArgs } } })}`
   ]
 }
 

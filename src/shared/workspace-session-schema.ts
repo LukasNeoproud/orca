@@ -11,6 +11,7 @@
  * survives, because one bad tab record must not cost every worktree its state.
  * Only a payload that is not a session at all falls back to defaults.
  */
+import { agentLaunchPaneOnTabSchema } from './agent-launch-pane-verdict'
 import { z } from 'zod'
 import { closedTerminalTabTombstoneSchema } from './closed-terminal-tab-tombstones'
 import type { WorkspaceKey } from './folder-workspace-types'
@@ -20,7 +21,7 @@ import type { TuiAgent } from './tui-agent'
 import type { WorkspaceSessionState } from './workspace-session-state-types'
 import { terminalTabIdSchema } from './terminal-tab-id-schema'
 import { terminalSurfaceTombstoneSchema } from './terminal-surface-tombstone-schema'
-import { parseExecutionHostId, type ExecutionHostId } from './execution-host'
+import { executionHostIdSchema } from './execution-host-id-schema'
 import { isTuiAgent } from './tui-agent-config'
 import { isWorkspaceKey } from './workspace-scope'
 import {
@@ -31,7 +32,7 @@ import {
 } from './workspace-session-browser-schema'
 import { clientHostedBrowserCloseIntentSchema } from './client-hosted-browser-close-intent'
 import { persistedClientHostedBrowserPageSchema } from './client-hosted-browser-page-record'
-import { persistedHeadlessBacklogBoardPageSchema } from './headless-backlog-board-page'
+import { headlessBacklogBoardSessionFields } from './headless-backlog-board-page'
 import { persistedOpenFileSchema } from './workspace-session-editor-schema'
 import { sleepingAgentSessionsByPaneKeySchema } from './workspace-session-sleeping-agents'
 import {
@@ -39,6 +40,7 @@ import {
   workspaceVisibleTabTypeSchema
 } from './workspace-session-tab-type-schema'
 import { salvagedField, salvagedOptional, salvagingArray, salvagingRecord } from './zod-salvage'
+import { isStructuredAgentId } from './agent-session-provider-handle-encoding'
 
 // ─── Terminal pane layout (recursive) ───────────────────────────────
 
@@ -50,7 +52,7 @@ const workspaceKeySchema = z.custom<WorkspaceKey>(
 // Why: z.lazy + type annotation keeps the recursive inference working without
 // forcing zod to resolve the whole tree at definition time. Discriminated on `type` because a
 // plain union re-tries the leaf branch for every split node of every restored terminal layout.
-const terminalPaneLayoutNodeSchema: z.ZodType<TerminalPaneLayoutNode> = z.lazy(() =>
+export const terminalPaneLayoutNodeSchema: z.ZodType<TerminalPaneLayoutNode> = z.lazy(() =>
   z.discriminatedUnion('type', [
     z.object({
       type: z.literal('leaf'),
@@ -72,6 +74,7 @@ const terminalLayoutSnapshotSchema = z.object({
   root: terminalPaneLayoutNodeSchema.nullable(),
   activeLeafId: z.string().nullable(),
   expandedLeafId: z.string().nullable(),
+  chatLeafId: z.string().optional(),
   ptyIdsByLeafId: salvagedOptional('ptyIdsByLeafId', leafStringsSchema),
   buffersByLeafId: salvagedOptional('buffersByLeafId', leafStringsSchema),
   scrollbackRefsByLeafId: salvagedOptional('scrollbackRefsByLeafId', leafStringsSchema),
@@ -80,7 +83,7 @@ const terminalLayoutSnapshotSchema = z.object({
 
 // ─── Terminal tab (legacy) ──────────────────────────────────────────
 
-const terminalTabSchema = z.object({
+export const terminalTabSchema = z.object({
   id: terminalTabIdSchema,
   ptyId: z.string().nullable(),
   worktreeId: z.string(),
@@ -100,6 +103,12 @@ const terminalTabSchema = z.object({
   customTitle: z.string().nullable(),
   color: z.string().nullable(),
   isPinned: z.boolean().optional(),
+  // Why: recovery asks the terminal row who owns the surface, so a row that
+  // loses viewMode on reload reads as "not chat-owned" and lets a hidden chat
+  // surface remount itself. Declared here so the row survives the parse, with
+  // the same `.catch('terminal')` degradation the unified tab uses below.
+  // Legacy rows that predate this stay undefined → 'terminal' in the renderer.
+  viewMode: z.enum(['terminal', 'chat']).catch('terminal').optional(),
   sortOrder: z.number(),
   createdAt: z.number(),
   generation: z.number().optional(),
@@ -111,14 +120,12 @@ const terminalTabSchema = z.object({
   launchAgent: z
     .custom<TuiAgent>((v) => isTuiAgent(v))
     .optional()
-    .catch(undefined)
+    .catch(undefined),
+  // Why: survives a restart so a restored launch pane reads its fate before it spawns.
+  agentLaunchPane: agentLaunchPaneOnTabSchema
 })
 
 // ─── Unified tab model ──────────────────────────────────────────────
-
-const executionHostIdSchema = z.custom<ExecutionHostId>(
-  (value) => typeof value === 'string' && Boolean(parseExecutionHostId(value))
-)
 
 const tabSchema = z.object({
   id: z.string(),
@@ -127,11 +134,14 @@ const tabSchema = z.object({
   worktreeId: z.string(),
   executionHostId: executionHostIdSchema.optional(),
   contentType: tabContentTypeSchema,
-  agentSessionAgent: z.enum(['codex', 'claude']).optional().catch(undefined),
-  // Why: a structured terminal tab must recover its durable host session after
-  // restart; omitting this additive field silently routes it back through PTY.
-  structuredSessionId: z.string().min(1).optional().catch(undefined),
-  structuredSessionPaneKey: z.string().min(1).optional().catch(undefined),
+  // Why: any agent a host registered, as the host published it. An id that is not an agent slug
+  // degrades to absent, which renders no chat, rather than failing the whole-session parse; a
+  // build that predates an agent reads its tab the same way.
+  agentSessionAgent: z
+    .string()
+    .refine((value) => isStructuredAgentId(value))
+    .optional()
+    .catch(undefined),
   label: z.string(),
   generatedLabel: z.string().nullable().optional(),
   aiVaultTitle: z
@@ -209,6 +219,12 @@ export const workspaceSessionStateSchema: z.ZodType<WorkspaceSessionState> = z.o
     salvagingRecord(terminalTabIdSchema, terminalLayoutSnapshotSchema),
     () => ({})
   ),
+  // Client-local park scrollback; see WorkspaceSessionState.localOnlyScrollbackByTabId for why it is
+  // not a field on the layout snapshot. Optional so an older profile simply carries none.
+  localOnlyScrollbackByTabId: salvagedOptional(
+    'localOnlyScrollbackByTabId',
+    salvagingRecord(terminalTabIdSchema, leafStringsSchema)
+  ),
   activeWorktreeIdsOnShutdown: salvagedOptional(
     'activeWorktreeIdsOnShutdown',
     salvagingArray(worktreeIdSchema)
@@ -241,10 +257,7 @@ export const workspaceSessionStateSchema: z.ZodType<WorkspaceSessionState> = z.o
     'clientHostedBrowserPagesByWorktree',
     salvagingRecord(worktreeIdSchema, salvagingArray(persistedClientHostedBrowserPageSchema))
   ),
-  headlessBacklogBoardPagesByWorktree: salvagedOptional(
-    'headlessBacklogBoardPagesByWorktree',
-    salvagingRecord(worktreeIdSchema, salvagingArray(persistedHeadlessBacklogBoardPageSchema))
-  ),
+  ...headlessBacklogBoardSessionFields,
   clientHostedBrowserCloseIntentsByEnvironment: salvagedOptional(
     'clientHostedBrowserCloseIntentsByEnvironment',
     salvagingRecord(z.string().min(1), salvagingArray(clientHostedBrowserCloseIntentSchema))

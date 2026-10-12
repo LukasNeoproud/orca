@@ -148,7 +148,6 @@ export function useQuickSubmitAction(input: QuickSubmitActionInput) {
           workspaceNameSeed,
           workspaceRunContext,
           repoId,
-          selectedRepo,
           explicit
         )
       } catch (error) {

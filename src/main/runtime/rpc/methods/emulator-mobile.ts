@@ -1,35 +1,17 @@
-import { z } from 'zod'
-import { defineMethod, defineStreamingMethod, type RpcAnyMethod } from '../core'
+import {
+  EmulatorMobileDevicesParams,
+  EmulatorMobileInputParams,
+  EmulatorMobileStreamParams,
+  EmulatorMobileUnsubscribeParams
+} from '../../../../shared/rpc-contract/emulator-mobile-params'
+import { defineMethod, defineStreamingMethod } from '../core'
 import { getMobileEmulatorStreamHost } from '../../../host/mobile-emulator-stream-host'
 
-const Coordinate = z.number().finite().min(0).max(1)
-const SubscriptionId = z.string().min(1)
-const Touch = z.object({
-  type: z.literal('touch'),
-  phase: z.enum(['down', 'move', 'up', 'cancel']),
-  x: Coordinate,
-  y: Coordinate,
-  videoWidth: z.number().int().min(1).max(16_384).optional(),
-  videoHeight: z.number().int().min(1).max(16_384).optional()
-})
-const GesturePoint = z.object({
-  type: z.enum(['begin', 'move', 'end']),
-  x: Coordinate,
-  y: Coordinate,
-  edge: z.number().int().min(0).max(4).optional()
-})
-const Action = z.discriminatedUnion('type', [
-  Touch,
-  z.object({ type: z.literal('tap'), x: Coordinate, y: Coordinate }),
-  z.object({ type: z.literal('gesture'), points: z.array(GesturePoint).min(2).max(64) }),
-  z.object({ type: z.literal('type'), text: z.string().max(10_000) }),
-  z.object({ type: z.literal('button'), name: z.string().min(1).max(64) })
-])
-
-export const EMULATOR_MOBILE_METHODS: RpcAnyMethod[] = [
+export const EMULATOR_MOBILE_METHODS = [
   defineMethod({
     name: 'emulator.mobile.devices',
-    params: z.object({}),
+    permission: 'workspace',
+    params: EmulatorMobileDevicesParams,
     handler: async (_params, { runtime }) => {
       if (!runtime.getStatus().capabilities?.includes('emulator.mobile-stream.v1')) {
         throw new Error('Mobile emulator streaming is unavailable on this host')
@@ -43,15 +25,8 @@ export const EMULATOR_MOBILE_METHODS: RpcAnyMethod[] = [
   }),
   defineStreamingMethod({
     name: 'emulator.mobile.stream',
-    params: z.object({
-      deviceId: z.string().min(1),
-      profile: z.enum(['quality', 'responsive', 'data-saver']).default('responsive'),
-      videoCodecs: z
-        .array(z.enum(['h264', 'hevc', 'av1', 'jpeg']))
-        .min(1)
-        .max(4)
-        .optional()
-    }),
+    permission: 'workspace',
+    params: EmulatorMobileStreamParams,
     handler: async (params, { runtime, connectionId, sendBinary, signal }, emit) => {
       if (!connectionId || !sendBinary) {
         throw new Error('Emulator streaming requires an authenticated binary connection')
@@ -90,7 +65,8 @@ export const EMULATOR_MOBILE_METHODS: RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'emulator.mobile.unsubscribe',
-    params: z.object({ subscriptionId: SubscriptionId }),
+    permission: 'workspace',
+    params: EmulatorMobileUnsubscribeParams,
     handler: async (params, { connectionId }) => {
       const host = getMobileEmulatorStreamHost()
       return {
@@ -102,7 +78,8 @@ export const EMULATOR_MOBILE_METHODS: RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'emulator.mobile.input',
-    params: z.object({ subscriptionId: SubscriptionId, action: Action }),
+    permission: 'workspace',
+    params: EmulatorMobileInputParams,
     handler: async (params, { connectionId }) => {
       if (!connectionId) {
         throw new Error('Emulator input requires an authenticated connection')

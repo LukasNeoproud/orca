@@ -17,9 +17,15 @@ type Props = {
   existingWorktrees?: readonly ({ repoId: string; branch: string } & Partial<
     Pick<MobileWorktree, 'worktreeId' | 'displayName' | 'hostId' | 'isArchived' | 'isMainWorktree'>
   >)[]
+  openExternalUrl: (url: string) => void
   onVisibleChange?: (visible: boolean) => void
   onRouteVisibleChange: (visible: boolean) => void
-  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
+  onCreated: (
+    worktreeId: string,
+    name: string,
+    warning?: string,
+    checkoutWarning?: WorktreeCheckoutWarning
+  ) => void
   onPairHost?: () => void
 }
 
@@ -31,6 +37,7 @@ export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerH
       hostId,
       existingWorktreePaths,
       existingWorktrees,
+      openExternalUrl,
       onVisibleChange,
       onRouteVisibleChange,
       onCreated,
@@ -67,6 +74,7 @@ export const NewWorktreeModalController = forwardRef<NewWorktreeModalControllerH
         hostId={hostId}
         existingWorktreePaths={existingWorktreePaths}
         existingWorktrees={existingWorktrees}
+        openExternalUrl={openExternalUrl}
         onCreated={onCreated}
         onPairHost={onPairHost}
         onClose={close}

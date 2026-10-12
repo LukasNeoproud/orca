@@ -1,6 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import { nativeChatFilePreviewActions } from './native-chat-file-preview-actions'
-import { useCallback, useRef, useState, type RefObject } from 'react'
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   closeLinkActionRequest,
   type LinkActionRequest
@@ -18,6 +18,8 @@ import {
   handleNativeChatWebLink,
   nativeChatWebLinkActionRequest
 } from './native-chat-web-link-actions'
+import { nativeChatPlainLinkClickBehavior } from './native-chat-link-click-behavior'
+import { isTerminalLinkActionActivation } from '@/components/terminal-pane/terminal-link-activation'
 import { useNativeChatFileLinkClick } from './use-native-chat-file-link-click'
 
 export type NativeChatLinkActions = {
@@ -26,16 +28,24 @@ export type NativeChatLinkActions = {
   closeLinkActions: (dismissed?: LinkActionRequest) => void
 }
 
-/** Transcript links: file targets open in Orca, http(s) targets offer the same
- *  destination popover the terminal shows. */
+/** Transcript links offer the same destination popovers the terminal shows: file
+ *  targets open in Orca or the default app, http(s) targets in a browser. */
 export function useNativeChatLinkActions(
   context: NativeChatFileLinkContext | null,
   rootRef: RefObject<HTMLElement | null>,
-  scope: { sessionId: string | null; isVisible: boolean; insertReference?: (text: string) => void }
+  scope: {
+    sessionId: string | null
+    isVisible: boolean
+    composerRef?: RefObject<{ insertTypedText: (text: string) => void } | null>
+  }
 ): NativeChatLinkActions {
-  const { insertReference } = scope
-  const openFileLink = useNativeChatFileLinkClick(context)
+  const { composerRef } = scope
+  const insertReference = useMemo(
+    () => (composerRef ? (text: string) => composerRef.current?.insertTypedText(text) : undefined),
+    [composerRef]
+  )
   const [linkActionRequest, setLinkActionRequest] = useState<LinkActionRequest | null>(null)
+  const openFileLink = useNativeChatFileLinkClick(context, setLinkActionRequest, rootRef)
   const scopeKey = JSON.stringify([
     context?.worktreeId,
     context?.runtimeEnvironmentId,
@@ -93,7 +103,7 @@ export function useNativeChatLinkActions(
       })
       request.pinOnClick = state.settings?.terminalLinkActionPopoverEnabled !== false
       if (insertReference) {
-        request.additionalActions = [
+        request.secondaryActions = [
           {
             label: translate(
               'auto.components.nativeChat.preview.addReference',
@@ -101,7 +111,7 @@ export function useNativeChatLinkActions(
             ),
             run: () => insertReference(`${route.url} `)
           },
-          ...(request.additionalActions ?? [])
+          ...(request.secondaryActions ?? [])
         ]
       }
       return request
@@ -117,10 +127,11 @@ export function useNativeChatLinkActions(
       setLinkActionRequest(null)
       const route = routeNativeChatHref(href)
       if (route.kind === 'file') {
+        // Only a plain click under the 'actions' setting previews; the rest open as upstream does.
         if (
-          event.shiftKey ||
-          (navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey) ||
-          event.button === 1
+          !isTerminalLinkActionActivation(event) ||
+          !(event.currentTarget instanceof HTMLElement) ||
+          nativeChatPlainLinkClickBehavior(useAppStore.getState().settings) !== 'actions'
         ) {
           openFileLink?.(event, href)
           return
@@ -133,8 +144,8 @@ export function useNativeChatLinkActions(
           }
           request.preview = options?.preview
           if (!options?.preview) {
-            request.additionalActions = [
-              ...(request.additionalActions ?? []),
+            request.secondaryActions = [
+              ...(request.secondaryActions ?? []),
               {
                 label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
                 run: () => window.api.ui.writeClipboardText(request.destination)
@@ -144,6 +155,8 @@ export function useNativeChatLinkActions(
           event.preventDefault()
           event.stopPropagation()
           setLinkActionRequest(request)
+        } else {
+          openFileLink?.(event, href)
         }
         return
       }
@@ -154,6 +167,7 @@ export function useNativeChatLinkActions(
       // Read at click time: settings and workspace ownership must not re-render the transcript.
       const state = useAppStore.getState()
       const sourceOwner = resolveNativeChatHttpLinkSourceOwner(state, context.worktreeId)
+      const plainClickBehavior = nativeChatPlainLinkClickBehavior(state.settings)
       const anchor = event.currentTarget
       handleNativeChatWebLink(event, route.url, {
         worktreeId: context.worktreeId,
@@ -163,14 +177,15 @@ export function useNativeChatLinkActions(
           sourceOwner,
           canNativeChatOpenOwnedBrowser(state, context.worktreeId, sourceOwner)
         ),
-        actionsEnabled: state.settings?.terminalLinkActionPopoverEnabled !== false,
+        actionsEnabled: plainClickBehavior === 'actions',
+        plainClickBehavior,
         restoreFocus: () =>
           (anchor.isConnected ? anchor : rootRef.current)?.focus({ preventScroll: true }),
         request: (request) => {
           setLinkActionRequest({
             ...request,
             preview: options?.preview,
-            additionalActions: [
+            secondaryActions: [
               ...(insertReference
                 ? [
                     {
@@ -182,7 +197,7 @@ export function useNativeChatLinkActions(
                     }
                   ]
                 : []),
-              ...(request.additionalActions ?? [])
+              ...(request.secondaryActions ?? [])
             ]
           })
         }
@@ -191,11 +206,13 @@ export function useNativeChatLinkActions(
     [context, createPreviewRequest, openFileLink, rootRef, insertReference]
   )
 
-  onLinkClick.createPreviewRequest = createPreviewRequest
-  onLinkClick.showPreview = showPreview
+  const onLinkClickWithPreview = useMemo(
+    () => Object.assign(onLinkClick, { createPreviewRequest, showPreview }),
+    [createPreviewRequest, onLinkClick, showPreview]
+  )
 
   return {
-    onLinkClick: context ? onLinkClick : undefined,
+    onLinkClick: context ? onLinkClickWithPreview : undefined,
     linkActionRequest,
     closeLinkActions
   }

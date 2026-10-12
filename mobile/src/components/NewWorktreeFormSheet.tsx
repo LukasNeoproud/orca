@@ -9,7 +9,7 @@ import { BottomDrawer } from './BottomDrawer'
 import { MobileAgentIcon } from './MobileAgentIcon'
 import type { NewWorktreeAgentOption } from './new-worktree-agent-selection'
 import { newWorktreeFormStyles as styles } from './new-worktree-form-styles'
-import type { SetupRunPolicy } from './new-worktree-modal-types'
+import type { MobileWorkspaceRepo, SetupRunPolicy } from './new-worktree-modal-types'
 import { NewWorktreeProjectTargetFields } from './NewWorktreeProjectTargetFields'
 import { NewWorkspaceSetupScriptField } from './NewWorkspaceSetupScriptField'
 import { NewWorkspaceSshConnectionField } from './NewWorkspaceSshConnectionField'
@@ -18,7 +18,6 @@ import { SmartWorkspaceSourceField } from './SmartWorkspaceSourceField'
 import { MobileWorktreeLocationFields } from './MobileWorktreeLocationFields'
 import { NewWorkspaceExtraFields } from './NewWorkspaceExtraFields'
 import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
-import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
 
 type Composer = ReturnType<typeof useMobileComposerSource>
 type Selection = { label: string; detail?: string }
@@ -60,6 +59,7 @@ export function NewWorktreeFormSheet(props: {
   creating: boolean
   canCreate: boolean
   onClose: () => void
+  onOpenExternalUrl: (url: string) => void
   onOpenProject: () => void
   onOpenRunTarget: () => void
   onOpenSource: () => void
@@ -106,6 +106,7 @@ export function NewWorktreeFormSheet(props: {
             label={props.selectedRepoIsGit ? "Name or 'Create From'" : 'Workspace name'}
             disabled={props.sshGate.requiresConnection}
             interactive={props.interactive}
+            onOpenExternalUrl={props.onOpenExternalUrl}
             onBeforeOpen={props.onClearError}
             onOpenDrawer={props.onOpenSource}
           />

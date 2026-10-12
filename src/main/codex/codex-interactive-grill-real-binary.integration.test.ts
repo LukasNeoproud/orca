@@ -16,6 +16,8 @@ import { orcaInteractionToolResponse, readOrcaInteractionCall } from './codex-or
 import { readCodexThreadId, readCodexTurnId } from './codex-structured-thread-facts'
 import { openCodexThread } from './codex-structured-thread-open'
 import { startCodexTurn } from './codex-structured-turn-start'
+import { createCodexDispatchEchoes } from './codex-structured-dispatch-echo'
+import { createCodexTurnOpenWaits } from './codex-structured-turn-open-wait'
 import {
   encodeOrcaInteractionResult,
   type OrcaInteractionRequest,
@@ -266,14 +268,14 @@ describe('real Codex interactive grill-me handoff', () => {
         text: string,
         permissions = 'read-only'
       ): Promise<string> => {
-        const turnId = await startCodexTurn(
+        const started = await startCodexTurn(
           {
             connection: client,
             threadId,
-            cwd: workspace,
             resumedInteractiveChat: resumedThreadIds.has(threadId),
             options: new Map([['permissions', permissions]]),
-            turnIdWaiters: []
+            dispatchEchoes: createCodexDispatchEchoes(),
+            turnOpenWaits: createCodexTurnOpenWaits()
           },
           {
             clientMessageId: randomUUID(),
@@ -281,10 +283,10 @@ describe('real Codex interactive grill-me handoff', () => {
             timeoutMs: 30_000
           }
         )
-        if (!turnId) {
+        if (!started || !started.turnId) {
           throw new Error('Codex did not identify the turn')
         }
-        return turnId
+        return started.turnId
       }
 
       const handoffObserved = (

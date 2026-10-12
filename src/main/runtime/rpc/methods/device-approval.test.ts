@@ -30,9 +30,15 @@ function mobileContext(roots: number[]): RpcContext {
   } as unknown as RpcContext
 }
 
+// Why: handlers are typed per method; these calls exercise authority, not param parsing.
+const approvalMethods = DEVICE_APPROVAL_METHODS as unknown as readonly {
+  name: string
+  handler: (params: unknown, ctx: RpcContext) => Promise<unknown>
+}[]
+
 describe('device approval RPC authority', () => {
   it('refuses local agent/runtime calls and unidentified mobile connections', async () => {
-    const list = DEVICE_APPROVAL_METHODS[0]!
+    const list = approvalMethods[0]!
     for (const context of [
       {},
       { clientKind: 'runtime', connectionId: 'a', pairedDeviceId: 'p' },
@@ -65,7 +71,7 @@ describe('device approval RPC authority', () => {
       pending: [{ payload: JSON.stringify(request) }, { payload: JSON.stringify(enrollment) }]
     })
     vi.mocked(isRequesterDescendantOfMobileTerminal).mockResolvedValueOnce(false)
-    const result = await DEVICE_APPROVAL_METHODS[0]!.handler({}, mobileContext([100]))
+    const result = await approvalMethods[0]!.handler({}, mobileContext([100]))
     expect(result).toMatchObject({ pending: [{ payload: JSON.stringify(enrollment) }] })
     expect(isRequesterDescendantOfMobileTerminal).toHaveBeenCalledWith(4242, [100])
   })
@@ -81,12 +87,12 @@ describe('device approval RPC authority', () => {
       signatureDerBase64: 'A'.repeat(88)
     }
     const context = mobileContext([100])
-    await expect(DEVICE_APPROVAL_METHODS[1]!.handler(response, context)).rejects.toThrow(
+    await expect(approvalMethods[1]!.handler(response, context)).rejects.toThrow(
       'terminal controlled by this phone'
     )
     expect(deviceApprovalMailbox.respond).not.toHaveBeenCalled()
     vi.mocked(isRequesterDescendantOfMobileTerminal).mockResolvedValue(true)
-    await expect(DEVICE_APPROVAL_METHODS[1]!.handler(response, context)).resolves.toEqual({
+    await expect(approvalMethods[1]!.handler(response, context)).resolves.toEqual({
       submitted: true
     })
     expect(deviceApprovalMailbox.respond).toHaveBeenCalledWith(response)

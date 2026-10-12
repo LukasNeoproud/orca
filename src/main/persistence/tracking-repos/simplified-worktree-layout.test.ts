@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Repo } from '../../../shared/repo-types'
 import { sanitizeRepoUpdatesForPersistence } from './repo-sanitization'
-import { createRepoUpdateSchema } from '../../runtime/rpc/methods/repo-update-schema'
+import { createRepoUpdateSchema } from '../../../shared/rpc-contract/repo-update-params'
 import { z } from 'zod'
 
 const schema = createRepoUpdateSchema({ repo: z.string() })

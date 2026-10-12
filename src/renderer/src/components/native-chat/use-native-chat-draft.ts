@@ -1,175 +1,89 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { appendReturnedDraftText } from '../../../../shared/returned-draft-text'
+import { subscribeToNativeChatComposerDraft } from './native-chat-composer-draft-store'
 import {
-  appendAiResponseComments,
-  formatAiResponseComments,
-  type AiResponseComment
-} from '../../../../shared/ai-response-comments'
-import {
-  appendNativeChatResponseComment,
   readNativeChatDraftCache,
-  readNativeChatResponseComments,
-  writeNativeChatDraftCache,
-  writeNativeChatResponseComments
+  subscribeToNativeChatDraftAppend,
+  writeNativeChatDraftCache
 } from './native-chat-draft-cache'
 
+/** Text appended mid-IME-composition: saved at once, shown once the composition settles. */
+type CompositionHold = { scopeKey: string; shown: string; appended: string }
+
 /**
- * Composer draft state backed by the scope cache so a typed-but-unsent message
- * survives the composer unmounting on a TUI/GUI toggle. `scopeKey` is the stable
- * pane key also used for image attachments; when it changes (the composer is
- * reused for a different pane) the cached draft is reloaded.
+ * The composer's draft text, read from the draft store so a typed-but-unsent message survives
+ * the composer unmounting on a TUI/GUI toggle, a reload or a quit. Every change is made to the
+ * store's current draft, never to a copy this composer holds. `scopeKey` is the stable pane key
+ * also used for image attachments.
  */
-export function useNativeChatDraft(scopeKey: string): {
+export function useNativeChatDraft(
+  scopeKey: string,
+  isComposing: () => boolean
+): {
   draft: string
-  setDraft: (next: string | ((previous: string) => string)) => void
-  responseCommentDraft: {
-    comments: readonly AiResponseComment[]
-    add: (quote: string, comment: string) => boolean
-    clear: () => void
-    clearSubmitted: (submitted: readonly AiResponseComment[]) => void
-    restoreCanceledSend: (draft: string, comments: readonly AiResponseComment[]) => void
-    update: (id: string, comment: string) => void
-    remove: (id: string) => void
-    formattedDraft: string
-    hasValidComments: boolean
-  }
+  setDraft: (next: string | ((previous: string) => string), options?: { unsaved?: boolean }) => void
+  /** Shows text appended during an IME composition, which owns the field until it settles. */
+  flushDraftAppends: () => void
 } {
-  const [draft, setDraftState] = useState(() => readNativeChatDraftCache(scopeKey))
-  const [responseComments, setResponseCommentsState] = useState(() =>
-    readNativeChatResponseComments(scopeKey)
-  )
-
-  // Reload the cached draft when reused for a different pane (scope change),
-  // adjusting state during render rather than in an effect so the restored draft
-  // is visible on the first paint after the switch.
-  const lastScopeKey = useRef(scopeKey)
-  if (lastScopeKey.current !== scopeKey) {
-    lastScopeKey.current = scopeKey
-    setDraftState(readNativeChatDraftCache(scopeKey))
-    setResponseCommentsState(readNativeChatResponseComments(scopeKey))
-  }
-
-  // Persist every mutation through the cache. Accepts the same value/updater
-  // forms as a useState setter so call sites are drop-in.
-  const setDraft = useCallback(
-    (next: string | ((previous: string) => string)) => {
-      if (lastScopeKey.current !== scopeKey) {
-        const previous = readNativeChatDraftCache(scopeKey)
-        writeNativeChatDraftCache(scopeKey, typeof next === 'function' ? next(previous) : next)
-        return
-      }
-      setDraftState((previous) => {
-        const resolved = typeof next === 'function' ? next(previous) : next
-        writeNativeChatDraftCache(scopeKey, resolved)
-        return resolved
-      })
-    },
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeToNativeChatComposerDraft(scopeKey, listener),
     [scopeKey]
   )
+  const stored = useSyncExternalStore(subscribe, () => readNativeChatDraftCache(scopeKey))
+  const [hold, setHold] = useState<CompositionHold | null>(null)
+  // Read by callbacks between renders; only they change it, always together with the state.
+  const holdRef = useRef<CompositionHold | null>(null)
+  const updateHold = useCallback((next: CompositionHold | null) => {
+    holdRef.current = next
+    setHold(next)
+  }, [])
+  useEffect(
+    () => () => {
+      holdRef.current = null
+    },
+    []
+  )
 
-  const setResponseComments = useCallback(
-    (
-      next:
-        | readonly AiResponseComment[]
-        | ((previous: readonly AiResponseComment[]) => readonly AiResponseComment[])
-    ) => {
-      if (lastScopeKey.current !== scopeKey) {
-        const previous = readNativeChatResponseComments(scopeKey)
-        writeNativeChatResponseComments(
+  useEffect(
+    () =>
+      subscribeToNativeChatDraftAppend(scopeKey, (text, previous) => {
+        if (!isComposing()) {
+          return
+        }
+        const held = holdRef.current?.scopeKey === scopeKey ? holdRef.current : null
+        updateHold({
           scopeKey,
-          typeof next === 'function' ? next(previous) : next
-        )
-        return
-      }
-      setResponseCommentsState((previous) => {
-        const resolved = typeof next === 'function' ? next(previous) : next
-        writeNativeChatResponseComments(scopeKey, resolved)
-        return resolved
-      })
-    },
-    [scopeKey]
+          shown: held ? held.shown : previous,
+          appended: held ? appendReturnedDraftText(held.appended, text) : text
+        })
+      }),
+    [isComposing, scopeKey, updateHold]
   )
 
-  const addResponseComment = useCallback(
-    (quote: string, comment: string): boolean => {
-      if (!quote.trim() || !comment.trim()) {
-        return false
+  // Accepts the same value/updater forms as a useState setter so call sites are drop-in.
+  const setDraft = useCallback(
+    (next: string | ((previous: string) => string), options?: { unsaved?: boolean }) => {
+      const held = holdRef.current?.scopeKey === scopeKey ? holdRef.current : null
+      const previous = held ? held.shown : readNativeChatDraftCache(scopeKey)
+      const resolved = typeof next === 'function' ? next(previous) : next
+      if (held) {
+        updateHold({ ...held, shown: resolved })
       }
-      const entry = appendNativeChatResponseComment(scopeKey, quote, comment)
-      if (lastScopeKey.current === scopeKey) {
-        setResponseCommentsState((current) => [...current, entry])
-      }
-      return true
+      writeNativeChatDraftCache(
+        scopeKey,
+        held ? appendReturnedDraftText(resolved, held.appended) : resolved,
+        options
+      )
     },
-    [scopeKey]
-  )
-  const clearResponseComments = useCallback(() => setResponseComments([]), [setResponseComments])
-  const clearSubmittedResponseComments = useCallback(
-    (submitted: readonly AiResponseComment[]) =>
-      setResponseComments((current) =>
-        current.filter(
-          (entry) =>
-            !submitted.some(
-              (sent) =>
-                sent.id === entry.id && sent.quote === entry.quote && sent.comment === entry.comment
-            )
-        )
-      ),
-    [setResponseComments]
-  )
-  const restoreCanceledSend = useCallback(
-    (submittedDraft: string, submittedComments: readonly AiResponseComment[]) => {
-      const cachedDraft = readNativeChatDraftCache(scopeKey)
-      if (!cachedDraft && submittedDraft) {
-        writeNativeChatDraftCache(scopeKey, submittedDraft)
-      }
-      const mergeComments = (
-        current: readonly AiResponseComment[]
-      ): readonly AiResponseComment[] => {
-        const currentIds = new Set(current.map((entry) => entry.id))
-        return [...submittedComments.filter((entry) => !currentIds.has(entry.id)), ...current]
-      }
-      const restoredComments = mergeComments(readNativeChatResponseComments(scopeKey))
-      writeNativeChatResponseComments(scopeKey, restoredComments)
-      if (lastScopeKey.current === scopeKey) {
-        setDraftState((current) => current || submittedDraft)
-        setResponseCommentsState(mergeComments)
-      }
-    },
-    [scopeKey]
-  )
-  const updateResponseComment = useCallback(
-    (id: string, comment: string) =>
-      setResponseComments((current) =>
-        current.map((entry) => (entry.id === id ? { ...entry, comment } : entry))
-      ),
-    [setResponseComments]
-  )
-  const removeResponseComment = useCallback(
-    (id: string) => setResponseComments((current) => current.filter((entry) => entry.id !== id)),
-    [setResponseComments]
-  )
-  const formattedDraft = useMemo(
-    () => appendAiResponseComments(draft, responseComments),
-    [draft, responseComments]
-  )
-  const hasValidResponseComments = useMemo(
-    () => formatAiResponseComments(responseComments) !== '',
-    [responseComments]
+    [scopeKey, updateHold]
   )
 
-  return {
-    draft,
-    setDraft,
-    responseCommentDraft: {
-      comments: responseComments,
-      add: addResponseComment,
-      clear: clearResponseComments,
-      clearSubmitted: clearSubmittedResponseComments,
-      restoreCanceledSend,
-      update: updateResponseComment,
-      remove: removeResponseComment,
-      formattedDraft,
-      hasValidComments: hasValidResponseComments
+  const flushDraftAppends = useCallback(() => {
+    if (holdRef.current?.scopeKey === scopeKey) {
+      updateHold(null)
     }
-  }
+  }, [scopeKey, updateHold])
+
+  const shownHold = hold?.scopeKey === scopeKey ? hold : null
+  return { draft: shownHold ? shownHold.shown : stored, setDraft, flushDraftAppends }
 }

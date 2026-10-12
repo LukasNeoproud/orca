@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileApkBuildPicker } from './MobileApkBuildPicker'
+import { hostType } from '../test-support/host-type-predicate'
 
 const { listMobileApkBuilds, installMobileApkBuild } = vi.hoisted(() => ({
   listMobileApkBuilds: vi.fn(),
@@ -33,7 +34,7 @@ let renderer: ReactTestRenderer | null = null
 
 function button(label: string) {
   return renderer!.root
-    .findAllByType('Pressable')
+    .findAll(hostType('Pressable'))
     .find(
       (node) =>
         node.props.accessibilityLabel === label || node.props.children?.props?.children === label
@@ -67,16 +68,18 @@ describe('MobileApkBuildPicker', () => {
     })
     expect(listMobileApkBuilds).toHaveBeenCalledWith(client, 'worktree-1', undefined)
     expect(installMobileApkBuild).not.toHaveBeenCalled()
-    await act(async () => vi.advanceTimersByTime(5_000))
+    await act(async () => {
+      vi.advanceTimersByTime(5_000)
+    })
     expect(
       renderer!.root
-        .findAllByType('Pressable')
+        .findAll(hostType('Pressable'))
         .some((node) => node.props.accessibilityLabel === build.relativePath)
     ).toBe(true)
     expect(installMobileApkBuild).not.toHaveBeenCalled()
     await act(async () => {
       renderer!.root
-        .findAllByType('Pressable')
+        .findAll(hostType('Pressable'))
         .find((node) => node.props.accessibilityLabel === build.relativePath)!
         .props.onPress()
     })
@@ -107,9 +110,9 @@ describe('MobileApkBuildPicker', () => {
     expect(listMobileApkBuilds).toHaveBeenCalledTimes(2)
     expect(JSON.stringify(renderer!.toJSON())).not.toContain('Connection lost')
     await act(async () => {
-      renderer!.root.findByType('TextInput').props.onChangeText('custom/outputs')
+      renderer!.root.find(hostType('TextInput')).props.onChangeText('custom/outputs')
     })
-    await act(async () => renderer!.root.findByType('TextInput').props.onSubmitEditing())
+    await act(async () => renderer!.root.find(hostType('TextInput')).props.onSubmitEditing())
     expect(listMobileApkBuilds).toHaveBeenLastCalledWith(client, 'folder-2', 'custom/outputs')
   })
 
@@ -129,12 +132,14 @@ describe('MobileApkBuildPicker', () => {
     })
     await act(async () => {
       renderer!.root
-        .findAllByType('Pressable')
+        .findAll(hostType('Pressable'))
         .find((node) => node.props.accessibilityLabel === build.relativePath)!
         .props.onPress()
     })
     expect(button('Install selected APK')!.props.disabled).toBe(false)
-    await act(async () => vi.advanceTimersByTime(5_000))
+    await act(async () => {
+      vi.advanceTimersByTime(5_000)
+    })
     expect(button('Install selected APK')!.props.disabled).toBe(true)
     expect(installMobileApkBuild).not.toHaveBeenCalled()
   })
@@ -152,7 +157,9 @@ describe('MobileApkBuildPicker', () => {
     })
     const listener = vi.mocked(AppState.addEventListener).mock.calls.at(-1)![1]
     await act(async () => listener('background'))
-    await act(async () => vi.advanceTimersByTime(10_000))
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+    })
     expect(listMobileApkBuilds).toHaveBeenCalledTimes(1)
     await act(async () => listener('active'))
     expect(listMobileApkBuilds).toHaveBeenCalledTimes(2)
@@ -174,14 +181,14 @@ describe('MobileApkBuildPicker', () => {
     })
     await act(async () => {
       renderer!.root
-        .findAllByType('Pressable')
+        .findAll(hostType('Pressable'))
         .find((node) => node.props.accessibilityLabel === build.relativePath)!
         .props.onPress()
     })
     await act(async () => button('Install selected APK')!.props.onPress())
     const signal = installMobileApkBuild.mock.calls[0][4] as AbortSignal
     expect(signal.aborted).toBe(false)
-    await act(async () => renderer!.root.findByType('BottomDrawer').props.onClose())
+    await act(async () => renderer!.root.find(hostType('BottomDrawer')).props.onClose())
     expect(signal.aborted).toBe(true)
     expect(onClose).toHaveBeenCalledOnce()
   })

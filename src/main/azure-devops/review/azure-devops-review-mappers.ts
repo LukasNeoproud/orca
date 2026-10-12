@@ -89,6 +89,8 @@ export function mapAzureDevOpsReviewVote(vote: number | null | undefined): Azure
       return 'waiting-for-author'
     case -10:
       return 'rejected'
+    case null:
+    case undefined:
     default:
       return 'none'
   }
@@ -188,6 +190,7 @@ export function mapAzureDevOpsThreadStatus(
     case 'byDesign':
     case 'pending':
       return status.trim() as AzureDevOpsThreadStatus
+    case undefined:
     default:
       return 'unknown'
   }

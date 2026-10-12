@@ -6,9 +6,13 @@ import {
 } from '../../../src/shared/jira-issue-url'
 import type { JiraConnectionStatus, JiraIssue, JiraSite } from '../../../src/shared/jira-types'
 import {
-  buildJiraIssueSearchJql,
+  getJiraIssueSearchQuery,
   isSmartWorkspaceSourceQueryWithinLimit
 } from '../../../src/shared/new-workspace/smart-workspace-source-results'
+import {
+  buildJiraIssueKeyJql,
+  buildJiraTextMatchJql
+} from '../../../src/shared/jira-search-input-jql'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
 
@@ -127,10 +131,11 @@ export function useMobileJiraSource(args: {
           }
           return [issue]
         }
-        const jql = buildJiraIssueSearchJql(args.query)
-        if (!jql || !isSmartWorkspaceSourceQueryWithinLimit(args.query)) {
+        const searchQuery = getJiraIssueSearchQuery(args.query)
+        if (!searchQuery || !isSmartWorkspaceSourceQueryWithinLimit(args.query)) {
           return []
         }
+        const jql = buildJiraIssueKeyJql(searchQuery) ?? buildJiraTextMatchJql(searchQuery)
         return requestJiraResult<JiraIssue[]>(client, 'jira.searchIssues', {
           jql,
           limit: 36,

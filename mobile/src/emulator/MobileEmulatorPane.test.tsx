@@ -7,6 +7,7 @@ import {
   type BrowserScreencastFrame
 } from '../transport/browser-screencast-protocol'
 import type { RpcClient } from '../transport/rpc-client'
+import { hostType } from '../test-support/host-type-predicate'
 
 vi.mock('./mobile-emulator-native-video', () => ({
   NativeEmulatorVideoView: 'NativeEmulatorVideoView',
@@ -91,27 +92,27 @@ describe('mobile emulator pane', () => {
     })
     const button = (name: string) =>
       renderer!.root
-        .findAllByType('Pressable')
+        .findAll(hostType('Pressable'))
         .find((node) => node.props.accessibilityLabel === name)!
     expect(button('Home').props.disabled).toBe(false)
     expect(button('Back')).toBeUndefined()
     act(() => button('Fullscreen').props.onPress())
-    expect(renderer!.root.findByType('Modal').props.visible).toBe(true)
+    expect(renderer!.root.find(hostType('Modal')).props.visible).toBe(true)
     expect(button('Exit fullscreen')).toBeDefined()
-    expect(renderer!.root.findAllByType('Pressable')).toHaveLength(1)
+    expect(renderer!.root.findAll(hostType('Pressable'))).toHaveLength(1)
     expect(subscribe).toHaveBeenCalledOnce()
     expect(button('Home')).toBeUndefined()
     expect(button('Stream quality settings')).toBeUndefined()
-    expect(renderer!.root.findAllByType('SafeAreaView')).toHaveLength(0)
-    expect(renderer!.root.findByType('Modal').props.navigationBarTranslucent).toBe(true)
-    expect(renderer!.root.findByType('Modal').props.statusBarTranslucent).toBe(true)
-    expect(renderer!.root.findAllByType('ImmersiveBars')).toHaveLength(1)
+    expect(renderer!.root.findAll(hostType('SafeAreaView'))).toHaveLength(0)
+    expect(renderer!.root.find(hostType('Modal')).props.navigationBarTranslucent).toBe(true)
+    expect(renderer!.root.find(hostType('Modal')).props.statusBarTranslucent).toBe(true)
+    expect(renderer!.root.findAll(hostType('ImmersiveBars'))).toHaveLength(1)
     act(() => button('Exit fullscreen').props.onPress())
-    expect(renderer!.root.findAllByType('ImmersiveBars')).toHaveLength(0)
+    expect(renderer!.root.findAll(hostType('ImmersiveBars'))).toHaveLength(0)
     expect(button('Home')).toBeDefined()
     act(() => button('Stream quality settings').props.onPress())
     const sheet = renderer!.root
-      .findAllByType('ActionSheetModal')
+      .findAll(hostType('ActionSheetModal'))
       .find((sheet) => sheet.props.title === 'Stream quality')!
     expect(sheet.props.actions).toHaveLength(3)
     await act(async () => sheet.props.actions[2].onPress())
@@ -123,7 +124,7 @@ describe('mobile emulator pane', () => {
       expect.any(Object)
     )
     act(() => button('Fullscreen').props.onPress())
-    act(() => renderer!.root.findByType('Modal').props.onRequestClose())
-    expect(renderer!.root.findAllByType('Modal')).toHaveLength(0)
+    act(() => renderer!.root.find(hostType('Modal')).props.onRequestClose())
+    expect(renderer!.root.findAll(hostType('Modal'))).toHaveLength(0)
   })
 })

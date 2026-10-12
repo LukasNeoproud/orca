@@ -2,10 +2,22 @@ import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/check
 import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-params'
 import type { SetupTrustPrompt } from './SetupHookTrustDrawer'
 
+export type {
+  PersistedTrustedOrcaHooks,
+  SetupAgentStartupPolicy
+} from '../../../src/shared/orca-yaml-hook-types'
+
 export type NewWorkspaceCreateOptions = {
   setupOverride?: Exclude<WorkspaceCreateSetupDecision, 'inherit'>
   approvedSetupContentHash?: string
 }
+
+export type NewWorkspaceCreatedHandler = (
+  worktreeId: string,
+  name: string,
+  warning?: string,
+  checkoutWarning?: WorktreeCheckoutWarning
+) => void
 
 export type RecoveredCheckout = {
   worktreeId: string

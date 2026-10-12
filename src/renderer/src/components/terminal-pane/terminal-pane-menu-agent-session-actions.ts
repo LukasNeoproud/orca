@@ -7,8 +7,6 @@ import {
 } from './terminal-agent-session-fork'
 import { prepareAgentSessionContinuationFromPane } from './terminal-agent-session-continuation'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
-import { prepareCodexConversationContinuationSource } from './codex-conversation-continuation-source'
-import type { CodexConversationContinuationSource } from './codex-conversation-continuation-source'
 
 export type TerminalPaneMenuAgentSessionContext = {
   paneCwdRef: React.RefObject<PaneCwdMap>
@@ -18,7 +16,6 @@ export type TerminalPaneMenuAgentSessionContext = {
   fallbackCwd: string
   onAgentSessionForkReady: (fork: PreparedAgentSessionFork) => void
   onAgentSessionContinuationReady: (request: AgentSessionContinuationRequest) => void
-  onCodexConversationContinuationReady: (source: CodexConversationContinuationSource) => void
 }
 
 export const forkAgentSessionFromMenuPane = async (
@@ -43,11 +40,6 @@ export const continueAgentSessionFromMenuPane = (
     return
   }
   const { tabId, worktreeId, groupId, fallbackCwd } = context
-  const codexSource = prepareCodexConversationContinuationSource({ pane, tabId, worktreeId })
-  if (codexSource) {
-    context.onCodexConversationContinuationReady(codexSource)
-    return
-  }
   const initialCwd = context.paneCwdRef.current.get(pane.id)?.cwd || fallbackCwd
   const request = prepareAgentSessionContinuationFromPane({
     pane,

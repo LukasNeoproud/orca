@@ -8,7 +8,7 @@ import {
   type EnrollmentRequest
 } from '../../shared/device-approval-contract'
 import type { DeviceApprovalEnrollmentStatus } from '../../shared/device-approval-enrollment-status'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { validateAndroidApprovalAttestation } from './android-attestation'
 import { deviceApprovalDirectory } from './device-approval-mailbox'
 

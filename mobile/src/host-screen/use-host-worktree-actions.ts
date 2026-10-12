@@ -5,15 +5,16 @@ import { floatingWorkspaceSessionPath } from '../session/floating-workspace'
 import { savePinnedIds } from '../storage/preferences'
 import type { useForgetHostClient } from '../transport/client-context'
 import { removeHostAndCloseClient } from '../transport/host-removal-lifecycle'
+import { isPageHostRemovalUnavailable } from '../transport/page-host-removal-refusal'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import { setHostRouteNewWorktreeVisible } from '../host-route-action-state'
 import { leaveHostRoute } from '../host-route-exit'
 import { getWorktreeRowIdentity, removeWorktreeRow } from '../worktree/worktree-host-row-identity'
 import { isWorktreePinned, type Worktree } from '../worktree/workspace-list-sections'
+import { worktreeActivate, worktreePinWrite, worktreeRemove } from './host-screen-operations'
 import type { HostScreenState } from './use-host-screen-state'
 import type { FetchHostRepoMetadata } from './use-host-repo-metadata'
-import type { RpcSuccess } from '../transport/types'
 import { forceDeleteMobilePreservedBranch } from '../worktree/mobile-preserved-branch-delete'
 
 export function useHostWorktreeActions(args: {
@@ -44,6 +45,7 @@ export function useHostWorktreeActions(args: {
     newWorktreeModalRef,
     newWorktreeModalVisibleRef,
     pinnedIds,
+    setActionError,
     setConfirmRemoveHost,
     setLastKnownWorktrees,
     setOptimisticActiveWorktreeIdentity,
@@ -106,8 +108,8 @@ export function useHostWorktreeActions(args: {
       updateLocalPins(worktreeId, newPinned)
 
       if (client) {
-        client
-          .sendRequest('worktree.set', {
+        worktreePinWrite
+          .request(client, {
             worktree: `id:${worktreeId}`,
             isPinned: newPinned
           })
@@ -128,20 +130,17 @@ export function useHostWorktreeActions(args: {
       setLastKnownWorktrees(removeFromList)
 
       try {
-        const response = await client.sendRequest('worktree.rm', {
+        const reply = await worktreeRemove.request(client, {
           worktree: `id:${item.worktreeId}`,
           force: true
         })
-        if (!response.ok) {
+        const verdict = worktreeRemove.interpret(reply)
+        if (!verdict.accepted) {
           setWorktrees((prev) => [...prev, item])
           setLastKnownWorktrees((prev) => [...prev, item])
-          Alert.alert('Could not delete worktree', response.error.message)
         } else {
-          const result = (response as RpcSuccess).result as {
-            preservedBranch?: { branchName?: string; head?: string }
-          }
-          const branch = result.preservedBranch
-          if (branch?.branchName && branch.head) {
+          const branch = readPreservedBranch(verdict.value)
+          if (branch) {
             Alert.alert(
               'Branch kept',
               `The worktree was removed, but branch ${branch.branchName} was kept. Deleting this branch permanently removes its commits if they are not reachable elsewhere.`,
@@ -177,7 +176,6 @@ export function useHostWorktreeActions(args: {
       } catch {
         setWorktrees((prev) => [...prev, item])
         setLastKnownWorktrees((prev) => [...prev, item])
-        Alert.alert('Could not delete worktree', 'Reconnect to the host and try again.')
       }
     },
     [client, fetchRepoMetadata, fetchWorktrees]
@@ -190,12 +188,22 @@ export function useHostWorktreeActions(args: {
     try {
       await removeHostAndCloseClient(hostId, forgetHostClient)
       leaveHost()
-    } catch {
+    } catch (error) {
+      if (isPageHostRemovalUnavailable(error)) {
+        // Neither the confirm nor "try again": on the page removal is refused, not failed, so
+        // re-offering the control would be advice that cannot work anywhere in this document.
+        setActionError(error.message)
+        return
+      }
       // Why: removal can fail while still paired; re-open confirm (ConfirmModal closes on confirm).
       setConfirmRemoveHost(true)
-      Alert.alert('Could not remove host', 'Please try again.')
+      // Not `Alert.alert`: it is a silent no-op in React Native Web, so inside the shell's page
+      // this failure had no surface at all. And not the identity error either: that one is an
+      // early return over the whole screen with nothing to dismiss it, so a removal that failed
+      // once would cost the list, the header and the confirm this line is asking to re-open.
+      setActionError('Could not remove host. Please try again.')
     }
-  }, [hostId, leaveHost, forgetHostClient])
+  }, [hostId, leaveHost, forgetHostClient, setActionError, setConfirmRemoveHost])
 
   const navigateFromHostList = useCallback(
     (target: string) => {
@@ -219,15 +227,18 @@ export function useHostWorktreeActions(args: {
     (item: Worktree) => {
       setOptimisticActiveWorktreeIdentity(getWorktreeRowIdentity(item))
       if (client && connState === 'connected') {
-        void client
-          .sendRequest('worktree.activate', {
+        void worktreeActivate
+          .request(client, {
             worktree: `id:${item.worktreeId}`,
             notifyClients: false,
             navigation: 'caller'
           })
           .catch(() => null)
       }
-      const target = `/h/${hostId}/session/${encodeURIComponent(item.worktreeId)}?name=${encodeURIComponent(item.displayName || item.repo)}`
+      // `?? ''` and not a cast: the hook takes `hostId` optional and every other member guards it,
+      // so an absent one builds `/h//session/...` — a pathname the shell's segment rule refuses —
+      // rather than the string "undefined", which it would accept as a host named undefined.
+      const target = `/h/${encodeURIComponent(hostId ?? '')}/session/${encodeURIComponent(item.worktreeId)}?name=${encodeURIComponent(item.displayName || item.repo)}`
       navigateFromHostList(target)
     },
     [client, connState, hostId, navigateFromHostList]
@@ -253,3 +264,18 @@ export function useHostWorktreeActions(args: {
 }
 
 export type HostWorktreeActions = ReturnType<typeof useHostWorktreeActions>
+
+/** The branch the host kept when removing a worktree, when it reports one with a head. */
+function readPreservedBranch(value: unknown): { branchName: string; head: string } | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+  const branch = (value as { preservedBranch?: unknown }).preservedBranch
+  if (typeof branch !== 'object' || branch === null) {
+    return null
+  }
+  const { branchName, head } = branch as { branchName?: unknown; head?: unknown }
+  return typeof branchName === 'string' && branchName && typeof head === 'string' && head
+    ? { branchName, head }
+    : null
+}

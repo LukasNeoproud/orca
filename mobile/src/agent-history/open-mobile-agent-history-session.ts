@@ -1,28 +1,19 @@
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
-import type { RpcResponse } from '../transport/types'
 import type { RpcClient } from '../transport/rpc-client'
 import type { Worktree } from '../worktree/workspace-list-types'
 import {
   buildMobileAiVaultResumeLaunch,
   resolveMobileAiVaultResumePlatform,
   resumeAiVaultSessionInTerminal,
-  type MobileAiVaultResumeMutationRegistry,
-  type MobileAiVaultResumeSettings
+  type MobileAiVaultResumeMutationRegistry
 } from '../session/ai-vault-resume-launch'
-import {
-  prepareMobileAiVaultSessionResume,
-  RESUME_RPC_TIMEOUT_MS
-} from '../session/ai-vault-resume-preparation'
+import { prepareMobileAiVaultSessionResume } from '../session/ai-vault-resume-preparation'
 import {
   createMobileStructuredAgentSession,
   revealMobileStructuredAgentSession
 } from '../session/mobile-structured-agent-session-launch'
-import {
-  resolveMobileAiVaultSessionResumeTarget,
-  type MobileAiVaultResumeFolderWorkspace,
-  type MobileAiVaultResumeProjectGroup,
-  type MobileAiVaultResumeRepo
-} from './agent-history-resume-target'
+import { resolveMobileAiVaultSessionResumeTarget } from './agent-history-resume-target'
+import { loadMobileResumeMetadata } from './mobile-agent-history-resume-metadata'
 import { resolveMobileAgentHistoryOpenPlan } from './agent-history-open-plan'
 
 export type MobileAgentHistoryOpenOutcome =
@@ -34,10 +25,14 @@ type MobileAgentHistoryOpenArgs = {
   session: AiVaultSession
   hostCapabilities: readonly string[]
   hostPlatform: NodeJS.Platform | null
+  /** The terminal resume's capability-gated fields; absent on hosts that predate them. */
+  resumeHostCapabilities?: readonly string[]
   hostTerminalWindowsShell: string | null
   activeWorktreeId: string
   worktrees: readonly Worktree[]
   terminalMutationRegistry: MobileAiVaultResumeMutationRegistry
+  /** Throws once a newer resume or a route change owns the result. */
+  assertCurrentOwner?: () => void
 }
 
 const opensInFlight = new WeakMap<RpcClient, Map<string, Promise<MobileAgentHistoryOpenOutcome>>>()
@@ -84,6 +79,7 @@ async function runMobileAgentHistoryOpen(
   }
 
   const metadata = await loadMobileResumeMetadata(args.client)
+  args.assertCurrentOwner?.()
   const target = resolveMobileAiVaultSessionResumeTarget({
     session: args.session,
     activeWorktreeId: args.activeWorktreeId,
@@ -97,6 +93,7 @@ async function runMobileAgentHistoryOpen(
   }
 
   const prepared = await prepareMobileAiVaultSessionResume(args.client, args.session)
+  args.assertCurrentOwner?.()
   if (plan.kind === 'structured-resume') {
     const result = await createMobileStructuredAgentSession(
       args.client,
@@ -131,52 +128,16 @@ async function runMobileAgentHistoryOpen(
     hostTerminalWindowsShell: args.hostTerminalWindowsShell,
     settings: metadata.settings
   })
-  await resumeAiVaultSessionInTerminal(args.client, target.worktreeId, {
-    ...launch,
-    clientMutationId: args.terminalMutationRegistry.claim(args.session.id)
-  })
+  await resumeAiVaultSessionInTerminal(
+    args.client,
+    target.worktreeId,
+    {
+      ...launch,
+      hostCapabilities: args.resumeHostCapabilities,
+      clientMutationId: args.terminalMutationRegistry.claim(args.session.id)
+    },
+    args.assertCurrentOwner
+  )
   args.terminalMutationRegistry.releaseOnSuccess(args.session.id)
   return { kind: 'opened', message: 'Agent session queued.', worktreeId: target.worktreeId }
-}
-
-export async function loadMobileResumeMetadata(client: Pick<RpcClient, 'sendRequest'>): Promise<{
-  repos: MobileAiVaultResumeRepo[]
-  folderWorkspaces: MobileAiVaultResumeFolderWorkspace[]
-  projectGroups: MobileAiVaultResumeProjectGroup[]
-  settings: MobileAiVaultResumeSettings | null
-  worktrees: Worktree[] | null
-}> {
-  const [repos, folders, groups, settings, worktrees] = await Promise.all([
-    client.sendRequest('repo.list', undefined, { timeoutMs: RESUME_RPC_TIMEOUT_MS }),
-    optionalResumeMetadata(client, 'folderWorkspace.list'),
-    optionalResumeMetadata(client, 'projectGroup.list'),
-    optionalResumeMetadata(client, 'settings.get'),
-    optionalResumeMetadata(client, 'worktree.ps', { limit: 10000 })
-  ])
-  if (!repos.ok) {
-    throw new Error(repos.error?.message || 'Unable to load workspace metadata.')
-  }
-  return {
-    repos: (repos.result as { repos?: MobileAiVaultResumeRepo[] }).repos ?? [],
-    folderWorkspaces:
-      readOptionalResult<{ folderWorkspaces?: MobileAiVaultResumeFolderWorkspace[] }>(folders)
-        ?.folderWorkspaces ?? [],
-    projectGroups:
-      readOptionalResult<{ groups?: MobileAiVaultResumeProjectGroup[] }>(groups)?.groups ?? [],
-    settings:
-      readOptionalResult<{ settings?: MobileAiVaultResumeSettings }>(settings)?.settings ?? null,
-    worktrees: readOptionalResult<{ worktrees?: Worktree[] }>(worktrees)?.worktrees ?? null
-  }
-}
-
-async function optionalResumeMetadata(
-  client: Pick<RpcClient, 'sendRequest'>,
-  method: string,
-  params?: unknown
-): Promise<RpcResponse | null> {
-  return client.sendRequest(method, params, { timeoutMs: RESUME_RPC_TIMEOUT_MS }).catch(() => null)
-}
-
-function readOptionalResult<T>(response: RpcResponse | null): T | null {
-  return response?.ok === true ? (response.result as T) : null
 }

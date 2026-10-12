@@ -1,16 +1,41 @@
 import { describe, expect, it } from 'vitest'
+import { AGENT_SESSION_ID_MAX_LENGTH } from '../../shared/agent-session-wire'
+import type { AgentSessionPromptResponse } from '../../shared/agent-session-question-answer'
 import {
   applyCodexPromptAnswer,
   CodexPromptRegistry,
+  prepareCodexPromptAnswer,
+  type CodexPendingPrompt,
+  MAX_CODEX_PROMPT_REGISTRY_BYTES,
   MAX_CODEX_PROMPT_REGISTRY_ENTRIES,
   codexJournalPromptIdPart,
   decodeCodexQuestionOptionId,
   encodeCodexJournalQuestionOptionId,
   encodeCodexQuestionOptionId
 } from './codex-structured-prompt-replies'
-import { encodeOrcaInteractionResult } from '../../shared/orca-interaction'
-import { encodeAgentSessionQuestionAnswers } from '../../shared/agent-session-question-answer'
-import { CODEX_DYNAMIC_TOOL_CALL_METHOD } from './codex-orca-interaction'
+
+function picked(optionId: string): AgentSessionPromptResponse {
+  return { kind: 'answers', answers: [{ questionId: 'q1', optionIds: [optionId] }] }
+}
+
+function typed(questionId: string, other: string): AgentSessionPromptResponse {
+  return { kind: 'answers', answers: [{ questionId, optionIds: [], other }] }
+}
+
+function registered(prompt: CodexPendingPrompt | null): CodexPendingPrompt {
+  if (!prompt) {
+    throw new Error('expected the request to register')
+  }
+  return prompt
+}
+
+function answer(
+  prompt: CodexPendingPrompt | null,
+  response: AgentSessionPromptResponse
+): Record<string, unknown> | null {
+  const live = registered(prompt)
+  return applyCodexPromptAnswer(live, prepareCodexPromptAnswer(live, response))
+}
 
 function userInputRequest(questionIds: string[]): {
   id: number
@@ -60,7 +85,7 @@ describe('codex question option ids', () => {
 
     expect(Buffer.byteLength(optionId, 'utf8')).toBeLessThan(1024)
     expect(codexJournalPromptIdPart(longQuestionId)).not.toBe(longQuestionId)
-    expect(applyCodexPromptAnswer(prompt as NonNullable<typeof prompt>, optionId)).toEqual({
+    expect(answer(prompt, picked(optionId))).toEqual({
       answers: { [longQuestionId]: { answers: [longAnswer] } }
     })
   })
@@ -95,6 +120,79 @@ describe('CodexPromptRegistry', () => {
     expect(registry.find('approval-b')?.requestId).toBe(2)
     // Nothing addresses the shared item id, because it names two live prompts.
     expect(registry.find('codex-item-1')).toBeNull()
+  })
+
+  it('clears only prompts belonging to a settled turn', () => {
+    const registry = new CodexPromptRegistry()
+    registry.register({
+      id: 1,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'root-item', threadId: 'thread-1' }
+    })
+    registry.register({
+      id: 2,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'other-item', threadId: 'thread-1', turnId: 'turn-2' }
+    })
+    registry.register({
+      id: 3,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'other-thread-item', threadId: 'thread-2', turnId: 'turn-1' }
+    })
+    registry.bindJournalItemId('journal-root', 'thread-1', 'root-item', 'turn-1')
+
+    registry.clearTurn('thread-1', 'turn-1')
+
+    expect(registry.find('root-item')).toBeNull()
+    expect(registry.find('journal-root')).toBeNull()
+    expect(registry.find('other-item')?.requestId).toBe(2)
+    expect(registry.find('other-thread-item')?.requestId).toBe(3)
+  })
+
+  it('retains a bounded cleanup identity for an unaddressable backfilled turn id', () => {
+    const registry = new CodexPromptRegistry()
+    const turnId = 'turn-'.padEnd(MAX_CODEX_PROMPT_REGISTRY_BYTES + 1, 'x')
+    registry.register({
+      id: 1,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'root-item', threadId: 'thread-1' }
+    })
+
+    registry.bindJournalItemId('journal-root', 'thread-1', 'root-item', turnId)
+
+    expect(registry.bytes).toBeLessThanOrEqual(MAX_CODEX_PROMPT_REGISTRY_BYTES)
+    registry.clearTurn('thread-1', turnId)
+    expect(registry.find('journal-root')).toBeNull()
+  })
+
+  it('reserves enough bytes for a wire-valid multibyte backfilled turn id', () => {
+    const registry = new CodexPromptRegistry()
+    registry.register({
+      id: 1,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'root-item', threadId: 'thread-1' }
+    })
+    const reservedBytes = registry.bytes
+    const turnId = '界'.repeat(AGENT_SESSION_ID_MAX_LENGTH)
+
+    registry.bindJournalItemId('journal-root', 'thread-1', 'root-item', turnId)
+
+    expect(registry.find('journal-root')?.turnId).toBe(turnId)
+    expect(registry.bytes).toBe(reservedBytes)
+    expect(registry.bytes).toBeLessThanOrEqual(MAX_CODEX_PROMPT_REGISTRY_BYTES)
+  })
+
+  it('rejects a request turn id beyond the wire identity bound', () => {
+    const registry = new CodexPromptRegistry()
+    const turnId = 'x'.repeat(AGENT_SESSION_ID_MAX_LENGTH + 1)
+    const prompt = registry.register({
+      id: 1,
+      method: 'item/commandExecution/requestApproval',
+      params: { itemId: 'root-item', threadId: 'thread-1', turnId }
+    })
+
+    expect(prompt).toBeNull()
+    expect(registry.bytes).toBe(0)
   })
 
   it('addresses a prompt by its journal item id once bound, and forgets both', () => {
@@ -144,235 +242,14 @@ describe('CodexPromptRegistry', () => {
 
     expect(registry.find('journal-first')).toBe(first)
   })
-
-  it('matches interaction settlement by exact request or non-null thread and turn', () => {
-    const registry = new CodexPromptRegistry()
-    const interaction = registry.register({
-      id: 41,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
-        threadId: 'thread-root',
-        turnId: 'turn-1',
-        callId: 'call-1',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          title: 'Root turn',
-          fields: [{ id: 'confirm', type: 'boolean', label: 'Continue?' }]
-        }
-      }
-    })
-    registry.bindJournalItemId('journal-interaction', 'thread-root', 'call-1')
-    registry.register({
-      id: 42,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
-        threadId: 'thread-child',
-        turnId: 'turn-1',
-        callId: 'call-child',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          title: 'Child turn',
-          fields: [{ id: 'confirm', type: 'boolean', label: 'Continue?' }]
-        }
-      }
-    })
-
-    expect(registry.interactionSettlements({ requestId: 41 })).toEqual([
-      { prompt: interaction, journalItemIds: ['journal-interaction'] }
-    ])
-    expect(registry.interactionSettlements({ threadId: 'thread-root', turnId: 'turn-1' })).toEqual([
-      { prompt: interaction, journalItemIds: ['journal-interaction'] }
-    ])
-    expect(
-      registry.interactionSettlements({ threadId: 'thread-child', turnId: 'turn-other' })
-    ).toEqual([])
-  })
 })
 
 describe('applyCodexPromptAnswer', () => {
-  it('returns a structured dynamic tool response for submit and cancel', () => {
-    for (const result of [
-      { status: 'submitted' as const, values: { storage: 'sqlite' } },
-      { status: 'cancelled' as const }
-    ]) {
-      const registry = new CodexPromptRegistry()
-      const prompt = registry.register({
-        id: 11,
-        method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-        params: {
-          threadId: 'thread-1',
-          turnId: 'turn-1',
-          callId: 'call-1',
-          namespace: 'orca',
-          tool: 'interact',
-          arguments: {
-            fields: [
-              {
-                id: 'storage',
-                type: 'single_choice',
-                label: 'Storage',
-                required: true,
-                options: [{ id: 'sqlite', label: 'SQLite' }]
-              }
-            ]
-          }
-        }
-      })
-
-      expect(
-        applyCodexPromptAnswer(
-          prompt as NonNullable<typeof prompt>,
-          encodeOrcaInteractionResult(result)
-        )
-      ).toEqual({
-        contentItems: [{ type: 'inputText', text: JSON.stringify(result) }],
-        success: true
-      })
-    }
-  })
-
-  it('converts the ordinary grouped-question fallback into a structured tool result', () => {
-    const registry = new CodexPromptRegistry()
-    const prompt = registry.register({
-      id: 13,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
-        threadId: 'thread-1',
-        callId: 'call-1',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          fields: [
-            {
-              id: 'platforms',
-              type: 'multi_choice',
-              label: 'Platforms',
-              allowCustom: true,
-              options: [
-                { id: 'android', label: 'Android' },
-                { id: 'web', label: 'Web' }
-              ]
-            },
-            { id: 'offline', type: 'boolean', label: 'Offline', required: true },
-            { id: 'minSdk', type: 'number', label: 'Minimum SDK', min: 21 },
-            { id: 'note', type: 'text', label: 'Note', minLength: 3 }
-          ]
-        }
-      }
-    })
-    const answer = encodeAgentSessionQuestionAnswers([
-      { questionId: 'platforms', optionIds: ['android'], other: 'Desktop' },
-      { questionId: 'offline', optionIds: ['__orca_true__'] },
-      { questionId: 'minSdk', optionIds: [], other: '26' },
-      { questionId: 'note', optionIds: [], other: '  a' }
-    ])
-
-    expect(applyCodexPromptAnswer(prompt as NonNullable<typeof prompt>, answer)).toEqual({
-      contentItems: [
-        {
-          type: 'inputText',
-          text: JSON.stringify({
-            status: 'submitted',
-            values: {
-              platforms: ['android', { type: 'custom', value: 'Desktop' }],
-              offline: true,
-              minSdk: 26,
-              note: '  a'
-            }
-          })
-        }
-      ],
-      success: true
-    })
-  })
-
-  it('rejects malformed or forged Orca interaction answers', () => {
-    const registry = new CodexPromptRegistry()
-    const prompt = registry.register({
-      id: 12,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
-        threadId: 'thread-1',
-        callId: 'call-1',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          fields: [
-            {
-              id: 'storage',
-              type: 'single_choice',
-              label: 'Storage',
-              options: [{ id: 'sqlite', label: 'SQLite' }]
-            }
-          ]
-        }
-      }
-    })
-
-    expect(() =>
-      applyCodexPromptAnswer(
-        prompt as NonNullable<typeof prompt>,
-        encodeOrcaInteractionResult({
-          status: 'submitted',
-          values: { storage: 'not-offered' }
-        })
-      )
-    ).toThrow('not a valid Orca interaction result')
-  })
-
-  it('returns the normalized custom value that was validated', () => {
-    const registry = new CodexPromptRegistry()
-    const prompt = registry.register({
-      id: 14,
-      method: CODEX_DYNAMIC_TOOL_CALL_METHOD,
-      params: {
-        threadId: 'thread-1',
-        callId: 'call-1',
-        namespace: 'orca',
-        tool: 'interact',
-        arguments: {
-          fields: [
-            {
-              id: 'storage',
-              type: 'single_choice',
-              label: 'Storage',
-              allowCustom: true,
-              options: [{ id: 'sqlite', label: 'SQLite' }]
-            }
-          ]
-        }
-      }
-    })
-
-    expect(
-      applyCodexPromptAnswer(
-        prompt as NonNullable<typeof prompt>,
-        encodeOrcaInteractionResult({
-          status: 'submitted',
-          values: { storage: { type: 'custom', value: '  PostgreSQL  ' } }
-        })
-      )
-    ).toEqual({
-      contentItems: [
-        {
-          type: 'inputText',
-          text: JSON.stringify({
-            status: 'submitted',
-            values: { storage: { type: 'custom', value: 'PostgreSQL' } }
-          })
-        }
-      ],
-      success: true
-    })
-  })
-
-  it('accepts a bare answer only when the request has one question', () => {
+  it('answers the lone question of a single-question request with typed text', () => {
     const registry = new CodexPromptRegistry()
     const single = registry.register(userInputRequest(['q1']))
 
-    expect(applyCodexPromptAnswer(single as NonNullable<typeof single>, 'sure')).toEqual({
+    expect(answer(single, typed('q1', 'sure'))).toEqual({
       answers: { q1: { answers: ['sure'] } }
     })
   })
@@ -381,27 +258,30 @@ describe('applyCodexPromptAnswer', () => {
     const registry = new CodexPromptRegistry()
     const many = registry.register(userInputRequest(['q1', 'q2']))
 
-    expect(() => applyCodexPromptAnswer(many as NonNullable<typeof many>, 'sure')).toThrow(
-      'does not name a question'
-    )
-    expect(() =>
-      applyCodexPromptAnswer(
-        many as NonNullable<typeof many>,
-        encodeCodexQuestionOptionId('q3', 'sure')
-      )
-    ).toThrow('does not name a question')
+    expect(() => answer(many, picked('sure'))).toThrow('does not name a question')
+    expect(() => answer(many, typed('q3', 'sure'))).toThrow('does not name a question')
   })
 
   it('keeps the last answer when a question is answered twice', () => {
     const registry = new CodexPromptRegistry()
     const single = registry.register(userInputRequest(['q1']))
-    const prompt = single as NonNullable<typeof single>
 
-    applyCodexPromptAnswer(prompt, encodeCodexQuestionOptionId('q1', 'first'))
+    answer(single, typed('q1', 'first'))
 
-    expect(applyCodexPromptAnswer(prompt, encodeCodexQuestionOptionId('q1', 'second'))).toEqual({
+    expect(answer(single, typed('q1', 'second'))).toEqual({
       answers: { q1: { answers: ['second'] } }
     })
+  })
+
+  it('refuses an answer over the registry bound before recording anything', () => {
+    const registry = new CodexPromptRegistry()
+    const single = registry.register(userInputRequest(['q1']))
+    const live = registered(single)
+
+    expect(() => prepareCodexPromptAnswer(live, typed('q1', 'x'.repeat(64 * 1024 + 1)))).toThrow(
+      'exceeds bounded registry state'
+    )
+    expect(live.answers.size).toBe(0)
   })
 
   it('refuses question and option collections that exceed bounded live state', () => {

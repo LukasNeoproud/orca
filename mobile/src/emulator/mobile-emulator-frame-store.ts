@@ -1,5 +1,5 @@
 import type { BrowserScreencastFrame } from '../transport/browser-screencast-protocol'
-import { createBrowserFrameDataUri } from '../browser/mobile-browser-frame-state'
+import { createBrowserFrameDataUri } from '../browser/browser-frame-data-uri'
 
 export type MobileEmulatorFrame = { uri?: string; streamId?: string; width: number; height: number }
 

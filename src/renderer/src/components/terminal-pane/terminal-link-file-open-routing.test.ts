@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { activateAndRevealWorkspace, activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { openDetectedFilePath } from './terminal-link-handlers'
-import { getTerminalFileContext } from './terminal-file-open-routing'
 import { createTerminalLinkTestDoubles } from './terminal-link-handlers-test-fixtures'
 import {
   createDeferred,
@@ -12,12 +11,6 @@ import {
 } from './terminal-link-handlers-test-harness'
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
-const getConnectionIdMock = vi.hoisted(() =>
-  vi.fn((_worktreeId?: string | null) => null as string | null)
-)
-const getConnectionIdForFileMock = vi.hoisted(() =>
-  vi.fn((worktreeId: string | null) => getConnectionIdMock(worktreeId))
-)
 const doubles = createTerminalLinkTestDoubles()
 const {
   storeState,
@@ -46,8 +39,7 @@ vi.mock('@/lib/worktree-activation', () => ({
 }))
 
 vi.mock('@/lib/connection-context', () => ({
-  getConnectionId: getConnectionIdMock,
-  getConnectionIdForFile: getConnectionIdForFileMock
+  getConnectionId: vi.fn(() => null)
 }))
 
 vi.mock('@/lib/runtime-workspace-file-route', () => ({
@@ -57,18 +49,6 @@ vi.mock('@/lib/runtime-workspace-file-route', () => ({
 installTerminalLinkTestEnvironment(doubles)
 
 describe('handleOscLink', () => {
-  it('resolves a folder-workspace file preview against its file-scoped SSH host', () => {
-    getConnectionIdForFileMock.mockReturnValueOnce('ssh-folder-repo')
-
-    expect(
-      getTerminalFileContext('folder-1', '/folder', null, '/folder/remote-repo/src/main.ts')
-    ).toEqual(expect.objectContaining({ connectionId: 'ssh-folder-repo' }))
-    expect(getConnectionIdForFileMock).toHaveBeenCalledWith(
-      'folder-1',
-      '/folder/remote-repo/src/main.ts'
-    )
-  })
-
   it('opens local .html file paths in Orca browser tabs with the platform modifier', async () => {
     setPlatform('Macintosh')
 

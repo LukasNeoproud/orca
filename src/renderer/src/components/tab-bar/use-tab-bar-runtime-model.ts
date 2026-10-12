@@ -1,4 +1,3 @@
-import { useStructuredTerminalReturnPanes } from './use-structured-terminal-return-panes'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { GitFileStatus } from '../../../../shared/git-status-types'
@@ -85,7 +84,6 @@ export type TabBarRuntimeModel = {
   unifiedTabByVisibleId: Map<string, Tab>
   workspaceHasSimulatorTab: boolean
   toggleTabViewMode: (tabId: string) => void
-  structuredTerminalReturnPanes?: Record<string, string>
   nativeChatTranscriptIsLocalReadable: boolean
   managedBrowserCreationEnabled: boolean
   mobileEmulatorCreationEnabled: boolean
@@ -251,10 +249,9 @@ export function useTabBarRuntimeModel({
   )
   // Why: tab-wide launch/title hints are safe only before split; gate the view-mode toggle to the active leaf's agent.
   const toggleTabViewMode = useAppStore((s) => s.toggleTabViewMode)
-  // Why: every retained TabBar observes the same hot maps; one feature-gated selector shares their projections.
+  // Why: every retained TabBar observes the same hot maps; one selector shares their projections.
   const { nativeChatEnabled, tabAgentTypesByTabId, nativeChatTabWideFallbackUnsafeTabsById } =
     useAppStore(useShallow(selectTabBarAgentProjections))
-  const structuredTerminalReturnPanes = useStructuredTerminalReturnPanes(unifiedTabs)
   const nativeChatTranscriptIsLocalReadable = useAppStore((s) =>
     isNativeChatTranscriptLocalReadable(getConnectionIdFromState(s, worktreeId))
   )
@@ -283,7 +280,6 @@ export function useTabBarRuntimeModel({
     workspaceHasSimulatorTab,
     toggleTabViewMode,
     nativeChatEnabled,
-    structuredTerminalReturnPanes,
     tabAgentTypesByTabId,
     nativeChatTabWideFallbackUnsafeTabsById,
     nativeChatTranscriptIsLocalReadable,

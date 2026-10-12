@@ -5,7 +5,7 @@ import {
   type HostSystemErrorCode
 } from '../../shared/host-system-types'
 import { parsePsOutput } from './host-process-list'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 
 const EXIT_POLL_INTERVAL_MS = 100
 const EXIT_WAIT_MS = 3_000

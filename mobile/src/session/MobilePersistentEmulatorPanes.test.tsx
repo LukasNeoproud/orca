@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import type { MobileLocalEmulatorTab } from './mobile-local-emulator-tab'
 import { MobilePersistentEmulatorPanes } from './MobilePersistentEmulatorPanes'
+import { hostType } from '../test-support/host-type-predicate'
 
 const lifecycle = vi.hoisted(() => ({ mounted: [] as string[], unmounted: [] as string[] }))
 vi.mock('react-native', () => ({
@@ -66,14 +67,14 @@ describe('persistent emulator panes', () => {
 
     await act(async () => renderer.update(render(tabs, null)))
     expect(lifecycle.unmounted).toEqual([])
-    expect(renderer.root.findAllByType('Pane').map((pane) => pane.props.visible)).toEqual([
+    expect(renderer.root.findAll(hostType('Pane')).map((pane) => pane.props.visible)).toEqual([
       false,
       false
     ])
 
     await act(async () => renderer.update(render(tabs, tabs[1]!.id)))
     expect(lifecycle.mounted).toEqual(['ios-1', 'android-1'])
-    expect(renderer.root.findAllByType('Pane').map((pane) => pane.props.visible)).toEqual([
+    expect(renderer.root.findAll(hostType('Pane')).map((pane) => pane.props.visible)).toEqual([
       false,
       true
     ])

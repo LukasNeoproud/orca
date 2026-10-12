@@ -56,7 +56,6 @@ describe('tab create menu options', () => {
   it('finds the Backlog.md board action beside browser creation', () => {
     const options = buildTabCreateMenuOptions({
       terminalOnly: false,
-      hasBacklog: true,
       hasNewBrowser: true,
       hasNewMarkdown: false,
       hasOpenMarkdown: false,

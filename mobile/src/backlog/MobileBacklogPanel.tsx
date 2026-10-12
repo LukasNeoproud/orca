@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Check, ChevronLeft, RefreshCw } from 'lucide-react-native'
-import * as Clipboard from 'expo-clipboard'
+import { useClipboardWriter } from '../platform/clipboard'
 import type { BacklogTask } from '../../../src/shared/backlog-types'
 import type { BacklogTaskOrder } from '../../../src/shared/backlog-task-order'
 import { MobileMarkdown, type MobileMarkdownLinkTarget } from '../components/MobileMarkdown'
@@ -50,6 +50,7 @@ export function MobileBacklogPanel({
   const backlog = useMobileBacklog(hostId, worktreeId)
   const { client, state: connectionState } = useHostClient(hostId)
   const [linkTarget, setLinkTarget] = useState<MobileLinkActionTarget | null>(null)
+  const clipboard = useClipboardWriter()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [order, setOrder] = useState<BacklogTaskOrder>('ordinal')
@@ -231,7 +232,9 @@ export function MobileBacklogPanel({
         onPreviewFile={(target) => void openFilePreview(target.pathText, true)}
         onOpenWeb={(target) => void Linking.openURL(target.url).catch(() => {})}
         onCopy={(target) =>
-          void Clipboard.setStringAsync(target.kind === 'web' ? target.url : target.pathText)
+          void clipboard
+            .writeText(target.kind === 'web' ? target.url : target.pathText)
+            .catch(() => {})
         }
         onAddToMessage={() => {}}
       />

@@ -3,20 +3,27 @@ import type {
   EmulatorVideoCodec,
   EmulatorVideoFrame
 } from '../../../src/shared/emulator-video-protocol'
-import { emulatorVideoCodec, routeMobileImageFrame } from './mobile-image-stream-routing'
+import { emulatorStreamVideoCodec, routeMobileImageFrame } from './mobile-image-stream-routing'
 import {
-  buildStreamUnsubscribe,
-  buildTerminalUnsubscribeParams,
+  buildRequestStreamUnsubscribe,
   updateTerminalSubscriptionViewport
 } from './rpc-client-terminal-subscription'
-import { buildReadyStreamUnsubscribe, isImageStreamMethod } from './rpc-client-server-subscription'
+import {
+  buildReadyStreamUnsubscribe,
+  isImageStreamMethod,
+  isReadyIdStream
+} from './rpc-client-server-subscription'
+import { isStreamingOpenerReply } from './rpc-acceptance-policies'
 import {
   isEmulatorStartingResult,
+  isStreamEndResult,
   isStreamingSubscriptionReadyResult,
   isTerminalSubscribedResult
 } from './rpc-subscription-result-shapes'
 import { RpcClientTerminalStreamRouter } from './rpc-client-terminal-stream-router'
+import * as sessionTabsStream from './rpc-client-session-tabs-stream'
 import type { ConnectionState, RpcResponse, RpcSuccess } from './types'
+import { ImageStreamSlot } from './image-stream-slot'
 
 export type RpcStreamingListener = (result: unknown) => void
 
@@ -28,13 +35,14 @@ export type RpcStreamSubscribeOptions = {
 type StreamRequest = {
   method: string
   params: unknown
-  listener: RpcStreamingListener
+  listener?: RpcStreamingListener
   onBinaryFrame?: (frame: BrowserScreencastFrame) => void
   onEmulatorVideoFrame?: (frame: EmulatorVideoFrame) => void
   subscriptionId?: string
   videoCodec?: EmulatorVideoCodec
   cancelled?: boolean
   sent?: boolean
+  receivedSnapshot?: boolean
 }
 
 type StreamRegistryOptions = {
@@ -47,8 +55,7 @@ type StreamRegistryOptions = {
 export class RpcClientStreamRegistry {
   private readonly streams = new Map<string, StreamRequest>()
   private readonly terminalRouter = new RpcClientTerminalStreamRouter()
-  private activeImageRequestId: string | null = null
-  private pendingImageRequestId: string | null = null
+  private readonly imageSlot = new ImageStreamSlot()
 
   constructor(private readonly options: StreamRegistryOptions) {}
 
@@ -68,14 +75,13 @@ export class RpcClientStreamRegistry {
     }
     this.streams.set(id, stream)
     if (isImageStreamMethod(method)) {
-      this.replaceImageStream(id)
+      this.imageSlot.replace(id).forEach((displaced) => this.dispose(displaced))
     }
     if (this.options.getState() === 'connected') {
       if (this.send(id, stream)) {
         stream.sent = true
       } else {
-        this.emitError(stream, 'Connection interrupted')
-        this.remove(id)
+        this.finish(id, stream, { type: 'error', message: 'Connection interrupted' })
       }
     } else {
       console.log('[net] subscribe queued — waiting for connected', {
@@ -96,10 +102,9 @@ export class RpcClientStreamRegistry {
         continue
       }
       if (isImageStreamMethod(stream.method)) {
-        this.pendingImageRequestId = id
-        this.activeImageRequestId = null
+        this.imageSlot.reset(id)
       }
-      this.terminalRouter.reset(id)
+      this.resetTerminalRouting(id)
       if (this.send(id, stream)) {
         stream.sent = true
       } else {
@@ -110,57 +115,50 @@ export class RpcClientStreamRegistry {
   }
 
   markForReplay(): void {
-    this.activeImageRequestId = null
-    this.pendingImageRequestId = null
+    this.imageSlot.reset()
     for (const [id, stream] of this.streams) {
       stream.sent = false
-      if (isImageStreamMethod(stream.method)) {
-        stream.subscriptionId = undefined
-        stream.videoCodec = undefined
-      }
-      this.terminalRouter.reset(id)
+      stream.receivedSnapshot = false
+      // The id named a registration on the closed socket; the replay's ready brings the new one.
+      stream.subscriptionId = undefined
+      stream.videoCodec = undefined
+      this.resetTerminalRouting(id)
     }
   }
 
   handleResponse(response: RpcResponse): boolean {
-    if (response.ok && response.streaming === true) {
+    if (isStreamingOpenerReply(response)) {
       this.handleStreamingResponse(response)
       return true
     }
     const stream = this.streams.get(response.id)
     if (response.ok) {
       const result = (response as RpcSuccess).result as Record<string, unknown> | null
-      if (stream && result?.type === 'end') {
-        if (!stream.cancelled) {
-          stream.listener(result)
-        }
-        this.remove(response.id)
+      if (stream && isStreamEndResult(result)) {
+        this.finish(response.id, stream, result)
         return true
       }
       if (stream && result?.type === 'scrollback') {
-        stream.listener(result)
+        stream.listener?.(result)
         return true
       }
     }
     if (!stream) {
       return false
     }
-    this.emitError(
-      stream,
-      response.ok ? 'Streaming request ended before it was ready.' : response.error.message,
-      response.ok ? undefined : response.error
-    )
-    this.remove(response.id)
+    this.finish(response.id, stream, {
+      type: 'error',
+      message: response.ok
+        ? 'Streaming request ended before it was ready.'
+        : response.error.message,
+      error: response.ok ? undefined : response.error
+    })
     return true
   }
 
   handleBinary(bytes: Uint8Array): void {
-    if (
-      routeMobileImageFrame(
-        bytes,
-        this.activeImageRequestId ? this.streams.get(this.activeImageRequestId) : undefined
-      )
-    ) {
+    const imageStream = this.streams.get(this.imageSlot.active ?? '')
+    if (routeMobileImageFrame(bytes, imageStream?.cancelled ? undefined : imageStream)) {
       return
     }
     this.terminalRouter.handle(bytes)
@@ -180,80 +178,63 @@ export class RpcClientStreamRegistry {
       return
     }
     const result = response.result
-    if (stream.method === 'emulator.mobile.stream' && isEmulatorStartingResult(result)) {
-      stream.subscriptionId = result.subscriptionId
-      stream.videoCodec = undefined
-      if (stream.cancelled) {
-        this.sendServerSubscriptionUnsubscribe(stream)
-        this.remove(response.id)
-        return
-      }
+    if (isStreamEndResult(result)) {
+      this.finish(response.id, stream, result)
+      return
     }
-    if (isStreamingSubscriptionReadyResult(result)) {
+    if (sessionTabsStream.recordSnapshot(stream, result) && stream.cancelled) {
+      this.dispose(response.id)
+      return
+    }
+    // A starting emulator already owns a host subscription that a cancel must release.
+    const starting = stream.method === 'emulator.mobile.stream' && isEmulatorStartingResult(result)
+    if (starting || isStreamingSubscriptionReadyResult(result)) {
       stream.subscriptionId = result.subscriptionId
-      stream.videoCodec =
-        stream.method === 'emulator.mobile.stream' ? emulatorVideoCodec(result) : undefined
+      stream.videoCodec = emulatorStreamVideoCodec(stream.method, starting ? null : result)
       if (stream.cancelled) {
         this.sendServerSubscriptionUnsubscribe(stream)
         this.remove(response.id)
         return
       }
-      if (isImageStreamMethod(stream.method)) {
-        if (
-          this.pendingImageRequestId !== response.id &&
-          this.activeImageRequestId !== response.id
-        ) {
+      if (!starting && isImageStreamMethod(stream.method)) {
+        if (!this.imageSlot.claim(response.id)) {
           this.sendServerSubscriptionUnsubscribe(stream)
           this.remove(response.id)
           return
         }
-        this.pendingImageRequestId = null
-        this.activeImageRequestId = response.id
       }
     }
-    if (isTerminalSubscribedResult(result)) {
+    if (isTerminalSubscribedResult(result) && stream.listener) {
       this.terminalRouter.register(response.id, result.streamId, stream.listener)
     }
     if (!stream.cancelled) {
-      stream.listener(result)
+      stream.listener?.(result)
     }
   }
 
   private dispose(id: string): void {
     const stream = this.streams.get(id)
-    if (stream && isImageStreamMethod(stream.method)) {
-      stream.cancelled = true
-      this.clearImageRequest(id)
+    if (stream) {
+      // A canceled opener may never reply; only its host cleanup route must survive.
+      stream.listener = undefined
+      stream.onBinaryFrame = undefined
+      stream.onEmulatorVideoFrame = undefined
+    }
+    if (stream && isReadyIdStream(stream.method)) {
+      if (isImageStreamMethod(stream.method)) {
+        this.imageSlot.release(id)
+      }
       this.disposeServerSubscription(id, stream)
       return
     }
-    if (stream?.method === 'runtime.clientEvents.subscribe') {
-      this.disposeServerSubscription(id, stream)
+    if (stream && sessionTabsStream.holdUnsubscribe(stream)) {
       return
     }
-    if (stream?.method === 'terminal.subscribe') {
-      const params = buildTerminalUnsubscribeParams(stream.params)
-      if (params) {
-        this.sendRpc('terminal.unsubscribe', params)
-      }
-    } else {
-      const unsubscribe = buildStreamUnsubscribe(stream?.method, stream?.params)
-      if (unsubscribe) {
-        this.sendRpc(unsubscribe.method, unsubscribe.params)
-      }
+    const unsubscribe = buildRequestStreamUnsubscribe(stream?.method, stream?.params, id)
+    if (unsubscribe) {
+      this.sendRpc(unsubscribe.method, unsubscribe.params)
     }
     this.remove(id)
-  }
-
-  private replaceImageStream(id: string): void {
-    if (this.activeImageRequestId && this.activeImageRequestId !== id) {
-      this.dispose(this.activeImageRequestId)
-    }
-    if (this.pendingImageRequestId && this.pendingImageRequestId !== id) {
-      this.dispose(this.pendingImageRequestId)
-    }
-    this.pendingImageRequestId = id
-    this.activeImageRequestId = null
   }
 
   private disposeServerSubscription(id: string, stream: StreamRequest): void {
@@ -297,25 +278,21 @@ export class RpcClientStreamRegistry {
   private remove(id: string): void {
     const stream = this.streams.get(id)
     this.streams.delete(id)
-    this.clearImageRequest(id)
-    this.terminalRouter.reset(id)
+    this.imageSlot.release(id)
+    this.resetTerminalRouting(id)
     if (stream && isImageStreamMethod(stream.method)) {
       stream.cancelled = true
     }
   }
 
-  private clearImageRequest(id: string): void {
-    if (this.activeImageRequestId === id) {
-      this.activeImageRequestId = null
-    }
-    if (this.pendingImageRequestId === id) {
-      this.pendingImageRequestId = null
-    }
+  private resetTerminalRouting(id: string): void {
+    this.terminalRouter.reset(id)
   }
 
-  private emitError(stream: StreamRequest, message: string, error?: unknown): void {
-    if (!stream.cancelled) {
-      stream.listener({ type: 'error', message, error })
-    }
+  /** Removed first, so neither the listener's dispose nor a replay can name a host-ended stream. */
+  private finish(id: string, stream: StreamRequest, result: unknown): void {
+    const listener = stream.cancelled ? undefined : stream.listener
+    this.remove(id)
+    listener?.(result)
   }
 }

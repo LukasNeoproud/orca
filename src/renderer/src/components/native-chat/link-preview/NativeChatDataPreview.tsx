@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { parseDocument } from 'yaml'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
-import CsvViewer from '@/components/editor/CsvViewer'
+import CsvViewer from '@/components/editor/csv/CsvViewer'
 import { translate } from '@/i18n/i18n'
 import { NativeChatHighlightedCode } from './NativeChatHighlightedCode'
 import { NativeChatPreviewMode } from './NativeChatPreviewMode'

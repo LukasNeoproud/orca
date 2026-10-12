@@ -3,10 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type * as WslFsAccessModule from '../native-chat/wsl-transcript-fs-access'
-import {
-  readCodexRolloutSessionMeta,
-  readCodexRolloutSessionMetaId
-} from './codex-rollout-session-meta'
+import { readCodexRolloutSessionMetaId } from './codex-rollout-session-meta'
 
 const mocks = vi.hoisted(() => ({ readTranscriptSlice: vi.fn() }))
 
@@ -46,22 +43,6 @@ describe('readCodexRolloutSessionMetaId', () => {
     await expect(readCodexRolloutSessionMetaId(join(root, 'missing.jsonl'))).resolves.toBeNull()
     await expect(readCodexRolloutSessionMetaId(malformed)).resolves.toBeNull()
   })
-
-  it.each(['cli', { subagent: { other: 'guardian' } }])(
-    'retains source metadata so process proof can distinguish user and worker threads: %j',
-    async (source) => {
-      const root = await mkdtemp(join(tmpdir(), 'orca-codex-session-source-'))
-      tempRoots.push(root)
-      const path = join(root, 'rollout.jsonl')
-      const payload = { id: 'session-id', source }
-      await writeFile(path, JSON.stringify({ type: 'session_meta', payload }))
-      await expect(readCodexRolloutSessionMeta(path)).resolves.toEqual({
-        id: 'session-id',
-        payload
-      })
-      await expect(readCodexRolloutSessionMetaId(path)).resolves.toBe('session-id')
-    }
-  )
 
   // Why: AI Vault hands this every scan candidate, so a `\\wsl.localhost\...`
   // rollout must fail on the transcript gate's deadline rather than block the

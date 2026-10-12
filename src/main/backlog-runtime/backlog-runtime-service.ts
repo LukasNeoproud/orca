@@ -279,3 +279,9 @@ export async function disposeBacklogRuntimeService(): Promise<void> {
   activeTargets.clear()
   await service.dispose()
 }
+
+export function disposeBacklogRuntimeServiceForShutdown(): Promise<void> {
+  return disposeBacklogRuntimeService().catch((error: unknown) => {
+    console.warn('[backlog] shutdown could not be verified:', error)
+  })
+}

@@ -22,13 +22,6 @@ export function resolveMobileAgentHistoryOpenPlan(
   const capabilities = new Set(hostCapabilities)
   const structured = session.structuredSession
   if (structured) {
-    if (structured.ownerState !== 'live') {
-      return {
-        kind: 'blocked',
-        message:
-          'Orca cannot verify whether this session is still running, so it will not start a second writer.'
-      }
-    }
     if (!capabilities.has(STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY)) {
       return {
         kind: 'blocked',

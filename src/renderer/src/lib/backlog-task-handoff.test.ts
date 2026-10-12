@@ -401,7 +401,9 @@ describe('startBacklogTask', () => {
       })
     ).resolves.toMatchObject({ status: 'confirmed' })
 
-    expect(mocks.structuredLaunch).toHaveBeenCalledWith(route.workspaceId, 'claude')
+    expect(mocks.structuredLaunch).toHaveBeenCalledWith(route.workspaceId, 'claude', {
+      requestId: expect.any(String)
+    })
     expect(mocks.save.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.structuredCall.mock.invocationCallOrder[0]!
     )

@@ -3,20 +3,38 @@ import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 import { NativeChatResolvedView } from './NativeChatResolvedView'
 import { useNativeChatStatusEntry } from './use-native-chat-status-entry'
 import type { NativeChatViewProps } from './native-chat-view-types'
+import { NativeChatPaneFileDropSurface } from './NativeChatPaneFileDropSurface'
+import { NativeChatVisualOwnerProvider } from './native-chat-visual-owner'
+import { NativeChatFileLinkExistenceProvider } from './use-native-chat-file-link-existence'
 
 export type { NativeChatViewProps } from './native-chat-view-types'
 
 /** Resolves an agent terminal into its native conversation and composer UI. */
 export default function NativeChatView(props: NativeChatViewProps): React.JSX.Element {
-  if (props.mode === 'structured') {
-    return <NativeChatStructuredSession key={props.sessionId} {...props} />
-  }
-  return <NativeChatBridgeView {...props} />
+  return (
+    <NativeChatPaneFileDropSurface className="relative flex h-full min-h-0 min-w-0 w-full">
+      {props.mode === 'structured' ? (
+        <NativeChatVisualOwnerProvider
+          key={props.sessionId}
+          target={props.target}
+          sessionId={props.sessionId}
+          tabId={props.tabId}
+        >
+          <NativeChatFileLinkExistenceProvider tabId={props.tabId}>
+            <NativeChatStructuredSession {...props} />
+          </NativeChatFileLinkExistenceProvider>
+        </NativeChatVisualOwnerProvider>
+      ) : (
+        <NativeChatBridgeView {...props} />
+      )}
+    </NativeChatPaneFileDropSurface>
+  )
 }
 
 function NativeChatBridgeView({
   terminalTabId,
   isVisible,
+  isFocusedGroup,
   paneKey: preferredPaneKey,
   targetPtyId = null,
   launchAgent,
@@ -24,39 +42,37 @@ function NativeChatBridgeView({
   ownsTabWideLaunchDraft,
   onSwitchToTerminal,
   readTerminalScreen,
-  contextMenuActions,
-  terminalContext
+  contextMenuActions
 }: Exclude<NativeChatViewProps, { mode: 'structured' }>): React.JSX.Element {
-  const {
-    entry: agentStatusEntry,
-    paneKey,
-    detectedAgent
-  } = useNativeChatStatusEntry(terminalTabId, preferredPaneKey)
+  const { entry: agentStatusEntry, paneKey } = useNativeChatStatusEntry(
+    terminalTabId,
+    preferredPaneKey
+  )
   return (
     <NativeChatSessionGate
       paneKey={paneKey}
       launchAgent={launchAgent}
       resolvedAgent={resolvedAgent}
       agentStatusEntry={agentStatusEntry}
-      detectedAgent={detectedAgent}
       ptyId={targetPtyId}
-      retentionIdentity={terminalContext?.retentionIdentity}
-      knownProviderSession={terminalContext?.knownProviderSession}
     >
       {(resolution) => (
-        <NativeChatResolvedView
-          paneKey={resolution.paneKey}
-          agent={resolution.agent}
-          sessionId={resolution.sessionId}
-          transcriptPath={resolution.transcriptPath}
-          isVisible={isVisible}
-          targetPtyId={targetPtyId}
-          terminalTabId={terminalTabId}
-          ownsTabWideLaunchDraft={ownsTabWideLaunchDraft}
-          onSwitchToTerminal={onSwitchToTerminal}
-          readTerminalScreen={readTerminalScreen}
-          contextMenuActions={contextMenuActions}
-        />
+        <NativeChatFileLinkExistenceProvider tabId={terminalTabId}>
+          <NativeChatResolvedView
+            paneKey={resolution.paneKey}
+            agent={resolution.agent}
+            sessionId={resolution.sessionId}
+            transcriptPath={resolution.transcriptPath}
+            isVisible={isVisible}
+            isFocusedGroup={isFocusedGroup}
+            targetPtyId={targetPtyId}
+            terminalTabId={terminalTabId}
+            ownsTabWideLaunchDraft={ownsTabWideLaunchDraft}
+            onSwitchToTerminal={onSwitchToTerminal}
+            readTerminalScreen={readTerminalScreen}
+            contextMenuActions={contextMenuActions}
+          />
+        </NativeChatFileLinkExistenceProvider>
       )}
     </NativeChatSessionGate>
   )

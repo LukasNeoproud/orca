@@ -227,12 +227,16 @@ describe('mobile APK transfer', () => {
   it('refuses to launch installer if source APK changes during download', async () => {
     state.installed.mockClear()
     const client = clientWithChunks()
-    const sendRequest = client.sendRequest as ReturnType<typeof vi.fn>
+    const sendRequest = vi.mocked(client.sendRequest)
     const original = sendRequest.getMockImplementation()!
     let stats = 0
-    sendRequest.mockImplementation(async (method: string, params: unknown) => {
+    sendRequest.mockImplementation(async (method, params) => {
       if (method === 'files.stat' && ++stats === 2) {
-        return { ok: true, result: { ...build, mtime: build.mtime + 1, isDirectory: false } }
+        return {
+          id: 'stat-2',
+          ok: true,
+          result: { ...build, mtime: build.mtime + 1, isDirectory: false }
+        }
       }
       return original(method, params)
     })

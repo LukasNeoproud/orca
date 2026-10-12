@@ -1,5 +1,5 @@
 import type { ILink } from '@xterm/xterm'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { TerminalFileContext } from './terminal-file-path-mapping'
 import type { TerminalLinkActionContext } from './terminal-link-action-request'
 import { leaveTerminalLinkPreview } from './terminal-link-action-request'
 import {
@@ -20,7 +20,7 @@ import {
 type TerminalFileLinkHoverArgs = {
   actionDeps: TerminalFileLinkActionDeps
   column: number | null
-  fileContext: RuntimeFileOperationArgs
+  fileContext: TerminalFileContext
   getLinkActionContext?: () => TerminalLinkActionContext | null
   isWorktreeRoot: boolean
   line: number | null

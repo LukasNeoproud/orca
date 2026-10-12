@@ -1,7 +1,8 @@
-import type {
-  SessionOptionDescriptor,
-  SessionOptionDisabledReason,
-  SessionOptionSelectChoice
+import {
+  isDefaultServiceTier,
+  type SessionOptionDescriptor,
+  type SessionOptionDisabledReason,
+  type SessionOptionSelectChoice
 } from '../../../../shared/native-chat-session-options'
 import { translate } from '@/i18n/i18n'
 
@@ -12,10 +13,9 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
     case 'effort':
       return translate('components.native-chat.composer.effort', descriptor.label)
     case 'fastMode':
-    case 'serviceTier':
       return translate('components.native-chat.composer.fastMode', 'Fast mode')
-    case 'permissions':
-      return translate('components.native-chat.composer.permissions', 'Permissions')
+    case 'serviceTier':
+      return translate('components.native-chat.composer.speed', 'Speed')
     case 'thinking':
       return translate('components.native-chat.composer.thinking', 'Thinking')
     default:
@@ -27,25 +27,9 @@ export function nativeChatSessionChoiceLabel(
   choice: SessionOptionSelectChoice,
   optionId?: string
 ): string {
-  if (optionId === 'serviceTier') {
-    if (choice.value === 'priority') {
-      return translate('components.native-chat.composer.optionValue.fast', 'Fast')
-    }
-    if (choice.value === 'default') {
-      return translate('components.native-chat.composer.optionValue.off', 'Off')
-    }
-  }
-  if (optionId === 'permissions') {
-    switch (choice.value) {
-      case 'read-only':
-        return translate('components.native-chat.composer.optionValue.readOnly', 'Read only')
-      case 'workspace-write':
-        return translate('components.native-chat.composer.optionValue.workspace', 'Workspace')
-      case 'auto-review':
-        return translate('components.native-chat.composer.optionValue.autoReview', 'Auto review')
-      case 'full-access':
-        return translate('components.native-chat.composer.optionValue.fullAccess', 'Full access')
-    }
+  // `default` is only Standard inside a speed choice; other selects may use the value.
+  if (optionId === 'serviceTier' && choice.value === 'default') {
+    return translate('components.native-chat.composer.optionValue.standard', 'Standard')
   }
   switch (choice.value) {
     case 'minimal':
@@ -113,10 +97,7 @@ export function nativeChatOptionsPillTitle(
 ): string {
   const effort = descriptors.find((descriptor) => descriptor.id === 'effort')
   // Why: an effort-backed group is primarily the effort picker, even when it also reports modes.
-  return effort &&
-    !descriptors.some(
-      (descriptor) => descriptor.id === 'permissions' || descriptor.id === 'serviceTier'
-    )
+  return effort
     ? nativeChatSessionOptionLabel(effort)
     : translate('components.native-chat.composer.sessionOptions', 'Session options')
 }
@@ -127,7 +108,7 @@ export function nativeChatOptionsPillLabel(
   const effort = descriptors.find((descriptor) => descriptor.id === 'effort')
   const labels: string[] = []
   for (const descriptor of descriptors) {
-    if (descriptor.valueSource === 'unknown') {
+    if (descriptor.valueSource === 'unknown' || isDefaultServiceTier(descriptor)) {
       continue
     }
     if (descriptor.kind.type === 'select' && descriptor.kind.currentValue) {
@@ -139,8 +120,7 @@ export function nativeChatOptionsPillLabel(
           choice ?? {
             value: descriptor.kind.currentValue,
             label: descriptor.kind.currentValue
-          },
-          descriptor.id
+          }
         )
       )
     } else if (descriptor.kind.type === 'boolean' && descriptor.kind.currentValue === true) {

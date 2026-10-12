@@ -9,6 +9,9 @@ import {
   RESUME_RPC_TIMEOUT_MS
 } from './ai-vault-resume-preparation'
 
+// Resumed Codex sessions get Orca's interaction MCP server ahead of the agent's own args.
+const ORCA_INTERACTION_MCP_ARGS = `'-c' 'mcp_servers.orca_interactive={command="orca",args=["interact","mcp"],env_vars=["ORCA_TERMINAL_HANDLE","ORCA_PANE_KEY","ORCA_USER_DATA_PATH","ORCA_ENVIRONMENT","ORCA_PAIRING_CODE","ORCA_REMOTE_PAIRING"],tool_timeout_sec=3600}' `
+
 const LEGACY_CODEX_HOME = '/Users/ada/Library/Application Support/orca/codex-runtime-home/home'
 const PER_ACCOUNT_HOME = '/Users/ada/Library/Application Support/orca/codex-accounts/a/home'
 
@@ -70,7 +73,7 @@ describe('prepareMobileAiVaultSessionResume', () => {
       'terminal.send',
       {
         terminal: 'pty-1',
-        text: `cd '/Users/ada/repo' && CODEX_HOME='${LEGACY_CODEX_HOME}' codex '--dangerously-bypass-approvals-and-sandbox' 'resume' 'legacy-1'`,
+        text: `cd '/Users/ada/repo' && CODEX_HOME='${LEGACY_CODEX_HOME}' codex ${ORCA_INTERACTION_MCP_ARGS}'--dangerously-bypass-approvals-and-sandbox' 'resume' 'legacy-1'`,
         enter: true
       },
       { timeoutMs: RESUME_RPC_TIMEOUT_MS }
@@ -99,7 +102,7 @@ describe('prepareMobileAiVaultSessionResume', () => {
     )
     expect(prepared).toEqual({ ...legacy, codexHome: null })
     expect(launch.command).toBe(
-      "cd '/Users/ada/repo' && codex '--dangerously-bypass-approvals-and-sandbox' 'resume' 'legacy-1'"
+      `cd '/Users/ada/repo' && codex ${ORCA_INTERACTION_MCP_ARGS}'--dangerously-bypass-approvals-and-sandbox' 'resume' 'legacy-1'`
     )
     expect(launch.envToDelete).toEqual(['CODEX_HOME', 'ORCA_CODEX_HOME'])
   })

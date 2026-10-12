@@ -9,7 +9,6 @@ import type { TerminalPasteSource } from './terminal-paste-coordinator'
 import { runQuickCommandInNewTab } from '@/lib/run-quick-command-in-new-tab'
 import type { PreparedAgentSessionFork } from './terminal-agent-session-fork'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
-import type { CodexConversationContinuationSource } from './codex-conversation-continuation-source'
 import { pasteTerminalPaneMenuClipboard } from './terminal-pane-menu-paste'
 import {
   copyTerminalPaneMenuAgentSessionId,
@@ -27,6 +26,7 @@ import { useTerminalContextMenuTrigger } from './use-terminal-context-menu-trigg
 import { useAppStore } from '@/store'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import { resolvePaneAgentSessionId } from './pane-agent-session-id'
+import { resetTerminalInputModes } from './terminal-input-mode-reset'
 
 type UseTerminalPaneContextMenuDeps = {
   managerRef: React.RefObject<PaneManager | null>
@@ -45,7 +45,6 @@ type UseTerminalPaneContextMenuDeps = {
   onPasteError: (message: string) => void
   onAgentSessionForkReady: (fork: PreparedAgentSessionFork) => void
   onAgentSessionContinuationReady: (request: AgentSessionContinuationRequest) => void
-  onCodexConversationContinuationReady: (source: CodexConversationContinuationSource) => void
   forceBracketedMultilineTextPaste: boolean
   rightClickToPaste: boolean
 }
@@ -71,6 +70,7 @@ type TerminalMenuState = {
   onEqualizePaneSizes: () => void
   onClosePane: () => void
   onClearScreen: () => void
+  onResetTerminal: () => void
   onForkAgentSession: () => Promise<void>
   onContinueAgentSessionInNewSession: () => void
   onCopyAgentSessionContext: () => Promise<void>
@@ -98,7 +98,6 @@ export function useTerminalPaneContextMenu({
   onPasteError,
   onAgentSessionForkReady,
   onAgentSessionContinuationReady,
-  onCodexConversationContinuationReady,
   forceBracketedMultilineTextPaste,
   rightClickToPaste
 }: UseTerminalPaneContextMenuDeps): TerminalMenuState {
@@ -171,8 +170,7 @@ export function useTerminalPaneContextMenu({
     groupId,
     fallbackCwd,
     onAgentSessionForkReady,
-    onAgentSessionContinuationReady,
-    onCodexConversationContinuationReady
+    onAgentSessionContinuationReady
   }
 
   const onCopy = async (): Promise<void> => copyTerminalPaneMenuSelection(resolveMenuPane())
@@ -222,6 +220,13 @@ export function useTerminalPaneContextMenu({
     const pane = resolveMenuPane()
     if (pane) {
       onClearPaneScrollback(pane)
+    }
+  }
+
+  const onResetTerminal = (): void => {
+    const pane = resolveMenuPane()
+    if (pane) {
+      resetTerminalInputModes(paneTransportsRef.current.get(pane.id)?.getPtyId() ?? null)
     }
   }
 
@@ -312,6 +317,7 @@ export function useTerminalPaneContextMenu({
     onEqualizePaneSizes,
     onClosePane,
     onClearScreen,
+    onResetTerminal,
     onForkAgentSession,
     onContinueAgentSessionInNewSession,
     onCopyAgentSessionContext,

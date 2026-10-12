@@ -1,14 +1,5 @@
 import { createCodexProviderActivityReader } from '../native-chat/agent-session-wire/provider-frame-activity'
-import {
-  CODEX_TOKEN_USAGE_METHOD,
-  readCodexNotificationThreadItem
-} from './codex-subagent-activity'
-import { CodexSubagentRoster } from './codex-subagent-roster'
-import { readCodexThreadItem } from './codex-structured-item-translation'
-import { CodexJournalGenericFrames } from './codex-structured-journal-generic-frames'
-import { CodexJournalCompactions } from './codex-structured-journal-compactions'
-import { CodexJournalItems } from './codex-structured-journal-items'
-import { CodexJournalPrompts } from './codex-structured-journal-prompts'
+import { CODEX_TOKEN_USAGE_METHOD } from './codex-subagent-activity'
 import {
   CODEX_JOURNAL_ADMITTED,
   type CodexJournalTranslationAdmission,
@@ -16,13 +7,16 @@ import {
   type CodexJournalTranslatorDeps
 } from './codex-structured-journal-contracts'
 import { settleCodexJournalSession } from './codex-structured-journal-settlement'
-import { settleCodexOversizedNotificationFrame } from './codex-structured-journal-translation-frames'
-import { restoreCodexJournalThread } from './codex-structured-journal-translation-restore'
-import { CodexJournalActiveTurns } from './codex-structured-journal-translation-turn-state'
-import { createCodexJournalTurnLifecycle } from './codex-structured-journal-turn-lifecycle'
-import { readCodexThreadId, readCodexTurnId } from './codex-structured-thread-facts'
-import { CodexStructuredGenerationMetrics } from './codex-structured-generation-metrics'
-import { readCodexJournalRecord } from './codex-structured-journal-translation-values'
+import {
+  restoreCodexHistoryItem,
+  restoreCodexJournalThread
+} from './codex-structured-journal-translation-restore'
+import { CodexJournalTurnBoundaries } from './codex-structured-journal-translation-turn-boundaries'
+import { createCodexJournalTranslatorWriters } from './codex-structured-journal-translation-writers'
+import { publishCodexTurnLifecycle } from './codex-structured-journal-translation-turns'
+import { codexProviderRetryRowBody, isCodexProviderRetryFrame } from './codex-provider-retry-row'
+import { createCodexThreadItemRouter } from './codex-structured-journal-thread-item-routing'
+import { codexThreadStoppedRunning, readCodexTurnId } from './codex-structured-thread-facts'
 import type { CodexStructuredSessionEvent } from './codex-structured-session-adapter'
 
 export type {
@@ -45,40 +39,55 @@ export {
 export function createCodexJournalTranslator(
   deps: CodexJournalTranslatorDeps
 ): CodexJournalTranslator {
-  const activeTurns = new CodexJournalActiveTurns()
-  const compactions = new CodexJournalCompactions(deps.sink, (threadId) =>
-    activeTurns.current(threadId)
-  )
-  const genericFrames = new CodexJournalGenericFrames(deps, (threadId) =>
-    activeTurns.current(threadId)
-  )
-  const items = new CodexJournalItems(
-    deps,
-    (threadId) => activeTurns.current(threadId),
-    (threadId, turnId) => genericFrames.suppress(threadId, turnId)
-  )
-  const prompts = new CodexJournalPrompts(deps, (threadId, itemId) =>
-    items.detailFor(threadId, itemId)
-  )
-  const subagents = new CodexSubagentRoster({
-    sink: deps.sink,
-    primaryThreadId: () => deps.primaryThreadId?.() ?? null,
-    activeTurn: (threadId) => activeTurns.current(threadId)
-  })
-  const generation = new CodexStructuredGenerationMetrics(deps.generationMetadata ?? (() => ({})))
+  const {
+    activeTurns,
+    commands,
+    subagents,
+    attributionFor,
+    genericFrames,
+    items,
+    compactions,
+    goals,
+    prompts
+  } = createCodexJournalTranslatorWriters(deps)
   const flushStreams = (): CodexJournalTranslationAdmission =>
     items.streams.flush() ? CODEX_JOURNAL_ADMITTED : { accepted: false, reason: 'backpressure' }
   let readActivity = createCodexProviderActivityReader()
-  const { startTurn, completeTurn } = createCodexJournalTurnLifecycle({
-    deps,
-    items,
-    activeTurns,
-    genericFrames,
-    generation,
-    resetActivity: () => {
+  const resetActivity = (threadId: string): void => {
+    if (threadId === (deps.primaryThreadId?.() ?? null)) {
       readActivity = createCodexProviderActivityReader()
       deps.sink.setActivity?.(null)
     }
+  }
+  const turnBoundaries = new CodexJournalTurnBoundaries({
+    sink: deps.sink,
+    primaryThreadId: () => deps.primaryThreadId?.() ?? null,
+    activeTurns,
+    items,
+    pendingPrompts: prompts.pending,
+    ...(deps.clearPromptTurn ? { clearPromptTurn: deps.clearPromptTurn } : {}),
+    flushSuppression: () => genericFrames.flush(),
+    resetActivity,
+    attributionFor,
+    commands,
+    ...(deps.now ? { now: deps.now } : {})
+  })
+  let primaryThreadStoppedRunning = false
+  const reportPrimaryThreadStoppedRunning = (): void => {
+    const primaryThreadId = deps.primaryThreadId?.() ?? null
+    if (!primaryThreadStoppedRunning || !primaryThreadId || activeTurns.current(primaryThreadId)) {
+      return
+    }
+    primaryThreadStoppedRunning = false
+    deps.onPrimaryThreadStoppedRunning?.()
+  }
+  const routeThreadItem = createCodexThreadItemRouter({
+    deps,
+    subagents,
+    items,
+    activeTurns,
+    turnBoundaries,
+    genericFrames
   })
   const publishActivity = (
     event: Extract<CodexStructuredSessionEvent, { type: 'notification' }>,
@@ -108,16 +117,25 @@ export function createCodexJournalTranslator(
         thread,
         currentTurnIds: activeTurns.byThread,
         ordinals: items.ordinals,
-        handleItem: (event) => {
-          const compaction = compactions.handle(event)
-          if (compaction) {
-            return compaction
-          }
-          const translated = items.handle(event, 'history')
-          return translated.handled
-            ? translated.admission
-            : { accepted: false, reason: 'untranslated' }
-        },
+        handleItem: (event) =>
+          restoreCodexHistoryItem(event, {
+            primaryThreadId: deps.primaryThreadId?.() ?? null,
+            compactions,
+            items,
+            executions: subagents.executions
+          }),
+        ...(deps.sessionId !== undefined
+          ? {
+              restoreTurnLifecycle: (turnLifecycle) =>
+                publishCodexTurnLifecycle({
+                  sink: deps.sink,
+                  primaryThreadId: deps.primaryThreadId?.() ?? null,
+                  sessionId: deps.sessionId as string,
+                  threadId,
+                  ...turnLifecycle
+                })
+            }
+          : {}),
         flush: items.streams.flush
       })
     },
@@ -139,7 +157,18 @@ export function createCodexJournalTranslator(
           pendingPrompts: prompts.pending,
           currentTurnIds: activeTurns.byThread,
           primaryThreadId: deps.primaryThreadId?.() ?? null,
-          ordinals: items.ordinals
+          ordinals: items.ordinals,
+          // The host saw the child go, not what Codex made of the turn: whether it was a person's
+          // Stop is the journal's Stop event to say (`turnEndAfterStop`), else it is news.
+          settledTurnLifecycle: (threadId, turnId) =>
+            turnBoundaries.ownsRecord(threadId, turnId)
+              ? turnBoundaries.settled(threadId, turnId, {
+                  state: 'interrupted',
+                  completedAt: event.observedAt ?? deps.now?.() ?? Date.now()
+                })
+              : null,
+          attributionFor,
+          ...(deps.now ? { now: deps.now } : {})
         })
         if (!admission.accepted) {
           return admission
@@ -150,24 +179,17 @@ export function createCodexJournalTranslator(
           return sweep
         }
         readActivity = createCodexProviderActivityReader()
-        generation.clear()
         deps.sink.setActivity?.(null)
         items.activeItems.clear()
         prompts.pending.clear()
-        activeTurns.clear()
+        turnBoundaries.clear()
         compactions.clear()
+        goals.clear()
         return CODEX_JOURNAL_ADMITTED
       }
       if (event.type === 'notification') {
         const streamResult = items.streams.handle(event.threadId, event.method, event.params)
         if (streamResult.handled) {
-          if (event.threadId === (deps.primaryThreadId?.() ?? null)) {
-            generation.observeStreamDelta(
-              event,
-              readCodexTurnId(event.params) ?? activeTurns.current(event.threadId),
-              streamResult.admission.accepted
-            )
-          }
           return publishActivity(event, streamResult.admission)
         }
       }
@@ -176,16 +198,10 @@ export function createCodexJournalTranslator(
         return streamAdmission
       }
       if (event.type === 'prompt') {
-        if (event.threadId === (deps.primaryThreadId?.() ?? null)) {
-          generation.invalidate(activeTurns.current(event.threadId))
-        }
         const suppressionAdmission = genericFrames.flush()
         return suppressionAdmission.accepted ? prompts.handle(event) : suppressionAdmission
       }
       if (event.type === 'server-request') {
-        if (event.threadId === (deps.primaryThreadId?.() ?? null)) {
-          generation.invalidate(activeTurns.current(event.threadId))
-        }
         return genericFrames.appendUnhandled(
           `request:${event.method}`,
           event.params,
@@ -193,45 +209,31 @@ export function createCodexJournalTranslator(
         )
       }
       if (event.type === 'provider-frame') {
-        if (event.threadId === (deps.primaryThreadId?.() ?? null)) {
-          generation.invalidate(activeTurns.current(event.threadId))
-        }
-        const settlement = settleOversizedNotification(event)
-        if (settlement && !settlement.accepted) {
-          return settlement
-        }
         return genericFrames.appendUnhandled(event.kind, event.payload, event.threadId)
       }
-      if (event.method === 'turn/started') {
-        return startTurn(event)
-      }
-      if (
-        event.method === 'model/rerouted' &&
-        event.threadId === (deps.primaryThreadId?.() ?? null)
-      ) {
-        generation.reroute(
-          readCodexTurnId(event.params) ?? activeTurns.current(event.threadId),
-          readCodexJournalRecord(event.params).toModel
-        )
-      }
-      if (event.method === 'error') {
-        generation.invalidate(activeTurns.current(event.threadId))
+      if (event.method === 'turn/started' || event.method === 'turn/completed') {
+        const childAdmission = subagents.handleTurnEvent(event)
+        if (!childAdmission.accepted) {
+          return childAdmission
+        }
+        const admission =
+          event.method === 'turn/started'
+            ? turnBoundaries.start(event)
+            : turnBoundaries.complete(event)
+        if (admission.accepted) {
+          reportPrimaryThreadStoppedRunning()
+        }
+        return admission
       }
       const compaction = compactions.handle(event)
       if (compaction) {
         return publishActivity(event, compaction)
       }
-      if (event.method === 'turn/completed') {
-        return completeTurn(event)
+      const goal = goals.handle(event)
+      if (goal) {
+        return publishActivity(event, goal)
       }
       if (event.method === CODEX_TOKEN_USAGE_METHOD) {
-        if (
-          event.threadId === (deps.primaryThreadId?.() ?? null) &&
-          readCodexThreadId(event.params) === event.threadId
-        ) {
-          generation.observeUsage(event.params)
-          return CODEX_JOURNAL_ADMITTED
-        }
         // Classified `status-chrome`, so the generic-frame path swallows it
         // before the journal. The roster consumes it as a typed notification.
         const admission = subagents.handleTokenUsage(event.params)
@@ -240,48 +242,54 @@ export function createCodexJournalTranslator(
         }
       }
       if (event.method === 'item/started' || event.method === 'item/completed') {
-        const subagentItem = readCodexNotificationThreadItem(event.params, readCodexThreadItem)
-        // Null means the roster did not claim it; fall through to normal item
-        // handling. Returning here unconditionally swallows every other item.
-        const subagentAdmission = subagentItem
-          ? subagents.handleItem({
-              threadId: event.threadId,
-              turnId: readCodexTurnId(event.params) ?? activeTurns.current(event.threadId),
-              item: subagentItem
-            })
-          : null
-        if (subagentAdmission) {
-          // Not a bare return: the roster claiming the item must not skip the
-          // turn-tail arm, which is the only publisher of its activity copy.
-          return publishActivity(event, subagentAdmission)
+        const routed = routeThreadItem(event)
+        // Not a bare return: a claimed item must not skip the turn-tail arm,
+        // which is the only publisher of its activity copy.
+        if (routed) {
+          return publishActivity(event, routed)
         }
-        const item = readCodexThreadItem(readCodexJournalRecord(event.params).item)
-        if (item && event.threadId === (deps.primaryThreadId?.() ?? null)) {
-          generation.observeItem(
-            readCodexTurnId(event.params) ?? activeTurns.current(event.threadId),
-            event.method,
-            item
-          )
-        }
-        const translated = items.handle(event)
+      }
+      if (isCodexProviderRetryFrame(event)) {
+        // Always journaled, like any error frame: each attempt is evidence, and its publish is
+        // the activity the idle sweep reads.
         return publishActivity(
           event,
-          translated.handled
-            ? translated.admission
-            : genericFrames.appendUnhandled(
-                `notification:${event.method}`,
-                event.params,
-                event.threadId
-              )
+          genericFrames.appendFrameRow(event.threadId, event.params, {
+            body: codexProviderRetryRowBody(event.params),
+            classification: 'error-surface'
+          })
         )
       }
-      return publishActivity(
-        event,
-        genericFrames.appendUnhandled(`notification:${event.method}`, event.params, event.threadId)
+      // A thread that stopped running settles no open turn: Codex clears `running`
+      // on every error, and an open turn ends on its `turn/completed`. It releases
+      // a send whose dispatch was never answered, which nothing else re-derives live.
+      if (
+        event.method === 'thread/status/changed' &&
+        codexThreadStoppedRunning(event.params) &&
+        event.threadId === (deps.primaryThreadId?.() ?? null)
+      ) {
+        primaryThreadStoppedRunning = true
+        reportPrimaryThreadStoppedRunning()
+      }
+      // A turn-ending `error` is a row inside the turn it names; the failed
+      // `turn/completed` Codex sends after it is that turn's end. The thread
+      // status was read for state above and prints nothing.
+      const unhandled = genericFrames.appendUnhandled(
+        `notification:${event.method}`,
+        event.params,
+        event.threadId,
+        { coveredByTypedTranslator: event.method === 'thread/status/changed' }
       )
+      if (unhandled.accepted && event.method === 'error') {
+        commands.errorShown(event.params)
+      }
+      return publishActivity(event, unhandled)
     },
-    resolvePrompt: (journalItemId) => prompts.resolve(journalItemId),
+    beginCommand: (command) => commands.begin(command),
+    forgetCommand: (turnId) => commands.forget(turnId),
+    commandProviderTurnId: (turnId) => commands.providerTurnId(turnId),
     cancelPrompt: (journalItemId) => prompts.cancel(journalItemId),
+    resolvePrompt: (journalItemId) => prompts.resolve(journalItemId),
     flush: () => {
       items.streams.flush()
       genericFrames.flush()
@@ -291,21 +299,9 @@ export function createCodexJournalTranslator(
       prompts.dispose()
       genericFrames.dispose()
       subagents.dispose()
-      activeTurns.clear()
+      turnBoundaries.clear()
       compactions.clear()
+      goals.dispose()
     }
-  }
-
-  /** Settles the item a notification the transport refused to carry left
-   *  mid-flight; null when the frame is not one. */
-  function settleOversizedNotification(
-    event: Extract<CodexStructuredSessionEvent, { type: 'provider-frame' }>
-  ): CodexJournalTranslationAdmission | null {
-    return settleCodexOversizedNotificationFrame({
-      ...event,
-      sink: deps.sink,
-      streams: items.streams,
-      activeItems: items.activeItems
-    })
   }
 }

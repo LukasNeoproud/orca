@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { buildMobileRunTargetSetupHosts, MobileRunTargetSetup } from './MobileRunTargetSetup'
+import { hostType } from '../test-support/host-type-predicate'
 
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
@@ -75,7 +76,7 @@ describe('MobileRunTargetSetup', () => {
     expect(sendRequest).toHaveBeenCalledWith('status.get')
     expect(
       renderer.root
-        .findAllByType('Text')
+        .findAll(hostType('Text'))
         .some((node) => node.children.includes('Update Orca on this host to set up projects.'))
     ).toBe(true)
   })
@@ -99,7 +100,7 @@ describe('MobileRunTargetSetup', () => {
     expect(sendRequest).toHaveBeenCalledExactlyOnceWith('status.get')
     expect(
       renderer!.root
-        .findAllByType('Text')
+        .findAll(hostType('Text'))
         .some((node) =>
           node.children.includes(
             'Update Orca on this host to set up folder projects and projects without a Git remote on another host.'
@@ -146,7 +147,7 @@ describe('MobileRunTargetSetup', () => {
       )
     })
     const host = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find(
         (node) =>
           node.props.accessibilityRole === 'radio' &&
@@ -159,7 +160,7 @@ describe('MobileRunTargetSetup', () => {
         .props.onChangeText('/srv/notes')
     )
     const submit = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'button')
     await act(async () => submit!.props.onPress())
     expect(sendRequest).toHaveBeenCalledWith(
@@ -209,7 +210,7 @@ describe('MobileRunTargetSetup', () => {
     })
 
     const host = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find(
         (node) =>
           node.props.accessibilityRole === 'radio' &&
@@ -220,7 +221,7 @@ describe('MobileRunTargetSetup', () => {
     const path = renderer!.root.findByProps({ accessibilityLabel: 'Project path on host' })
     await act(async () => path.props.onChangeText('/srv/orca'))
     const submit = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'button')
     await act(async () => submit!.props.onPress())
 
@@ -272,11 +273,11 @@ describe('MobileRunTargetSetup', () => {
     })
 
     const local = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'radio')
     await act(async () => local!.props.onPress())
     const clone = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.children?.props?.children === 'Clone from URL')
     await act(async () => clone!.props.onPress())
     await act(async () =>
@@ -290,7 +291,7 @@ describe('MobileRunTargetSetup', () => {
         .props.onChangeText('/work/orca')
     )
     const submit = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'button')
     await act(async () => submit!.props.onPress())
 
@@ -337,19 +338,19 @@ describe('MobileRunTargetSetup', () => {
     })
 
     const host = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'radio')
     await act(async () => host!.props.onPress())
     const path = renderer!.root.findByProps({ accessibilityLabel: 'Project path on host' })
     await act(async () => path.props.onChangeText('/work/orca'))
     const submit = renderer!.root
-      .findAllByType('Pressable')
+      .findAll(hostType('Pressable'))
       .find((node) => node.props.accessibilityRole === 'button')
     await act(async () => submit!.props.onPress())
 
     expect(
       renderer!.root
-        .findAllByType('Text')
+        .findAll(hostType('Text'))
         .some((node) => node.children.includes('Could not refresh projects'))
     ).toBe(true)
   })

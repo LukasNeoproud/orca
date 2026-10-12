@@ -1,6 +1,7 @@
 import type { ManagedPane } from '@/lib/pane-manager/pane-manager'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
+import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { ResponseCommentPopover } from '../response-comments/ResponseCommentPopover'
 import { formatAiResponseComments } from '../../../../shared/ai-response-comments'
 import { useTerminalCommentSelection } from './use-terminal-comment-selection'
@@ -9,9 +10,28 @@ import { resolveProtectedMultilinePasteOptionsForPane } from './terminal-agent-p
 import { resolveTerminalInputHostPlatform } from './terminal-input-host-platform'
 import {
   executeTerminalPaneMenuPasteText,
-  getTerminalPaneMenuShortcutPlatform,
   type TerminalPaneMenuPasteContext
 } from './terminal-pane-menu-paste'
+
+export function TerminalResponseComments({
+  panes,
+  hiddenLeafId,
+  context
+}: {
+  panes: readonly ManagedPane[]
+  hiddenLeafId: string | null
+  context: TerminalPaneMenuPasteContext
+}): React.JSX.Element {
+  return (
+    <>
+      {panes.map((pane) =>
+        pane.leafId === hiddenLeafId ? null : (
+          <TerminalResponseComment key={pane.leafId} pane={pane} context={context} />
+        )
+      )}
+    </>
+  )
+}
 
 export function TerminalResponseComment({
   pane,
@@ -51,7 +71,7 @@ export function TerminalResponseComment({
           return false
         }
         const state = useAppStore.getState()
-        const clientPlatform = getTerminalPaneMenuShortcutPlatform()
+        const clientPlatform = getShortcutPlatform()
         const options = resolveProtectedMultilinePasteOptionsForPane({
           isWindowsClient: context.forceBracketedMultilineTextPaste,
           hostPlatform: resolveTerminalInputHostPlatform({

@@ -22,6 +22,7 @@ export function useTerminalPaneLifecycleRefs() {
     ),
     linkPreviewInvalidationDisposablesRef: useRef(new Map<number, IDisposable>()),
     selectionDisposablesRef: useRef(new Map<number, IDisposable>()),
+    nativeCopyDisposablesRef: useRef(new Map<number, IDisposable>()),
     selectionCaptureTimersRef: useRef(new Map<number, number>()),
     osc52DisposablesRef: useRef(new Map<number, IDisposable>()),
     osc7DisposablesRef: useRef(new Map<number, IDisposable>()),

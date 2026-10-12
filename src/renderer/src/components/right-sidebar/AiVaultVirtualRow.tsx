@@ -1,9 +1,5 @@
-import { useAppStore } from '@/store'
-import { translate } from '@/i18n/i18n'
-import { resolveAgentSessionHistoryOpenMode } from '../../../../shared/agent-session-history-open-mode'
-import { agentLabel } from './ai-vault-session-filters'
-import { aiVaultChatOpenBlockedMessage } from './ai-vault-history-open-labels'
 import type { AgentStatusState } from '../../../../shared/agent-status-types'
+import { isAntigravityReferenceSession } from '../../../../shared/antigravity-session-origin'
 import type { AiVaultScope, AiVaultSession } from '../../../../shared/ai-vault-types'
 import type { AiVaultResumeStartup } from '@/lib/ai-vault-resume-command'
 import { cn } from '@/lib/utils'
@@ -12,6 +8,7 @@ import { VaultSessionRow } from './AiVaultSessionRow'
 import type { AiVaultSessionGroup } from './ai-vault-session-filters'
 import type { AiVaultOriginalPaneTarget } from './ai-vault-original-pane'
 import {
+  aiVaultSessionResumeLabel,
   aiVaultSessionRowResumeGating,
   type AiVaultSessionResumeActions,
   type AiVaultSessionResumeState
@@ -26,9 +23,10 @@ import {
   canUseLocalAiVaultSessionPathActions
 } from './ai-vault-session-path-actions'
 import { canContinueAiVaultSessionInNewSession } from './ai-vault-session-continuation'
+import { resolveAiVaultSessionSurfaceSwitchTargets } from './ai-vault-session-surface-switch'
 import type { AiVaultResumeInChatEligibility } from './ai-vault-session-resume-in-chat'
-import { requestPortableConversationFromHistory } from '@/lib/portable-conversation-request'
-import { portableConversationHistoryWorkspaceId } from './portable-conversation-history-entry'
+import type { AiVaultSearchHit } from '../../../../shared/ai-vault-search-types'
+import { canResumeAiVaultSearchHit, hasAiVaultSearchHitPath } from './ai-vault-search-session'
 
 export type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
@@ -45,6 +43,7 @@ export function AiVaultVirtualRow({
   vaultScope,
   buildResumeStartup,
   getOriginalPaneTarget,
+  isStructuredSessionOpen,
   getSessionLiveState,
   getWorktreeInfo,
   getSessionResumeState,
@@ -57,13 +56,15 @@ export function AiVaultVirtualRow({
   onResume,
   onContinueInNewSession,
   onResumeInNewChat,
+  onResumeInNewCli,
   onCopyResume,
   onCopyId,
   onCopyPath,
   onOpenLog,
   onRevealLog,
   onOpenCwd,
-  onRequestDelete
+  onRequestDelete,
+  searchHits
 }: {
   row: AiVaultListRow | undefined
   index: number
@@ -75,6 +76,7 @@ export function AiVaultVirtualRow({
   vaultScope: AiVaultScope
   buildResumeStartup: (session: AiVaultSession, worktreeId?: string | null) => AiVaultResumeStartup
   getOriginalPaneTarget: (session: AiVaultSession) => AiVaultOriginalPaneTarget | null
+  isStructuredSessionOpen: (session: AiVaultSession) => boolean
   getSessionLiveState: (session: AiVaultSession) => AgentStatusState | null
   getWorktreeInfo: (session: AiVaultSession) => AiVaultSessionWorktreeInfo | null
   getSessionResumeState: (session: AiVaultSession) => AiVaultSessionResumeState
@@ -87,6 +89,7 @@ export function AiVaultVirtualRow({
   onResume: (session: AiVaultSession, worktreeId: string) => void
   onContinueInNewSession: (session: AiVaultSession, worktreeId: string) => void
   onResumeInNewChat: (session: AiVaultSession, worktreeId: string) => void
+  onResumeInNewCli: (session: AiVaultSession, worktreeId: string) => void
   onCopyResume: (session: AiVaultSession, worktreeId?: string | null) => void
   onCopyId: (session: AiVaultSession) => void
   onCopyPath: (session: AiVaultSession) => void
@@ -94,14 +97,15 @@ export function AiVaultVirtualRow({
   onRevealLog: (session: AiVaultSession) => void
   onOpenCwd: (session: AiVaultSession) => void
   onRequestDelete: (session: AiVaultSession) => void
+  searchHits?: ReadonlyMap<string, AiVaultSearchHit>
 }): React.JSX.Element | null {
-  const preferredMode = useAppStore((state) => resolveAgentSessionHistoryOpenMode(state.settings))
   if (!row) {
     return null
   }
 
   const isActiveStickyHeader = row.type === 'group' && activeStickyHeaderIndex === index
   const originalPaneTarget = row.type === 'session' ? getOriginalPaneTarget(row.session) : null
+  const structuredSessionOpen = row.type === 'session' && isStructuredSessionOpen(row.session)
   const worktreeInfo = row.type === 'session' ? getWorktreeInfo(row.session) : null
   // Why: omit the jump affordance when the session already lives in the
   // worktree on screen — jumping there is a no-op.
@@ -109,10 +113,6 @@ export function AiVaultVirtualRow({
   const worktreeJumpId =
     showJumpToWorktree && canJumpToAiVaultSessionWorktree(worktreeInfo)
       ? worktreeInfo?.worktreeId
-      : null
-  const portableWorkspaceId =
-    row.type === 'session'
-      ? portableConversationHistoryWorkspaceId(row.session, worktreeInfo)
       : null
   const resumeState = row.type === 'session' ? getSessionResumeState(row.session) : null
   const resumeActions = row.type === 'session' ? getSessionResumeActions(row.session) : null
@@ -128,58 +128,36 @@ export function AiVaultVirtualRow({
     row.type === 'session'
       ? aiVaultSessionRowResumeGating(row.session, resumeState)
       : { resumeDisabled: true, canCopyResumeCommand: false }
-  const resumeLabel = translate(
-    'auto.components.sidebar.WorktreeConversationHistory.openInTerminal',
-    'Open in Terminal'
-  )
-  const chatOpenLabel = translate(
-    'auto.components.right.sidebar.AiVaultSessionRow.openInAgentChat',
-    'Open in {{agent}} Chat',
-    { agent: row.type === 'session' ? agentLabel(row.session.agent) : '' }
-  )
-  const liveState = row.type === 'session' ? getSessionLiveState(row.session) : null
-  const existingOwner = Boolean(
-    (originalPaneTarget && liveState !== null) ||
-    (row.type === 'session' &&
-      row.session.structuredSession &&
-      row.session.structuredSession.ownerState !== 'unverifiable')
-  )
-  const targetWorkspaceId =
-    resumeState?.worktreeId ??
-    originalPaneTarget?.worktreeId ??
-    (row.type === 'session' ? row.session.structuredSession?.workspaceId : undefined)
-  const ownershipReason =
-    !existingOwner &&
-    row.type === 'session' &&
-    row.session.structuredSession?.ownerState === 'unverifiable'
-      ? translate(
-          'auto.components.sidebar.WorktreeConversationHistory.ownerUnverifiable',
-          'Orca cannot verify whether this conversation is still running.'
-        )
-      : undefined
-  const terminalDisabled =
-    Boolean(ownershipReason) || (resumeGating.resumeDisabled && !existingOwner)
-  const chatOpenBlockedReason =
-    ownershipReason ??
-    (existingOwner || resumeInChat?.available
-      ? undefined
-      : aiVaultChatOpenBlockedMessage(resumeInChat?.reason))
-  const openInTerminal = (): void => {
-    if (row.type === 'session' && targetWorkspaceId) {
-      onResume(row.session, targetWorkspaceId)
-    }
-  }
-  const openInChat = (): void => {
-    if (row.type === 'session' && targetWorkspaceId) {
-      onResumeInNewChat(row.session, targetWorkspaceId)
-    }
-  }
+  const resumeLabel = resumeState ? aiVaultSessionResumeLabel(resumeState) : ''
+  const { resumeInNewChatWorkspaceId, resumeInNewCliWorktreeId } =
+    row.type === 'session'
+      ? resolveAiVaultSessionSurfaceSwitchTargets(row.session, resumeState, resumeInChat)
+      : { resumeInNewChatWorkspaceId: null, resumeInNewCliWorktreeId: null }
   const canOpenLocalSessionPaths =
     row.type === 'session' && canUseLocalAiVaultSessionPathActions(row.session.executionHostId)
   // Why: in-Orca View Log additionally withholds synthetic (SQLite/OpenCode)
   // identities that have no single file to open, while Reveal/CWD stay on the
   // existing local-path gate.
   const canOpenLogInOrca = row.type === 'session' && canOpenAiVaultSessionLogInOrca(row.session)
+  const searchHit = row.type === 'session' ? searchHits?.get(row.session.id) : undefined
+  const searchResumeAllowed = searchHit ? canResumeAiVaultSearchHit(searchHit) : true
+  const searchPathAllowed = searchHit ? hasAiVaultSearchHitPath(searchHit) : true
+  const usesLegacyResumeCommand = row.type === 'session' && !row.session.structuredSession
+  const canBuildResumeStartup =
+    row.type === 'session' &&
+    searchResumeAllowed &&
+    usesLegacyResumeCommand &&
+    (!isAntigravityReferenceSession(row.session) || !resumeGating.resumeDisabled)
+  const resumeStartup = canBuildResumeStartup
+    ? buildResumeStartup(row.session, resumeState?.worktreeId)
+    : { command: '' }
+  const visibleResumeActions =
+    searchResumeAllowed && resumeActions
+      ? resumeActions
+      : {
+          worktree: { worktreeId: null, disabled: true },
+          newTab: { worktreeId: null, disabled: true }
+        }
 
   return (
     <div
@@ -200,73 +178,81 @@ export function AiVaultVirtualRow({
       ) : (
         <VaultSessionRow
           session={row.session}
-          liveState={liveState}
-          resumeStartup={buildResumeStartup(row.session, resumeState?.worktreeId)}
-          realHomeResumeStartup={buildResumeStartup(
-            { ...row.session, codexHome: null },
-            resumeState?.worktreeId
-          )}
+          searchHit={searchHit}
+          liveState={getSessionLiveState(row.session)}
+          resumeStartup={resumeStartup}
+          realHomeResumeStartup={
+            canBuildResumeStartup
+              ? buildResumeStartup({ ...row.session, codexHome: null }, resumeState?.worktreeId)
+              : resumeStartup
+          }
           worktreeInfo={worktreeInfo}
           vaultScope={vaultScope}
           detailsExpanded={expandedSessionIds.has(row.session.id)}
-          resumeDisabled={terminalDisabled}
-          preferredOpen={{
-            label: preferredMode === 'structured' ? chatOpenLabel : resumeLabel,
-            disabled:
-              preferredMode === 'structured' ? Boolean(chatOpenBlockedReason) : terminalDisabled,
-            reason: preferredMode === 'structured' ? chatOpenBlockedReason : ownershipReason,
-            onOpen: preferredMode === 'structured' ? openInChat : openInTerminal
-          }}
-          chatOpenLabel={chatOpenLabel}
-          chatOpenBlockedReason={chatOpenBlockedReason}
+          resumeDisabled={!searchResumeAllowed || resumeGating.resumeDisabled}
           resumeLabel={resumeLabel}
-          resumeActions={
-            resumeActions ?? {
-              worktree: { worktreeId: null, disabled: true },
-              newTab: { worktreeId: null, disabled: true }
-            }
-          }
+          resumeActions={visibleResumeActions}
           onToggleDetails={() => onToggleSessionDetails(row.session.id)}
           onJumpToOriginalPane={
-            originalPaneTarget ? () => onJumpToOriginalPane(row.session) : undefined
+            originalPaneTarget || structuredSessionOpen
+              ? () => onJumpToOriginalPane(row.session)
+              : undefined
           }
+          resumeHidden={structuredSessionOpen}
           showJumpToWorktree={showJumpToWorktree}
           onJumpToWorktree={worktreeJumpId ? () => onJumpToWorktree(worktreeJumpId) : undefined}
-          onResume={openInTerminal}
+          subagentResume={{ getState: getSessionResumeState, onResume }}
+          onResume={() => {
+            if (resumeState?.worktreeId) {
+              onResume(row.session, resumeState.worktreeId)
+            }
+          }}
           onContinueInNewSession={
-            continuationWorktreeId
+            searchResumeAllowed && continuationWorktreeId
               ? () => onContinueInNewSession(row.session, continuationWorktreeId)
               : undefined
           }
-          onResumeInNewChat={chatOpenBlockedReason ? undefined : openInChat}
-          onBranchFromResponse={
-            portableWorkspaceId
-              ? () => requestPortableConversationFromHistory(row.session, portableWorkspaceId)
+          onResumeInNewChat={
+            searchResumeAllowed && resumeInNewChatWorkspaceId
+              ? () => onResumeInNewChat(row.session, resumeInNewChatWorkspaceId)
+              : undefined
+          }
+          onResumeInNewCli={
+            searchResumeAllowed && resumeInNewCliWorktreeId
+              ? () => onResumeInNewCli(row.session, resumeInNewCliWorktreeId)
               : undefined
           }
           onResumeInWorktree={() => {
-            if (resumeActions?.worktree.worktreeId) {
+            if (searchResumeAllowed && resumeActions?.worktree.worktreeId) {
               onResume(row.session, resumeActions.worktree.worktreeId)
             }
           }}
           onResumeInNewTab={() => {
-            if (resumeActions?.newTab.worktreeId) {
+            if (searchResumeAllowed && resumeActions?.newTab.worktreeId) {
               onResume(row.session, resumeActions.newTab.worktreeId)
             }
           }}
           onCopyResume={
-            resumeGating.canCopyResumeCommand
+            searchResumeAllowed && resumeGating.canCopyResumeCommand
               ? () => onCopyResume(row.session, resumeState?.worktreeId)
               : undefined
           }
           onCopyId={() => onCopyId(row.session)}
-          onCopyPath={() => onCopyPath(row.session)}
-          onOpenLog={canOpenLogInOrca ? () => onOpenLog(row.session) : undefined}
-          onRevealLog={canOpenLocalSessionPaths ? () => onRevealLog(row.session) : undefined}
-          onOpenCwd={
-            canOpenLocalSessionPaths && row.session.cwd ? () => onOpenCwd(row.session) : undefined
+          onCopyPath={searchPathAllowed ? () => onCopyPath(row.session) : undefined}
+          onOpenLog={
+            searchPathAllowed && canOpenLogInOrca ? () => onOpenLog(row.session) : undefined
           }
-          onRequestDelete={onRequestDelete}
+          onRevealLog={
+            searchPathAllowed && canOpenLocalSessionPaths
+              ? () => onRevealLog(row.session)
+              : undefined
+          }
+          onOpenCwd={
+            searchPathAllowed && canOpenLocalSessionPaths && row.session.cwd
+              ? () => onOpenCwd(row.session)
+              : undefined
+          }
+          onRequestDelete={searchPathAllowed ? onRequestDelete : undefined}
         />
       )}
     </div>

@@ -8,7 +8,7 @@ import {
   azureDevOpsTokenConfigured,
   getAzureDevOpsAuthConfig,
   normalizeAzureDevOpsApiBaseUrl
-} from './azure-devops-api-request'
+} from './azure-devops-auth-config'
 
 export async function azureDevOpsConnectionAuthHeaders(
   connection: AzureDevOpsConnection,

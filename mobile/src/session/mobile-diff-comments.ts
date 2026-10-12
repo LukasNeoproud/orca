@@ -89,7 +89,10 @@ export function normalizeMobileDiffComments(value: unknown, worktreeId: string):
       filePath,
       source: normalizeSource(candidate.source),
       selectedText: typeof candidate.selectedText === 'string' ? candidate.selectedText : undefined,
-      imageRegion: normalizeMobileImageRegion(candidate.imageRegion),
+      // Absent unless set, so a plain line note keeps the shape older hosts recorded.
+      ...(normalizeMobileImageRegion(candidate.imageRegion)
+        ? { imageRegion: normalizeMobileImageRegion(candidate.imageRegion) }
+        : {}),
       startLine: typeof candidate.startLine === 'number' ? candidate.startLine : undefined,
       lineNumber,
       body,
@@ -192,4 +195,12 @@ export function removeDeliveredMobileDiffComments(
     const snapshot = deliveredById.get(comment.id)
     return !snapshot || !deliveredCommentMatches(comment, snapshot)
   })
+}
+
+/** Unsent notes that no new-agent send is still carrying. */
+export function sendableMobileDiffComments(
+  comments: readonly DiffComment[],
+  sendingIds: ReadonlySet<string>
+): DiffComment[] {
+  return comments.filter((comment) => !comment.sentAt && !sendingIds.has(comment.id))
 }

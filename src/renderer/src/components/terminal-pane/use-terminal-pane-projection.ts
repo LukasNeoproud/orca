@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import {
   DEFAULT_TERMINAL_DIVIDER_DARK,
@@ -8,6 +8,7 @@ import {
   resolveOpaqueTerminalBackground
 } from '@/lib/terminal-theme'
 import { stripSshReconnectOwnedErrorLines } from './TerminalErrorToast'
+import { agentLaunchPaneOutcomeForLeaf } from './agent-launch-pane-notice-text'
 import { mapPaneTerminalErrors, terminalErrorForPane } from './terminal-error-accumulation'
 import {
   nativeChatLaunchAgentForLeaf,
@@ -44,9 +45,6 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     setTerminalErrorsByPaneId,
     settings,
     shouldMeasureHiddenStartup,
-    structuredSessionAgent,
-    structuredSessionId,
-    structuredSessionLeafId,
     tabId,
     sshReconnectOwnsTerminalErrors,
     systemPrefersDark,
@@ -106,6 +104,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     terminalErrorsByPaneId,
     activePane?.id ?? null
   )
+  const visibleLaunchRefusal = agentLaunchPaneOutcomeForLeaf(terminalTab, activePane?.leafId)
   const menuPaneHasCustomTitle =
     contextMenu.menuPaneId !== null && Boolean(paneTitles[contextMenu.menuPaneId])
   const menuAgentSessionId = useAppStore((state) =>
@@ -124,9 +123,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
         chatLeafId,
         activeLeafId,
         chatLeafStillMounted,
-        activeLeafIsEligible: isChatEligibleForLeaf(activeLeafId),
-        structuredSessionId,
-        structuredSessionLeafId
+        activeLeafIsEligible: isChatEligibleForLeaf(activeLeafId)
       })
     )
   }, [
@@ -135,69 +132,27 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     activePane?.leafId,
     chatLeafStillMounted,
     applyNativeChatLeafRoute,
-    isChatEligibleForLeaf,
-    structuredSessionId,
-    structuredSessionLeafId
+    isChatEligibleForLeaf
   ])
-  const retainedChatLeafIdsRef = useRef(new Set<string>())
-  if (chatLeafId) {
-    retainedChatLeafIdsRef.current.add(chatLeafId)
-  }
-  const mountedLeafIds = new Set<string>(managedPanes.map((pane) => pane.leafId))
-  for (const leafId of retainedChatLeafIdsRef.current) {
-    if (!mountedLeafIds.has(leafId)) {
-      retainedChatLeafIdsRef.current.delete(leafId)
-    }
-  }
-  const retainedChatPanes = managedPanes.filter((pane) =>
-    retainedChatLeafIdsRef.current.has(pane.leafId)
-  )
-  const chatPane = chatLeafId
-    ? (managedPanes.find((pane) => pane.leafId === chatLeafId) ?? null)
-    : null
+  const chatPane =
+    isChatViewMode && chatLeafId
+      ? (managedPanes.find((pane) => pane.leafId === chatLeafId) ?? null)
+      : null
   const chatPanePtyId = chatPane
     ? (paneTransportsRef.current.get(chatPane.id)?.getPtyId() ?? null)
     : null
-  const chatPaneResolvedAgent = chatPane
-    ? (tabAgentTypeByLeaf[chatPane.leafId] ?? resolveTitleAgentForLeaf(chatPane.leafId))
-    : null
+  const chatPaneResolvedAgent = chatPane ? resolveTitleAgentForLeaf(chatPane.leafId) : null
   const chatPaneLaunchAgent = nativeChatLaunchAgentForLeaf({
     launchAgent: terminalTab?.launchAgent,
     launchAgentLeafId: getTabWideAgentHintLeafId(),
     leafId: chatPane?.leafId ?? null,
     leafIds: getNativeChatLeafIds()
   })
-  const structuredChatAgent = structuredSessionAgent ?? chatPaneResolvedAgent ?? chatPaneLaunchAgent
-  const structuredChatTarget = useMemo(() => ({ kind: 'local' as const }), [])
   const chatPaneOwnsTabWideLaunchDraft = nativeChatLeafOwnsTabWideEvidence({
     ownerLeafId: getTabWideAgentHintLeafId(),
     leafId: chatPane?.leafId ?? null,
     leafIds: getNativeChatLeafIds()
   })
-  const retainedChatPaneProjections = retainedChatPanes.map((pane) => ({
-    pane,
-    ptyId: paneTransportsRef.current.get(pane.id)?.getPtyId() ?? null,
-    resolvedAgent: tabAgentTypeByLeaf[pane.leafId] ?? resolveTitleAgentForLeaf(pane.leafId),
-    launchAgent: nativeChatLaunchAgentForLeaf({
-      launchAgent: terminalTab?.launchAgent,
-      launchAgentLeafId: getTabWideAgentHintLeafId(),
-      leafId: pane.leafId,
-      leafIds: getNativeChatLeafIds()
-    }),
-    ownsTabWideLaunchDraft: nativeChatLeafOwnsTabWideEvidence({
-      ownerLeafId: getTabWideAgentHintLeafId(),
-      leafId: pane.leafId,
-      leafIds: getNativeChatLeafIds()
-    }),
-    structuredSessionId:
-      !structuredSessionLeafId || structuredSessionLeafId === pane.leafId
-        ? structuredSessionId
-        : null,
-    structuredSessionAgent:
-      !structuredSessionLeafId || structuredSessionLeafId === pane.leafId
-        ? structuredSessionAgent
-        : undefined
-  }))
   const activePaneIsChatLeaf = Boolean(
     isChatViewMode && activePane?.leafId && activePane.leafId === chatLeafId
   )
@@ -243,6 +198,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     activePane,
     managedPanes,
     showSshReconnectOverlay,
+    visibleLaunchRefusal,
     visibleTerminalError,
     menuPaneHasCustomTitle,
     menuAgentSessionId,
@@ -251,11 +207,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     chatPanePtyId,
     chatPaneResolvedAgent,
     chatPaneLaunchAgent,
-    structuredChatAgent,
-    structuredChatTarget,
-    structuredSessionId,
     chatPaneOwnsTabWideLaunchDraft,
-    retainedChatPaneProjections,
     activePaneIsChatLeaf,
     resolveAgentForLeaf,
     activePaneCanContinueInNewSession,

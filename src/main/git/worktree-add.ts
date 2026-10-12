@@ -16,6 +16,7 @@ import { runWithGitReadCacheInvalidation } from './status'
 import { invalidateWslLinkedWorktreeGitRouting } from './wsl-linked-worktree-git-routing'
 import {
   getLocalBaseRefUpdateSuggestionForWorktreeCreate,
+  parseRemoteTrackingLocalBaseRef,
   refreshLocalBaseRefForWorktreeCreate
 } from './worktree-base-refresh'
 import { resolveWorktreeBaseCommitOid } from './worktree-base-ref-probe'
@@ -26,32 +27,45 @@ import type {
 } from './worktree-operation-options'
 import { gitExecOptions, resolveWorktreeAddTimeoutMs } from './worktree-operation-options'
 import { bumpWorktreeScanGeneration } from './worktree-scan-cache'
+import { assertNoPendingWorktreeRemovalConflict } from '../worktree-removal-table'
 
-export type WorktreeAddBaseContext = AddWorktreeResult & {
+export type WorktreeAddBaseContext = Pick<AddWorktreeResult, 'localBaseRefUpdateSuggestion'> & {
   effectiveBase: string
   effectiveBaseOid?: string
+  /** Started, not awaited: the worktree is created from the remote-tracking commit, so the refresh can overlap the checkout. Never rejects. */
+  pendingLocalBaseRefRefresh?: Promise<LocalBaseRefRefreshResult | undefined>
 }
 
 export async function resolveWorktreeAddBaseContext(
   repoPath: string,
   baseBranch: string,
   refreshLocalBaseRef: boolean,
-  options: AddWorktreeOptions
+  options: AddWorktreeOptions,
+  createdBranch: string
 ): Promise<WorktreeAddBaseContext> {
   let effectiveBaseOid: string | null = null
   const effectiveBase = await resolveWorktreeAddBaseRef(baseBranch, async (qualifiedRef) => {
     effectiveBaseOid = await resolveWorktreeBaseCommitOid(repoPath, qualifiedRef, options)
     return effectiveBaseOid !== null
   })
-  const localBaseRefRefresh = refreshLocalBaseRef
-    ? await refreshLocalBaseRefForWorktreeCreate(
-        repoPath,
-        baseBranch,
-        effectiveBase,
-        options.remoteTrackingBase,
-        options
-      )
-    : undefined
+  // Why: `-b` refuses an existing branch, so creating the base's own local branch leaves nothing to refresh; probing it would race the overlapped add's branch write into a false "not fast-forward" warning.
+  const createsLocalBaseBranch =
+    parseRemoteTrackingLocalBaseRef(baseBranch, effectiveBase, options.remoteTrackingBase)
+      ?.localBranch === createdBranch
+  const pendingLocalBaseRefRefresh =
+    refreshLocalBaseRef && !createsLocalBaseBranch
+      ? refreshLocalBaseRefForWorktreeCreate(
+          repoPath,
+          baseBranch,
+          effectiveBase,
+          options.remoteTrackingBase,
+          options
+        ).catch((error: unknown) => {
+          // Why: the create may already have succeeded by the time this settles; a refresh bug must not fail it.
+          console.warn('addWorktree: local base ref refresh failed unexpectedly', error)
+          return undefined
+        })
+      : undefined
   const localBaseRefUpdateSuggestion =
     !refreshLocalBaseRef && options.suggestLocalBaseRefUpdate
       ? await getLocalBaseRefUpdateSuggestionForWorktreeCreate(
@@ -68,7 +82,7 @@ export async function resolveWorktreeAddBaseContext(
     ...(!refreshLocalBaseRef && !options.suggestLocalBaseRefUpdate && effectiveBaseOid
       ? { effectiveBaseOid }
       : {}),
-    ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
+    ...(pendingLocalBaseRefRefresh ? { pendingLocalBaseRefRefresh } : {}),
     ...(localBaseRefUpdateSuggestion ? { localBaseRefUpdateSuggestion } : {})
   }
 }
@@ -190,7 +204,10 @@ async function performAddWorktree(
   noCheckout = false,
   options: AddWorktreeOptions = {}
 ): Promise<AddWorktreeResult> {
-  let localBaseRefRefresh: LocalBaseRefRefreshResult | undefined
+  // Why: Git still owns that path and branch until the background delete finishes; a create now
+  // would race it, and the branch cleanup that follows would find the branch checked out again.
+  assertNoPendingWorktreeRemovalConflict(repoPath, { worktreePath, branch })
+  let pendingLocalBaseRefRefresh: Promise<LocalBaseRefRefreshResult | undefined> | undefined
   let localBaseRefUpdateSuggestion: LocalBaseRefUpdateSuggestion | undefined
   // Why: enable long paths for this Windows checkout without changing user Git config.
   const args = [...windowsLongPathGitArgs(repoPath), 'worktree', 'add']
@@ -209,10 +226,11 @@ async function performAddWorktree(
         repoPath,
         baseBranch,
         refreshLocalBaseRef,
-        options
+        options,
+        branch
       )
       effectiveBase = baseContext.effectiveBase
-      localBaseRefRefresh = baseContext.localBaseRefRefresh
+      pendingLocalBaseRefRefresh = baseContext.pendingLocalBaseRefRefresh
       localBaseRefUpdateSuggestion = baseContext.localBaseRefUpdateSuggestion
       args.push(effectiveBase)
     }
@@ -250,6 +268,8 @@ async function performAddWorktree(
       ? undefined
       : await recoverCompletedCheckout(probe, recovery, hostRepo, hostTarget, branch, error)
     if (!checkoutWarning || options.signal?.aborted) {
+      // Why: settle the overlapped refresh inside the caller's ref-maintenance pause before reporting the failure.
+      await pendingLocalBaseRefRefresh
       throw error
     }
     checkoutWarning.path = worktreePath
@@ -260,10 +280,7 @@ async function performAddWorktree(
   }
 
   if (options.checkoutExistingBranch) {
-    return {
-      ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),
-      ...(checkoutWarning ? { checkoutWarning } : {})
-    }
+    return checkoutWarning ? { checkoutWarning } : {}
   }
 
   if (effectiveBase) {
@@ -276,6 +293,7 @@ async function performAddWorktree(
   // linked worktree writes the shared common-dir config (whole repo) — intentional and idempotent,
   // so it's warn-only and not rolled back on failure.
   await configurePushAutoSetupRemote(worktreePath, options)
+  const localBaseRefRefresh = await pendingLocalBaseRefRefresh
   return {
     ...(checkoutWarning ? { checkoutWarning } : {}),
     ...(localBaseRefRefresh ? { localBaseRefRefresh } : {}),

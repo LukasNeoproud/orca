@@ -2,6 +2,7 @@ import { routeNativeChatHref } from '../../../../../shared/native-chat-href-rout
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
 import { resolveChatPreviewTarget } from './native-chat-preview-groups'
 
 const PREVIEW_OPEN_DELAY_MS = 250
@@ -29,8 +30,9 @@ export function NativeChatPreviewLink({
     () => (target ? { target, runtimeContext } : undefined),
     [runtimeContext, target]
   )
+  const previewHooks = onLinkClick as CommentMarkdownLinkPreviewHooks | undefined
   const previewAvailable =
-    hover && !!preview && !!onLinkClick?.createPreviewRequest && !!onLinkClick.showPreview
+    hover && !!preview && !!previewHooks?.createPreviewRequest && !!previewHooks.showPreview
   const clearOpenTimer = useCallback(() => {
     if (openTimerRef.current) {
       clearTimeout(openTimerRef.current)
@@ -42,12 +44,12 @@ export function NativeChatPreviewLink({
     if (!previewAvailable || !anchor || !href) {
       return false
     }
-    const request = onLinkClick?.createPreviewRequest?.(anchor, href)
+    const request = previewHooks?.createPreviewRequest?.(anchor, href)
     if (!request || (explicit && request.pinOnClick === false)) {
       return false
     }
     const bounds = anchor.getBoundingClientRect()
-    onLinkClick?.showPreview?.(
+    previewHooks?.showPreview?.(
       {
         ...request,
         anchorElement: anchor,

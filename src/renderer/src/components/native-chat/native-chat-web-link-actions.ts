@@ -4,6 +4,7 @@ import {
   isTerminalLinkActionActivation,
   isTerminalLinkDirectActivation
 } from '@/components/terminal-pane/terminal-link-activation'
+import type { TerminalLinkClickBehavior } from '@/components/terminal-pane/terminal-link-click-behavior'
 import {
   buildHttpLinkActions,
   openRoutedHttpLink,
@@ -18,6 +19,7 @@ export type NativeChatWebLinkDeps = {
   destinations: HttpLinkActionDestinations
   /** Off: a plain click opens the routed destination outright, as it did before actions existed. */
   actionsEnabled: boolean
+  plainClickBehavior?: TerminalLinkClickBehavior
   restoreFocus: () => void
   request: (request: LinkActionRequest) => void
 }
@@ -91,11 +93,15 @@ export function handleNativeChatWebLink(
     return false
   }
 
-  event.preventDefault()
   if (!deps.actionsEnabled) {
+    if (deps.plainClickBehavior === 'none') {
+      return false
+    }
+    event.preventDefault()
     open(deps.destinations.primary)
     return true
   }
+  event.preventDefault()
   const keyboardAnchor = event.detail === 0 ? event.currentTarget?.getBoundingClientRect() : null
   const anchor = event.currentTarget
   if (anchor instanceof HTMLElement) {

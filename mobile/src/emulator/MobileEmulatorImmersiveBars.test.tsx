@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { hostType } from '../test-support/host-type-predicate'
 
 const native = vi.hoisted(() => ({
   supportsImmersiveWindow: false,
@@ -23,8 +24,8 @@ describe('emulator immersive window compatibility', () => {
       act(() => {
         renderer = create(createElement(MobileEmulatorImmersiveBars))
       })
-      expect(renderer.root.findByType('StatusBar').props.hidden).toBe(true)
-      expect(renderer.root.findAllByType('ImmersiveWindow')).toHaveLength(supported ? 1 : 0)
+      expect(renderer.root.find(hostType('StatusBar')).props.hidden).toBe(true)
+      expect(renderer.root.findAll(hostType('ImmersiveWindow'))).toHaveLength(supported ? 1 : 0)
       expect(native.requireView).toHaveBeenCalledTimes(supported ? 1 : 0)
       act(() => renderer.unmount())
     }

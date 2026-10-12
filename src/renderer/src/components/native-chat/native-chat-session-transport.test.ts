@@ -213,44 +213,6 @@ describe('runtime subscribe', () => {
     })
   })
 
-  it('carries Codex usage-only updates and invalidates them on a dropped connection', async () => {
-    markRuntimeEnvironmentCompatible(ENV)
-    const { deliver, drop } = stubSubscribe()
-    const onFrame = vi.fn()
-    getNativeChatSessionTransport(ENV).subscribe(
-      { subscriptionId: 'usage', agent: 'codex', sessionId: 'codex-1' },
-      onFrame
-    )
-    await Promise.resolve()
-    const usageStatus = {
-      contextUsage: { usedTokens: 84000, maxTokens: 258400 },
-      codexWeeklyUsage: { usedPercent: 59 }
-    }
-    deliver({ type: 'snapshot', messages: [], usageStatus })
-    expect(onFrame).toHaveBeenLastCalledWith({
-      type: 'snapshot',
-      messages: [],
-      hasMore: false,
-      usageStatus
-    })
-    deliver({
-      type: 'appended',
-      messages: [],
-      usageStatus: { codexWeeklyUsage: { usedPercent: 60 } }
-    })
-    expect(onFrame).toHaveBeenLastCalledWith({
-      type: 'appended',
-      messages: [],
-      usageStatus: { codexWeeklyUsage: { usedPercent: 60 } }
-    })
-    drop()
-    expect(onFrame).toHaveBeenLastCalledWith({
-      type: 'appended',
-      messages: [],
-      usageStatus: { contextUsage: { stale: true }, codexWeeklyUsage: undefined }
-    })
-  })
-
   it('validates lifecycle metadata on runtime stream frames', async () => {
     markRuntimeEnvironmentCompatible(ENV)
     const { deliver } = stubSubscribe()

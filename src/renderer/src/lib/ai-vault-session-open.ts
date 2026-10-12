@@ -1,5 +1,7 @@
-import type { AgentSessionHistoryOpenMode } from '../../../shared/agent-session-history-open-mode'
 import type { AiVaultSession } from '../../../shared/ai-vault-types'
+
+/** Which surface a history session reopens in. */
+export type AiVaultSessionOpenMode = 'terminal' | 'structured'
 
 export type AiVaultSessionOpenDeps = {
   activateRemembered: (target: AiVaultSessionOpenedTarget) => Promise<boolean> | boolean
@@ -31,7 +33,7 @@ const OPENED_TARGET_LIMIT = 256
 /** Opens one history identity in the requested surface while preserving any existing live owner. */
 export function openAiVaultSession(
   session: AiVaultSession,
-  mode: AgentSessionHistoryOpenMode,
+  mode: AiVaultSessionOpenMode,
   targetWorkspaceId: string | undefined,
   deps: AiVaultSessionOpenDeps
 ): Promise<void> {
@@ -62,7 +64,7 @@ function openIdentity(session: AiVaultSession): string {
 
 async function runOpen(
   session: AiVaultSession,
-  mode: AgentSessionHistoryOpenMode,
+  mode: AiVaultSessionOpenMode,
   targetWorkspaceId: string | undefined,
   deps: AiVaultSessionOpenDeps
 ): Promise<void> {
@@ -73,10 +75,6 @@ async function runOpen(
     return
   }
   if (session.structuredSession) {
-    if (session.structuredSession.ownerState === 'unverifiable') {
-      deps.ownershipUnverifiable(session)
-      return
-    }
     await deps.activateExistingStructured(session)
     return
   }

@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { NewWorktreeCheckoutRecoverySheet } from './NewWorktreeCheckoutRecoverySheet'
+import { hostType } from '../test-support/host-type-predicate'
 
 const clipboard = vi.hoisted(() => ({ setStringAsync: vi.fn(async () => {}) }))
 
@@ -40,7 +41,7 @@ describe('NewWorktreeCheckoutRecoverySheet', () => {
     expect(output).toContain('Hook exited 1')
     expect(output).toContain('Original request')
     expect(output).toContain('https://example.com/issues/7')
-    const buttons = renderer.root.findAllByType('Pressable')
+    const buttons = renderer.root.findAll(hostType('Pressable'))
     await act(async () => buttons[0]?.props.onPress())
     expect(clipboard.setStringAsync).toHaveBeenCalledWith('https://example.com/issues/7')
     await act(async () => buttons[1]?.props.onPress())

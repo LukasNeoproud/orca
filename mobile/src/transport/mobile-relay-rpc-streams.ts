@@ -12,9 +12,15 @@ import {
   buildTerminalUnsubscribeParams,
   updateTerminalSubscriptionViewport
 } from './rpc-client-terminal-subscription'
-import { buildReadyStreamUnsubscribe, isImageStreamMethod } from './rpc-client-server-subscription'
+import {
+  buildReadyStreamUnsubscribe,
+  isImageStreamMethod,
+  isReadyIdStream
+} from './rpc-client-server-subscription'
+import { isStreamingOpenerReply } from './rpc-acceptance-policies'
 import type { RpcClient } from './rpc-client'
 import type { RpcResponse, RpcSuccess } from './types'
+import { ImageStreamSlot } from './image-stream-slot'
 
 type StreamRecord = {
   method: string
@@ -30,11 +36,25 @@ type StreamRecord = {
   subscriptionId?: string
   videoCodec?: EmulatorVideoCodec
   cancelled: boolean
-  sent: boolean
+  /** Position in this session's send order, or null while unsent. */
+  sendOrder: number | null
   receivedSnapshot?: boolean
 }
 
-type StreamUnsubscribe = { method: string; params: unknown }
+type StreamUnsubscribe = { method: string; params: Record<string, unknown> }
+
+/** The host cleanup slot an unsubscribe names; the rest of its params never identify a sibling. */
+function unsubscribeSlot({ method, params }: StreamUnsubscribe): string | null {
+  if (!('subscriptionId' in params)) {
+    return null
+  }
+  const client =
+    'client' in params && typeof params.client === 'object' && params.client !== null
+      ? params.client
+      : null
+  const clientId = client && 'id' in client ? client.id : null
+  return JSON.stringify([method, params.subscriptionId, clientId])
+}
 
 /** Unsubscribe derived from the subscribe params alone (no server-assigned id). */
 function buildParamsUnsubscribe(
@@ -63,8 +83,8 @@ export class MobileRelayRpcStreams {
   >()
   private readonly terminalListeners = new Map<number, (result: unknown) => void>()
   private readonly terminalSnapshots = new Map<number, TerminalSnapshotState>()
-  private activeImageStreamId: string | null = null
-  private pendingImageStreamId: string | null = null
+  private readonly imageSlot = new ImageStreamSlot()
+  private sendCount = 0
 
   constructor(private readonly options: StreamManagerOptions) {}
 
@@ -83,17 +103,17 @@ export class MobileRelayRpcStreams {
       onEmulatorVideoFrame: subscribeOptions?.onEmulatorVideoFrame,
       streamIds: new Set(),
       cancelled: false,
-      sent: false
+      sendOrder: null
     }
     this.streams.set(id, stream)
     if (isImageStreamMethod(method)) {
-      this.replaceImageStream(id)
+      this.imageSlot.replace(id).forEach((displaced) => this.cancel(displaced))
     }
     void this.options
       .waitForConnected()
       .then(() => {
         if (!stream.cancelled) {
-          stream.sent = true
+          stream.sendOrder = ++this.sendCount
           if (!this.options.sendFrame({ id, method, params: stream.params })) {
             this.fail(id, stream, 'Connection interrupted')
           }
@@ -130,7 +150,7 @@ export class MobileRelayRpcStreams {
           }
         }
       }
-      if (response.ok && response.streaming !== true) {
+      if (response.ok && !isStreamingOpenerReply(response)) {
         this.cancelledSubscriptions.delete(response.id)
       }
       return true
@@ -163,25 +183,25 @@ export class MobileRelayRpcStreams {
         stream.streamIds.add(metadata.streamId)
         this.terminalListeners.set(metadata.streamId, stream.listener)
       }
+      // Why also untyped: an older host's first reply carries only the subscription id.
       if (
         isImageStreamMethod(stream.method) &&
-        metadata.type === 'ready' &&
-        typeof metadata.subscriptionId === 'string'
+        (metadata.type === 'ready' || metadata.type === undefined)
       ) {
-        if (this.pendingImageStreamId !== response.id && this.activeImageStreamId !== response.id) {
-          const unsubscribe = buildReadyStreamUnsubscribe(stream.method, metadata.subscriptionId)
+        if (!this.imageSlot.claim(response.id)) {
+          const unsubscribe =
+            typeof metadata.subscriptionId === 'string'
+              ? buildReadyStreamUnsubscribe(stream.method, metadata.subscriptionId)
+              : null
           if (unsubscribe) {
-            this.sendUnsubscribe(unsubscribe)
+            this.sendUnsubscribe(unsubscribe, stream.sendOrder ?? this.sendCount)
           }
           this.remove(response.id)
           return true
         }
-        this.pendingImageStreamId = null
-        this.activeImageStreamId = response.id
       }
       if (metadata.type === 'end') {
-        stream.listener(result)
-        this.remove(response.id)
+        this.finish(response.id, stream, result)
         return true
       }
     }
@@ -192,7 +212,7 @@ export class MobileRelayRpcStreams {
   }
 
   handleBinary(bytes: Uint8Array): void {
-    const stream = this.activeImageStreamId ? this.streams.get(this.activeImageStreamId) : undefined
+    const stream = this.streams.get(this.imageSlot.active ?? '')
     if (routeMobileImageFrame(bytes, stream)) {
       return
     }
@@ -210,8 +230,7 @@ export class MobileRelayRpcStreams {
     this.cancelledSubscriptions.clear()
     this.terminalListeners.clear()
     this.terminalSnapshots.clear()
-    this.activeImageStreamId = null
-    this.pendingImageStreamId = null
+    this.imageSlot.reset()
   }
 
   private cancel(id: string): void {
@@ -220,11 +239,11 @@ export class MobileRelayRpcStreams {
       return
     }
     stream.cancelled = true
-    if (stream.sent) {
+    if (stream.sendOrder !== null) {
       const byParams = buildParamsUnsubscribe(stream.method, stream.params, id)
       if (stream.method === 'terminal.subscribe') {
         if (byParams) {
-          this.sendUnsubscribe(byParams)
+          this.sendUnsubscribe(byParams, stream.sendOrder, id)
         }
       } else {
         const unsubscribe = stream.subscriptionId
@@ -234,41 +253,43 @@ export class MobileRelayRpcStreams {
           // The host registers cleanup only after resolving the initial snapshot.
           this.cancelledSubscriptions.set(id, { method: stream.method, unsubscribe: byParams })
         } else if (unsubscribe || byParams) {
-          this.sendUnsubscribe((unsubscribe ?? byParams)!)
-        } else if (
-          isImageStreamMethod(stream.method) ||
-          stream.method === 'runtime.clientEvents.subscribe'
-        ) {
+          this.sendUnsubscribe((unsubscribe ?? byParams)!, stream.sendOrder)
+        } else if (isReadyIdStream(stream.method)) {
           // Keep only the cleanup route while the server assigns its subscription ID.
           this.cancelledSubscriptions.set(id, { method: stream.method })
-        } else if (stream.subscriptionId) {
-          this.sendUnsubscribe({
-            method: stream.method.replace(/\.subscribe$/, '.unsubscribe'),
-            params: { subscriptionId: stream.subscriptionId }
-          })
         }
       }
     }
     this.remove(id)
   }
 
-  /** Skip the unsubscribe when a live sibling shares the host cleanup token (e.g. nativeChat's
-   *  deterministic `agent:sessionId`), since the host would evict the sibling's registration. */
-  private sendUnsubscribe(unsubscribe: StreamUnsubscribe): void {
-    if (this.hasLiveOwner(unsubscribe)) {
+  /** Skip when a same-slot sibling sent later has already evicted this stream on the host. */
+  private sendUnsubscribe(
+    unsubscribe: StreamUnsubscribe,
+    sendOrder: number,
+    terminalRequestId?: string
+  ): void {
+    if (this.hasNewerSlotOwner(unsubscribe, sendOrder)) {
       return
     }
-    this.options.sendFrame({ id: this.options.nextId(), ...unsubscribe })
+    // Why: added after the sibling check; an old host strips it and would evict the live sibling.
+    const params = terminalRequestId
+      ? { ...unsubscribe.params, requestId: terminalRequestId }
+      : unsubscribe.params
+    this.options.sendFrame({ id: this.options.nextId(), method: unsubscribe.method, params })
   }
 
-  private hasLiveOwner(unsubscribe: StreamUnsubscribe): boolean {
-    const token = JSON.stringify(unsubscribe)
+  private hasNewerSlotOwner(unsubscribe: StreamUnsubscribe, sendOrder: number): boolean {
+    const slot = unsubscribeSlot(unsubscribe)
+    if (slot === null) {
+      return false
+    }
     for (const [siblingId, sibling] of this.streams) {
-      if (sibling.cancelled || !sibling.sent) {
+      if (sibling.cancelled || sibling.sendOrder === null || sibling.sendOrder < sendOrder) {
         continue
       }
       const siblingUnsubscribe = buildParamsUnsubscribe(sibling.method, sibling.params, siblingId)
-      if (siblingUnsubscribe && JSON.stringify(siblingUnsubscribe) === token) {
+      if (siblingUnsubscribe && unsubscribeSlot(siblingUnsubscribe) === slot) {
         return true
       }
     }
@@ -284,34 +305,20 @@ export class MobileRelayRpcStreams {
       this.terminalListeners.delete(streamId)
       this.terminalSnapshots.delete(streamId)
     }
-    if (this.activeImageStreamId === id) {
-      this.activeImageStreamId = null
-    }
-    if (this.pendingImageStreamId === id) {
-      this.pendingImageStreamId = null
-    }
+    this.imageSlot.release(id)
     this.streams.delete(id)
-  }
-
-  private replaceImageStream(id: string): void {
-    if (this.activeImageStreamId && this.activeImageStreamId !== id) {
-      this.cancel(this.activeImageStreamId)
-    }
-    if (this.pendingImageStreamId && this.pendingImageStreamId !== id) {
-      this.cancel(this.pendingImageStreamId)
-    }
-    this.activeImageStreamId = null
-    this.pendingImageStreamId = id
   }
 
   private fail(id: string, stream: StreamRecord, message: string, error?: unknown): void {
     if (stream.cancelled || this.streams.get(id) !== stream) {
       return
     }
-    try {
-      stream.listener({ type: 'error', message, error })
-    } finally {
-      this.remove(id)
-    }
+    this.finish(id, stream, { type: 'error', message, error })
+  }
+
+  /** Removed first, so the listener's dispose cannot name a host-ended stream. */
+  private finish(id: string, stream: StreamRecord, result: unknown): void {
+    this.remove(id)
+    stream.listener(result)
   }
 }

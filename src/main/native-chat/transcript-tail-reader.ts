@@ -1,18 +1,20 @@
+import { readOpenCodeNativeChatTranscriptTail } from './transcript-opencode'
+import { isENOENT } from '../ipc/filesystem-path-containment'
 import type {
   AgentType,
   NativeChatMessage,
   NativeChatTurnLifecycle
 } from '../../shared/native-chat-types'
-import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from './session-file-resolver'
 import {
-  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
+  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { transcriptFallbackId } from './transcript-fallback-id'
+import { extendTranscriptBoundary } from './transcript-file-version'
 import {
   nativeChatTurnLifecycleDecoderForAgent,
   type NativeChatTurnLifecycleDecoder
@@ -24,26 +26,15 @@ import {
 } from './transcript-tail-boundary'
 import {
   closeTranscriptHandle,
-  wslGatedOpen,
-  wslGatedRead,
-  wslGatedStat
+  openTranscriptFile,
+  readTranscriptFile,
+  transcriptFileStat
 } from './wsl-transcript-fs-access'
 import { wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
-import {
-  CodexTranscriptUsageStatusAccumulator,
-  enrichCodexTranscriptUsageStatus,
-  isCodexTranscriptUsageStatusLine
-} from './codex-transcript-usage-status'
 
 export const MAX_NATIVE_CHAT_TRANSCRIPT_RECORD_BYTES = 2 * 1024 * 1024
 
-export type NativeChatLineDecoder = ((
-  line: string,
-  fallbackId: string
-) => NativeChatMessage | null) & {
-  reset?: () => void
-  reverse?: () => NativeChatLineDecoder
-}
+export type NativeChatLineDecoder = (line: string, fallbackId: string) => NativeChatMessage | null
 
 export function nativeChatLineDecoderForAgent(agent: AgentType): NativeChatLineDecoder | null {
   const transcriptAgent = resolveNativeChatTranscriptAgent(agent)
@@ -51,7 +42,7 @@ export function nativeChatLineDecoderForAgent(agent: AgentType): NativeChatLineD
     return decodeClaudeTranscriptLine
   }
   if (transcriptAgent === 'codex') {
-    return createCodexTranscriptLineDecoder()
+    return decodeCodexTranscriptLine
   }
   if (transcriptAgent === 'grok') {
     return decodeGrokTranscriptLine
@@ -70,28 +61,26 @@ export async function readNativeChatTranscriptTailFile(
   endOffset?: number,
   decodeLifecycle?: NativeChatTurnLifecycleDecoder | null,
   signal?: AbortSignal,
-  usage?: CodexTranscriptUsageStatusAccumulator
+  onConsumedBoundary?: (boundary: Buffer) => void
 ): Promise<{
   messages: NativeChatMessage[]
   lifecycle?: NativeChatTurnLifecycle
-  usageStatus?: NativeChatUsageStatus
   consumedTo: number
   hasMore: boolean
   beforeOffset: number
   malformedRecordCount?: number
   oversizedRecordCount?: number
 }> {
-  const lineDecode = decode.reverse?.() ?? decode
   signal?.throwIfAborted()
   const end = Math.min(
-    (await wslGatedStat(filePath, 'exact', signal)).size,
+    (await transcriptFileStat(filePath, 'exact', signal)).size,
     endOffset ?? Number.MAX_SAFE_INTEGER
   )
   signal?.throwIfAborted()
   if (end === 0) {
     return { messages: [], consumedTo: 0, hasMore: false, beforeOffset: 0 }
   }
-  const handle = await wslGatedOpen(filePath, 'exact', signal)
+  const handle = await openTranscriptFile(filePath, 'exact', signal)
   const lineParts: Buffer[] = []
   let lineBytes = 0
   let lineOversized = false
@@ -99,7 +88,6 @@ export async function readNativeChatTranscriptTailFile(
   let malformedRecordCount = 0
   let oversizedRecordCount = 0
   let ignoreNextMalformedRecord = false
-  const usageLines: string[] = []
   try {
     signal?.throwIfAborted()
     const consumedTo = includeTrailingLine
@@ -116,11 +104,16 @@ export async function readNativeChatTranscriptTailFile(
     }
     ignoreNextMalformedRecord = finalByte !== 0x0a
     let cursor = consumedTo - (finalByte === 0x0a ? 1 : 0)
+    const finalBoundaryByte = finalByte === 0x0a ? Buffer.from([finalByte]) : Buffer.alloc(0)
+    let boundaryCaptured = false
+    if (cursor === 0) {
+      onConsumedBoundary?.(finalBoundaryByte)
+    }
     while (cursor > 0 && newestFirst.length <= limit) {
       signal?.throwIfAborted()
       const start = Math.max(0, cursor - TAIL_CHUNK_BYTES)
       const buffer = Buffer.allocUnsafe(cursor - start)
-      const { bytesRead } = await wslGatedRead(
+      const { bytesRead } = await readTranscriptFile(
         handle,
         filePath,
         buffer,
@@ -135,6 +128,10 @@ export async function readNativeChatTranscriptTailFile(
       // than stitch non-adjacent bytes into records.
       if (bytesRead < buffer.length) {
         break
+      }
+      if (!boundaryCaptured && onConsumedBoundary) {
+        onConsumedBoundary(extendTranscriptBoundary(buffer, finalBoundaryByte))
+        boundaryCaptured = true
       }
       let segmentEnd = bytesRead
       for (let index = bytesRead - 1; index >= 0 && newestFirst.length <= limit; index--) {
@@ -160,13 +157,9 @@ export async function readNativeChatTranscriptTailFile(
     // Why: slice(-0) returns the whole array, so a non-positive limit must
     // window to nothing explicitly rather than leak every buffered record.
     const selected = limit > 0 ? chronological.slice(Math.max(0, chronological.length - limit)) : []
-    for (const line of usageLines.toReversed()) {
-      usage?.observe(line)
-    }
     return {
       messages: selected.map((entry) => entry.message),
       ...(lifecycle ? { lifecycle } : {}),
-      ...(usage ? { usageStatus: usage.snapshot() } : {}),
       consumedTo,
       hasMore: limit > 0 && chronological.length > limit,
       beforeOffset: selected[0]?.offset ?? end,
@@ -201,7 +194,9 @@ export async function readNativeChatTranscriptTailFile(
     lineOffset: number,
     messages: { message: NativeChatMessage; offset: number }[]
   ): void {
-    let line = Buffer.concat([...lineParts].toReversed()).toString('utf8')
+    // Positional reads own these bytes; only multi-part records need joining in reverse order.
+    const bytes = lineParts.length === 1 ? lineParts[0] : Buffer.concat(lineParts.toReversed())
+    let line = bytes.toString('utf8')
     if (line.endsWith('\r')) {
       line = line.slice(0, -1)
     }
@@ -219,15 +214,12 @@ export async function readNativeChatTranscriptTailFile(
       return
     }
     ignoreNextMalformedRecord = false
-    if (usage && isCodexTranscriptUsageStatusLine(line)) {
-      usageLines.push(line)
-    }
     const fallbackId = transcriptFallbackId(filePath, lineOffset)
     // Why: scan the same bounded JSONL window for provider-authored lifecycle
     // records so reconnect snapshots can replay completion without guessing
     // from the last visible assistant message.
     lifecycle ??= decodeLifecycle?.(line, fallbackId) ?? undefined
-    const message = lineDecode(line, fallbackId)
+    const message = decode(line, fallbackId)
     if (message) {
       messages.push({ message, offset: lineOffset })
     }
@@ -248,20 +240,16 @@ export async function readNativeChatTranscriptTail(
   | {
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
       hasMore: boolean
       beforeOffset: number
     }
   | { error: string; notFound?: true }
 > {
-  const transcriptAgent = resolveNativeChatTranscriptAgent(args.agent)
-  const decode =
-    transcriptAgent === 'codex'
-      ? createCodexTranscriptLineDecoder('reverse')
-      : nativeChatLineDecoderForAgent(args.agent)
+  if (resolveNativeChatTranscriptAgent(args.agent) === 'opencode') {
+    return readOpenCodeNativeChatTranscriptTail(args, {}, signal)
+  }
+  const decode = nativeChatLineDecoderForAgent(args.agent)
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
-  const usage =
-    transcriptAgent === 'codex' ? new CodexTranscriptUsageStatusAccumulator() : undefined
   if (!decode) {
     return { error: 'Transcript unavailable' }
   }
@@ -289,12 +277,8 @@ export async function readNativeChatTranscriptTail(
       true,
       args.beforeOffset,
       decodeLifecycle,
-      signal,
-      usage
+      signal
     )
-    if (usage) {
-      await enrichCodexTranscriptUsageStatus(filePath, usage, signal)
-    }
     signal?.throwIfAborted()
     return {
       messages: result.messages,
@@ -303,15 +287,12 @@ export async function readNativeChatTranscriptTail(
       ...(args.beforeOffset === undefined && result.lifecycle
         ? { lifecycle: result.lifecycle }
         : {}),
-      ...(args.beforeOffset === undefined && usage ? { usageStatus: usage.snapshot() } : {}),
       hasMore: result.hasMore,
       beforeOffset: result.beforeOffset
     }
   } catch (error) {
     signal?.throwIfAborted()
     const message = error instanceof Error ? error.message : String(error)
-    return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
-      ? { error: message, notFound: true }
-      : { error: message }
+    return isENOENT(error) ? { error: message, notFound: true } : { error: message }
   }
 }

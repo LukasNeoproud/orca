@@ -1,3 +1,10 @@
+import {
+  pendingSelectionHandle,
+  pendingSelectionTabId,
+  resolveLaunchedSelection,
+  withoutPendingHandle,
+  withoutPendingTabId
+} from './pending-session-selection'
 import { useCallback } from 'react'
 import {
   getTerminalRecordsFromSessionTabs,
@@ -13,8 +20,11 @@ import {
 import type { SessionTabsApplyOutcome } from './mobile-session-tabs-stream-health'
 import { getActiveTabIdForHandle } from './mobile-session-route-helpers'
 import { resolveActiveSessionTab } from './active-session-tab'
+import { activateMobileSessionTab } from './mobile-session-tab-activation'
+import { releaseTerminalCreateLock } from './terminal-create-lock'
 import type { MobileSessionTab, SessionTabsResult } from './mobile-session-route-types'
 import type { MobileSessionTerminalListModel } from './use-mobile-session-terminal-list'
+import { isMobileEmulatorTabId } from './mobile-local-emulator-tab'
 
 export function useMobileSessionTabApplication(scope: MobileSessionTerminalListModel) {
   const {
@@ -22,8 +32,6 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
     terminalsRef,
     setSessionTabs,
     sessionTabsRef,
-    localEmulatorTabsRef,
-    localEmulatorScopeKey,
     appliedSnapshotMarkerRef,
     appliedSessionTabsRevisionRef,
     closedTabTombstonesRef,
@@ -39,13 +47,15 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
     terminalDiagnosticsRef,
     activeHandleRef,
     activeSessionTabTypeRef,
-    pendingActiveSessionTabIdRef,
-    pendingActiveTerminalHandleRef,
+    pendingSelectionRef,
     pendingBrowserFocusPageIdRef,
     initialSessionAutoCreateRef,
     unsubscribeTerminal,
     subscribeToTerminal,
-    lastKnownTerminalCountRef
+    lastKnownTerminalCountRef,
+    clientRef,
+    creatingTerminalRef,
+    setCreating
   } = scope
   const applySessionTabs = useCallback(
     (result: SessionTabsResult): SessionTabsApplyOutcome<MobileSessionTab> => {
@@ -112,23 +122,38 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
       // Phone-owned emulator tabs are absent from host snapshots; keep the user's selection.
       if (
         result.navigationIntent !== 'follow' &&
-        localEmulatorTabsRef.current.some(
-          (tab) =>
-            tab.scopeKey === localEmulatorScopeKey && tab.id === activeSessionTabIdRef.current
-        )
+        isMobileEmulatorTabId(activeSessionTabIdRef.current)
       ) {
         return outcome
       }
 
-      const pendingActiveSessionTabId = pendingActiveSessionTabIdRef.current
       const followsHost = result.navigationIntent === 'follow'
-      const pendingActiveTerminalHandle = followsHost
-        ? null
-        : pendingActiveTerminalHandleRef.current
       if (followsHost) {
-        pendingActiveTerminalHandleRef.current = null
+        pendingSelectionRef.current = withoutPendingHandle(
+          pendingSelectionRef.current?.kind === 'launched' ? null : pendingSelectionRef.current
+        )
         pendingBrowserFocusPageIdRef.current = null
+      } else {
+        const pending = pendingSelectionRef.current
+        const launch = resolveLaunchedSelection(pending, nextTabs)
+        pendingSelectionRef.current = launch.selection
+        if (launch.landedTabId && pending?.kind === 'launched') {
+          // Why: the reply can wait a minute on prompt delivery; the tab is what the lock waited for.
+          releaseTerminalCreateLock({ creatingTerminalRef, setCreating }, pending.lock)
+        }
+        if (launch.landedTabId && clientRef.current) {
+          // Why: a launch carries no navigation, so record the pick as a tap does, or the host keeps this device on the old tab.
+          void activateMobileSessionTab(clientRef.current, {
+            worktree: `id:${result.worktree}`,
+            tabId: launch.landedTabId,
+            notifyClients: false,
+            navigation: 'caller',
+            intent: 'user'
+          }).catch(() => {})
+        }
       }
+      const pendingActiveSessionTabId = pendingSelectionTabId(pendingSelectionRef.current)
+      const pendingActiveTerminalHandle = pendingSelectionHandle(pendingSelectionRef.current)
       const resolved = resolveActiveSessionTab(nextTabs, {
         pendingActiveSessionTabId,
         selectedSessionTabId: selectedSessionTabIdRef.current,
@@ -142,7 +167,9 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
           nextTabs.find((tab) => tab.isActive)?.id === pendingActiveSessionTabId &&
           !confirmsMirroredTabSelection(result.publicationEpoch)
         selectionSource = localAck ? 'pending-tab-local-ack' : selectionSource
-        pendingActiveSessionTabIdRef.current = localAck ? pendingActiveSessionTabId : null
+        if (!localAck) {
+          pendingSelectionRef.current = withoutPendingTabId(pendingSelectionRef.current)
+        }
       }
       if (pendingActiveTerminalHandle) {
         const pendingTerminalTab = nextTabs.find(
@@ -161,7 +188,7 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
           ) {
             selectionSource = 'pending-handle-local-ack'
           } else {
-            pendingActiveTerminalHandleRef.current = null
+            pendingSelectionRef.current = withoutPendingHandle(pendingSelectionRef.current)
           }
         } else if (pendingTerminalTab) {
           // Why: desktop active flags lag a mobile tap; key by handle too, as fallback PTY tabs lack a stable tab id at startup.
@@ -180,7 +207,7 @@ export function useMobileSessionTabApplication(scope: MobileSessionTerminalListM
           subscribeToTerminal(pendingActiveTerminalHandle)
           return outcome
         } else {
-          pendingActiveTerminalHandleRef.current = null
+          pendingSelectionRef.current = withoutPendingHandle(pendingSelectionRef.current)
         }
       }
       diagnostics.tabsApplied(result, nextTabs, active, selectionSource)

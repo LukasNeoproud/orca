@@ -19,6 +19,7 @@ import { useWorkspaceRevealBodyRedirect } from './use-workspace-reveal-body-redi
 import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { useSystemPrefersDark } from '@/components/terminal-pane/use-system-prefers-dark'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
+import { LocalGitToolchainScanBanner } from './LocalGitToolchainScanBanner'
 
 // Why lazy: the Agents list pulls the whole activity pipeline (virtualizer, markdown
 // previews, thread derivation); users on the workspace view should not load or render any of it.
@@ -95,7 +96,7 @@ function Sidebar({
     () => resolveLeftSidebarStyleVariables(settings, systemPrefersDark),
     [settings, systemPrefersDark]
   ) as React.CSSProperties | undefined
-  const { nativeDropTarget, dropHandlers, affordance } = useSidebarProjectDrop()
+  const { dropOwnerRef, dropHandlers, affordance } = useSidebarProjectDrop()
   const {
     workspaceBoardOpen,
     workspaceBoardRenderedOpen,
@@ -148,12 +149,19 @@ function Sidebar({
   })
 
   useWorkspaceRevealBodyRedirect(sidebarOpen && sidebarBody === 'agents')
+  // A collapsed sidebar takes no drops.
+  const sidebarRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      containerRef.current = node
+      dropOwnerRef(sidebarOpen ? node : null)
+    },
+    [containerRef, dropOwnerRef, sidebarOpen]
+  )
 
   return (
     <TooltipProvider delayDuration={400}>
       <div
-        ref={containerRef}
-        data-native-file-drop-target={sidebarOpen ? nativeDropTarget : undefined}
+        ref={sidebarRef}
         className="relative min-h-0 flex-shrink-0 bg-worktree-sidebar flex flex-col overflow-hidden scrollbar-sleek-parent"
         style={leftSidebarStyle}
         {...dropHandlers}
@@ -183,11 +191,13 @@ function Sidebar({
               </React.Suspense>
             ) : (
               <>
+                <LocalGitToolchainScanBanner />
                 <IndependentTerminalsSidebarSection />
                 <WorktreeList
                   scrollOffsetRef={worktreeScrollOffsetRef}
                   scrollAnchorRef={worktreeScrollAnchorRef}
                   workspaceBoardOpen={workspaceBoardOpen}
+                  onWorktreeCardClick={closeWorkspaceBoard}
                   onWorkspaceBoardDragPreviewStart={previewWorkspaceBoardFromDrag}
                   onWorkspaceBoardDragPreviewCommit={solidifyWorkspaceBoardFromDrag}
                   onWorkspaceBoardDragPreviewCancel={cancelWorkspaceBoardDragPreview}

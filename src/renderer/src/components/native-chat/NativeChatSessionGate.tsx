@@ -1,5 +1,4 @@
 import { useEffect, useRef, type JSX, type ReactNode } from 'react'
-import { isNativeChatSupportedAgent } from './native-chat-availability'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import {
   resolveNativeChatSession,
@@ -9,31 +8,18 @@ import {
 
 export type NativeChatSessionGateProps = NativeChatPaneResolutionInput & {
   children: (resolution: NativeChatPaneResolution) => ReactNode
-  /** Host + workspace identity for the retained bridge conversation. */
-  retentionIdentity?: string
 }
 
 /** Keeps NativeChatView's agent/session resolution separate from the heavy
  *  conversation surface so unsupported panes fail before transcript IO starts. */
 export function NativeChatSessionGate({
   children,
-  retentionIdentity,
   ...input
 }: NativeChatSessionGateProps): JSX.Element {
-  const lastResolutionRef = useRef<{
-    identity: string
-    resolution: NativeChatPaneResolution
-  } | null>(null)
-  const currentIdentity = retentionIdentity ?? input.paneKey
+  const lastResolutionRef = useRef<NativeChatPaneResolution | null>(null)
   const currentResolution = resolveNativeChatSession(input)
-  const detectedAgent = input.agentStatusEntry?.agentType ?? input.detectedAgent
-  const unsupportedAgent = Boolean(detectedAgent && !isNativeChatSupportedAgent(detectedAgent))
   const previousResolution =
-    !unsupportedAgent &&
-    lastResolutionRef.current?.identity === currentIdentity &&
-    lastResolutionRef.current.resolution.paneKey === input.paneKey
-      ? lastResolutionRef.current.resolution
-      : null
+    lastResolutionRef.current?.paneKey === input.paneKey ? lastResolutionRef.current : null
   const resolution = (() => {
     if (!currentResolution) {
       return previousResolution
@@ -55,14 +41,12 @@ export function NativeChatSessionGate({
     return currentResolution
   })()
   useEffect(() => {
-    if (unsupportedAgent) {
-      lastResolutionRef.current = null
-    } else if (resolution) {
+    if (resolution) {
       // Why: hook and title evidence are transport-fed and can vanish between a
       // disconnect and replay. Commit the last rendered conversation identity.
-      lastResolutionRef.current = { identity: currentIdentity, resolution }
+      lastResolutionRef.current = resolution
     }
-  }, [currentIdentity, resolution, unsupportedAgent])
+  }, [resolution])
   if (!resolution) {
     return <NativeChatEmptyState kind="not-agent" />
   }

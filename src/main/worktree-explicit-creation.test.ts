@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtemp, rm, lstat, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { runProcess } from '../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import {
   previewExplicitWorktreeCreation,
   assertExplicitCreationAvailable,
@@ -188,7 +188,9 @@ it('normalizes Windows directory probes before passing them to the execution hos
 
 it('preserves the longest configured remote prefix in the creation push target', async () => {
   await host.exec(['remote', 'add', 'foo', root])
-  await host.exec(['remote', 'add', 'foo/bar', root])
+  // Newer Git refuses to add a nested remote name, but configs written earlier still carry one.
+  await host.exec(['config', 'remote.foo/bar.url', root])
+  await host.exec(['config', 'remote.foo/bar.fetch', '+refs/heads/*:refs/remotes/foo/bar/*'])
   await host.exec(['update-ref', 'refs/remotes/foo/bar/topic', 'HEAD'])
   const preview = await previewExplicitWorktreeCreation(
     {

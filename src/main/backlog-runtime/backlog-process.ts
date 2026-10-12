@@ -1,9 +1,9 @@
-import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { spawnProcess } from '../../shared/child-process/run-process'
+import type { PipedChildProcess } from '@orca/process-host/process-spec'
+import { spawnProcess } from '@orca/process-host'
 import {
   forceTerminateProcessTree,
   signalProcessTree
-} from '../../shared/child-process/process-tree-termination'
+} from '@orca/process-host/process-tree-termination'
 import {
   buildWslExecArgs,
   buildWslLoginShellCommand,
@@ -28,7 +28,7 @@ function bindData(
 }
 
 function makeBacklogProcess(
-  child: ChildProcessWithoutNullStreams,
+  child: PipedChildProcess,
   stdoutMarker?: string,
   guestTermination?: WslProcessGroupTermination
 ): BacklogChild {

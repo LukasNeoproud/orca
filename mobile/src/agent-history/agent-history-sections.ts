@@ -32,7 +32,6 @@ export function buildMobileAgentHistorySections(
     scopeFilterPaths: readonly string[]
     activeWorktreePath: string | null
     now: number
-    preferredSessionId?: string
   }
 ): MobileAgentHistorySection[] {
   // Why: narrow scoped tabs by cwd path-prefix. When the worktree list hasn't
@@ -50,24 +49,11 @@ export function buildMobileAgentHistorySections(
   })
 
   const groups = groupAiVaultSessions(filtered, 'folder')
-  const sections = groups.map((group) => ({
+  return groups.map((group) => ({
     key: group.key,
     label: group.label,
     data: group.sessions.map((session) =>
       buildMobileAgentHistoryCard(session, options.activeWorktreePath, options.now)
     )
   }))
-  if (options.preferredSessionId) {
-    const sectionIndex = sections.findIndex((section) =>
-      section.data.some((card) => card.id === options.preferredSessionId)
-    )
-    if (sectionIndex !== -1) {
-      const [section] = sections.splice(sectionIndex, 1)
-      const cardIndex = section.data.findIndex((card) => card.id === options.preferredSessionId)
-      const [card] = section.data.splice(cardIndex, 1)
-      section.data.unshift(card)
-      sections.unshift(section)
-    }
-  }
-  return sections
 }

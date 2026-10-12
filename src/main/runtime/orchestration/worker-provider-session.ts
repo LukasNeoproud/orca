@@ -12,16 +12,15 @@ export function selectExactWorkerProviderSession(args: {
   wslDistro?: string | null
   launchToken: string | null | undefined
   observedAfter: number
-  includeIdentityOnly?: boolean
   statuses: readonly AgentStatusIpcPayload[]
 }): ExactWorkerProviderSession | null {
   const status = args.statuses
     .filter(
       (entry) =>
         entry.paneKey === args.paneKey &&
-        connectionMatches(entry.connectionId, args.connectionId, args.wslDistro) &&
+        terminalHostConnectionMatches(entry.connectionId, args.connectionId, args.wslDistro) &&
         (!args.launchToken || entry.launchToken === args.launchToken) &&
-        (args.includeIdentityOnly || entry.providerSessionOnly !== true) &&
+        entry.providerSessionOnly !== true &&
         entry.providerSession !== undefined &&
         entry.agentType !== undefined &&
         entry.receivedAt >= args.observedAfter
@@ -51,7 +50,7 @@ function attestedWslDistro(
   return distro && connectionId === wslHookRelayConnectionId(distro) ? distro : undefined
 }
 
-function connectionMatches(
+export function terminalHostConnectionMatches(
   entryConnectionId: string | null,
   expectedConnectionId: string | null | undefined,
   wslDistro: string | null | undefined

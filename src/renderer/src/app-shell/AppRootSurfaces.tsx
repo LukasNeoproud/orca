@@ -1,5 +1,5 @@
+import { NotificationCardStack } from '../components/NotificationCardStack'
 import { Suspense } from 'react'
-import { PortableConversationSurface } from './PortableConversationSurface'
 import { useBacklogTaskStartRequest } from '../components/right-sidebar/backlog-task-start-request'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
@@ -10,6 +10,7 @@ import { MarkdownTemplatePicker } from '../components/editor/MarkdownTemplatePic
 import RecentTabSwitcher from '../components/tab-bar/RecentTabSwitcher'
 import { SkillFreshnessUpdateDialog } from '../components/skills/SkillFreshnessUpdateDialog'
 import { StarNagCard } from '../components/StarNagCard'
+import { NativeChatResumeOnRestartModal } from '../components/NativeChatResumeOnRestartModal'
 import { StarNagAgentValueMomentObserver } from '../components/star-nag/StarNagAgentValueMomentObserver'
 import { StarNagToastHost } from '../components/star-nag/StarNagToastHost'
 import { TelemetryFirstLaunchSurface } from '../components/TelemetryFirstLaunchSurface'
@@ -63,6 +64,11 @@ const SshPassphraseDialog = lazy(() =>
 )
 const UpdateCard = lazy(() =>
   import('../components/UpdateCard').then((module) => ({ default: module.UpdateCard }))
+)
+const UnexpectedSignoutCard = lazy(() =>
+  import('../components/UnexpectedSignoutCard').then((module) => ({
+    default: module.UnexpectedSignoutCard
+  }))
 )
 const RemoteServerUpdateDialog = lazy(
   () => import('../components/settings/RemoteServerUpdateDialog')
@@ -204,7 +210,6 @@ export function AppRootSurfaces(props: {
         </ModalBoundary>
       ) : null}
       <Suspense fallback={null}>
-        <PortableConversationSurface />
         {backlogTaskStartRequest ? (
           <ModalBoundary boundaryId="modal.backlog-task-start" resetKey>
             <BacklogTaskStartDialog request={backlogTaskStartRequest} />
@@ -291,15 +296,25 @@ export function AppRootSurfaces(props: {
           </OverlayBoundary>
         </Suspense>
       ) : null}
-      {shouldMountUpdateCard ? (
+      <NotificationCardStack>
+        {shouldMountUpdateCard ? (
+          <Suspense fallback={null}>
+            <OverlayBoundary boundaryId="overlay.update-card" resetKey={activeView}>
+              <UpdateCard />
+            </OverlayBoundary>
+          </Suspense>
+        ) : null}
         <Suspense fallback={null}>
-          <OverlayBoundary boundaryId="overlay.update-card" resetKey={activeView}>
-            <UpdateCard />
+          <OverlayBoundary boundaryId="overlay.unexpected-signout" resetKey={activeView}>
+            <UnexpectedSignoutCard />
           </OverlayBoundary>
         </Suspense>
-      ) : null}
-      <OverlayBoundary boundaryId="overlay.star-nag" resetKey={activeView}>
-        <StarNagCard />
+        <OverlayBoundary boundaryId="overlay.star-nag" resetKey={activeView}>
+          <StarNagCard />
+        </OverlayBoundary>
+      </NotificationCardStack>
+      <OverlayBoundary boundaryId="overlay.native-chat-resume-on-restart" resetKey={activeView}>
+        <NativeChatResumeOnRestartModal />
       </OverlayBoundary>
       <OverlayBoundary boundaryId="overlay.star-nag-toast" resetKey={activeView}>
         <StarNagToastHost />

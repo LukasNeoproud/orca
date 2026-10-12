@@ -1,10 +1,8 @@
+import { settingsRead } from '../transport/settings-read-operations'
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import type { PersistedTrustedOrcaHooks } from '../../../src/shared/orca-yaml-hook-types'
 import { parseJiraIssueUrl } from '../../../src/shared/jira-issue-url'
-import type { SetupAgentStartupPolicy } from '../../../src/shared/orca-yaml-hook-types'
 import type { RetiredNameRegistry } from '../../../src/shared/worktree/retired-name-registry'
 import type { RpcClient } from '../transport/rpc-client'
-import type { RpcSuccess } from '../transport/types'
 import { createBlankWorkspace } from '../tasks/blank-workspace-create'
 import { isMobileTuiAgentEnabled } from '../tasks/mobile-tui-agents'
 import {
@@ -19,23 +17,29 @@ import type {
   WorkspaceCreateAdvancedOptions,
   WorkspaceCreateSetupDecision
 } from '../tasks/workspace-create-params'
+import type { AgentLaunchSupport } from '../tasks/agent-launch-request'
 import type { WorkspaceSshGate } from '../tasks/workspace-ssh-gate'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import type { WorktreeCreateIdempotencySupport } from '../tasks/worktree-create-idempotency-policy'
-import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import {
   pickPreferredNewWorktreeAgent,
   type NewWorktreeAgentOption,
   type NewWorktreeRuntimeSettings
 } from './new-worktree-agent-selection'
 import type { MobileWorkspaceRepo, SetupRunPolicy } from './new-worktree-modal-types'
-import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
+import {
+  confirmMobileWorktreeLocation,
+  type MobileWorktreeLocationState
+} from './use-mobile-worktree-location'
 import type { SetupTrustPrompt } from './SetupHookTrustDrawer'
 import type { NewWorktreeDrawerView } from './use-new-worktree-drawer-navigation'
 import { getSuggestedCreatureName } from './worktree-name-suggestion'
 import { persistNewWorkspaceSetupPolicy } from '../worktree/new-workspace-setup-policy'
 import type {
+  NewWorkspaceCreatedHandler,
   NewWorkspaceCreateOptions,
+  PersistedTrustedOrcaHooks,
+  SetupAgentStartupPolicy,
   NewWorkspaceCreateSubmitResult,
   RecoveredCheckout
 } from './new-workspace-create-submit-types'
@@ -67,9 +71,10 @@ export function useNewWorkspaceCreateSubmit(args: {
   trustedOrcaHooks: PersistedTrustedOrcaHooks
   setTrustedOrcaHooks: (trust: PersistedTrustedOrcaHooks) => void
   getWorktreeCreateCutoverSupport: () => Promise<WorktreeCreateIdempotencySupport | false>
+  getAgentLaunchSupport: () => Promise<AgentLaunchSupport | false>
   transitionDrawer: (view: Exclude<NewWorktreeDrawerView, 'transition'>) => void
   setError: Dispatch<SetStateAction<string>>
-  onCreated: (worktreeId: string, name: string, checkoutWarning?: WorktreeCheckoutWarning) => void
+  onCreated: NewWorkspaceCreatedHandler
   onClose: () => void
 }): NewWorkspaceCreateSubmitResult {
   const createInFlightRef = useRef(false)
@@ -93,13 +98,12 @@ export function useNewWorkspaceCreateSubmit(args: {
       }
       let latestRuntimeSettings = args.runtimeSettings
       try {
-        const settingsResponse = await client.sendRequest('settings.get')
-        if (settingsResponse.ok) {
-          const result = (settingsResponse as RpcSuccess).result as {
-            settings: NewWorktreeRuntimeSettings
-          }
-          latestRuntimeSettings = result.settings
-          args.setRuntimeSettings(result.settings)
+        const settingsReply = await settingsRead.request(client)
+        const settings = settingsRead.interpret(settingsReply)
+        if (settings.accepted) {
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Preserve the established response shape at this boundary.
+          latestRuntimeSettings = settings.value as NewWorktreeRuntimeSettings
+          args.setRuntimeSettings(latestRuntimeSettings)
         }
       } catch {
         // The runtime validates the same setting before spawning.
@@ -128,22 +132,12 @@ export function useNewWorkspaceCreateSubmit(args: {
           undefined,
           args.retiredWorktreeNames
         )
-      const explicitCreation = args.worktreeLocation.explicitCreation
-      if (args.worktreeLocation.location !== 'automatic') {
-        if (!explicitCreation || !args.worktreeLocation.preview) {
-          args.setError('Preview the worktree location before creating it.')
-          return
-        }
-        const currentPreview = await args.worktreeLocation.previewNow()
-        if (!currentPreview) {
-          args.setError('Could not confirm the selected worktree location.')
-          return
-        }
-        if (currentPreview.occupyingWorktree || currentPreview.destinationExists) {
-          args.setError('The selected branch or destination is already in use.')
-          return
-        }
+      const locationError = await confirmMobileWorktreeLocation(args.worktreeLocation)
+      if (locationError) {
+        args.setError(locationError)
+        return
       }
+      const explicitCreation = args.worktreeLocation.explicitCreation
       let setupDecision: WorkspaceCreateSetupDecision = 'inherit'
       if (args.setupCommand) {
         if (options.setupOverride) {
@@ -201,7 +195,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
             recoverCompletedCheckoutFailure: true,
             explicitCreation: explicitCreation ?? undefined,
-            advanced
+            advanced,
+            agentLaunchSupported: args.getAgentLaunchSupport()
           })
         : await createBlankWorkspace({
             client,
@@ -215,7 +210,8 @@ export function useNewWorkspaceCreateSubmit(args: {
             worktreeCreateIdempotency: args.getWorktreeCreateCutoverSupport(),
             recoverCompletedCheckoutFailure: true,
             explicitCreation: explicitCreation ?? undefined,
-            advanced
+            advanced,
+            agentLaunchSupported: args.getAgentLaunchSupport()
           })
       if ('error' in result) {
         args.setError(result.error)
@@ -232,7 +228,7 @@ export function useNewWorkspaceCreateSubmit(args: {
         return
       }
       args.onClose()
-      args.onCreated(result.worktreeId, result.name)
+      args.onCreated(result.worktreeId, result.name, result.warning)
     } catch (error) {
       args.setError(error instanceof Error ? error.message : 'Failed to create workspace')
     } finally {
@@ -296,7 +292,12 @@ export function useNewWorkspaceCreateSubmit(args: {
       return
     }
     args.onClose()
-    args.onCreated(recoveredCheckout.worktreeId, recoveredCheckout.name, recoveredCheckout.warning)
+    args.onCreated(
+      recoveredCheckout.worktreeId,
+      recoveredCheckout.name,
+      undefined,
+      recoveredCheckout.warning
+    )
   }
 
   return {

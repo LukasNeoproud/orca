@@ -2,7 +2,6 @@ import type { AgentType } from '../../../../shared/agent-status-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import type { NativeChatSession } from '../../../../shared/native-chat-types'
-import type { AgentProviderSessionMetadata } from '../../../../shared/agent-session-resume'
 import type { NativeChatContextMenuActions } from './use-native-chat-context-menu'
 
 export type NativeChatBridgeViewProps = {
@@ -11,6 +10,8 @@ export type NativeChatBridgeViewProps = {
   terminalTabId: string
   /** Whether the hosted terminal surface is currently visible. */
   isVisible: boolean
+  /** This pane's split group holds focus; a revealed sibling column must not take the caret. */
+  isFocusedGroup: boolean
   /** Specific split leaf this chat surface replaces. */
   paneKey?: string
   /** PTY bound to `paneKey`, used for composer and interactive-card sends. */
@@ -18,7 +19,7 @@ export type NativeChatBridgeViewProps = {
   /** Launch-time agent hint from the TerminalTab, when Orca started one. */
   launchAgent?: TuiAgent | null
   /** Trusted title/foreground fallback for manually-started agents. */
-  resolvedAgent?: AgentType | null
+  resolvedAgent?: TuiAgent | null
   /** Whether this pane owns the tab's launch draft; false for split siblings. */
   ownsTabWideLaunchDraft: boolean
   /** Return this pane to the hosted terminal surface. */
@@ -26,15 +27,6 @@ export type NativeChatBridgeViewProps = {
   /** Current xterm screen reader used to recover agent-reported session state. */
   readTerminalScreen?: () => string | null
   contextMenuActions?: Omit<NativeChatContextMenuActions, 'onPaste'>
-  terminalContext?: {
-    worktreeId: string
-    unifiedTabId: string
-    singlePane: boolean
-    /** Prevent retained bridge state crossing a workspace or execution-host replacement. */
-    retentionIdentity?: string
-    /** A resume launch knows the provider id before its first hook publication. */
-    knownProviderSession?: AgentProviderSessionMetadata
-  }
 }
 
 export type NativeChatStructuredViewProps = {
@@ -42,14 +34,11 @@ export type NativeChatStructuredViewProps = {
   tabId: string
   groupId?: string
   sessionId: string
-  /** Workspace owned by the host session and its continuation candidates. */
-  worktreeId: string
   target: RuntimeClientTarget
   agent: AgentType
   isVisible: boolean
-  /** Keep an adopted terminal's unsent text and attachments in their original scope. */
-  composerPaneKey?: string
-  onSwitchToTerminal?: () => void
+  /** This pane's split group holds focus; a revealed sibling column must not take the caret. */
+  isFocusedGroup: boolean
   contextMenuActions?: Omit<NativeChatContextMenuActions, 'onPaste'>
 }
 
@@ -59,6 +48,8 @@ export type NativeChatResolvedViewProps = {
   sessionId: string | null
   transcriptPath: string | null
   isVisible: boolean
+  /** This pane's split group holds focus; a revealed sibling column must not take the caret. */
+  isFocusedGroup: boolean
   targetPtyId: string | null
   terminalTabId: string
   ownsTabWideLaunchDraft: boolean

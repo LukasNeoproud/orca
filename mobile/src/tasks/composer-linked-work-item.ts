@@ -10,8 +10,10 @@ import {
   getWorkspaceSourceName,
   shouldApplyWorkspaceSourceAutoName
 } from '../../../src/shared/new-workspace/workspace-source'
-import { resolveComposerBranchPick as resolveSharedComposerBranchPick } from '../../../src/shared/composer-branch-selection'
-import { resolveComposerManualBranchNameChange } from '../../../src/shared/composer-branch-selection'
+import {
+  resolveComposerBranchPick as resolveSharedComposerBranchPick,
+  resolveComposerManualBranchNameChange
+} from '../../../src/shared/composer-branch-selection'
 import type {
   ComposerBaseState,
   MobileComposerCreateSelection,

@@ -1,13 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   clearNativeChatDraftCacheForTests,
-  appendNativeChatResponseComment,
   readNativeChatDraftCache,
-  readNativeChatResponseComments,
-  writeNativeChatDraftCache,
-  writeNativeChatDraftDocument
+  writeNativeChatDraftCache
 } from './native-chat-draft-cache'
-import { NATIVE_CHAT_COMPOSER_SCOPE_CACHE_MAX } from './native-chat-composer-scope-cache'
+import { NATIVE_CHAT_COMPOSER_SCOPE_CACHE_MAX } from '../../../../shared/native-chat-scope-cache'
 
 afterEach(() => {
   clearNativeChatDraftCacheForTests()
@@ -31,38 +28,13 @@ describe('native-chat draft cache', () => {
     expect(readNativeChatDraftCache('pty-1')).toBe('')
   })
 
-  it('keeps response comments beside an empty draft until they are sent', () => {
-    appendNativeChatResponseComment('pty-1', '  selected code\n', 'Explain this')
-    writeNativeChatDraftCache('pty-1', 'temporary prompt')
-    writeNativeChatDraftCache('pty-1', '')
-
-    expect(readNativeChatDraftCache('pty-1')).toBe('')
-    expect(readNativeChatResponseComments('pty-1')).toMatchObject([
-      { quote: '  selected code\n', comment: 'Explain this' }
-    ])
-  })
-
-  it('keeps comment-only state when the rich editor writes an empty document', () => {
-    appendNativeChatResponseComment('pty-1', 'answer', 'Reconsider this')
-    writeNativeChatDraftDocument('pty-1', '', { type: 'doc' })
-
-    expect(readNativeChatResponseComments('pty-1')).toHaveLength(1)
-  })
-
-  it('bounds the cache so unsent drafts for removed panes cannot accumulate', () => {
-    writeNativeChatDraftCache('keep', 'hot')
-
+  it('keeps every draft however many there are, since a draft that is pushed out is lost', () => {
     const total = NATIVE_CHAT_COMPOSER_SCOPE_CACHE_MAX + 40
     for (let i = 0; i < total; i += 1) {
       writeNativeChatDraftCache(`scope-${i}`, `draft-${i}`)
-      if (i % 20 === 0) {
-        writeNativeChatDraftCache('keep', 'hot')
-      }
     }
 
-    // Oldest untouched draft evicted; the actively-edited and most-recent survive.
-    expect(readNativeChatDraftCache('scope-0')).toBe('')
-    expect(readNativeChatDraftCache('keep')).toBe('hot')
+    expect(readNativeChatDraftCache('scope-0')).toBe('draft-0')
     expect(readNativeChatDraftCache(`scope-${total - 1}`)).toBe(`draft-${total - 1}`)
   })
 })

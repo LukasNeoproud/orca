@@ -4,27 +4,41 @@ import type { GitWorktreeInfo, Worktree } from '../../shared/worktree/types'
 import type { AddWorktreeResult } from '../git/worktree'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 
-export function recoveredRuntimeWorktreeResult(args: {
-  runtime: {
-    invalidateResolvedWorktreeCache(): void
-    invalidateWorktreeScanCacheForRepo(repoId: string): void
-    notifyWorktreesChanged(repoId: string): void
-    emitWorktreeLifecycle(event: {
-      kind: 'created'
-      worktreeId: string
-      path: string
-      branch: string
-    }): void
-  }
-  repoId: string
+type RecoveredWorktreeRuntime = {
+  invalidateResolvedWorktreeCache(): void
+  invalidateWorktreeScanCacheForRepo(repoId: string): void
+  notifyWorktreesChanged(repoId: string): void
+  emitWorktreeLifecycle(event: {
+    kind: 'created'
+    worktreeId: string
+    path: string
+    branch: string
+  }): void
+}
+
+type RecoveredLocalCreate = {
   worktree: Worktree
   created: GitWorktreeInfo
   addResult: AddWorktreeResult
   metadataResult: Pick<CreateWorktreeResult, 'lineage' | 'workspaceLineage' | 'warnings'>
   includeCopyWarning?: string
-  includeLineage: boolean
+}
+
+/** A recovered checkout skips setup and startup, so it reports the bare created worktree. */
+export function recoveredRuntimeWorktreeResult(
+  runtime: RecoveredWorktreeRuntime,
+  repoId: string,
+  localCreate: RecoveredLocalCreate,
+  lineageInput: unknown,
   request: RuntimeManagedWorktreeCreateArgs
-}): CreateWorktreeResult {
+): CreateWorktreeResult {
+  const args = {
+    runtime,
+    repoId,
+    ...localCreate,
+    includeLineage: Boolean(lineageInput),
+    request
+  }
   args.runtime.invalidateResolvedWorktreeCache()
   args.runtime.invalidateWorktreeScanCacheForRepo(args.repoId)
   invalidateAuthorizedRootsCache()

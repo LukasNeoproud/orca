@@ -8,16 +8,16 @@ Host: darwin 27.0.0, arm64; Apple M4 Pro; 48 GiB RAM; Electron 43.6.0, Chromium 
 
 Settings: 900×1600, 15 fps target, 2.5 Mbps video bit rate, JPEG quality 60; 8 seconds per phase, 3 trials per codec, 20 paced latency probes per trial.
 
-| Codec | Scene | Payload kB/s | Wire kB/s | Achieved fps | First frame ms | Feed→packet mean / p95 ms |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| JPEG | static | 1098.5 | 1099.3 | 7.5 | 10.5 | 14.2 / 17.4 |
-| JPEG | scrolling | 1094.1 | 1095.0 | 7.5 | 10.6 | 13.6 / 16.9 |
-| H264 | static | 163.0 | 163.4 | 8.3 | 216.6 | 35.7 / 41.9 |
-| H264 | scrolling | 174.1 | 174.6 | 8.8 | 176.4 | 36.8 / 40.8 |
-| HEVC | static | 153.6 | 154.0 | 8.4 | 177.7 | 37.0 / 41.5 |
-| HEVC | scrolling | 170.0 | 170.4 | 8.6 | 179.1 | 35.4 / 40.9 |
-| AV1 | static | 155.6 | 156.0 | 9.0 | 174.3 | 36.5 / 49.8 |
-| AV1 | scrolling | 242.1 | 242.5 | 9.3 | 173.5 | 35.7 / 47.2 |
+| Codec | Scene     | Payload kB/s | Wire kB/s | Achieved fps | First frame ms | Feed→packet mean / p95 ms |
+| ----- | --------- | -----------: | --------: | -----------: | -------------: | ------------------------: |
+| JPEG  | static    |       1098.5 |    1099.3 |          7.5 |           10.5 |               14.2 / 17.4 |
+| JPEG  | scrolling |       1094.1 |    1095.0 |          7.5 |           10.6 |               13.6 / 16.9 |
+| H264  | static    |        163.0 |     163.4 |          8.3 |          216.6 |               35.7 / 41.9 |
+| H264  | scrolling |        174.1 |     174.6 |          8.8 |          176.4 |               36.8 / 40.8 |
+| HEVC  | static    |        153.6 |     154.0 |          8.4 |          177.7 |               37.0 / 41.5 |
+| HEVC  | scrolling |        170.0 |     170.4 |          8.6 |          179.1 |               35.4 / 40.9 |
+| AV1   | static    |        155.6 |     156.0 |          9.0 |          174.3 |               36.5 / 49.8 |
+| AV1   | scrolling |        242.1 |     242.5 |          9.3 |          173.5 |               35.7 / 47.2 |
 
 The scene is a generated phone-sized terminal/chat interface. Static repeats one source frame; scrolling cycles through 32 variants of text and log rows. Every codec receives the same pre-rendered JPEG input. Payload excludes framing; wire includes the production binary frame header and subscription ID. JPEG uses the production frame sender and nativeImage re-encoding; video uses the production hidden Electron WebCodecs encoder. Video startup includes hidden encoder window creation and first keyframe. Feed→packet probes are paced one at a time and include IPC, source JPEG decode, encode, and polling; they are not pure codec times.
 

@@ -4,6 +4,9 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type { LinkActionRequest } from '@/components/link-actions/link-action-request'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
+
+type PreviewLinkHandler = CommentMarkdownLinkClickHandler & CommentMarkdownLinkPreviewHooks
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import { NativeChatPreviewLink } from './NativeChatPreviewLink'
 
@@ -27,8 +30,8 @@ function requestFor(anchor: HTMLElement, pinOnClick = true): LinkActionRequest {
   }
 }
 
-function linkHandler(pinOnClick = true): CommentMarkdownLinkClickHandler {
-  const handler = vi.fn() as unknown as CommentMarkdownLinkClickHandler
+function linkHandler(pinOnClick = true): PreviewLinkHandler {
+  const handler = vi.fn() as unknown as PreviewLinkHandler
   handler.createPreviewRequest = vi.fn((anchor) => requestFor(anchor, pinOnClick))
   handler.showPreview = vi.fn()
   return handler
@@ -40,7 +43,7 @@ function Preview({
   href = 'src/main.ts#L12',
   children = 'main'
 }: {
-  onLinkClick?: CommentMarkdownLinkClickHandler
+  onLinkClick?: PreviewLinkHandler
   hover?: boolean
   href?: string
   children?: ReactNode

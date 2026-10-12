@@ -258,13 +258,13 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
         <div className="shrink-0 border-t border-border p-1" data-link-primary>
           <LinkActionRow
             action={request.primary}
-            alternate={false}
+            shortcut="primary"
             onRun={() => run(request.primary)}
           />
           {request.alternate && (
             <LinkActionRow
               action={request.alternate}
-              alternate
+              shortcut="alternate"
               onRun={() => run(request.alternate!)}
             />
           )}
@@ -312,12 +312,12 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {request.additionalActions?.map((action) => (
+              {request.secondaryActions?.map((action) => (
                 <DropdownMenuItem key={action.label} onSelect={() => run(action)}>
                   {action.label}
                 </DropdownMenuItem>
               ))}
-              {!!request.additionalActions?.length && <DropdownMenuSeparator />}
+              {!!request.secondaryActions?.length && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 onSelect={() => {
                   close()

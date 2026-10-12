@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Platform } from 'react-native'
 import { MobileApkBuildPicker } from '../apk/MobileApkBuildPicker'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -14,11 +15,12 @@ export function MobileSessionHeaderSheets({ controller }: { controller: MobileSe
     showAgentSessionHistoryAction,
     showBacklogAction,
     showChecksAction,
-    showApkInstallAction,
+    apkInstallRouteEligible,
     openAgentSessionHistory,
     openBacklog,
     handlePanelTap
   } = controller
+  const showApkInstallAction = apkInstallRouteEligible && Platform.OS === 'android'
   return (
     <>
       <MobileSessionHeaderMoreActionsSheet

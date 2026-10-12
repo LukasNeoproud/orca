@@ -13,6 +13,8 @@ export type LaunchAgentBackgroundSessionArgs = {
   /** Pins paired-runtime transport; explicit null selects the desktop runtime. */
   runtimeEnvironmentId?: string | null
   prompt?: string
+  /** An automation's saved extras, merged over this host's default Arguments. */
+  extraAgentArgs?: string
   launchSource?: LaunchSource
   title?: string
   onData?: (chunk: string) => void

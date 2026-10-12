@@ -11,13 +11,17 @@ export function hostNewWorktreeSessionRoute(
   hostId: string,
   worktreeId: string,
   worktreeName: string,
-  warning?: string
+  /** Host-reported create warning (e.g. the startup terminal failed to spawn). */
+  warning?: string,
+  /** A recovered checkout opens without the automatic startup a fresh create runs. */
+  options: { recovered?: boolean } = {}
 ): `/h/${string}/session/${string}?${string}` {
   const params = new URLSearchParams({ name: worktreeName })
-  if (warning) {
-    params.set('warning', warning)
-  } else {
+  if (!options.recovered) {
     params.set('created', '1')
+  }
+  if (warning?.trim()) {
+    params.set('warning', warning)
   }
   return `/h/${encodeURIComponent(hostId)}/session/${encodeURIComponent(worktreeId)}?${params}`
 }

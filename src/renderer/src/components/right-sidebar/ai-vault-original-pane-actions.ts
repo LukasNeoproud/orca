@@ -2,23 +2,18 @@ import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { activateTabAndFocusPane } from '@/lib/activate-tab-and-focus-pane'
-import {
-  activateAndRevealFolderWorkspace,
-  activateAndRevealWorktree
-} from '@/lib/worktree-activation'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
+import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-structured-session'
+import { findStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
 import type { AgentStatusState } from '../../../../shared/agent-status-types'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
-import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
-import type { ExecutionHostId } from '../../../../shared/execution-host'
 import { findOriginalAiVaultSessionPane } from './ai-vault-original-pane'
 import {
   createLazyAiVaultOriginalPaneIndex,
   findAiVaultSessionLiveStateInIndex,
-  findOriginalAiVaultSessionPaneInIndex,
-  findRunningOriginalAiVaultSessionPaneInIndex,
-  getAiVaultOriginalPaneIndex
+  findOriginalAiVaultSessionPaneInIndex
 } from './ai-vault-original-pane-index'
 
 export function useAiVaultOriginalPaneActions(): {
@@ -26,6 +21,7 @@ export function useAiVaultOriginalPaneActions(): {
     session: AiVaultSession
   ) => ReturnType<typeof findOriginalAiVaultSessionPane>
   getSessionLiveState: (session: AiVaultSession) => AgentStatusState | null
+  isStructuredSessionOpen: (session: AiVaultSession) => boolean
   jumpToOriginalPane: (session: AiVaultSession) => void
   jumpToWorktree: (worktreeId: string) => void
 } {
@@ -36,19 +32,23 @@ export function useAiVaultOriginalPaneActions(): {
       sleepingAgentSessionsByPaneKey: s.sleepingAgentSessionsByPaneKey,
       tabsByWorktree: s.tabsByWorktree,
       terminalLayoutsByTabId: s.terminalLayoutsByTabId,
-      repos: s.repos,
-      worktreesByRepo: s.worktreesByRepo,
-      detectedWorktreesByRepo: s.detectedWorktreesByRepo,
-      folderWorkspaces: s.folderWorkspaces,
-      projectGroups: s.projectGroups,
-      activeWorktreeId: s.activeWorktreeId,
-      activeWorkspaceExecutionHostId: s.activeWorkspaceExecutionHostId,
-      settings: s.settings,
-      restoredRuntimeHostIdByWorkspaceSessionKey: s.restoredRuntimeHostIdByWorkspaceSessionKey,
-      runtimeEnvironments: s.runtimeEnvironments,
-      runtimeEnvironmentCatalogHydrated: s.runtimeEnvironmentCatalogHydrated,
-      removedRuntimeEnvironmentIds: s.removedRuntimeEnvironmentIds
+      unifiedTabsByWorktree: s.unifiedTabsByWorktree
     }))
+  )
+
+  const isStructuredSessionOpen = useCallback(
+    (session: AiVaultSession): boolean => {
+      const structured = session.structuredSession
+      return structured
+        ? Boolean(
+            findStructuredAgentSessionTab(originalPaneLookupState.unifiedTabsByWorktree, {
+              workspaceId: structured.workspaceId,
+              sessionId: structured.sessionId
+            })
+          )
+        : false
+    },
+    [originalPaneLookupState.unifiedTabsByWorktree]
   )
   // Why: loading, filtered, or collapsed views may render no session rows.
   // Build once on the first actual lookup, then share it across visible rows.
@@ -69,29 +69,44 @@ export function useAiVaultOriginalPaneActions(): {
     [getOriginalPaneIndex]
   )
 
-  const jumpToOriginalPane = useCallback((session: AiVaultSession): void => {
-    const result = activateOriginalAiVaultSessionPane(session)
-    if (result === 'pane-unavailable') {
-      toast.error(
-        translate(
-          'auto.components.right.sidebar.AiVaultPanel.originalPaneUnavailable',
-          'Original pane is no longer available.'
+  const jumpToOriginalPane = useCallback(
+    (session: AiVaultSession): void => {
+      if (session.structuredSession && isStructuredSessionOpen(session)) {
+        void activateAiVaultStructuredSession(session)
+        return
+      }
+      const target = findOriginalAiVaultSessionPane(useAppStore.getState(), session)
+      if (!target) {
+        toast.error(
+          translate(
+            'auto.components.right.sidebar.AiVaultPanel.originalPaneUnavailable',
+            'Original pane is no longer available.'
+          )
         )
-      )
-      return
-    }
-    if (result === 'workspace-unavailable') {
-      toast.error(
-        translate(
-          'auto.components.right.sidebar.AiVaultPanel.worktreeUnavailable',
-          'Worktree is no longer available.'
+        return
+      }
+
+      if (!activateAndRevealWorktree(target.worktreeId)) {
+        toast.error(
+          translate(
+            'auto.components.right.sidebar.AiVaultPanel.worktreeUnavailable',
+            'Worktree is no longer available.'
+          )
         )
-      )
-    }
-  }, [])
+        return
+      }
+      const state = useAppStore.getState()
+      state.setActiveTabType('terminal', target.worktreeId)
+      activateTabAndFocusPane(target.tabId, target.leafId, {
+        flashFocusedPane: true,
+        scrollToBottomIfOutputSinceLastView: true
+      })
+    },
+    [isStructuredSessionOpen]
+  )
 
   const jumpToWorktree = useCallback((worktreeId: string): void => {
-    if (!activateAiVaultWorkspace(worktreeId)) {
+    if (!activateAndRevealWorktree(worktreeId)) {
       toast.error(
         translate(
           'auto.components.right.sidebar.AiVaultPanel.worktreeUnavailable',
@@ -101,57 +116,11 @@ export function useAiVaultOriginalPaneActions(): {
     }
   }, [])
 
-  return { getOriginalPaneTarget, getSessionLiveState, jumpToOriginalPane, jumpToWorktree }
-}
-
-export function activateOriginalAiVaultSessionPane(
-  session: AiVaultSession
-): 'activated' | 'pane-unavailable' | 'workspace-unavailable' {
-  return activateAiVaultSessionPaneTarget(
-    findOriginalAiVaultSessionPane(useAppStore.getState(), session),
-    session.executionHostId
-  )
-}
-
-export function activateRunningOriginalAiVaultSessionPane(
-  session: AiVaultSession
-): 'activated' | 'live' | 'pane-unavailable' | 'workspace-unavailable' {
-  const state = useAppStore.getState()
-  const index = getAiVaultOriginalPaneIndex(state)
-  const target = findRunningOriginalAiVaultSessionPaneInIndex(index, session)
-  if (!target && findAiVaultSessionLiveStateInIndex(index, session) !== null) {
-    return 'live'
+  return {
+    getOriginalPaneTarget,
+    getSessionLiveState,
+    isStructuredSessionOpen,
+    jumpToOriginalPane,
+    jumpToWorktree
   }
-  return activateAiVaultSessionPaneTarget(target, session.executionHostId)
-}
-
-function activateAiVaultSessionPaneTarget(
-  target: ReturnType<typeof findOriginalAiVaultSessionPane>,
-  executionHostId: ExecutionHostId
-): 'activated' | 'pane-unavailable' | 'workspace-unavailable' {
-  if (!target) {
-    return 'pane-unavailable'
-  }
-  if (!activateAiVaultWorkspace(target.worktreeId, executionHostId)) {
-    return 'workspace-unavailable'
-  }
-  useAppStore.getState().setActiveTabType('terminal')
-  activateTabAndFocusPane(target.tabId, target.leafId, {
-    flashFocusedPane: true,
-    scrollToBottomIfOutputSinceLastView: true
-  })
-  return 'activated'
-}
-
-function activateAiVaultWorkspace(workspaceId: string, executionHostId?: ExecutionHostId): boolean {
-  const workspaceScope = parseWorkspaceKey(workspaceId)
-  if (workspaceScope?.type === 'folder') {
-    return Boolean(
-      activateAndRevealFolderWorkspace(
-        workspaceScope.folderWorkspaceId,
-        executionHostId ? { executionHostId } : undefined
-      )
-    )
-  }
-  return Boolean(activateAndRevealWorktree(workspaceId, { executionHostId }))
 }

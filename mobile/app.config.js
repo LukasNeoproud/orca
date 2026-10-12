@@ -1,5 +1,40 @@
 const baseConfig = require('./app.json')
 
+// Why this file exists: a bare "expo-notifications" plugin entry writes
+// `aps-environment: development` into the iOS entitlements, while push-token.ts
+// reports `production` for every non-__DEV__ build. A TestFlight or App Store build
+// would then register a production APNs token against a sandbox entitlement, and the
+// gateway's pushes would be accepted by Apple and delivered nowhere. Deriving the
+// mode from an env var the release workflow sets makes the two agree by construction
+// instead of relying on the export step to rewrite the entitlement.
+//
+// app.json stays the source for everything else: Expo reads it first and hands it to
+// this function, so the fastlane version/buildNumber rewrite still flows through.
+const APS_ENVIRONMENT =
+  process.env.ORCA_IOS_APS_ENVIRONMENT === 'production' ? 'production' : 'development'
+
+function withNotificationEntitlements(config) {
+  return {
+    ...config,
+    ios: {
+      ...config.ios,
+      entitlements: { ...config.ios?.entitlements, 'aps-environment': APS_ENVIRONMENT }
+    },
+    plugins: (config.plugins ?? []).map((plugin) =>
+      plugin === 'expo-notifications'
+        ? [
+            'expo-notifications',
+            {
+              enableBackgroundRemoteNotifications: true,
+              mode: APS_ENVIRONMENT,
+              icon: './assets/notification-icon.png'
+            }
+          ]
+        : plugin
+    )
+  }
+}
+
 const OFFICIAL_ANDROID_PACKAGE = baseConfig.expo.android.package
 const ANDROID_VERSION_CODE_MAX = 2_100_000_000
 const androidPackagePattern = /^(?:[a-z][A-Za-z0-9_]*\.)+[a-z][A-Za-z0-9_]*$/
@@ -59,5 +94,5 @@ function resolvePrivateAndroidConfig(config, env = process.env) {
   }
 }
 
-module.exports = ({ config }) => resolvePrivateAndroidConfig(config)
+module.exports = ({ config }) => resolvePrivateAndroidConfig(withNotificationEntitlements(config))
 module.exports.resolvePrivateAndroidConfig = resolvePrivateAndroidConfig

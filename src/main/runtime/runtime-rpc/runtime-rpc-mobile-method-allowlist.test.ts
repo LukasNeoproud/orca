@@ -30,20 +30,6 @@ describe('mobile Jira source RPC access', () => {
   })
 })
 
-describe('mobile agent conversation RPC access', () => {
-  it('allows topic and context operations used by the mobile conversation view', () => {
-    for (const method of [
-      'agentSession.topicIndex',
-      'agentSession.writeTopicIndex',
-      'agentSession.requestHandoff',
-      'agentContext.inspect',
-      'agentContext.cancelPending'
-    ]) {
-      expect(MOBILE_RPC_METHOD_ALLOWLIST.has(method)).toBe(true)
-    }
-  })
-})
-
 describe('mobile worktree project setup RPC access', () => {
   it('allows project creation and setup on the paired host', () => {
     for (const method of [

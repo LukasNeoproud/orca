@@ -14,7 +14,7 @@ describe('useNewWorkspaceRepositories', () => {
     const client = {
       sendRequest: vi.fn(() => new Promise((resolve) => requests.push(resolve)))
     } as unknown as RpcClient
-    let current: ReturnType<typeof useNewWorkspaceRepositories>
+    let current!: ReturnType<typeof useNewWorkspaceRepositories>
     function Harness() {
       current = useNewWorkspaceRepositories({ client, visible: true })
       return null

@@ -2,6 +2,10 @@ import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileDiffImageReview } from './MobileDiffImageReview'
+import { hostType } from '../test-support/host-type-predicate'
+import type { ReviewDiffState } from '../session/mobile-diff-review-screen-model'
+
+type ImageDiffState = Extract<ReviewDiffState, { kind: 'image' }>
 
 const pan = vi.hoisted(() => ({ handlers: {} as Record<string, (...args: unknown[]) => unknown> }))
 
@@ -25,10 +29,12 @@ vi.mock('lucide-react-native', () => ({
   ZoomOut: 'ZoomOut'
 }))
 
-const imageDiff = {
-  kind: 'image' as const,
-  original: { kind: 'ready' as const, uri: 'data:image/png;base64,old' },
-  modified: { kind: 'ready' as const, uri: 'data:image/png;base64,new' }
+const imageDiff: ImageDiffState = {
+  kind: 'image',
+  itemKey: 'image.png',
+  mimeType: 'image/png',
+  original: { kind: 'ready', uri: 'data:image/png;base64,old' },
+  modified: { kind: 'ready', uri: 'data:image/png;base64,new' }
 }
 
 async function renderReview(diffState = imageDiff) {
@@ -52,25 +58,25 @@ async function renderReview(diffState = imageDiff) {
 describe('MobileDiffImageReview', () => {
   it('switches image sides, zooms, and sends a percentage region from a drag', async () => {
     const { renderer, onAddNote } = await renderReview()
-    const image = renderer.root.findByType('Image')
+    const image = renderer.root.find(hostType('Image'))
     expect(image.props.source.uri).toBe('data:image/png;base64,new')
     await act(async () => {
       renderer.root.findByProps({ accessibilityLabel: 'Zoom in' }).props.onPress()
     })
-    expect(renderer.root.findByType('Image').props.style[1].transform[0].scale).toBe(1.5)
+    expect(renderer.root.find(hostType('Image')).props.style[1].transform[0].scale).toBe(1.5)
     await act(async () => {
       renderer.root.findByProps({ accessibilityLabel: 'Original image' }).props.onPress()
     })
-    expect(renderer.root.findByType('Image').props.source.uri).toBe('data:image/png;base64,old')
+    expect(renderer.root.find(hostType('Image')).props.source.uri).toBe('data:image/png;base64,old')
     await act(async () => {
       renderer.root.findByProps({ accessibilityLabel: 'Changed image' }).props.onPress()
     })
     await act(async () => {
       renderer.root
-        .findByType('Image')
+        .find(hostType('Image'))
         .props.onLoad({ nativeEvent: { source: { width: 200, height: 100 } } })
       renderer.root
-        .findAllByType('View')
+        .findAll(hostType('View'))
         .find((view) => view.props.onLayout)
         ?.props.onLayout({
           nativeEvent: { layout: { width: 200, height: 100 } }
@@ -95,10 +101,10 @@ describe('MobileDiffImageReview', () => {
 
   it('shows unavailable content clearly', async () => {
     const { renderer } = await renderReview({
-      kind: 'image',
+      ...imageDiff,
       original: { kind: 'absent' },
       modified: { kind: 'unavailable' }
-    } as typeof imageDiff)
+    })
     await act(async () => {
       renderer.root.findByProps({ accessibilityLabel: 'Changed image' }).props.onPress()
     })

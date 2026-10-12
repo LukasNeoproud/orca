@@ -173,18 +173,23 @@ function LegacyLinkActionPopover<TRequest extends LinkActionRequest>({
           </div>
           <LinkActionRow
             action={request.primary}
-            alternate={false}
+            shortcut="primary"
             onRun={() => runAction(request.primary)}
           />
           {request.alternate ? (
             <LinkActionRow
               action={request.alternate}
-              alternate
+              shortcut="alternate"
               onRun={() => runAction(request.alternate!)}
             />
           ) : null}
-          {request.additionalActions?.map((action) => (
-            <LinkActionRow key={action.label} action={action} onRun={() => runAction(action)} />
+          {request.secondaryActions?.map((action) => (
+            <LinkActionRow
+              key={action.label}
+              action={action}
+              shortcut={null}
+              onRun={() => runAction(action)}
+            />
           ))}
         </PopoverContent>
       ) : null}

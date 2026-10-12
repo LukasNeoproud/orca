@@ -26,7 +26,7 @@ type Props = {
   onAddNote: (lineNumber: number) => void
   onAddImageNote: (region: ImageReviewRegion) => void
   onEditNote: (comment: DiffComment) => void
-  onRetry: () => void
+  onRetry: (() => void) | undefined
 }
 
 export function MobileDiffReviewBody({
@@ -120,7 +120,7 @@ function DiffUnavailableState({
   onRetry
 }: {
   diffState: ReviewDiffState
-  onRetry: () => void
+  onRetry: (() => void) | undefined
 }) {
   const title =
     diffState.kind === 'binary'

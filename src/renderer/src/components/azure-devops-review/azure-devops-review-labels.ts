@@ -19,7 +19,7 @@ export function threadStatusLabel(status: AzureDevOpsThreadStatus): string {
       return translate('azureDevOpsReview.threadByDesign', 'By design')
     case 'pending':
       return translate('azureDevOpsReview.threadPending', 'Pending')
-    default:
+    case 'unknown':
       return translate('azureDevOpsReview.threadUnknown', 'Unknown')
   }
 }
@@ -34,7 +34,7 @@ export function changeTypeLabel(changeType: AzureDevOpsReviewChangeType): string
       return 'R'
     case 'edit':
       return 'M'
-    default:
+    case 'other':
       return '•'
   }
 }
@@ -62,7 +62,7 @@ export function draftLocationLabel(
       return translate('azureDevOpsReview.replyTo', 'Reply to thread #{{value0}}', {
         value0: draft.threadId ?? '?'
       })
-    default:
+    case 'general':
       return translate('azureDevOpsReview.generalComment', 'General comment')
   }
 }

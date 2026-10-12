@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -23,16 +23,30 @@ vi.mock('electron', () => ({
 }))
 
 const { Store } = await import('./store')
+const { ProfileStateSqliteAuthority } =
+  await import('../profile-state/profile-state-sqlite-authority')
+const PROFILE_ID = 'backlog-association-test'
 const stores: InstanceType<typeof Store>[] = []
+const directories: string[] = []
 
-afterEach(() => {
+afterEach(async () => {
   for (const store of stores.splice(0)) {
-    store.flush()
+    store.freezeWrites()
+    await store.flushAsync()
   }
+  for (const directory of directories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true })
+  }
+  vi.restoreAllMocks()
 })
 
-function openStore(dataFile: string) {
-  const store = new Store({ dataFile })
+function openStore(directory: string) {
+  const authority = new ProfileStateSqliteAuthority(join(directory, 'profile-state.db'), PROFILE_ID)
+  vi.spyOn(authority, 'scheduleBackup').mockImplementation(() => {})
+  const store = new Store({
+    dataFile: join(directory, 'orca-data.json'),
+    profileStateAuthority: authority
+  })
   stores.push(store)
   return store
 }
@@ -58,11 +72,13 @@ const association: BacklogTaskAssociation = {
 }
 
 describe('Backlog task association persistence', () => {
-  it('durably round-trips runtime-owned association metadata', () => {
+  it('durably round-trips runtime-owned association metadata', async () => {
     const directory = realpathSync(mkdtempSync(join(tmpdir(), 'orca-backlog-associations-')))
-    const dataFile = join(directory, 'orca-data.json')
-    openStore(dataFile).persistBacklogTaskAssociations([association])
+    directories.push(directory)
+    const writer = openStore(directory)
+    writer.persistBacklogTaskAssociations([association])
+    writer.flushOrThrow()
 
-    expect(openStore(dataFile).getBacklogTaskAssociations()).toEqual([association])
+    expect(openStore(directory).getBacklogTaskAssociations()).toEqual([association])
   })
 })

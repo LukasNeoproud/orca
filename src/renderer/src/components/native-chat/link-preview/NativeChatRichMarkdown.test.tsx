@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import type { CommentMarkdownLinkPreviewHooks } from '@/components/sidebar/comment-markdown-element-renderers'
+
+type PreviewLinkHandler = CommentMarkdownLinkClickHandler & CommentMarkdownLinkPreviewHooks
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatRichMarkdown } from './NativeChatRichMarkdown'
 
@@ -71,7 +74,7 @@ describe('native chat rich markdown previews', () => {
     render(
       <NativeChatRichMarkdown
         runtimeContext={context}
-        linkifyFilePaths
+        fileLinkExists={() => true}
         content="See src/main.ts:12 and `/repo/worktree/docs/guide.md:7`."
       />
     )
@@ -83,7 +86,7 @@ describe('native chat rich markdown previews', () => {
 
   it('delegates keyboard-activated hover previews to the transcript', async () => {
     mocks.mode = 'hover'
-    const onLinkClick = vi.fn() as unknown as CommentMarkdownLinkClickHandler
+    const onLinkClick = vi.fn() as unknown as PreviewLinkHandler
     onLinkClick.showPreview = vi.fn()
     onLinkClick.createPreviewRequest = (anchor) => ({
       anchorX: 0,
@@ -117,10 +120,5 @@ describe('native chat rich markdown previews', () => {
       <NativeChatRichMarkdown runtimeContext={context} content={'```ts\nsrc/main.ts:3\n```'} />
     )
     expect(screen.queryByTestId('preview-card')).toBeNull()
-  })
-
-  it('highlights a fenced language after the lazy code renderer loads', async () => {
-    render(<NativeChatRichMarkdown content={'```typescript\nconst answer = 42\n```'} />)
-    await waitFor(() => expect(document.querySelector('.hljs-keyword')?.textContent).toBe('const'))
   })
 })

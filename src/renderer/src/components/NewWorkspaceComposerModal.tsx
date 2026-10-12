@@ -75,6 +75,7 @@ function ComposerModalBody({
   modalData: ComposerModalData
   onClose: () => void
 }): React.JSX.Element {
+  const dialogRef = useRef<HTMLDivElement>(null)
   const submitCancelledRef = useRef(false)
   const handleDismiss = useCallback(() => {
     submitCancelledRef.current = true
@@ -85,7 +86,13 @@ function ComposerModalBody({
   return (
     <Dialog open onOpenChange={(open) => !open && handleDismiss()}>
       <DialogContent
+        ref={dialogRef}
         className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-lg"
+        onEscapeKeyDown={(event) => {
+          if (dialogRef.current?.querySelector('[data-sparse-preset-editor]')) {
+            event.preventDefault()
+          }
+        }}
         onOpenAutoFocus={(event) => {
           // Why: Radix's FocusScope fires this once the dialog has mounted.
           // preventDefault stops it from focusing whatever first-tabbable it
@@ -147,8 +154,7 @@ function QuickTabBody({
     onCreated: onClose,
     isSubmissionCancelled,
     ...(modalData.telemetrySource ? { telemetrySource: modalData.telemetrySource } : {}),
-    enableIssueAutomation: modalData.enableIssueAutomation === true,
-    createGateMode: 'quick'
+    enableIssueAutomation: modalData.enableIssueAutomation === true
   })
   const simplified = simplifiedAtOpen && cardProps.selectedRepoIsGit
   const selectedReview =
@@ -312,7 +318,7 @@ function QuickTabBody({
       if (!shouldAllowComposerEnterSubmitTarget(target, composerRef.current)) {
         return
       }
-      if (createDisabled) {
+      if (createDisabled || composerRef.current?.hasAttribute('data-sparse-preset-editing')) {
         return
       }
       event.preventDefault()
@@ -342,11 +348,9 @@ function QuickTabBody({
       </DialogHeader>
       <NewWorkspaceComposerCard
         contextualTourSource={modalData.contextualTourSource}
-        // Why: the scroll container clips children (overflow-y-auto forces overflow-x to auto),
-        // while Orca's standard field focus ring paints 3px outside the control and the ghost
-        // "Advanced" disclosure pulls its padded hover highlight ~8px left to align its label with
-        // the field labels. Inset px-2 so both stay fully visible instead of clipped at the edge.
-        containerClassName="min-h-0 flex-1 overflow-y-auto px-2 scrollbar-sleek"
+        // Keep focus rings and the Advanced hover highlight inside the scroll padding.
+        containerClassName="px-2"
+        contentClassName="-mx-2 flex-1 overflow-y-auto px-2 pb-1 scrollbar-sleek"
         composerRef={composerRef}
         onComposerNodeChange={onComposerNodeChange}
         nameInputRef={nameInputRef}

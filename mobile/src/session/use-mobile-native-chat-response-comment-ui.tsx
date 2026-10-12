@@ -63,10 +63,9 @@ export function useMobileNativeChatResponseCommentUi(args: {
     </>
   )
 
-  return {
-    onCommentQuote,
-    openComments: () =>
-      setState({ surfaceId: sendSurfaceId, editorDraft: null, commentsVisible: true }),
-    drawers
-  }
+  const openComments = useCallback(
+    () => setState({ surfaceId: sendSurfaceId, editorDraft: null, commentsVisible: true }),
+    [sendSurfaceId]
+  )
+  return { onCommentQuote, openComments, drawers }
 }

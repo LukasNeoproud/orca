@@ -50,11 +50,11 @@ function send(structuredTransport: NativeChatStructuredComposerTransport): (text
   const { result } = renderHook(() =>
     useNativeChatStructuredComposerSend({
       agent: 'claude',
+      draftScopeKey: 'tab-1:pane',
       imageAttachments: [],
       structuredTransport,
-      clearImageAttachments: vi.fn(),
+      isComposing: () => false,
       clearSkillOrigin: vi.fn(),
-      setHistory: vi.fn(),
       setDraft: vi.fn(),
       setCaret: vi.fn()
     })
@@ -82,43 +82,5 @@ describe('a real user send from a structured chat pane', () => {
     send(transport())('ship it')
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(reportStructuredSessionUserInput).not.toHaveBeenCalled()
-  })
-
-  it('does not clear a newer prompt when an earlier send is accepted', async () => {
-    let accept!: (result: { accepted: boolean; error: string | null }) => void
-    dispatchStructuredComposerText.mockReturnValueOnce(
-      new Promise((resolve) => {
-        accept = resolve
-      })
-    )
-    const setDraft = vi.fn()
-    const clearSubmittedResponseComments = vi.fn()
-    const responseComments = [{ id: 'comment-1', quote: 'old output', comment: 'Fix this.' }]
-    const structuredTransport = transport()
-    const { result, rerender } = renderHook(
-      ({ draft }) =>
-        useNativeChatStructuredComposerSend({
-          agent: 'claude',
-          draft,
-          imageAttachments: [],
-          responseComments,
-          structuredTransport,
-          clearImageAttachments: vi.fn(),
-          clearSubmittedResponseComments,
-          clearSkillOrigin: vi.fn(),
-          setHistory: vi.fn(),
-          setDraft,
-          setCaret: vi.fn()
-        }),
-      { initialProps: { draft: 'first prompt' } }
-    )
-
-    result.current('first prompt', [], responseComments)
-    rerender({ draft: 'newer prompt' })
-    accept({ accepted: true, error: null })
-
-    await vi.waitFor(() => expect(reportStructuredSessionUserInput).toHaveBeenCalled())
-    expect(setDraft).not.toHaveBeenCalled()
-    expect(clearSubmittedResponseComments).toHaveBeenCalledWith(responseComments)
   })
 })

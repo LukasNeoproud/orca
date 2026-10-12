@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import {
   findPendingLinkedWorkItemCreationId,
@@ -10,7 +11,10 @@ import {
   getInitialWorktreeCreationPhase,
   getWorktreeCreationIndeterminate
 } from '@/lib/worktree-creation-flow-startup'
-import { retryStructuredWorktreeLaunch } from '@/lib/worktree-creation-structured-recovery'
+import {
+  formatWorkspaceCreateError,
+  getWorkspaceCreateErrorToastMessage
+} from '@/lib/workspace-create-error-format'
 
 type ContinueBackgroundWorktreeCreationOptions = {
   revealCreationSurface?: boolean
@@ -21,13 +25,15 @@ export type BackgroundWorktreeCreationCallbacks = {
   onFailed?: (message: string) => void
 }
 
-function runWorktreeCreation(
+// Why: nothing awaits these creations, so an escaped rejection would otherwise
+// strand the pending entry — and the creation surface — with no error shown.
+function startWorktreeCreation(
   creationId: string,
   request: WorktreeCreationRequest,
   callbacks?: BackgroundWorktreeCreationCallbacks
 ): void {
   let created = false
-  void executeWorktreeCreation(creationId, request, (workspaceId) => {
+  executeWorktreeCreation(creationId, request, (workspaceId) => {
     created = true
     try {
       callbacks?.onCreated?.(workspaceId)
@@ -42,8 +48,20 @@ function runWorktreeCreation(
       }
     })
     .catch((error: unknown) => {
+      console.error('worktree create: unhandled failure', creationId, error)
+      const message = getWorkspaceCreateErrorToastMessage(formatWorkspaceCreateError(error))
       if (!created) {
-        callbacks?.onFailed?.(error instanceof Error ? error.message : String(error))
+        callbacks?.onFailed?.(message)
+      }
+      const store = useAppStore.getState()
+      if (!store.pendingWorktreeCreations[creationId]) {
+        return
+      }
+      store.updatePendingWorktreeCreation(creationId, { status: 'error', error: message })
+      // Why: the panel renders this error inline while its surface is visible;
+      // only announce it separately after the user has navigated away.
+      if (!(store.activeView === 'terminal' && store.activePendingCreationId === creationId)) {
+        toast.error(message)
       }
     })
 }
@@ -72,12 +90,7 @@ function revealPendingCreation(
   store.setSidebarOpen(true)
 }
 
-/**
- * Kick off a worktree create in the background. The caller (the composer) has
- * already resolved every interactive decision into `request`, so this returns
- * immediately and the work outlives the now-closed modal. Progress and errors
- * surface on the pending creation's sidebar row and content panel.
- */
+/** Start creation without blocking the composer; the pending panel owns preparation and errors. */
 export function runBackgroundWorktreeCreation(
   request: WorktreeCreationRequest,
   callbacks?: BackgroundWorktreeCreationCallbacks
@@ -97,7 +110,7 @@ export function runBackgroundWorktreeCreation(
   // client over plain HTTP). createBrowserUuid falls back to getRandomValues.
   const creationId = createBrowserUuid()
   revealPendingCreation(creationId, request, getInitialWorktreeCreationPhase(request))
-  runWorktreeCreation(creationId, request, callbacks)
+  startWorktreeCreation(creationId, request, callbacks)
   return creationId
 }
 
@@ -136,7 +149,7 @@ export function continueBackgroundWorktreeCreation(
     store.setActiveView('terminal')
     store.setSidebarOpen(true)
   }
-  runWorktreeCreation(creationId, request)
+  startWorktreeCreation(creationId, request)
   return true
 }
 
@@ -153,23 +166,12 @@ export function retryBackgroundWorktreeCreation(
   store.updatePendingWorktreeCreation(creationId, {
     status: 'creating',
     startedAt: Date.now(),
-    phase:
-      entry.request.ephemeralVmRecipe && !entry.request.ephemeralVmRuntimeId
-        ? 'provisioning-vm'
-        : 'fetching',
+    phase: getInitialWorktreeCreationPhase(entry.request),
     error: undefined,
     provisioningLog: undefined
   })
   store.setActivePendingWorktreeCreation(creationId)
   store.setActiveView('terminal')
   store.setSidebarOpen(true)
-  if (entry.structuredLaunchRecoveryWorktreeId) {
-    void retryStructuredWorktreeLaunch(
-      creationId,
-      entry.request,
-      entry.structuredLaunchRecoveryWorktreeId
-    )
-    return
-  }
-  runWorktreeCreation(creationId, entry.request, callbacks)
+  startWorktreeCreation(creationId, entry.request, callbacks)
 }

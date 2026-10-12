@@ -4,6 +4,7 @@ import { translate } from '@/i18n/i18n'
 import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import {
   azureDevOpsReviewMcpAgentArgs,
@@ -56,6 +57,7 @@ export async function startAzureDevOpsReviewAgent(
   const mcpArgs = azureDevOpsReviewMcpAgentArgs(agent, shell, cli)
   const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
   const result = launchAgentInNewTab({
+    requestId: newAgentLaunchRequestId(),
     agent,
     worktreeId,
     groupId: worktreeId,
@@ -71,14 +73,15 @@ export async function startAzureDevOpsReviewAgent(
     )
     return false
   }
-  if (result.tabId) {
+  if (result.surface.kind === 'local-terminal') {
+    const tabId = result.surface.tabId
     pruneAzureDevOpsReviewChatLinks()
-    useAzureDevOpsReviewChatLinks.getState().linkTab(result.tabId, pullRequest.key)
+    useAzureDevOpsReviewChatLinks.getState().linkTab(tabId, pullRequest.key)
     // Why: the tab's PR chip carries the number; the agent's own OSC titles would hide which tab reviews.
     useAppStore
       .getState()
-      .setTabCustomTitle(result.tabId, translate('azureDevOpsReview.agentTabTitle', 'Review'))
-    focusTerminalTabSurface(result.tabId)
+      .setTabCustomTitle(tabId, translate('azureDevOpsReview.agentTabTitle', 'Review'))
+    focusTerminalTabSurface(tabId)
   }
   return true
 }

@@ -8,6 +8,7 @@ import type { WorkspaceLinkedItem } from '../../../../../../shared/worktree/type
 export type CreateWorktreeCallOptions = {
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: CreateWorktreeArgs['explicitCreation']
+  /** Captured before background preparation so navigation cannot retarget creation. */
   executionHostId?: ExecutionHostId
   automationProvenanceRequest?: CreateWorktreeArgs['automationProvenanceRequest']
   linkedWorkItem?: WorkspaceLinkedItem | null

@@ -22,6 +22,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { BottomDrawer } from './BottomDrawer'
 import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 type HostOption = {
   id: ExecutionHostId
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.input,
     padding: spacing.md,
-    fontSize: typography.bodySize,
+    fontSize: TEXT_INPUT_FONT_SIZE,
     fontFamily: typography.monoFamily
   },
   error: { color: colors.statusRed, fontSize: typography.metaSize },

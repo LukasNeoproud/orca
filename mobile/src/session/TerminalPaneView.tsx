@@ -31,6 +31,7 @@ type TerminalPaneViewProps = {
   onOpenUrl: (handle: string, url: string) => void
   onLinkActions: (handle: string, target: TerminalLinkActionTarget) => void
   onTextScaleChange: (scale: number) => void
+  onCellBoxChange: (handle: string) => void
 }
 
 export function TerminalPaneView({
@@ -54,7 +55,8 @@ export function TerminalPaneView({
   onFileTap,
   onOpenUrl,
   onLinkActions,
-  onTextScaleChange
+  onTextScaleChange,
+  onCellBoxChange
 }: TerminalPaneViewProps) {
   const setRef = useCallback(
     (ref: TerminalWebViewHandle | null) => {
@@ -79,6 +81,7 @@ export function TerminalPaneView({
         style={styles.terminalWebView}
         terminalTheme={terminalTheme}
         textScale={textScale}
+        shownAtMount={active}
         onWebReady={() => onWebReady(handle)}
         onSelectionMode={(a) => onSelectionMode(handle, a)}
         onSelectionCopy={(t) => onSelectionCopy(handle, t)}
@@ -94,6 +97,7 @@ export function TerminalPaneView({
         onOpenUrl={(url) => onOpenUrl(handle, url)}
         onLinkActions={(target) => onLinkActions(handle, target)}
         onTextScaleChange={onTextScaleChange}
+        onCellBoxChange={() => onCellBoxChange(handle)}
       />
     </View>
   )

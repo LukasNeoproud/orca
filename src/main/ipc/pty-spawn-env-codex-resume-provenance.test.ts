@@ -123,9 +123,7 @@ describe('registerPtyHandlers', () => {
 
       /** A daemon-shaped provider: the only local path that reports reattach results and
        *  the only one that surfaces the resolved spawn options this guard rewrites. */
-      function setupResumeDaemonProvider(
-        spawnResult: { isReattach?: true; pid?: number | null } = {}
-      ) {
+      function setupResumeDaemonProvider(spawnResult: { isReattach?: true } = {}) {
         const daemonSpawn = vi.fn(
           async (options: {
             sessionId?: string
@@ -280,7 +278,7 @@ describe('registerPtyHandlers', () => {
             await Promise.resolve()
             vi.runAllTimers()
 
-            expect(mockProc.proc.write).toHaveBeenCalledWith(`${command}\n`)
+            expect(mockProc.proc.write).toHaveBeenCalledWith(`${command}\r`)
             expect(spawned.agentResumeUnavailable).toBeUndefined()
           } finally {
             vi.useRealTimers()
@@ -354,32 +352,6 @@ describe('registerPtyHandlers', () => {
 
         expect(spawned.agentResumeUnavailable).toBeUndefined()
       })
-      it.each([77505, undefined, null])(
-        'preserves the optional authoritative PID %s through the runtime spawn mappers',
-        async (pid) => {
-          setupResumeDaemonProvider({ pid })
-          const runtime = {
-            setPtyController: vi.fn(),
-            registerPty: vi.fn(),
-            noteTerminalSpawnCommand: vi.fn(),
-            onPtySpawned: vi.fn(),
-            onPtyExit: vi.fn(),
-            onPtyData: vi.fn()
-          }
-          handlers.clear()
-          registerPtyHandlers(mainWindow as never, runtime as never)
-          const controller = runtime.setPtyController.mock.calls[0]?.[0] as {
-            spawn(args: Record<string, unknown>): Promise<{ id: string; pid?: number }>
-          }
-          const result = await controller.spawn({ cols: 80, rows: 24, cwd: '/tmp' })
-          expect(result.id).toBeTruthy()
-          if (pid === 77505) {
-            expect(result.pid).toBe(pid)
-          } else {
-            expect(result).not.toHaveProperty('pid')
-          }
-        }
-      )
       it('drops the resume argv on the runtime controller spawn path', async () => {
         // Why: the runtime/relay controller is a second spawn entry point; the invariant
         // has to hold there too even though it has no channel for the notice.

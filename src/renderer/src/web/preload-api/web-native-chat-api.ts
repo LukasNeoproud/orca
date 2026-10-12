@@ -1,4 +1,3 @@
-import { parseNativeChatUsageStatus } from '../../../../shared/native-chat-usage-status'
 import type { NativeChatApi, NativeChatAppendedMessages } from '../../../../preload/api-types'
 import { buildNativeChatUnsubscribe } from '../../../../shared/native-chat-stream-unsubscribe'
 import {
@@ -50,24 +49,6 @@ export function createWebNativeChatApi(): NativeChatApi {
             capabilities: { transcriptPending: 1 }
           },
           {
-            onError: () => {
-              if (!cancelled && receivedInitial && args.agent === 'codex') {
-                onFrame({
-                  type: 'appended',
-                  messages: [],
-                  usageStatus: { contextUsage: { stale: true }, codexWeeklyUsage: undefined }
-                })
-              }
-            },
-            onClose: () => {
-              if (!cancelled && receivedInitial && args.agent === 'codex') {
-                onFrame({
-                  type: 'appended',
-                  messages: [],
-                  usageStatus: { contextUsage: { stale: true }, codexWeeklyUsage: undefined }
-                })
-              }
-            },
             onResponse: (response) => {
               if (cancelled) {
                 return
@@ -90,11 +71,9 @@ export function createWebNativeChatApi(): NativeChatApi {
                 hasMore?: boolean
                 error?: string
                 lifecycle?: unknown
-                usageStatus?: unknown
                 pending?: boolean
               }
               const lifecycle = parseRuntimeNativeChatTurnLifecycle(result?.lifecycle)
-              const usageStatus = parseNativeChatUsageStatus(result?.usageStatus)
               // No transcript behind this window yet — forwarded so the view can stop spinning, but it is not the settled initial read.
               const pending = result?.pending === true
               if (
@@ -112,7 +91,6 @@ export function createWebNativeChatApi(): NativeChatApi {
                     messages: result.messages,
                     hasMore: result.hasMore ?? result.messages.length >= (args.limit ?? 300),
                     ...(result.error ? { error: result.error } : {}),
-                    ...(usageStatus ? { usageStatus } : {}),
                     ...(lifecycle ? { lifecycle } : {}),
                     ...(pending ? { pending: true } : {})
                   })
@@ -122,7 +100,6 @@ export function createWebNativeChatApi(): NativeChatApi {
                     messages: result.messages,
                     hasMore: result.hasMore ?? false,
                     ...(result.error ? { error: result.error } : {}),
-                    ...(usageStatus ? { usageStatus } : {}),
                     ...(lifecycle ? { lifecycle } : {}),
                     ...(pending ? { pending: true } : {})
                   })
@@ -133,13 +110,11 @@ export function createWebNativeChatApi(): NativeChatApi {
                           type: 'replacement',
                           messages: result.messages,
                           hasMore: result.hasMore ?? false,
-                          ...(usageStatus ? { usageStatus } : {}),
                           ...(lifecycle ? { lifecycle } : {})
                         }
                       : {
                           type: 'appended',
                           messages: result.messages,
-                          ...(usageStatus ? { usageStatus } : {}),
                           ...(lifecycle ? { lifecycle } : {})
                         }
                   )

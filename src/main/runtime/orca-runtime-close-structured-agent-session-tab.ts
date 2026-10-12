@@ -14,20 +14,32 @@ import { getRuntimeBrowserPageRegistry } from './runtime-browser-page-registry'
 import { forgetHeadlessBacklogBoardPage } from './headless-backlog-board-pages'
 import { applyBrowserSessionTabSelection } from './browser-session-tab-selection-snapshot'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import type { StructuredAgentSessionCloseCause } from '../native-chat/agent-session-wire/structured-agent-session-host-lifetime'
 import { retireStructuredAgentSessionTabFrom } from './structured-agent-session-tab-retirement'
 
 export class OrcaRuntimeWithCloseStructuredAgentSessionTab extends OrcaRuntimeWithCloseMobileSessionTab {
-  protected async closeStructuredAgentSessionTab(tab: RuntimeMobileSessionAgentTab): Promise<void> {
+  protected async closeStructuredAgentSessionTab(
+    tab: RuntimeMobileSessionAgentTab,
+    cause: StructuredAgentSessionCloseCause
+  ): Promise<void> {
     const host = getStructuredAgentSessionHost()
     if (host) {
       if (typeof host.setSessionTabVisibility === 'function') {
-        await host.setSessionTabVisibility(tab.sessionId, false)
+        // The restore index is bookkeeping: one that cannot be written (a newer Orca's records, a
+        // failing disk) is reported, and the tab still closes.
+        await host.setSessionTabVisibility(tab.sessionId, false).catch((error: unknown) => {
+          host.deps.logger.warn('recording a closed chat tab failed', {
+            scope: 'tab-visibility-close',
+            sessionId: tab.sessionId,
+            error
+          })
+        })
       }
     }
     // Retire durable visibility and the runtime snapshot before stopping the provider.
     this.retireStructuredAgentSessionTabFromSnapshot(tab.sessionId)
     if (typeof host?.close === 'function') {
-      await host.close(tab.sessionId)
+      await host.close(tab.sessionId, cause)
     }
   }
 

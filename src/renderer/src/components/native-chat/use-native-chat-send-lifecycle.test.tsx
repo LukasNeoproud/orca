@@ -38,20 +38,17 @@ describe('useNativeChatSendLifecycle', () => {
     vi.useFakeTimers()
     const pending = handle()
     const onPendingSendCanceled = vi.fn()
-    const restoreCanceledSend = vi.fn()
     const { result, unmount } = renderHook(() =>
       useNativeChatSendLifecycle('tab-1', 'pty-1', onPendingSendCanceled)
     )
 
-    act(() => result.current.trackPendingSend(pending, 'pending-1', restoreCanceledSend))
+    act(() => result.current.trackPendingSend(pending, 'pending-1'))
     act(() => result.current.cancelPendingSends())
     expect(pending.cancel).toHaveBeenCalledOnce()
     expect(onPendingSendCanceled).toHaveBeenCalledWith('pending-1')
-    expect(restoreCanceledSend).toHaveBeenCalledOnce()
 
     unmount()
     expect(pending.cancel).toHaveBeenCalledOnce()
-    expect(restoreCanceledSend).toHaveBeenCalledOnce()
   })
 
   it('drops settled handles so a later interrupt does not revisit completed sends', () => {

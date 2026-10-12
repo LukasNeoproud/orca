@@ -7,6 +7,7 @@ describe('buildMobileBacklogTaskPrompt', () => {
       id: 'TASK-20',
       title: 'Fresh title',
       status: 'To Do',
+      priority: null,
       description: '**Fresh description**',
       acceptanceCriteria: [
         { index: 1, text: 'Done', checked: true },

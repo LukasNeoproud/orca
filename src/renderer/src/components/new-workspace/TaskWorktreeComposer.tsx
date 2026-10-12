@@ -100,7 +100,6 @@ export function TaskWorktreeComposer({
     repoIdOverride: sourceOwner?.repoId,
     onRepoIdOverrideChange: () => {},
     persistDraft: false,
-    createGateMode: 'quick',
     backgroundCreationCallbacks: {
       onQueued: handleQueued,
       onCreated: handleCreated,

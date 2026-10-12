@@ -78,22 +78,6 @@ describe('resolveNativeChatSession', () => {
     ).toEqual({ agent: 'claude', sessionId: null, transcriptPath: null, ptyId: 'pty-1', paneKey })
   })
 
-  it('uses a known resume provider id without treating Orca identity as provider identity', () => {
-    const paneKey = 'tab-internal:leaf-internal'
-    expect(
-      resolveNativeChatSession({
-        paneKey,
-        launchAgent: 'codex',
-        knownProviderSession: { key: 'session_id', id: 'provider-session' },
-        ptyId: 'pty-internal'
-      })
-    ).toMatchObject({
-      sessionId: 'provider-session',
-      paneKey,
-      ptyId: 'pty-internal'
-    })
-  })
-
   it('resolves two split leaves independently to their own values', () => {
     const leftKey = 'tab-1:11111111-1111-4111-8111-111111111111'
     const rightKey = 'tab-1:22222222-2222-4222-8222-222222222222'

@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import type { HostBattery } from '../../shared/host-system-types'
 
 const PROBE_TIMEOUT_MS = 2_000

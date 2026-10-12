@@ -34,8 +34,7 @@ vi.mock('./terminal-agent-paste-bracketing', () => ({
   resolveProtectedMultilinePasteOptionsForPane: mocks.protectedOptions
 }))
 vi.mock('./terminal-pane-menu-paste', () => ({
-  executeTerminalPaneMenuPasteText: mocks.paste,
-  getTerminalPaneMenuShortcutPlatform: () => 'darwin'
+  executeTerminalPaneMenuPasteText: mocks.paste
 }))
 
 import { TerminalResponseComment } from './TerminalResponseComment'

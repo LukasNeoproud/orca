@@ -79,7 +79,7 @@ describe('branch management execution-host process proof', () => {
     const listProcesses = vi.fn(async () => [idle])
     expect(await getBranchManagementSessions({ listProcesses }, target('local'))).toEqual([])
     expect(listProcesses).toHaveBeenCalledWith(
-      null,
+      'local',
       expect.objectContaining({ includeForegroundProcessEvidence: true })
     )
   })
@@ -88,7 +88,7 @@ describe('branch management execution-host process proof', () => {
       throw new Error('Disconnected')
     })
     expect(await getBranchManagementSessions({ listProcesses }, target('ssh:box'))).toBeNull()
-    expect(listProcesses).toHaveBeenCalledWith('box', expect.any(Object))
+    expect(listProcesses).toHaveBeenCalledWith('ssh:box', expect.any(Object))
   })
   it('blocks older-host unknown foreground evidence', async () => {
     const listProcesses = vi.fn(async () => [{ id: 'pty', cwd: '/repo', title: 'Shell' }])

@@ -1,5 +1,6 @@
 import type { BacklogSnapshot, BacklogTask } from '../../../shared/backlog-types'
 import { backlogRouteKey, callBacklog, resolveBacklogRoute, type BacklogRoute } from './backlog-rpc'
+import { createBrowserUuid } from '@/lib/browser-uuid'
 
 export { openBacklogBoard } from './backlog-board-client'
 
@@ -80,7 +81,7 @@ export function subscribeBacklog(
   if (!entry) {
     entry = {
       route,
-      leaseId: crypto.randomUUID(),
+      leaseId: createBrowserUuid(),
       listeners: new Set(),
       snapshot: { state: 'loading', tasks: [] },
       running: false,

@@ -1,20 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TerminalLinkActionContext } from './terminal-link-action-request'
 
-const mocks = vi.hoisted(() => ({
-  canOpenWithSystemDefault: true,
-  downloadAndOpen: vi.fn(),
-  fileContext: {} as { connectionId?: string },
-  getTerminalFileContext: vi.fn(),
-  openDetectedFilePath: vi.fn(),
-  worktreeRoot: false
+const mocks = vi.hoisted(() => {
+  const settings: { activeRuntimeEnvironmentId: string | null } = {
+    activeRuntimeEnvironmentId: null
+  }
+  return {
+    canOpenWithSystemDefault: true,
+    downloadAndOpen: vi.fn(),
+    openDetectedFilePath: vi.fn(),
+    settings,
+    worktreeRoot: false
+  }
+})
+
+vi.mock('@/store', () => ({
+  useAppStore: { getState: () => ({ settings: mocks.settings }) }
 }))
 
 vi.mock('./terminal-file-open-routing', () => ({
-  getTerminalFileContext: (...args: unknown[]) => {
-    mocks.getTerminalFileContext(...args)
-    return mocks.fileContext
-  },
+  getTerminalFileContext: () => ({ sourceHostResolved: true }),
   mapTerminalFilePath: (filePath: string) => filePath,
   openDetectedFilePath: mocks.openDetectedFilePath,
   shouldOpenTerminalFileWithSystemDefault: () => mocks.canOpenWithSystemDefault,
@@ -46,20 +51,31 @@ function plainEvent(): MouseEvent {
   } as unknown as MouseEvent
 }
 
-function context(request: ReturnType<typeof vi.fn>): TerminalLinkActionContext {
+function context(
+  request: ReturnType<typeof vi.fn>,
+  sourceOwner: TerminalLinkActionContext['sourceOwner'] = { kind: 'local' }
+): TerminalLinkActionContext {
   return {
     paneId: 3,
     pointerGesture: { canRequestAction: () => true, dispose: vi.fn() },
     claimPtyMouse: vi.fn(() => true),
     request: request as TerminalLinkActionContext['request'],
-    focusTerminal: vi.fn()
+    focusTerminal: vi.fn(),
+    sourceOwner
   }
 }
 
+const shellApi = {
+  openInFileManager: vi.fn(async () => ({ ok: true })),
+  openFilePath: vi.fn(async () => true)
+}
+const fsApi = { stat: vi.fn() }
+
 beforeEach(() => {
   vi.stubGlobal('navigator', { userAgent: 'Macintosh' })
+  vi.stubGlobal('window', { api: { shell: shellApi, fs: fsApi } })
   mocks.canOpenWithSystemDefault = true
-  mocks.fileContext = {}
+  mocks.settings = { activeRuntimeEnvironmentId: null }
   mocks.worktreeRoot = false
   vi.clearAllMocks()
 })
@@ -67,10 +83,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('terminal file link actions', () => {
-  it('offers Orca, system-default and reveal actions for a local file', async () => {
-    const openPath = vi.fn()
-    const authorizeExternalPath = vi.fn()
-    vi.stubGlobal('window', { api: { fs: { authorizeExternalPath }, shell: { openPath } } })
+  it('offers Orca and system-default actions for a local file', () => {
     const request = vi.fn()
     expect(
       handleTerminalFileLink('/repo/src/main.ts', 12, 4, plainEvent(), deps, context(request))
@@ -88,10 +101,6 @@ describe('terminal file link actions', () => {
         alternate: expect.objectContaining({ label: 'Open with default app' })
       })
     )
-    await actionRequest.additionalActions[0].run()
-    expect(actionRequest.additionalActions[0].label).toBe('Reveal in Finder')
-    expect(authorizeExternalPath).toHaveBeenCalledWith({ targetPath: '/repo/src/main.ts' })
-    expect(openPath).toHaveBeenCalledWith('/repo/src/main.ts')
     actionRequest.primary.run()
     actionRequest.alternate.run()
     expect(mocks.openDetectedFilePath).toHaveBeenNthCalledWith(1, '/repo/src/main.ts', 12, 4, deps)
@@ -99,16 +108,6 @@ describe('terminal file link actions', () => {
       ...deps,
       openWithSystemDefault: true
     })
-  })
-
-  it.each([
-    ['Windows', 'Reveal in File Explorer'],
-    ['Linux', 'Open Containing Folder']
-  ])('uses the file manager label for %s', (userAgent, label) => {
-    vi.stubGlobal('navigator', { userAgent })
-    const request = vi.fn()
-    handleTerminalFileLink('/repo/src/main.ts', null, null, plainEvent(), deps, context(request))
-    expect(request.mock.calls[0][0].additionalActions[0].label).toBe(label)
   })
 
   it('labels workspace switching and omits an impossible remote alternate', () => {
@@ -143,35 +142,13 @@ describe('terminal file link actions', () => {
     const actionRequest = request.mock.calls[0][0]
     expect(actionRequest.primary.label).toBe('Open file')
     expect(actionRequest.alternate.label).toBe('Download & open with default app')
-    expect(actionRequest.additionalActions).toBeUndefined()
 
     actionRequest.alternate.run()
-    expect(mocks.downloadAndOpen).toHaveBeenCalledWith({}, '/repo/docs/report.html')
+    expect(mocks.downloadAndOpen).toHaveBeenCalledWith(
+      { sourceHostResolved: true },
+      '/repo/docs/report.html'
+    )
     expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
-  })
-
-  it('uses the file-scoped host context for a folder-workspace preview', () => {
-    mocks.fileContext = { connectionId: 'ssh-folder-repo' }
-    const request = vi.fn()
-
-    handleTerminalFileLink(
-      '/folder/remote-repo/src/main.ts',
-      8,
-      null,
-      plainEvent(),
-      { worktreeId: 'folder-1', worktreePath: '/folder' },
-      context(request)
-    )
-
-    expect(mocks.getTerminalFileContext).toHaveBeenCalledWith(
-      'folder-1',
-      '/folder',
-      undefined,
-      '/folder/remote-repo/src/main.ts'
-    )
-    expect(request.mock.calls[0][0].preview.runtimeContext).toEqual({
-      connectionId: 'ssh-folder-repo'
-    })
   })
 
   it('keeps row parity between local and remote previewable files', () => {
@@ -208,5 +185,118 @@ describe('terminal file link actions', () => {
     handleTerminalFileLink('/repo/docs/', null, null, plainEvent(), deps, context(request))
 
     expect(request.mock.calls[0][0]).not.toHaveProperty('alternate')
+  })
+
+  describe('reveal row', () => {
+    const revealRow = (request: ReturnType<typeof vi.fn>) =>
+      request.mock.calls[0][0].secondaryActions?.find(
+        (action: { label: string }) => action.label === 'Reveal in Finder'
+      )
+
+    it('offers Reveal in Finder for a local file link and reveals it through the shared path', async () => {
+      const request = vi.fn()
+      handleTerminalFileLink('/repo/src/main.ts', 12, 4, plainEvent(), deps, context(request))
+
+      const row = revealRow(request)
+      // Marked external so the popover draws the same icon as every other Reveal item.
+      expect(row).toMatchObject({ external: true })
+      await row.run()
+      expect(shellApi.openInFileManager).toHaveBeenCalledWith('/repo/src/main.ts')
+      expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
+    })
+
+    // Why: a macOS .app or .xcodeproj is a folder; "Reveal" must select it, never launch it.
+    it('selects a folder link in its parent instead of opening it', async () => {
+      const request = vi.fn()
+      handleTerminalFileLink(
+        '/repo/build/Orca.app',
+        null,
+        null,
+        plainEvent(),
+        deps,
+        context(request)
+      )
+
+      await revealRow(request).run()
+      expect(shellApi.openInFileManager).toHaveBeenCalledWith('/repo/build/Orca.app')
+      expect(shellApi.openFilePath).not.toHaveBeenCalled()
+      expect(fsApi.stat).not.toHaveBeenCalled()
+      expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
+    })
+
+    it('uses the platform file manager name', () => {
+      vi.stubGlobal('navigator', { userAgent: 'Windows NT 10.0' })
+      const request = vi.fn()
+      handleTerminalFileLink('C:\\repo\\a.ts', null, null, plainEvent(), deps, context(request))
+
+      expect(request.mock.calls[0][0].secondaryActions).toEqual([
+        expect.objectContaining({ label: 'Reveal in File Explorer' })
+      ])
+    })
+
+    it('omits the row for a workspace-root link, which has its own Open in Finder row', () => {
+      mocks.worktreeRoot = true
+      const request = vi.fn()
+      handleTerminalFileLink('/repo', null, null, plainEvent(), deps, context(request))
+
+      const actionRequest = request.mock.calls[0][0]
+      expect(actionRequest.alternate.label).toBe('Open in Finder')
+      expect(actionRequest).not.toHaveProperty('secondaryActions')
+    })
+
+    it('omits the row for a file owned by an SSH or runtime host', () => {
+      mocks.canOpenWithSystemDefault = false
+      const request = vi.fn()
+      handleTerminalFileLink('/repo/src/main.ts', null, null, plainEvent(), deps, context(request))
+
+      expect(request.mock.calls[0][0]).not.toHaveProperty('secondaryActions')
+    })
+
+    it.each([
+      ['an SSH host', { kind: 'ssh', connectionId: 'conn-1' }],
+      ['a paired runtime', { kind: 'runtime', runtimeEnvironmentId: 'env-1' }],
+      ['an unknown host', { kind: 'unknown' }],
+      ['an unreported host', undefined]
+    ] as const)('omits the row when the pane shell runs on %s', (_label, sourceOwner) => {
+      const request = vi.fn()
+      handleTerminalFileLink(
+        '/repo/src/main.ts',
+        null,
+        null,
+        plainEvent(),
+        deps,
+        // Why spread: a default parameter would turn an explicit undefined back into local.
+        { ...context(request), sourceOwner }
+      )
+
+      expect(request.mock.calls[0][0]).not.toHaveProperty('secondaryActions')
+    })
+
+    it('omits the row while a remote runtime is focused, or for a runtime-owned link', () => {
+      mocks.settings = { activeRuntimeEnvironmentId: 'env-1' }
+      const focused = vi.fn()
+      handleTerminalFileLink('/repo/src/main.ts', null, null, plainEvent(), deps, context(focused))
+      expect(focused.mock.calls[0][0]).not.toHaveProperty('secondaryActions')
+
+      mocks.settings = { activeRuntimeEnvironmentId: null }
+      const owned = vi.fn()
+      handleTerminalFileLink(
+        '/repo/src/main.ts',
+        null,
+        null,
+        plainEvent(),
+        { ...deps, runtimeEnvironmentId: 'env-1' },
+        context(owned)
+      )
+      expect(owned.mock.calls[0][0]).not.toHaveProperty('secondaryActions')
+    })
+
+    it('reveals nothing until the row is clicked', () => {
+      const request = vi.fn()
+      handleTerminalFileLink('/repo/src/main.ts', null, null, plainEvent(), deps, context(request))
+
+      expect(shellApi.openInFileManager).not.toHaveBeenCalled()
+      expect(fsApi.stat).not.toHaveBeenCalled()
+    })
   })
 })

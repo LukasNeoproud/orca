@@ -1,31 +1,27 @@
+import { readOpenCodeNativeChatTranscriptFull } from './transcript-opencode'
+import { isENOENT } from '../ipc/filesystem-path-containment'
 import type {
   AgentType,
   NativeChatMessage,
   NativeChatTurnLifecycle
 } from '../../shared/native-chat-types'
-import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { errorMessage } from '../ai-vault/session-scanner-values'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from './session-file-resolver'
 import { openTranscriptReadStream } from './wsl-transcript-fs-access'
 import { wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
 import {
-  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
+  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { decodeTranscriptStream } from './transcript-stream-lines'
-import {
-  CodexTranscriptUsageStatusAccumulator,
-  enrichCodexTranscriptUsageStatus
-} from './codex-transcript-usage-status'
 
 export type ReadTranscriptResult =
   | {
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
     }
   // notFound marks a retry-worthy miss (transcript not flushed to disk yet,
   // #8401) as opposed to a real parse/IO error callers surface immediately.
@@ -48,6 +44,9 @@ export async function readNativeChatTranscript(
   sessionId: string,
   options: ReadTranscriptOptions = {}
 ): Promise<ReadTranscriptResult> {
+  if (resolveNativeChatTranscriptAgent(agent) === 'opencode') {
+    return readOpenCodeNativeChatTranscriptFull(sessionId)
+  }
   let filePath: string | null
   try {
     filePath = options.filePath ?? (await resolveSessionFilePath(agent, sessionId, options))
@@ -65,15 +64,7 @@ export async function readNativeChatTranscript(
       return { messages: await readTranscript(filePath, decodeClaudeTranscriptLine) }
     }
     if (transcriptAgent === 'codex') {
-      const usage = new CodexTranscriptUsageStatusAccumulator()
-      const messages = await readTranscript(filePath, createCodexTranscriptLineDecoder(), (line) =>
-        usage.observe(line)
-      )
-      await enrichCodexTranscriptUsageStatus(filePath, usage)
-      return {
-        messages,
-        usageStatus: usage.snapshot()
-      }
+      return { messages: await readTranscript(filePath, decodeCodexTranscriptLine) }
     }
     if (transcriptAgent === 'grok') {
       return { messages: await readTranscript(filePath, decodeGrokTranscriptLine) }
@@ -85,7 +76,7 @@ export async function readNativeChatTranscript(
   } catch (err) {
     // Why: ENOENT after a successful resolve is the same first-flush/rotation
     // race as an unresolved path — keep it retry-worthy (#8401).
-    if ((err as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+    if (isENOENT(err)) {
       return { error: errorMessage(err), notFound: true }
     }
     return { error: errorMessage(err) }
@@ -94,10 +85,9 @@ export async function readNativeChatTranscript(
 
 async function readTranscript(
   filePath: string,
-  decode: (line: string, fallbackId: string) => NativeChatMessage | null,
-  onLine?: (line: string) => void
+  decode: (line: string, fallbackId: string) => NativeChatMessage | null
 ): Promise<NativeChatMessage[]> {
   const stream = openTranscriptReadStream(filePath, { encoding: 'utf-8' }, 'exact')
-  const { messages } = await decodeTranscriptStream(stream, filePath, 0, decode, true, onLine)
+  const { messages } = await decodeTranscriptStream(stream, filePath, 0, decode, true)
   return messages
 }

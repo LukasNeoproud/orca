@@ -1,36 +1,15 @@
 [
   {
-    "filePath": "src/renderer/src/components/automations/automations-page-fixtures.ts",
-    "kind": "object-property:title",
-    "text": "Nightly #1",
-    "dynamic": false,
-    "count": 1
-  },
-  {
-    "filePath": "src/renderer/src/components/automations/automations-page-fixtures.ts",
-    "kind": "object-property:label",
-    "text": "Hermes",
-    "dynamic": false,
-    "count": 1
-  },
-  {
-    "filePath": "src/renderer/src/components/sidebar/worktree-card-meta-row.tsx",
-    "kind": "jsx-attribute:label",
-    "text": "sidebar",
+    "filePath": "src/renderer/src/components/settings/appearance-search.ts",
+    "kind": "object-property:keywords",
+    "text": "Idioma",
     "dynamic": false,
     "count": 1
   },
   {
     "filePath": "src/renderer/src/components/settings/appearance-search.ts",
     "kind": "object-property:keywords",
-    "text": "语言",
-    "dynamic": false,
-    "count": 1
-  },
-  {
-    "filePath": "src/renderer/src/components/settings/appearance-search.ts",
-    "kind": "object-property:keywords",
-    "text": "語言",
+    "text": "Langue",
     "dynamic": false,
     "count": 1
   },
@@ -51,23 +30,16 @@
   {
     "filePath": "src/renderer/src/components/settings/appearance-search.ts",
     "kind": "object-property:keywords",
-    "text": "Idioma",
+    "text": "語言",
     "dynamic": false,
     "count": 1
   },
   {
     "filePath": "src/renderer/src/components/settings/appearance-search.ts",
     "kind": "object-property:keywords",
-    "text": "Langue",
+    "text": "语言",
     "dynamic": false,
     "count": 1
-  },
-  {
-    "filePath": "src/renderer/src/components/settings/terminal-advanced-platform-search.ts",
-    "kind": "object-property:keywords",
-    "text": "Ghostty",
-    "dynamic": false,
-    "count": 2
   },
   {
     "filePath": "src/renderer/src/components/settings/terminal-advanced-platform-search.ts",
@@ -77,6 +49,20 @@
     "count": 2
   },
   {
+    "filePath": "src/renderer/src/components/settings/terminal-advanced-platform-search.ts",
+    "kind": "object-property:keywords",
+    "text": "Ghostty",
+    "dynamic": false,
+    "count": 2
+  },
+  {
+    "filePath": "src/renderer/src/components/settings/terminal-pane-appearance-search.ts",
+    "kind": "object-property:keywords",
+    "text": "ghostty",
+    "dynamic": false,
+    "count": 1
+  },
+  {
     "filePath": "src/renderer/src/components/settings/terminal-pane-appearance-search.ts",
     "kind": "object-property:keywords",
     "text": "Ghostty",
@@ -84,9 +70,72 @@
     "count": 1
   },
   {
-    "filePath": "src/renderer/src/components/settings/terminal-pane-appearance-search.ts",
+    "filePath": "src/renderer/src/components/sidebar/worktree-card-meta-row.tsx",
+    "kind": "jsx-attribute:label",
+    "text": "sidebar",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/agent-manager/AgentManagerTable.tsx",
+    "kind": "jsx-expression",
+    "text": "PID",
+    "dynamic": true,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/right-sidebar/BacklogPanel.tsx",
+    "kind": "jsx-attribute:aria-label",
+    "text": "Backlog.md",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/right-sidebar/BacklogPanel.tsx",
+    "kind": "jsx-expression",
+    "text": "Backlog.md",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/settings/AzureDevOpsConnectionsSection.tsx",
+    "kind": "jsx-attribute:placeholder",
+    "text": "https://dev.azure.com/contoso",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/tab-bar/tab-create-menu-options.ts",
     "kind": "object-property:keywords",
-    "text": "ghostty",
+    "text": "backlog",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/tab-bar/tab-create-menu-options.ts",
+    "kind": "object-property:keywords",
+    "text": "board",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/tab-bar/tab-create-menu-options.ts",
+    "kind": "object-property:keywords",
+    "text": "open backlog",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/tab-bar/tab-create-menu-options.ts",
+    "kind": "object-property:keywords",
+    "text": "tasks",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/lib/backlog-board-client.ts",
+    "kind": "object-property:title",
+    "text": "Backlog.md",
     "dynamic": false,
     "count": 1
   }

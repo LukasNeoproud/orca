@@ -142,9 +142,6 @@ export function installSleepingRecordAccess(session: ConnectPanePtySession): voi
       .registerAgentLaunchConfig(session.cacheKey, session.paneStartup.launchConfig, {
         agentType: session.paneStartup.launchAgent ?? session.paneStartup.initialAgentStatus?.agent,
         ...(session.launchToken ? { launchToken: session.launchToken } : {}),
-        ...(session.paneStartup.resumeProviderSession
-          ? { providerSession: session.paneStartup.resumeProviderSession }
-          : {}),
         tabId: session.deps.tabId,
         leafId: session.pane.leafId
       })
@@ -159,8 +156,14 @@ export function installSleepingRecordAccess(session: ConnectPanePtySession): voi
       if (metadata?.launchAgent) {
         // Why: daemon launch identity can outlive the process while Orca is
         // closed. Use it to request confirmation, never as current byte authority.
-        useAppStore.getState().setPaneForegroundAgent(session.cacheKey, {
+        const state = useAppStore.getState()
+        const current = state.paneForegroundAgentByPaneKey[session.cacheKey]
+        // Why: re-mounting a parked pane must not demote this session's own read of the same agent.
+        const keepsRead =
+          current?.agent === metadata.launchAgent && current.agentEvidence === 'process-read'
+        state.setPaneForegroundAgent(session.cacheKey, {
           agent: metadata.launchAgent,
+          agentEvidence: keepsRead ? 'process-read' : 'launch-record',
           shellForeground: false
         })
       }
@@ -179,9 +182,6 @@ export function installSleepingRecordAccess(session: ConnectPanePtySession): voi
         persistedLaunchAgent,
       ...((metadata?.launchToken ?? session.launchToken)
         ? { launchToken: metadata?.launchToken ?? session.launchToken }
-        : {}),
-      ...(session.paneStartup?.resumeProviderSession
-        ? { providerSession: session.paneStartup.resumeProviderSession }
         : {}),
       tabId: session.deps.tabId,
       leafId: session.pane.leafId

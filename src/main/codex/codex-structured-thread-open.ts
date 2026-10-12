@@ -9,31 +9,26 @@ import {
   isCodexAppServerRequestError,
   type CodexAppServerConnection
 } from './codex-app-server-connection'
-import { readCodexThreadId, readCodexThreadPath } from './codex-structured-thread-facts'
-import { codexInteractionMcpConfig } from './codex-interaction-mcp-config'
+import type { CodexStructuredPermissionPolicy } from './codex-structured-permission-policy'
+import { readCodexThreadId } from './codex-structured-thread-facts'
 import {
-  readCodexCustomPermissionsDescription,
-  readCodexPermissionsMode
-} from './codex-structured-permissions'
-import {
-  ORCA_INTERACTIVE_UI_INSTRUCTIONS,
-  ORCA_INTERACT_DYNAMIC_TOOLS
-} from './codex-orca-interaction'
+  interactionResumeConfig,
+  interactiveThreadStartFields,
+  readInteractiveDeveloperInstructions
+} from './codex-thread-interaction-overlay'
 
 export type CodexOpenedThread = {
   threadId: string
+  /** Orca's interaction MCP rides this thread's config (resumes, or a start without dynamic tools). */
   interactionMcp?: true
+  /** The unsaved thread this new one was started in place of. */
+  supersededThreadId?: string
   thread?: Record<string, unknown>
-  /** Metadata-only resume needs a bounded canonical history read before publication. */
-  historyRequiresRead?: true
-  /** Rollout file Codex named, when it named one. */
-  historyPath: string | null
   historyMode?: 'legacy' | 'paginated'
   model?: string
   effort?: string
+  /** Present, including null, only when this app-server reports the effective tier. */
   serviceTier?: string | null
-  permissions?: string
-  permissionsCustomDescription?: string
 }
 
 function nonEmptyString(value: unknown): string | null {
@@ -42,16 +37,6 @@ function nonEmptyString(value: unknown): string | null {
 
 const resumeMetadataUnsupported = new WeakSet<object>()
 const interactiveThreadStartUnsupported = new WeakSet<object>()
-
-function isExcludeTurnsUnsupported(error: unknown): boolean {
-  return (
-    isCodexAppServerRequestError(error) &&
-    error.code === -32602 &&
-    /(?:unknown|unexpected|unsupported|unrecognized).{0,80}excludeTurns|excludeTurns.{0,80}(?:unknown|unexpected|unsupported|unrecognized)/i.test(
-      error.message
-    )
-  )
-}
 
 function isInteractiveThreadStartUnsupported(error: unknown): boolean {
   return (
@@ -63,134 +48,145 @@ function isInteractiveThreadStartUnsupported(error: unknown): boolean {
   )
 }
 
-function configuredDeveloperInstructions(value: unknown): string | null | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined
-  }
-  const config = (value as Record<string, unknown>).config
-  if (typeof config !== 'object' || config === null) {
-    return undefined
-  }
-  const instructions = (config as Record<string, unknown>).developer_instructions
-  return instructions === null || typeof instructions === 'string' ? instructions : undefined
-}
-
-async function additiveInteractiveInstructions(
-  connection: Pick<CodexAppServerConnection, 'request'>,
-  cwd: string,
-  timeoutMs: number | undefined
-): Promise<string | undefined> {
-  try {
-    const configured = configuredDeveloperInstructions(
-      await connection.request('config/read', { cwd }, { timeoutMs })
+function isExcludeTurnsUnsupported(error: unknown): boolean {
+  return (
+    isCodexAppServerRequestError(error) &&
+    error.code === -32602 &&
+    /(?:unknown|unexpected|unsupported|unrecognized).{0,80}excludeTurns|excludeTurns.{0,80}(?:unknown|unexpected|unsupported|unrecognized)/i.test(
+      error.message
     )
-    if (configured === undefined) {
-      return undefined
-    }
-    return configured
-      ? `${configured}\n\n${ORCA_INTERACTIVE_UI_INSTRUCTIONS}`
-      : ORCA_INTERACTIVE_UI_INSTRUCTIONS
-  } catch {
-    // An unreadable or older config API must not make Orca replace instructions it cannot preserve.
-    return undefined
-  }
-}
-
-async function startCodexThread(
-  connection: Pick<CodexAppServerConnection, 'request'>,
-  cwd: string,
-  timeoutMs: number | undefined
-): Promise<unknown> {
-  if (interactiveThreadStartUnsupported.has(connection)) {
-    return connection.request('thread/start', { cwd }, { timeoutMs })
-  }
-  const developerInstructions = await additiveInteractiveInstructions(connection, cwd, timeoutMs)
-  try {
-    return await connection.request(
-      'thread/start',
-      {
-        cwd,
-        ...(developerInstructions ? { developerInstructions } : {}),
-        dynamicTools: ORCA_INTERACT_DYNAMIC_TOOLS
-      },
-      { timeoutMs }
-    )
-  } catch (error) {
-    if (!isInteractiveThreadStartUnsupported(error)) {
-      throw error
-    }
-    interactiveThreadStartUnsupported.add(connection)
-    return connection.request('thread/start', { cwd }, { timeoutMs })
-  }
+  )
 }
 
 async function resumeCodexThread(
   connection: Pick<CodexAppServerConnection, 'request'>,
   params: Record<string, unknown>,
   timeoutMs: number | undefined
-): Promise<{ opened: unknown; historyRequiresRead: boolean }> {
+): Promise<unknown> {
   if (resumeMetadataUnsupported.has(connection)) {
-    return {
-      opened: await connection.request('thread/resume', params, { timeoutMs }),
-      historyRequiresRead: false
-    }
+    return connection.request('thread/resume', params, { timeoutMs })
   }
   try {
-    return {
-      opened: await connection.request(
-        'thread/resume',
-        { ...params, excludeTurns: true },
-        { timeoutMs }
-      ),
-      historyRequiresRead: true
-    }
+    return await connection.request(
+      'thread/resume',
+      { ...params, excludeTurns: true },
+      { timeoutMs }
+    )
   } catch (error) {
     if (!isExcludeTurnsUnsupported(error)) {
       throw error
     }
     resumeMetadataUnsupported.add(connection)
-    return {
-      opened: await connection.request('thread/resume', params, { timeoutMs }),
-      historyRequiresRead: false
-    }
+    return connection.request('thread/resume', params, { timeoutMs })
   }
+}
+
+/**
+ * Codex's own answer that it holds no rollout for this exact thread: the thread was started but
+ * never given input, so there is no conversation to lose. Codex matches the same exact text
+ * internally; any other resume failure, including a broader "not found", is not this proof.
+ * Orca's own wrapper prefix is deliberately not part of the match.
+ * Codex also uses this text for an archived thread read active-only; resume reads archived threads
+ * and answers "is archived" instead, so here the text means no rollout exists at all.
+ */
+function isCodexNoRolloutError(error: unknown, threadId: string): boolean {
+  return (
+    isCodexAppServerRequestError(error) &&
+    error.method === 'thread/resume' &&
+    error.code === -32600 &&
+    error.message.endsWith(`no rollout found for thread id ${threadId}`)
+  )
 }
 
 export async function openCodexThread(
   connection: Pick<CodexAppServerConnection, 'request' | 'prepareInteractionBridge'>,
-  launch: { cwd: string; resumeThreadId: string | null; resumePath?: string | null },
+  launch: {
+    cwd: string
+    resumeThreadId: string | null
+    resumePath?: string | null
+    supersedeIfUnsaved?: boolean
+    permissionPolicy?: CodexStructuredPermissionPolicy
+    /** Why: Codex renders a thread's base instructions for its opening model; a first turn on
+     *  another model reads as a mid-conversation switch and injects a second full prompt. */
+    model?: string
+    /** Config overrides for this thread, on start and resume alike. */
+    threadConfig?: Record<string, unknown>
+  },
   timeoutMs: number | undefined
 ): Promise<CodexOpenedThread> {
-  const bridgeEnvironment = launch.resumeThreadId
-    ? await connection.prepareInteractionBridge?.(launch.resumeThreadId)
+  const resumeThreadId = launch.resumeThreadId
+  const bridgeEnvironment = resumeThreadId
+    ? await connection.prepareInteractionBridge?.(resumeThreadId)
     : undefined
-  const resumeParams = launch.resumeThreadId
-    ? {
-        threadId: launch.resumeThreadId,
-        cwd: launch.cwd,
-        config: codexInteractionMcpConfig(bridgeEnvironment),
-        ...(launch.resumePath ? { path: launch.resumePath } : {})
+  const threadSettings = {
+    cwd: launch.cwd,
+    ...launch.permissionPolicy,
+    ...(launch.threadConfig ? { config: launch.threadConfig } : {})
+  }
+  const startParams = { ...threadSettings, ...(launch.model ? { model: launch.model } : {}) }
+  const startThread = async (): Promise<unknown> => {
+    if (interactiveThreadStartUnsupported.has(connection)) {
+      return connection.request('thread/start', startParams, { timeoutMs })
+    }
+    const developerInstructions = await readInteractiveDeveloperInstructions(
+      connection,
+      launch.cwd,
+      timeoutMs
+    )
+    try {
+      return await connection.request(
+        'thread/start',
+        { ...startParams, ...interactiveThreadStartFields(developerInstructions) },
+        { timeoutMs }
+      )
+    } catch (error) {
+      if (!isInteractiveThreadStartUnsupported(error)) {
+        throw error
       }
-    : null
-  const resumed = resumeParams ? await resumeCodexThread(connection, resumeParams, timeoutMs) : null
-  let opened = resumed ? resumed.opened : await startCodexThread(connection, launch.cwd, timeoutMs)
+      interactiveThreadStartUnsupported.add(connection)
+      return connection.request('thread/start', startParams, { timeoutMs })
+    }
+  }
+  let supersededThreadId: string | undefined
+  let opened: unknown
+  if (!resumeThreadId) {
+    opened = await startThread()
+  } else {
+    // No model: naming one makes Codex skip the thread's saved model, provider and effort.
+    // Resume cannot add dynamic tools, so the interaction MCP rides the thread config instead.
+    const resumeParams = {
+      threadId: resumeThreadId,
+      ...threadSettings,
+      ...interactionResumeConfig(launch.threadConfig, bridgeEnvironment),
+      ...(launch.resumePath ? { path: launch.resumePath } : {})
+    }
+    try {
+      opened = await resumeCodexThread(connection, resumeParams, timeoutMs)
+    } catch (error) {
+      if (!launch.supersedeIfUnsaved || !isCodexNoRolloutError(error, resumeThreadId)) {
+        throw error
+      }
+      supersededThreadId = resumeThreadId
+      opened = await startThread()
+    }
+  }
   const threadId = readCodexThreadId(opened)
   if (!threadId) {
     throw new Error('codex app-server did not name the thread it opened')
   }
-  if (launch.resumeThreadId && threadId !== launch.resumeThreadId) {
-    throw new Error(`codex app-server resumed ${threadId} instead of ${launch.resumeThreadId}`)
+  if (supersededThreadId === undefined && resumeThreadId && threadId !== resumeThreadId) {
+    throw new Error(`codex app-server resumed ${threadId} instead of ${resumeThreadId}`)
   }
-  const interactionMcp = Boolean(resumed) || interactiveThreadStartUnsupported.has(connection)
+  const resumed = Boolean(resumeThreadId) && supersededThreadId === undefined
+  const interactionMcp = resumed || interactiveThreadStartUnsupported.has(connection)
   if (!resumed && interactionMcp) {
     // Bind the bridge after creation, when the new thread's identity is known.
     const environment = await connection.prepareInteractionBridge?.(threadId)
-    const fallback = await resumeCodexThread(
+    opened = await resumeCodexThread(
       connection,
-      { threadId, cwd: launch.cwd, config: codexInteractionMcpConfig(environment) },
+      { threadId, ...threadSettings, ...interactionResumeConfig(launch.threadConfig, environment) },
       timeoutMs
     )
-    opened = fallback.opened
     if (readCodexThreadId(opened) !== threadId) {
       throw new Error('codex app-server resumed a different thread for the interaction fallback')
     }
@@ -202,23 +198,18 @@ export async function openCodexThread(
       : {}
   const model = nonEmptyString(result.model)
   const effort = nonEmptyString(result.reasoningEffort)
-  const permissions = readCodexPermissionsMode(result, launch.cwd)
-  const permissionsCustomDescription = readCodexCustomPermissionsDescription(result, launch.cwd)
+  const serviceTierKnown = Object.hasOwn(result, 'serviceTier')
+  const serviceTier = nonEmptyString(result.serviceTier)
   return {
     threadId,
     ...(interactionMcp ? { interactionMcp: true as const } : {}),
+    ...(supersededThreadId === undefined ? {} : { supersededThreadId }),
     thread,
-    ...(resumed?.historyRequiresRead ? { historyRequiresRead: true as const } : {}),
-    historyPath: readCodexThreadPath(opened),
     ...(thread.historyMode === 'legacy' || thread.historyMode === 'paginated'
       ? { historyMode: thread.historyMode }
       : {}),
     ...(model ? { model } : {}),
     ...(effort ? { effort } : {}),
-    ...(result.serviceTier === null || typeof result.serviceTier === 'string'
-      ? { serviceTier: result.serviceTier }
-      : {}),
-    ...(permissions ? { permissions } : {}),
-    ...(permissionsCustomDescription ? { permissionsCustomDescription } : {})
+    ...(serviceTierKnown ? { serviceTier } : {})
   }
 }

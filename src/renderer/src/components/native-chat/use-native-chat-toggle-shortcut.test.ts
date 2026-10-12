@@ -14,48 +14,6 @@ const splitLayout = {
 }
 
 describe('resolveNativeChatToggleShortcutDetectedAgent', () => {
-  it('uses foreground-only identity in the active leaf with hook precedence', () => {
-    const input = {
-      terminalTabId: 'tab-1',
-      terminalLayout: splitLayout,
-      agentStatusByPaneKey: {},
-      paneForegroundAgentByPaneKey: {
-        'tab-1:leaf-1': { agent: 'opencode' as const, shellForeground: false },
-        'tab-1:leaf-2': { agent: 'codex' as const, shellForeground: false }
-      }
-    }
-    expect(resolveNativeChatToggleShortcutDetectedAgent(input)).toBe('codex')
-    expect(
-      resolveNativeChatToggleShortcutDetectedAgent({
-        ...input,
-        agentStatusByPaneKey: { 'tab-1:leaf-2': { agentType: 'claude' } }
-      })
-    ).toBe('claude')
-    expect(
-      resolveNativeChatToggleShortcutDetectedAgent({
-        ...input,
-        terminalLayout: { ...splitLayout, activeLeafId: 'leaf-1' }
-      })
-    ).toBe('opencode')
-  })
-
-  it.each([{ shellForeground: true }, { shellForeground: false, routingRevoked: true }])(
-    'ignores shell/revoked foreground in the active leaf',
-    (flags) => {
-      expect(
-        resolveNativeChatToggleShortcutDetectedAgent({
-          terminalTabId: 'tab-1',
-          terminalLayout: splitLayout,
-          agentStatusByPaneKey: {},
-          paneForegroundAgentByPaneKey: {
-            'tab-1:leaf-1': { agent: 'codex', shellForeground: false },
-            'tab-1:leaf-2': { agent: 'codex', ...flags }
-          }
-        })
-      ).toBeNull()
-    }
-  )
-
   it('uses the active split leaf instead of the first tab agent entry', () => {
     expect(
       resolveNativeChatToggleShortcutDetectedAgent({

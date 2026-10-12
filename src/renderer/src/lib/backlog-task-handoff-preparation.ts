@@ -1,3 +1,4 @@
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import type {
   BacklogTaskAssociationSession,
   BacklogTaskAssociationTerminal
@@ -72,7 +73,9 @@ export async function prepareNewBacklogConversation(
     if (route.executionHostId !== 'local' || route.runtimeEnvironmentId !== null) {
       throw new Error('New structured conversations are available only on the local host.')
     }
-    const receipt = await startStructuredAgentLaunch(route.workspaceId, agent).launchResult
+    const receipt = await startStructuredAgentLaunch(route.workspaceId, agent, {
+      requestId: newAgentLaunchRequestId()
+    }).launchResult
     return {
       surface: 'structured',
       agent,

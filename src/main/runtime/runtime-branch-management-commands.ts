@@ -1,14 +1,11 @@
 import { readdir } from 'node:fs/promises'
 import { resolveGitDir } from '../git/source-control/resolve-git-dir'
 import { resolveFilesystemRouteForHost } from '../providers/execution-host-provider-dispatch'
-import { listWorktrees as listGitWorktrees } from '../git/worktree'
 import type {
   BranchManagementAction,
   BranchManagementPreview
 } from '../../shared/worktree/branch-management'
 import { inspectManagedBranches, mutateManagedBranch } from '../git/branch-management'
-import { gitExecFileAsync } from '../git/runner'
-import { gitOptionsForWorktree } from '../git/git-runtime-options'
 import { runWithGitReadCacheInvalidation } from '../git/status'
 import {
   localGitOptionsForTarget,
@@ -23,24 +20,16 @@ export class RuntimeBranchManagementCommands {
 
   private async context(selector: string) {
     const target = await this.host.resolveRuntimeGitTarget(selector)
+    // Upstream's provider also covers local hosts; only an SSH host reads the Git dir remotely.
     const provider = requireRuntimeGitProvider(target)
-    const git = (args: string[]) =>
-      provider
-        ? provider.exec(args, target.worktree.path)
-        : gitExecFileAsync(
-            args,
-            gitOptionsForWorktree(target.worktree.path, localGitOptionsForTarget(target))
-          )
-    const listWorktrees = () =>
-      provider
-        ? provider.listWorktrees(target.worktree.path)
-        : listGitWorktrees(target.worktree.path, localGitOptionsForTarget(target))
+    const git = (args: string[]) => provider.exec(args, target.worktree.path)
+    const listWorktrees = () => provider.listWorktrees(target.worktree.path)
     const safety = async () => {
       const blockers: string[] = []
       let entries: string[]
-      if (provider) {
-        const route = resolveFilesystemRouteForHost(target.executionHostId)
-        if (route.kind !== 'ssh' || !route.provider) {
+      const route = resolveFilesystemRouteForHost(target.executionHostId)
+      if (route.kind === 'ssh') {
+        if (!route.provider) {
           throw new Error('Git operation state is unverifiable. Reconnect the execution host.')
         }
         const gitDir = (await git(['rev-parse', '--absolute-git-dir'])).stdout.trim()

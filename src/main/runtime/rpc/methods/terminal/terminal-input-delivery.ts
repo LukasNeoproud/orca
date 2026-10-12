@@ -1,11 +1,7 @@
-import { isAgentSessionPtyWriteRefusedError } from '../../../../../shared/agent-session-pty-write-admission'
 import { InvalidArgumentError } from '../../core'
+import type { RuntimeTerminalSend } from '../../../../../shared/runtime-terminal-send-contract'
 import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
-import type {
-  DriverState,
-  OrcaRuntimeService,
-  SubscriptionRegistration
-} from '../../../orca-runtime'
+import type { DriverState, OrcaRuntimeService } from '../../../orca-runtime'
 import {
   TERMINAL_INPUT_MAX_BYTES,
   TERMINAL_INPUT_TOO_LARGE_ERROR,
@@ -38,6 +34,21 @@ export async function assertTerminalSendTextWithinLimit(text: string | undefined
   }
 }
 
+export function resolveMobileFloorClientId(
+  driver: DriverState | null,
+  client: TerminalViewportClient | undefined
+): string | null {
+  if (client?.type === 'mobile') {
+    return client.id
+  }
+  if (!client && driver?.kind === 'mobile') {
+    return driver.clientId
+  }
+  return null
+}
+
+export type TerminalStreamInputOutcome = 'delivered' | 'rejected' | 'failed'
+
 export function assertTerminalQueryReply(
   params: {
     inputKind?: string
@@ -68,21 +79,7 @@ export function assertTerminalQueryReply(
   return queryReplyClientId
 }
 
-export function resolveMobileFloorClientId(
-  driver: DriverState | null,
-  client: TerminalViewportClient | undefined
-): string | null {
-  if (client?.type === 'mobile') {
-    return client.id
-  }
-  if (!client && driver?.kind === 'mobile') {
-    return driver.clientId
-  }
-  return null
-}
-
-export type TerminalStreamInputOutcome = 'delivered' | 'rejected' | 'failed'
-
+/** Binds the written PTY to the authenticated phone that drove it, for its approval gate. */
 export function settleTerminalSendInput(
   runtime: OrcaRuntimeService,
   ptyId: string | null | undefined,
@@ -105,54 +102,10 @@ export function settleTerminalSendInput(
     params.client.id === caller.clientId
       ? caller.clientId
       : null
-  runtime.recordMobileApprovalInput(ptyId, mobileClientId)
+  runtime.recordMobileApprovalInput?.(ptyId, mobileClientId)
 }
 
-export function watchSubscriptionLifetime(
-  runtime: OrcaRuntimeService,
-  ptyId: string,
-  signal: AbortSignal | undefined,
-  registration: SubscriptionRegistration
-): () => void {
-  let unsubscribeExit: (() => void) | null = null
-  let removeAbort: (() => void) | null = null
-  let stopped = false
-  const stop = (): void => {
-    stopped = true
-    unsubscribeExit?.()
-    removeAbort?.()
-  }
-  const release = (): void => {
-    registration.releaseIfCurrent()
-    stop()
-  }
-  unsubscribeExit = runtime.subscribeToPtyExit(ptyId, release)
-  if (stopped) {
-    unsubscribeExit()
-    return stop
-  }
-  if (!signal) {
-    return stop
-  }
-  if (signal.aborted) {
-    release()
-    return stop
-  }
-  const onAbort = (): void => release()
-  removeAbort = () => signal.removeEventListener('abort', onAbort)
-  signal.addEventListener('abort', onAbort, { once: true })
-  if (stopped) {
-    removeAbort()
-  }
-  return stop
-}
-
-export function isTerminalStreamInputRejection(error: unknown): boolean {
-  // Why: a lease refusal is a deliberate rejection, not a transport failure, so the stream reports
-  // it through the WriteUnavailable frame old clients already decode rather than a new opcode.
-  if (isAgentSessionPtyWriteRefusedError(error)) {
-    return true
-  }
+function isTerminalStreamInputRejection(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
   return message.includes('terminal_not_writable') || message.includes('terminal_handle_stale')
 }
@@ -164,56 +117,66 @@ export async function sendTerminalStreamInput(
     text: string
     client: TerminalViewportClient | undefined
     isMobile: boolean
+    /** Waits for the provider's handoff; one that may have written is `failed`, not `rejected`. */
+    requireWriteSettlement?: boolean
+    /** The connection's authenticated phone; only its own stream binds an approval. */
     authenticatedMobileClientId?: string
   }
 ): Promise<TerminalStreamInputOutcome> {
   const action = { text: args.text, enter: false, interrupt: false }
-  const clientId =
-    args.isMobile && args.client?.id === args.authenticatedMobileClientId
-      ? args.authenticatedMobileClientId
-      : undefined
-  let writtenPtyId: string | null = null
-  const markInput = (): void => {
-    if (writtenPtyId) {
-      runtime.recordMobileApprovalInput(writtenPtyId, clientId ?? null)
-    }
-  }
+  const clientId = args.isMobile ? args.client?.id : undefined
   const floorClaim: MobileInputFloorClaimHolder = { current: null }
+  const settlement = args.requireWriteSettlement ? { requireWriteSettlement: true as const } : {}
+  const approvalClientId =
+    args.isMobile &&
+    args.authenticatedMobileClientId &&
+    args.client?.id === args.authenticatedMobileClientId
+      ? args.authenticatedMobileClientId
+      : null
+  let writtenPtyId: string | null = null
   try {
-    if (!clientId) {
-      const result = await runtime.sendTerminal(args.terminal, action, {
-        afterWrite: (ptyId) => {
-          writtenPtyId = ptyId
-        }
-      })
-      if (result.accepted) {
-        markInput()
-      }
-      return result.accepted ? 'delivered' : 'rejected'
-    }
     const result = await runtime.sendTerminal(args.terminal, action, {
-      reserveWrite: (writePtyId) => {
-        const claim = runtime.beginMobileInputFloor(writePtyId, clientId)
-        if (!claim) {
-          throw new Error('mobile_input_floor_unavailable')
-        }
-        floorClaim.current = claim
-      },
-      afterWrite: async (ptyId) => {
-        writtenPtyId = ptyId
-        await commitMobileInputFloorClaim(floorClaim)
-      }
+      inputKind: 'driving',
+      ...settlement,
+      ...(clientId
+        ? {
+            reserveWrite: (writePtyId: string) => {
+              const claim = runtime.beginMobileInputFloor(writePtyId, clientId)
+              if (!claim) {
+                throw new Error('mobile_input_floor_unavailable')
+              }
+              floorClaim.current = claim
+            },
+            afterWrite: async (ptyId: string) => {
+              writtenPtyId = ptyId
+              await commitMobileInputFloorClaim(floorClaim)
+            }
+          }
+        : {
+            afterWrite: (ptyId: string) => {
+              writtenPtyId = ptyId
+            }
+          })
     })
-    if (!result.accepted) {
+    const outcome = streamInputOutcome(result)
+    if (outcome === 'rejected') {
       floorClaim.current?.rollback()
-      return 'rejected'
+    } else if (outcome === 'delivered' && writtenPtyId) {
+      runtime.recordMobileApprovalInput?.(writtenPtyId, approvalClientId)
     }
-    markInput()
-    return 'delivered'
+    return outcome
   } catch (error) {
     floorClaim.current?.rollback()
     return isTerminalStreamInputRejection(error) ? 'rejected' : 'failed'
   }
+}
+
+function streamInputOutcome(result: RuntimeTerminalSend): TerminalStreamInputOutcome {
+  if (result.writeSettlement?.outcome === 'unverifiable') {
+    // Why: only bytes that may already be in flight are ambiguous; the rest are a proven refusal.
+    return result.writeSettlement.bytesHandedToTransport ? 'failed' : 'rejected'
+  }
+  return result.accepted ? 'delivered' : 'rejected'
 }
 
 export type MobileInputFloorClaimHolder = {

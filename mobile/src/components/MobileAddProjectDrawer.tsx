@@ -9,6 +9,7 @@ import {
   type MobileAddProjectKind,
   type MobileAddProjectMode
 } from './use-mobile-add-project'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 export type MobileAddProjectDrawerProps = {
   visible: boolean
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     color: colors.textPrimary,
-    fontSize: typography.bodySize
+    fontSize: TEXT_INPUT_FONT_SIZE
   },
   error: { color: colors.statusRed, fontSize: typography.metaSize, marginTop: spacing.md },
   actions: {

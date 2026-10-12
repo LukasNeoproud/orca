@@ -3,6 +3,7 @@ import {
   hasAdmissionCapacity,
   HostDataAuthSchema,
   parseRelayHostCapabilities,
+  RELAY_ASSIGNMENT_LEASE_HEADER,
   RELAY_ADMISSION_BUDGETS,
   RELAY_HOST_CAPABILITIES_HEADER,
   RELAY_CLOSE_CODE,
@@ -13,24 +14,34 @@ import {
 import type { IncomingMessage } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
+import { createRemoteJWKSet } from 'jose'
 import { WebSocketServer } from 'ws'
 import type WebSocket from 'ws'
 import type { RawData } from 'ws'
 import { createRelayApp } from './app.js'
+import type { CellFlags } from './cell-flags.js'
+import { AssignmentLeaseShadow } from './assignment-lease-shadow.js'
 import { RelayAssignmentStore } from './assignment-store.js'
 import type { RelayConfig } from './config.js'
 import { RelayCredentialStore } from './credential-store.js'
-import type { RelayDatabase } from './database.js'
+import {
+  readRelayDatabasePoolOldestWaitMs,
+  readRelayDatabasePoolPressure,
+  type RelayDatabase
+} from './database.js'
 import { HostSessionRegistry } from './host-session-registry.js'
 import { observeRelayDatabase } from './observed-relay-database.js'
 import { RelayObservability } from './relay-observability.js'
-import {
-  RelayConnectionLedger,
-  type RelayConnectionUpgrade
-} from './relay-connection-ledger.js'
+import { combineRegionalRehomeSafety } from './regional-rehome-safety.js'
+import { RelayConnectionLedger, type RelayConnectionUpgrade } from './relay-connection-ledger.js'
+import { PlacementLoadBand } from './placement-load-band.js'
+import type { AppliedControlFlags } from './relay-control-flag-channel.js'
+import { createRelayLocalReadiness } from './relay-local-readiness.js'
 import { createRelayReadiness } from './relay-readiness.js'
 import { createRelayTokenVerifier, readBearer } from './relay-token-verifier.js'
 import { closeRelayWebSocket } from './relay-websocket-close.js'
+import { ShadowDirectoryCompare } from './shadow-directory-compare.js'
+import { startShadowSeatPoller } from './shadow-seat-directory.js'
 import { ProcessQueuedByteBudget } from './splice-forwarder.js'
 
 // A malformed percent-escape in the request target must be a client error, never a URIError
@@ -43,8 +54,23 @@ function decodePathSegment(value: string): string | null {
   }
 }
 
-function rejectUpgrade(socket: NodeJS.WritableStream, status: number, message: string): void {
-  socket.write(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`)
+// Healthy cells peak at 2 waiters (p99, 2026-10-07). A head that has waited half
+// the 2 s acquire timeout with a whole pool's worth queued behind it means
+// hellos are already timing out; the count floor keeps one slow waiter from
+// tripping it. On 10-07 every window that met both also logged SQL failures.
+export const HOST_HELLO_SHED_OLDEST_WAIT_MS = 1_000
+const HOST_HELLO_SHED_RETRY_AFTER_SECONDS = 2
+
+function rejectUpgrade(
+  socket: NodeJS.WritableStream,
+  status: number,
+  message: string,
+  retryAfterSeconds?: number
+): void {
+  const retryAfter = retryAfterSeconds === undefined ? '' : `Retry-After: ${retryAfterSeconds}\r\n`
+  socket.write(
+    `HTTP/1.1 ${status} ${message}\r\n${retryAfter}Connection: close\r\nContent-Length: 0\r\n\r\n`
+  )
   if ('destroy' in socket && typeof socket.destroy === 'function') socket.destroy()
 }
 
@@ -63,9 +89,13 @@ function guardSocketErrors(socket: WebSocket, kind: string): void {
   })
 }
 
+function firstHeader(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
 function admissionSource(request: IncomingMessage): string {
   const forwarded = request.headers['x-forwarded-for']
-  const chain = (Array.isArray(forwarded) ? forwarded.join(',') : forwarded ?? '')
+  const chain = (Array.isArray(forwarded) ? forwarded.join(',') : (forwarded ?? ''))
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -93,6 +123,7 @@ export function createRelayServer(
     random?: () => number
     connectionLedgerLimits?: { hardCap: number; controlReserve: number }
     cellIncarnation?: string
+    cellFlags?: () => AppliedControlFlags<CellFlags>
   } = {}
 ) {
   const cellIncarnation = options.cellIncarnation ?? randomUUID()
@@ -108,16 +139,32 @@ export function createRelayServer(
     perMessageDeflate: false,
     maxPayload: 1024 * 1024
   })
-  const verifyRelayToken = createRelayTokenVerifier(config)
+  const relayJwks = createRemoteJWKSet(new URL(config.jwksUrl))
+  const verifyRelayToken = createRelayTokenVerifier(config, relayJwks)
   const store = new RelayCredentialStore(observedDatabase, options.now)
   const assignments = new RelayAssignmentStore(observedDatabase, options.now, {
     requireLiveCells: config.role === 'director',
+    placementLoadBand: config.role === 'director' ? new PlacementLoadBand(options.random) : undefined,
+    regionalRehomeCohortPercent: config.regionCorrectionCohortPercent ?? 0,
+    // The director runs in the database's region; only its rehome readers use this.
+    regionalRehomeDirectorRegion:
+      config.role === 'director' ? (config.region ?? RELAY_DEFAULT_REGION) : undefined,
     recordControlRenewal: (durationMs, outcome) =>
       observability.recordControlRenewal?.(durationMs, outcome)
   })
-  const ready = createRelayReadiness(observedDatabase, config.jwksUrl, {
-    observe: (observation) => observability.recordReadiness(observation)
+  const readiness = createRelayReadiness(observedDatabase, config.jwksUrl, {
+    jwksGraceMs: config.readinessJwksGraceMs,
+    sqlGraceMs: config.readinessSqlGraceMs,
+    observe: (observation) => observability.recordReadiness(observation),
+    observeGrace: (event) => observability.recordReadinessGrace(event)
   })
+  const ready = readiness.check
+  const shadowSeatPoller = startShadowSeatPoller(config, {
+    listCells: () => assignments.seatFeedCells()
+  })
+  const shadowCompare = shadowSeatPoller
+    ? new ShadowDirectoryCompare(shadowSeatPoller.directory, options.now)
+    : undefined
   const queuedBytes = new ProcessQueuedByteBudget()
   const sessions = new HostSessionRegistry(
     config,
@@ -127,22 +174,65 @@ export function createRelayServer(
     queuedBytes,
     observability,
     options.now,
-    options.random
+    options.random,
+    cellIncarnation,
+    new AssignmentLeaseShadow({
+      enabled: () => options.cellFlags?.().flags.ticketCheck === 'shadow',
+      key: config.assignmentSigningKey,
+      cellId: config.cellId
+    })
   )
   const app = createRelayApp(config, {
     store,
     assignments,
-    drain: (graceMs) => sessions.drain(graceMs),
+    drain: (graceMs, options) => sessions.drain(graceMs, options ?? {}),
     drainHost: (input) => sessions.drainHost(input),
+    idleRehome: (input) => {
+      const now = (options.now ?? Date.now)()
+      if (input.directorSafety.observedAt > now || now - input.directorSafety.observedAt > 60_000) {
+        return Promise.resolve({ outcome: 'deferred', reason: 'director-safety-stale' })
+      }
+      return sessions.idleRehome(input,
+        () => assignments.commitIdleRegionalRehome(input, combineRegionalRehomeSafety(
+          input.directorSafety,
+          { ...observability.regionalRehomeRuntimeSafety(), ...readRelayDatabasePoolPressure(database) }
+        ), input.cohortPercent),
+        () => assignments.reconcileIdleRegionalRehome(input)
+      )
+    },
     regionalRehomeTrustProbeHostExists: (input) => sessions.get(input) !== null,
     cellIncarnation,
+    cellSeatFeed: (sinceSeq) => sessions.seatFeed(sinceSeq),
+    cellFlags: options.cellFlags,
     isDraining: () => sessions.isDraining(),
     runtimeCounts: () => runtimeCounts(),
+    regionalRehomeSafetySnapshot: () => ({
+      ...observability.regionalRehomeRuntimeSafety(),
+      ...readRelayDatabasePoolPressure(database)
+    }),
     ready,
+    readinessDegradation: () => readiness.degradedDependencies(),
+    readinessLocal: () => options.cellFlags?.().flags.readinessLocal ?? false,
+    relayJwks,
+    localReadiness: createRelayLocalReadiness({
+      listening: () => server.listening,
+      keys: relayJwks,
+      failingDependencies: () => readiness.failingDependencies()
+    }),
     recordAssignmentAdmission: (outcome) => observability.recordAssignmentAdmission?.(outcome),
     recordAssignmentRejectionReason: (lane, reason) =>
       observability.recordAssignmentRejectionReason?.(lane, reason),
+    recordDrainReturnRetryAfter: (seconds) => observability.recordDrainReturnRetryAfter?.(seconds),
+    recordAdmissionServiceMs: (lane, durationMs) =>
+      observability.recordAdmissionServiceMs?.(lane, durationMs),
+    recordAssignmentUnavailable: (cause) => observability.recordAssignmentUnavailable?.(cause),
     recordRegionRequest: (region) => observability.recordRegionRequest?.(region),
+    shadowSeats: shadowSeatPoller?.directory,
+    compareShadowSeats: shadowCompare
+      ? (route, identity, answer) => {
+          shadowCompare.compare(route, identity, answer)
+        }
+      : undefined,
     recordRegionSelection: (input) => observability.recordRegionSelection?.(input)
   })
   const observedFetch: typeof app.fetch = async (...args) => {
@@ -251,7 +341,7 @@ export function createRelayServer(
       finished = true
       authenticated(source)
       observability.recordAuth(false)
-      socket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'first frame timeout')
+      closeRelayWebSocket(socket, RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'first frame timeout')
     }, RELAY_PROTOCOL_LIMITS.firstFrameDeadlineMs)
     socket.once('message', (raw, binary) => {
       if (finished) return
@@ -260,7 +350,11 @@ export function createRelayServer(
       authenticated(source)
       if (binary) {
         observability.recordAuth(false)
-        socket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'first frame must be text')
+        closeRelayWebSocket(
+          socket,
+          RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL,
+          'first frame must be text'
+        )
         return
       }
       void callback(raw).catch((error: unknown) => {
@@ -331,7 +425,11 @@ export function createRelayServer(
               webSocket.send(
                 JSON.stringify({ type: 'relay-hello', ok: false, code: RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL })
               )
-              webSocket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'invalid relay auth')
+              closeRelayWebSocket(
+                webSocket,
+                RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL,
+                'invalid relay auth'
+              )
               return
             }
             if (config.role === 'director') {
@@ -339,7 +437,7 @@ export function createRelayServer(
               const identity = invite ? { userId: invite.userId, relayHostId: hostId } : null
               // Released combined-service invites gain their first durable cell assignment here.
               const assignment = identity
-                ? (await assignments.resolve(identity)) ?? (await assignments.assign(identity))
+                ? ((await assignments.resolve(identity)) ?? (await assignments.assign(identity)))
                 : null
               if (!invite || !assignment) {
                 phoneAdmission?.hostData.release()
@@ -351,7 +449,11 @@ export function createRelayServer(
                     code: RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL
                   })
                 )
-                webSocket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'invalid invite')
+                closeRelayWebSocket(
+                  webSocket,
+                  RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL,
+                  'invalid invite'
+                )
                 return
               }
               phoneAdmission?.hostData.release()
@@ -364,7 +466,7 @@ export function createRelayServer(
                   assignmentEpoch: assignment.assignmentEpoch
                 })
               )
-              webSocket.close(RELAY_CLOSE_CODE.DRAINING, 'connect to assigned cell')
+              closeRelayWebSocket(webSocket, RELAY_CLOSE_CODE.DRAINING, 'connect to assigned cell')
               return
             }
             await sessions.acceptClient(
@@ -417,7 +519,11 @@ export function createRelayServer(
             const auth = HostDataAuthSchema.safeParse(firstPayload(raw, 'host-data-auth'))
             if (!auth.success) {
               observability.recordAuth(false)
-              webSocket.close(RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL, 'invalid host data auth')
+              closeRelayWebSocket(
+                webSocket,
+                RELAY_CLOSE_CODE.BAD_OUTER_CREDENTIAL,
+                'invalid host data auth'
+              )
               return
             }
             const accepted = await sessions.acceptHostData(
@@ -461,6 +567,20 @@ export function createRelayServer(
         userId: identity.sub,
         relayHostId: identity.relayHostId
       })
+      // A hello costs several pooled queries, each failing after a 2 s wait. Shed
+      // only while the pool is already timing them out: the refused desktop gets
+      // the same connect error and backoff a timed-out hello gives it today, 2 s
+      // sooner (shipped desktops ignore Retry-After). A rebind over a live control
+      // is a lease rotation, not a reconnect, so it is never refused here.
+      if (
+        !isRebind &&
+        readRelayDatabasePoolPressure(database).databasePoolWaiting >= config.databasePoolMax &&
+        readRelayDatabasePoolOldestWaitMs(database) >= HOST_HELLO_SHED_OLDEST_WAIT_MS
+      ) {
+        observability.recordHostHelloShed()
+        rejectUpgrade(socket, 503, 'Service Unavailable', HOST_HELLO_SHED_RETRY_AFTER_SECONDS)
+        return
+      }
       const controlUpgrade = connectionLedger?.tryReserveControl(isRebind) ?? null
       if (
         (connectionLedger && !controlUpgrade) ||
@@ -489,7 +609,8 @@ export function createRelayServer(
             webSocket,
             identity,
             controlUpgrade?.inclusionWatermark,
-            parseRelayHostCapabilities(request.headers[RELAY_HOST_CAPABILITIES_HEADER])
+            parseRelayHostCapabilities(request.headers[RELAY_HOST_CAPABILITIES_HEADER]),
+            firstHeader(request.headers[RELAY_ASSIGNMENT_LEASE_HEADER])
           )
         })
       } catch {
@@ -538,11 +659,7 @@ export function createRelayServer(
     runtimeCounts,
     connectionSnapshot,
     ready,
-    cellIncarnation
+    cellIncarnation,
+    shadowSeatPoller
   }
-}
-
-export function closeWithDrain(socket: WebSocket, graceMs: number): void {
-  socket.send(JSON.stringify({ type: 'drain', graceMs, recovery: 'resolve-director' }))
-  socket.close(RELAY_CLOSE_CODE.DRAINING, 'resolve configured director')
 }

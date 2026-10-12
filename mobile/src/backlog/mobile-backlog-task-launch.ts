@@ -1,16 +1,17 @@
-import type {
-  AgentSessionMutationResult,
-  AgentSessionSendResult
+import {
+  agentSessionSendSubmission,
+  type AgentSessionMutationResult,
+  type AgentSessionSendResult
 } from '../../../src/shared/agent-session-wire'
 import type { BacklogTaskAssociation } from '../../../src/shared/backlog-task-association'
 import type { BacklogTask } from '../../../src/shared/backlog-types'
 import {
-  createStructuredAgentSessionOutboxEntry,
-  structuredAgentSessionSendRequest
-} from '../../../src/shared/structured-agent-session-outbox'
+  structuredAgentSessionMessageSendMutation,
+  structuredAgentSessionSendBody
+} from '../../../src/shared/structured-agent-session-send-mutation'
 import { sendMobileNativeChatMessageWithOutcome } from '../session/mobile-native-chat-send'
 import { activateMobileSessionTab } from '../session/mobile-session-tab-activation'
-import { structuredSessionOperationId } from '../session/mobile-structured-agent-session-rpc'
+import { structuredSessionOperationId } from '../session/structured-session-operation-id'
 import { revealMobileStructuredAgentSession } from '../session/mobile-structured-agent-session-launch'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
@@ -183,25 +184,23 @@ async function sendStructuredPrompt(
   attemptId: string,
   fence: number
 ): Promise<boolean> {
-  const entry = createStructuredAgentSessionOutboxEntry({
-    clientMessageId: attemptId,
+  const params = structuredAgentSessionMessageSendMutation({
     sessionId,
-    text: prompt,
-    attachments: [],
-    queuedAt: Date.now()
+    clientOperationId: attemptId,
+    expectedRuntimeFence: fence,
+    body: structuredAgentSessionSendBody(prompt, [])
   })
   try {
-    const response = await client.sendRequest(
-      'agentSession.send',
-      structuredAgentSessionSendRequest(entry, fence),
-      { timeoutMs: 15_000, budgetSpansConnect: true }
-    )
+    const response = await client.sendRequest('agentSession.send', params, {
+      timeoutMs: 15_000,
+      budgetSpansConnect: true
+    })
     if (!response.ok) {
       return false
     }
     const result = (response as RpcSuccess)
       .result as AgentSessionMutationResult<AgentSessionSendResult>
-    return result.ok && result.value.submission.dispatchState === 'accepted'
+    return result.ok && agentSessionSendSubmission(result.value)?.dispatchState === 'accepted'
   } catch {
     return false
   }

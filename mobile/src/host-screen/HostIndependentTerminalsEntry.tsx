@@ -12,11 +12,13 @@ export function HostIndependentTerminalsEntry({
   connected,
   enabled,
   onPress
-}: HostIndependentTerminalsEntryProps): React.JSX.Element {
-  const available = connected && enabled
-  const description = enabled
-    ? 'Terminals without a project or workspace'
-    : 'Enable Floating Workspace in desktop settings'
+}: HostIndependentTerminalsEntryProps): React.JSX.Element | null {
+  // Shown only with Floating Workspace on, as the desktop's header button is.
+  if (!enabled) {
+    return null
+  }
+  const available = connected
+  const description = 'Terminals without a project or workspace'
 
   return (
     <Pressable

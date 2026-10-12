@@ -16,9 +16,12 @@ import { buildRuntimePtySpawnOptions } from './spawn-options'
 import { executeRuntimePtySpawn } from './spawn-execute'
 import { commitRuntimePtySpawn } from './spawn-commit'
 import { createRuntimePtySpawnState, type RuntimePtySpawnArgs } from './spawn-state'
+import {
+  commitRuntimeSpawnHiddenDelivery,
+  releaseRuntimeSpawnPreSpawnHiddenMark
+} from './spawn-hidden-delivery'
 
 function toRuntimeSpawnReply(result: {
-  pid?: number | null
   id: string
   incarnationId?: string
   wslDistro?: string | null
@@ -27,7 +30,6 @@ function toRuntimeSpawnReply(result: {
 }) {
   return {
     id: result.id,
-    ...(typeof result.pid === 'number' && result.pid > 0 ? { pid: result.pid } : {}),
     ...(result.incarnationId ? { incarnationId: result.incarnationId } : {}),
     ...(typeof result.wslDistro === 'string' ? { wslDistro: result.wslDistro } : {}),
     ...(result.stablePaneOwner ? { stablePaneOwner: result.stablePaneOwner } : {}),
@@ -97,8 +99,11 @@ export async function spawnPtyFromRuntimeController(
       return toRuntimeSpawnReply(earlyReserved)
     }
     await executeRuntimePtySpawn(ctx)
-    return toRuntimeSpawnReply(await commitRuntimePtySpawn(ctx))
+    const committed = await commitRuntimePtySpawn(ctx)
+    commitRuntimeSpawnHiddenDelivery(ctx)
+    return toRuntimeSpawnReply(committed)
   } catch (err) {
+    releaseRuntimeSpawnPreSpawnHiddenMark(ctx)
     if (ctx.pendingRegistrationPtyId) {
       deps.runtime?.cancelPendingPtyRegistration?.(
         ctx.pendingRegistrationPtyId,

@@ -99,6 +99,7 @@ describe('mobile explicit worktree creation', () => {
       comment: undefined,
       setupDecision: 'inherit',
       nameWasGenerated: false,
+      agentLaunchSupported: false,
       worktreeCreateIdempotency: false,
       explicitCreation: creation
     })
@@ -127,6 +128,7 @@ describe('mobile explicit worktree creation', () => {
       branchNameOverride: 'feature/kept',
       setupDecision: 'inherit',
       nameWasGenerated: false,
+      agentLaunchSupported: false,
       worktreeCreateIdempotency: { dedupeTtlMs: 60_000 },
       explicitCreation: overriddenCreation
     })

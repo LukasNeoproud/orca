@@ -7,6 +7,7 @@ import {
   type TerminalLiveInputKeyPressEvent
 } from './use-terminal-live-key-press'
 import { appendedTerminalCharacter, buildPendingTerminalKey } from './terminal-pending-modifiers'
+import { reportedLiveInputComposing } from '../platform/live-input-composing-range'
 import { sendTerminalLiveControlAfterPendingFlush } from './terminal-live-control-send-order'
 import type { TerminalLiveAccessoryInput } from './terminal-live-accessory-input'
 import type { TerminalLiveInputSender } from './terminal-live-input-sender'
@@ -216,7 +217,7 @@ export function useTerminalLiveInputCommit<TTabType extends string>({
       void applyLiveInputMirror(
         activeHandle,
         normalizeTerminalTextInput(nativeEvent.text),
-        nativeEvent.isComposing
+        reportedLiveInputComposing(nativeEvent.isComposing)
       )
     },
     [

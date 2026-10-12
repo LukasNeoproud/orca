@@ -1,10 +1,10 @@
-import * as Clipboard from 'expo-clipboard'
-import { AlertTriangle, Copy } from 'lucide-react-native'
+import { AlertTriangle } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { WorktreeCheckoutWarning } from '../../../src/shared/worktree/checkout-warning'
 import { formatMobileCheckoutWarning } from '../tasks/worktree-checkout-warning'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { BottomDrawer } from './BottomDrawer'
+import { CheckoutRecoveryCopyButton } from './CheckoutRecoveryCopyButton'
 
 export function NewWorktreeCheckoutRecoverySheet({
   warning,
@@ -29,14 +29,12 @@ export function NewWorktreeCheckoutRecoverySheet({
             <Text style={styles.note} selectable>
               {prompt}
             </Text>
-            <Pressable
+            <CheckoutRecoveryCopyButton
+              value={prompt}
+              label="Copy prompt"
               style={styles.secondaryButton}
-              onPress={() => void Clipboard.setStringAsync(prompt)}
-              accessibilityRole="button"
-            >
-              <Copy size={16} color={colors.textPrimary} />
-              <Text style={styles.secondaryText}>Copy prompt</Text>
-            </Pressable>
+              textStyle={styles.secondaryText}
+            />
           </>
         ) : null}
         {note ? (
@@ -45,14 +43,12 @@ export function NewWorktreeCheckoutRecoverySheet({
             <Text style={styles.note} selectable>
               {note}
             </Text>
-            <Pressable
+            <CheckoutRecoveryCopyButton
+              value={note}
+              label="Copy note"
               style={styles.secondaryButton}
-              onPress={() => void Clipboard.setStringAsync(note)}
-              accessibilityRole="button"
-            >
-              <Copy size={16} color={colors.textPrimary} />
-              <Text style={styles.secondaryText}>Copy note</Text>
-            </Pressable>
+              textStyle={styles.secondaryText}
+            />
           </>
         ) : null}
         <Pressable style={styles.primaryButton} onPress={onOpen} accessibilityRole="button">

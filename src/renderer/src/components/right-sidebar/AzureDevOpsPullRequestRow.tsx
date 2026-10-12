@@ -31,7 +31,7 @@ function VoteIcon({ vote }: { vote: AzureDevOpsReviewVote }): React.JSX.Element 
           aria-label={translate('azureDevOpsReview.voteRejected', 'You rejected')}
         />
       )
-    default:
+    case 'none':
       return null
   }
 }

@@ -6,6 +6,7 @@ import type { MobileSessionTab } from './mobile-session-route-types'
 import { mobileEmulatorTabId } from './mobile-local-emulator-tab'
 import { useMobileSessionEmulatorTabs } from './use-mobile-session-emulator-tabs'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import type { PendingSessionSelection } from './pending-session-selection'
 
 const storage = vi.hoisted(() => new Map<string, string>())
 let routeFocused = true
@@ -63,11 +64,10 @@ function makeScope(worktreeId = 'worktree-1') {
       scope.localEmulatorTabs = tabs
     }),
     localEmulatorTabsRef,
-    activeSessionTabId: null,
+    activeSessionTabId: null as string | null,
     activeSessionTabIdRef,
     selectedSessionTabIdRef: { current: null },
-    pendingActiveSessionTabIdRef: { current: null },
-    pendingActiveTerminalHandleRef: { current: null },
+    pendingSelectionRef: { current: null as PendingSessionSelection | null },
     activeSessionTabTypeRef: { current: null },
     activeHandleRef: { current: null },
     setActiveHandle: vi.fn(),
@@ -225,11 +225,11 @@ describe('mobile-local emulator tabs', () => {
     await act(async () => {
       renderer = create(createElement(Harness))
     })
-    scope.pendingActiveSessionTabIdRef.current = 'browser-1'
+    scope.pendingSelectionRef.current = { kind: 'tab', tabId: 'browser-1' }
     scope.activeSessionTabId = 'browser-1'
     activeSessionTabIdRef.current = 'browser-1'
     await act(async () => renderer.update(createElement(Harness)))
-    scope.pendingActiveSessionTabIdRef.current = null
+    scope.pendingSelectionRef.current = null
     await act(async () => {
       finishRead(
         JSON.stringify({ tabs: [{ device: ios }], selectedTabId: mobileEmulatorTabId(ios) })

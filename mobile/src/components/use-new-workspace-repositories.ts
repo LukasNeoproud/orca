@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RpcClient } from '../transport/rpc-client'
-import type { RpcSuccess } from '../transport/types'
+import { nativeChatRepoListRead } from '../session/mobile-session-read-operations'
 import { getCachedRepos, setCachedRepos } from '../cache/repo-cache'
 import { useLastVisitedWorktreeRepoId } from '../worktree/use-last-visited-worktree-repo'
 import {
@@ -38,19 +38,21 @@ export function useNewWorkspaceRepositories(args: {
       }
       const generation = ++listRequestGenerationRef.current
       try {
-        const response = await client.sendRequest('repo.list')
+        const response = await nativeChatRepoListRead.request(client)
         if (generation !== listRequestGenerationRef.current) {
           return
         }
-        if (!response.ok) {
-          throw new Error(response.error.message)
+        const listed = nativeChatRepoListRead.interpret(response)
+        if (!listed.accepted) {
+          throw new Error('Could not load projects. Reopen the form to retry.')
         }
-        const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
-        setRepos(result.repos)
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Same repo shape the list read above relies on.
+        const listedRepos = listed.value as MobileWorkspaceRepo[]
+        setRepos(listedRepos)
         if (hostId) {
-          setCachedRepos(hostId, result.repos)
+          setCachedRepos(hostId, listedRepos)
         }
-        const preferred = result.repos.find((repo) => repo.id === preferredRepoId)
+        const preferred = listedRepos.find((repo) => repo.id === preferredRepoId)
         if (!preferred) {
           throw new Error('The new project is not available yet. Reopen the form to retry.')
         }
@@ -86,19 +88,24 @@ export function useNewWorkspaceRepositories(args: {
     let stale = false
     const generation = ++listRequestGenerationRef.current
     setLoading(true)
-    void client
-      .sendRequest('repo.list')
+    void nativeChatRepoListRead
+      .request(client)
       .then((response) => {
-        if (stale || generation !== listRequestGenerationRef.current || !response.ok) {
+        if (stale || generation !== listRequestGenerationRef.current) {
           return
         }
-        const result = (response as RpcSuccess).result as { repos: MobileWorkspaceRepo[] }
-        setRepos(result.repos)
+        const listed = nativeChatRepoListRead.interpret(response)
+        if (!listed.accepted) {
+          return
+        }
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Preserve the established response shape at this boundary.
+        const listedRepos = listed.value as MobileWorkspaceRepo[]
+        setRepos(listedRepos)
         if (hostId) {
-          setCachedRepos(hostId, result.repos)
+          setCachedRepos(hostId, listedRepos)
         }
         setSelectedRepo((current) =>
-          refreshMobileNewWorkspaceDialogSelectedRepo(result.repos, current)
+          refreshMobileNewWorkspaceDialogSelectedRepo(listedRepos, current)
         )
       })
       .catch(() => undefined)

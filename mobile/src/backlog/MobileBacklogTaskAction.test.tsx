@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MobileBacklogTaskAction } from './MobileBacklogTaskAction'
+import { hostType } from '../test-support/host-type-predicate'
 
 const mocks = vi.hoisted(() => ({
   readAssociation: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock('./MobileBacklogTaskLaunchSheet', () => ({
 vi.mock('./mobile-backlog-styles', () => ({ backlogStyles: {} }))
 vi.mock('../theme/mobile-theme', () => ({ colors: { bgBase: '#111', textSecondary: '#999' } }))
 
-const task = { id: 'TASK-20', title: 'Start it', status: 'To Do' }
+const task = { id: 'TASK-20', title: 'Start it', status: 'To Do', priority: null }
 const association = {
   projectId: 'project-1',
   executionHostId: 'local' as const,
@@ -79,8 +80,10 @@ describe('MobileBacklogTaskAction', () => {
     const renderer = await renderAction(true)
     expect(JSON.stringify(renderer.toJSON())).toContain('Continue will not resend')
     const button = renderer.root
-      .findAllByType('Pressable')
-      .find((node) => node.findAllByType('Text').some((text) => text.props.children === 'Continue'))
+      .findAll(hostType('Pressable'))
+      .find((node) =>
+        node.findAll(hostType('Text')).some((text) => text.props.children === 'Continue')
+      )
     await act(async () => button?.props.onPress())
 
     expect(mocks.continueTask).toHaveBeenCalledOnce()

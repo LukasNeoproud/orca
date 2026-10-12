@@ -2,7 +2,8 @@ import type { AgentSessionHistoryResult } from '../../../src/shared/agent-sessio
 import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
 import { isResumableTuiAgent } from '../../../src/shared/agent-session-resume'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
-import { readMobileReviewCreatedTerminal } from '../session/mobile-diff-review-rpc'
+import { reviewTerminalCreateRun } from '../session/mobile-review-terminal-operations'
+import { interpretOrThrowRefusalMessage } from '../transport/rpc-refusal-message'
 import { createMobileStructuredAgentSession } from '../session/mobile-structured-agent-session-launch'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcSuccess } from '../transport/types'
@@ -62,8 +63,8 @@ export async function prepareMobileBacklogConversation(args: {
     }
     return { option, structuredFence: await readStructuredFence(args.client, option) }
   }
-  const created = await args.client.sendRequest(
-    'session.tabs.createTerminal',
+  const created = await reviewTerminalCreateRun.request(
+    args.client,
     {
       worktree: `id:${args.targetWorkspaceId}`,
       agent: args.conversation.agent,
@@ -74,13 +75,10 @@ export async function prepareMobileBacklogConversation(args: {
     },
     { timeoutMs: 15_000, budgetSpansConnect: true }
   )
-  if (!created.ok) {
-    throw new Error(created.error?.message || 'Unable to start the agent conversation.')
-  }
-  const tab = readMobileReviewCreatedTerminal((created as RpcSuccess).result)
-  if (!tab) {
-    throw new Error('The host returned an invalid terminal conversation.')
-  }
+  const tab = interpretOrThrowRefusalMessage(
+    () => reviewTerminalCreateRun.interpret(created),
+    'Unable to start the agent conversation.'
+  )
   return {
     option: {
       id: `terminal:${tab.id}`,

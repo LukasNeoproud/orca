@@ -1,10 +1,13 @@
-import { useState, useRef, useCallback } from 'react'
-import { Platform, type Keyboard, type TextInput } from 'react-native'
+import type { PendingSessionSelection } from './pending-session-selection'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import type { TerminalFrame } from '../terminal/terminal-webview-messages'
+import type { Keyboard, TextInput } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import type { TerminalModes, TerminalWebViewHandle } from '../terminal/terminal-webview-contract'
 import { useTerminalLiveInputFocus } from '../terminal/use-terminal-live-input-focus'
+import { reopensFocusedInputWhenKeyboardHidden } from '../terminal/terminal-live-input-keyboard-reopen'
 import type { TerminalLiveInputSender } from '../terminal/terminal-live-input-sender'
 import { useTerminalLiveInputCommit } from '../terminal/use-terminal-live-input-commit'
 import { triggerError } from '../platform/haptics'
@@ -82,8 +85,7 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
   const bufferedTerminalDraftState = useBufferedTerminalDrafts({ activeHandle, activeHandleRef })
   const reconcileBufferedDraftsRef = useRef(bufferedTerminalDraftState.reconcileTerminalTabs)
   const activeSessionTabTypeRef = useRef<MobileSessionTabType | null>(null)
-  const pendingActiveSessionTabIdRef = useRef<string | null>(null)
-  const pendingActiveTerminalHandleRef = useRef<string | null>(null)
+  const pendingSelectionRef = useRef<PendingSessionSelection | null>(null)
   // Why: remember the page id to activate its session tab once it syncs (bridge auto-activate flags only webContents, not the app-level active tab).
   const pendingBrowserFocusPageIdRef = useRef<string | null>(null)
   const switchSessionTabRef = useRef<((tab: MobileSessionTab) => void) | null>(null)
@@ -103,10 +105,9 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
   // Why: highest applyLayout seq seen per handle; drop older scrollback/resized as stale, but a >20 gap resets (fresh subscription/server restart).
   const layoutSeqRef = useRef<Map<string, number>>(new Map())
   const sendingRef = useRef(false)
-  // Why: exact terminal-frame height for measureFitDimensions; window.innerHeight can overstate the visible area.
-  const terminalFrameHeightRef = useRef<number>(0)
-  // Why: sidebar resizes change the terminal frame width without a window-dim change; track it so the refit hook re-fits (see terminal-viewport-refit.ts).
-  const [terminalFrameWidth, setTerminalFrameWidth] = useState(0)
+  // Why: the terminal frame React Native laid out, unrounded, for every fit; window.innerHeight can
+  // overstate the visible area. Null until the frame's first layout.
+  const terminalFrameRef = useRef<TerminalFrame | null>(null)
   const activeSessionTab = sessionTabs.find((tab) => tab.id === activeSessionTabId) ?? null
   const {
     clearPendingLiveInputCommit,
@@ -151,9 +152,15 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     lifecycleIdentity: client,
     lifecycleKey: JSON.stringify([hostId, worktreeId, connState]),
     liveInputEnabled,
-    reopenFocusedInputWhenKeyboardHidden: Platform.OS === 'android',
+    reopenFocusedInputWhenKeyboardHidden: reopensFocusedInputWhenKeyboardHidden(),
     timerRef: liveInputFocusTimerRef
   })
+  useEffect(() => {
+    // Why: a modifier armed before the soft keyboard hid would apply to the next unrelated key.
+    if (keyboardHeight === 0) {
+      clearPendingModifiers()
+    }
+  }, [clearPendingModifiers, keyboardHeight])
   useFocusEffect(
     useCallback(() => {
       // Expo retains this route while pushed screens are visible.
@@ -194,8 +201,7 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     webReadyHandlesRef,
     activeHandleRef,
     activeSessionTabTypeRef,
-    pendingActiveSessionTabIdRef,
-    pendingActiveTerminalHandleRef,
+    pendingSelectionRef,
     pendingBrowserFocusPageIdRef,
     switchSessionTabRef,
     pendingTerminalActivationAttemptRef,
@@ -207,9 +213,7 @@ export function useMobileSessionTerminalRuntime(scope: MobileSessionScreenStateM
     delayedActionTimersRef,
     layoutSeqRef,
     sendingRef,
-    terminalFrameHeightRef,
-    terminalFrameWidth,
-    setTerminalFrameWidth,
+    terminalFrameRef,
     activeSessionTab,
     clearPendingLiveInputCommit,
     flushPendingLiveInputBeforeExternalSend,

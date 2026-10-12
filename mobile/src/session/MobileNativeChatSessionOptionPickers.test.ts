@@ -203,43 +203,6 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     expect(rowByText('Off').props.accessibilityLabel).toBe('Fast mode, Off')
   })
 
-  it('shows a provider-reported custom permission state without making it selectable', async () => {
-    const customPermissions: SessionOptionDescriptor = {
-      id: 'permissions',
-      label: 'Permissions',
-      category: 'mode',
-      kind: {
-        type: 'select',
-        choices: [
-          { value: 'read-only', label: 'Read only' },
-          { value: 'workspace-write', label: 'Workspace' }
-        ]
-      },
-      currentValueLabel: 'Custom',
-      currentValueDescription: 'Workspace sandbox · Auto review',
-      valueSource: 'reported',
-      transport: 'agent-session',
-      settable: true
-    }
-    mount([MODEL_DESCRIPTOR, customPermissions])
-    expect(pill('Model').props.accessibilityLabel).toBe('Model, Sonnet 5 Custom')
-
-    await act(async () => pill('Model').props.onPress())
-    expect(rowByText('Custom').props.accessibilityLabel).toBe('Permissions, Custom')
-    await act(async () => rowByText('Permissions').props.onPress())
-    expect(rowByText('Custom').props.accessibilityState).toEqual({
-      checked: true,
-      disabled: true
-    })
-    expect(
-      renderer!.root
-        .findAll((node) => node.type === 'Text')
-        .some((node) => node.props.children === 'Workspace sandbox · Auto review')
-    ).toBe(true)
-    await act(async () => rowByText('Custom').props.onPress())
-    expect(setOption).not.toHaveBeenCalled()
-  })
-
   it('announces choice selection and disabled state', async () => {
     mount([MODEL_DESCRIPTOR, EFFORT_DESCRIPTOR])
     expect(pill('Model').props).toMatchObject({

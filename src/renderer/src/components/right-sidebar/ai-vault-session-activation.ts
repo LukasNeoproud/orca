@@ -35,15 +35,14 @@ export async function activateRememberedAiVaultSession(
     }
     activateAiVaultResumeWorkspace(target.workspaceId)
     const fresh = useAppStore.getState()
-    fresh.setActiveTabType('terminal')
+    fresh.setActiveTabType('terminal', target.workspaceId)
     fresh.setActiveTab(target.tabId)
     return true
   }
   return activateAiVaultStructuredSession({
     structuredSession: {
       workspaceId: target.workspaceId,
-      sessionId: target.sessionId,
-      ownerState: 'live'
+      sessionId: target.sessionId
     }
   })
 }
@@ -70,7 +69,7 @@ export function activateQueuedAiVaultTerminalSession(session: AiVaultSession): b
   }
   activateAiVaultResumeWorkspace(target.workspaceId)
   const fresh = useAppStore.getState()
-  fresh.setActiveTabType('terminal')
+  fresh.setActiveTabType('terminal', target.workspaceId)
   fresh.setActiveTab(target.tabId)
   return true
 }

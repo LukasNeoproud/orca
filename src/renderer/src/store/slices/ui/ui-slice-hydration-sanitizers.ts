@@ -1,3 +1,4 @@
+import { normalizeExplorerDisplayRootByWorktree } from '../../../../../shared/file-explorer-display-root'
 import type { AppState } from '../../types'
 import type { PersistedTrustedOrcaHooks } from '../../../../../shared/orca-yaml-hook-types'
 import type { PersistedUIState } from '../../../../../shared/persisted-ui-state-types'
@@ -239,30 +240,27 @@ export function migrateStatusBarItems(items: readonly string[] | undefined): Sta
   return out as StatusBarItem[]
 }
 
-const DEFAULT_ON_PORTS_STATUS_BAR_ITEM: StatusBarItem = 'ports'
-const DEFAULT_ON_KIMI_STATUS_BAR_ITEM: StatusBarItem = 'kimi'
-const DEFAULT_ON_MINIMAX_STATUS_BAR_ITEM: StatusBarItem = 'minimax'
-const DEFAULT_ON_ANTIGRAVITY_STATUS_BAR_ITEM: StatusBarItem = 'antigravity'
-const DEFAULT_ON_GROK_STATUS_BAR_ITEM: StatusBarItem = 'grok'
+export function hydrateUnexpectedSignoutDismissal(
+  state: Pick<UISlice, 'unexpectedSignoutDismissedVersions'>,
+  version: string | null | undefined
+): Pick<UISlice, 'dismissedUnexpectedSignoutVersion' | 'unexpectedSignoutDismissedVersions'> {
+  const observed = state.unexpectedSignoutDismissedVersions
+  return {
+    dismissedUnexpectedSignoutVersion: version ?? null,
+    // A later sync must never undo any dismissal observed in this session.
+    unexpectedSignoutDismissedVersions:
+      typeof version === 'string' && !observed.includes(version) ? [...observed, version] : observed
+  }
+}
 
-export function hydrateStatusBarItems(ui: PersistedUIState): StatusBarItem[] {
-  let items = migrateStatusBarItems(ui.statusBarItems)
-  const defaults = [
-    ['_portsStatusBarDefaultAdded', DEFAULT_ON_PORTS_STATUS_BAR_ITEM],
-    ['_kimiStatusBarDefaultAdded', DEFAULT_ON_KIMI_STATUS_BAR_ITEM],
-    ['_minimaxStatusBarDefaultAdded', DEFAULT_ON_MINIMAX_STATUS_BAR_ITEM],
-    ['_antigravityStatusBarDefaultAdded', DEFAULT_ON_ANTIGRAVITY_STATUS_BAR_ITEM],
-    ['_grokStatusBarDefaultAdded', DEFAULT_ON_GROK_STATUS_BAR_ITEM]
-  ] as const
-  for (const [flag, item] of defaults) {
-    if (!ui[flag] && !items.includes(item)) {
-      items = [...items, item]
-    }
+/** Normalizes persisted explorer records before hydration, including malformed or absent legacy values. */
+export function sanitizeExplorerPreferences(
+  ui: PersistedUIState
+): Pick<AppState, 'explorerDisplayRootByWorktree' | 'showDotfilesByWorktree'> {
+  return {
+    explorerDisplayRootByWorktree: normalizeExplorerDisplayRootByWorktree(
+      ui.explorerDisplayRootByWorktree
+    ),
+    showDotfilesByWorktree: sanitizeShowDotfilesByWorktree(ui.showDotfilesByWorktree)
   }
-  if (typeof window !== 'undefined' && defaults.some(([flag]) => !ui[flag])) {
-    window.api.ui
-      .set({ statusBarItems: items, ...Object.fromEntries(defaults.map(([flag]) => [flag, true])) })
-      .catch(console.error)
-  }
-  return items
 }

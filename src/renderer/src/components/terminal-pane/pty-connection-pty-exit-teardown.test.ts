@@ -164,14 +164,14 @@ function installSleepingCodexResumeState(restoredPtyId?: string) {
 }
 
 describe('connectPanePty', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules()
     vi.clearAllMocks()
     transportFactoryQueue = []
     createdTransportOptions = []
     storeSubscribers = []
     mockStoreState = createInitialStoreState(() => mockStoreState)
-    installTerminalTestGlobals()
+    await installTerminalTestGlobals()
   })
 
   afterEach(async () => {
@@ -324,53 +324,28 @@ describe('connectPanePty', () => {
     expect(manager.setActivePane).toHaveBeenCalledWith(1, { focus: true })
   })
 
-  it.each([false, true])(
-    'handles hidden split PTY exit with structured ownership %s',
-    async (structured) => {
-      // Why (regression, ghost blank pane): a hidden pane's bytes are withheld by the hidden-delivery gate, so "no output" proves nothing — keeping it strands a blank ghost on reveal.
-      const { connectPanePty } = await import('./pty-connection')
-      const transport = createMockTransport('pty-pane-2')
-      transportFactoryQueue.push(transport)
-      const manager = createManager(2, 2)
-      if (structured) {
-        mockStoreState = {
-          ...mockStoreState,
-          unifiedTabsByWorktree: {
-            'wt-1': [
-              {
-                id: 'tab-1',
-                entityId: 'tab-1',
-                contentType: 'terminal',
-                structuredSessionId: 'codex-session',
-                structuredSessionPaneKey: makePaneKey('tab-1', LEAF_2)
-              }
-            ]
-          }
-        } as StoreState
-      }
-      const deps = createDeps({
-        restoredLeafId: LEAF_2,
-        isVisibleRef: { current: false },
-        paneTransportsRef: { current: new Map([[1, createMockTransport('pty-pane-1')]]) }
-      })
+  it('closes a hidden split pane whose PTY exits before output instead of keeping a ghost', async () => {
+    // Why (regression, ghost blank pane): a hidden pane's bytes are withheld by the hidden-delivery gate, so "no output" proves nothing — keeping it strands a blank ghost on reveal.
+    const { connectPanePty } = await import('./pty-connection')
+    const transport = createMockTransport('pty-pane-2')
+    transportFactoryQueue.push(transport)
+    const manager = createManager(2, 2)
+    const deps = createDeps({
+      restoredLeafId: LEAF_2,
+      isVisibleRef: { current: false },
+      paneTransportsRef: { current: new Map([[1, createMockTransport('pty-pane-1')]]) }
+    })
 
-      connectPanePty(createPane(2) as never, manager as never, deps as never)
-      const onPtyExit = createdTransportOptions[0]?.onPtyExit as
-        | ((ptyId: string) => void)
-        | undefined
-      expect(onPtyExit).toBeTypeOf('function')
+    connectPanePty(createPane(2) as never, manager as never, deps as never)
+    const onPtyExit = createdTransportOptions[0]?.onPtyExit as ((ptyId: string) => void) | undefined
+    expect(onPtyExit).toBeTypeOf('function')
 
-      onPtyExit?.('pty-pane-2')
+    onPtyExit?.('pty-pane-2')
 
-      expect(deps.clearExitedPanePtyLayoutBinding).toHaveBeenCalledWith(2, 'pty-pane-2')
-      expect(deps.onPtyExitRef.current).not.toHaveBeenCalled()
-      if (structured) {
-        expect(manager.closePane).not.toHaveBeenCalled()
-      } else {
-        expect(manager.closePane).toHaveBeenCalledWith(2)
-      }
-    }
-  )
+    expect(deps.clearExitedPanePtyLayoutBinding).toHaveBeenCalledWith(2, 'pty-pane-2')
+    expect(deps.onPtyExitRef.current).not.toHaveBeenCalled()
+    expect(manager.closePane).toHaveBeenCalledWith(2)
+  })
 
   it('keeps a worktree sole terminal mounted when its freshly-spawned PTY exits before input (direnv failure)', async () => {
     // Why (regression): a failing .envrc direnv makes the sole terminal's shell exit immediately; routing to onPtyExitRef would close the tab and bounce the user to Landing, so keep it mounted.
@@ -878,6 +853,25 @@ describe('connectPanePty', () => {
     onPtyExit?.('pty-pane-2')
 
     expect(manager.closePane).toHaveBeenCalledWith(2)
+  })
+
+  it('removes the agent row when an established PTY exits through EOF (#12907)', async () => {
+    const { connectPanePty } = await import('./pty-connection')
+    const transport = createMockTransport('pty-pane-2')
+    transportFactoryQueue.push(transport)
+    const manager = createManager(2)
+    const deps = createDeps({
+      restoredLeafId: LEAF_2,
+      paneTransportsRef: { current: new Map([[1, createMockTransport('pty-pane-1')]]) }
+    })
+
+    connectPanePty(createPane(2) as never, manager as never, deps as never)
+    const onPtyExit = createdTransportOptions[0]?.onPtyExit as ((ptyId: string) => void) | undefined
+    expect(onPtyExit).toBeTypeOf('function')
+
+    onPtyExit?.('pty-pane-2')
+
+    expect(mockStoreState.removeAgentStatus).toHaveBeenCalledWith(makePaneKey('tab-1', LEAF_2))
   })
 
   it('closes a split pane when an established PTY exits after terminal input', async () => {

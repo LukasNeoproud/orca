@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
   // Stable callback identities so companion-board Effects only re-run on real state changes.
   closeWorkspaceBoard: vi.fn(),
+  dropOwnerRef: vi.fn(),
   panel: {
     workspaceBoardOpen: false,
     workspaceBoardRenderedOpen: true,
@@ -83,7 +84,7 @@ vi.mock('./WorkspaceKanbanDrawer', () => ({
 
 vi.mock('./useSidebarProjectDrop', () => ({
   useSidebarProjectDrop: () => ({
-    nativeDropTarget: undefined,
+    dropOwnerRef: mocks.dropOwnerRef,
     dropHandlers: {},
     affordance: { visible: false }
   })
@@ -112,6 +113,8 @@ function setSidebarState(settings: GlobalSettings, statusBarVisible = true): voi
     setAgentDashboardDrawerOpen: vi.fn(),
     fetchAllWorktrees: vi.fn(),
     repos: [],
+    // The toolchain banner indexes this map. The real store always has one.
+    detectedWorktreesByRepo: {},
     setSidebarWidth: vi.fn(),
     settings,
     sidebarOpen: true,
@@ -134,6 +137,7 @@ function sidebarElement(): ReactNode {
 
 beforeEach(() => {
   mocks.closeWorkspaceBoard.mockClear()
+  mocks.dropOwnerRef.mockClear()
   mocks.panel = {
     workspaceBoardOpen: false,
     workspaceBoardRenderedOpen: true,
@@ -245,5 +249,15 @@ describe('Sidebar', () => {
     render(sidebarElement())
 
     await waitFor(() => expect(setAgentDashboardDrawerOpen).toHaveBeenCalledWith(false))
+  })
+
+  it('detaches the project-drop owner while the sidebar is collapsed', () => {
+    setSidebarState(getDefaultSettings(tmpdir()))
+    const view = render(sidebarElement())
+    expect(mocks.dropOwnerRef).toHaveBeenLastCalledWith(expect.any(HTMLDivElement))
+
+    mocks.state = { ...mocks.state, sidebarOpen: false }
+    view.rerender(sidebarElement())
+    expect(mocks.dropOwnerRef).toHaveBeenLastCalledWith(null)
   })
 })

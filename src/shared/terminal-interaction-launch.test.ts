@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 import { tokenizeStartupCommand } from './tui-agent-startup-shell'
 import { buildAgentResumeStartupPlan, buildAgentStartupPlan } from './tui-agent-startup'
+
+// This file pins the injection the shared test setup neutralizes.
+vi.unmock('./terminal-interaction-launch')
 
 describe('terminal interaction launch registration', () => {
   it.each([
@@ -63,11 +66,11 @@ describe('terminal interaction launch registration', () => {
     if (!parsed.ok) {
       throw new Error(parsed.error)
     }
-    expect(parsed.tokens[1]).toBe('--mcp-config')
-    expect(JSON.parse(parsed.tokens[2])).toEqual({
+    expect(parsed.tokens[1]).toMatch(/^--mcp-config=/)
+    expect(JSON.parse(parsed.tokens[1].slice('--mcp-config='.length))).toEqual({
       mcpServers: { orca_interactive: { command: 'orca', args: ['interact', 'mcp'] } }
     })
-    expect(parsed.tokens.slice(3)).toEqual(['--model', 'sonnet'])
+    expect(parsed.tokens.slice(2)).toEqual(['--model', 'sonnet'])
     expect(command).not.toContain('--strict-mcp-config')
   })
 
@@ -97,7 +100,7 @@ describe('terminal interaction launch registration', () => {
   })
 
   it.each(['posix', 'powershell', 'cmd'] as const)(
-    'terminates Claude variadic MCP config before the prompt in %s',
+    'keeps the prompt positional after the Claude MCP config in %s',
     (shell) => {
       const plan = buildAgentStartupPlan({
         agent: 'claude',
@@ -110,9 +113,13 @@ describe('terminal interaction launch registration', () => {
       if (!parsed.ok) {
         throw new Error(parsed.error)
       }
-      expect(parsed.tokens.slice(-2)).toEqual(['--', 'fix bug'])
-      expect(parsed.tokens[1]).toBe('--mcp-config')
-      expect(JSON.parse(parsed.tokens[2]).mcpServers.orca_interactive).toBeDefined()
+      // The `=` form ends the variadic option, so no `--` is needed before the prompt.
+      expect(parsed.tokens.at(-1)).toBe('fix bug')
+      expect(parsed.tokens).not.toContain('--')
+      expect(parsed.tokens[1]).toMatch(/^--mcp-config=/)
+      expect(
+        JSON.parse(parsed.tokens[1].slice('--mcp-config='.length)).mcpServers.orca_interactive
+      ).toBeDefined()
     }
   )
 
@@ -141,7 +148,7 @@ describe('terminal interaction launch registration', () => {
       'posix',
       'darwin'
     )
-    expect(claude).toMatch(/^AGENT_OPTION=value claude '--mcp-config'/)
+    expect(claude).toMatch(/^AGENT_OPTION=value claude '--mcp-config=/)
     expect(withTerminalInteractionMcp(claude, 'claude', 'posix', 'darwin')).toBe(claude)
   })
 })

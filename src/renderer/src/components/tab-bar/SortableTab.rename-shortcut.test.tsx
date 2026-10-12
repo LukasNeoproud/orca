@@ -67,6 +67,15 @@ vi.mock('../azure-devops-review/AzureDevOpsReviewTabChip', () => ({
   AzureDevOpsReviewTabMenuItem: () => null
 }))
 
+// The menu's session lookup is covered by its own tests; this file only drives rename.
+vi.mock('./TabSessionSurfaceSwitchMenuItems', () => ({
+  TabSessionSurfaceSwitchMenuItems: () => null
+}))
+
+vi.mock('./use-tab-strip-slot-props', () => ({
+  useTabStripSlotProps: () => ({ className: '', 'data-tab-strip-slot': '' })
+}))
+
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},
@@ -174,7 +183,16 @@ vi.mock('@/components/ui/input', () => ({
   }
 }))
 
+vi.mock('./TabHoverCard', () => ({
+  TabHoverCard: function TabHoverCard(props: { children?: unknown }) {
+    return props.children
+  }
+}))
+
 vi.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: function TooltipProvider(props: { children?: unknown }) {
+    return props.children
+  },
   Tooltip: function Tooltip(props: { children?: unknown }) {
     return { type: 'Tooltip', props }
   },

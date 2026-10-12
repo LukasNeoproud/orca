@@ -3,14 +3,12 @@ import type {
   NativeChatMessage,
   NativeChatTurnLifecycle
 } from '../../shared/native-chat-types'
-import type { NativeChatUsageStatus } from '../../shared/native-chat-usage-status'
 
 // notFound marks a not-yet-on-disk miss (retry-worthy) vs a real read/parse error (#8401).
 export type NativeChatReadSessionResult =
   | {
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
     }
   | { error: string; notFound?: true }
 
@@ -24,7 +22,6 @@ export type NativeChatSubscriptionFrame =
       hasMore: boolean
       error?: string
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
       /** No transcript exists behind this window yet — render it, but do not
        *  treat it as a settled read of the session's history. */
       pending?: boolean
@@ -34,13 +31,11 @@ export type NativeChatSubscriptionFrame =
       messages: NativeChatMessage[]
       hasMore: boolean
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
     }
   | {
       type: 'appended'
       messages: NativeChatMessage[]
       lifecycle?: NativeChatTurnLifecycle
-      usageStatus?: NativeChatUsageStatus
     }
 
 /** Wire payload for the `nativeChat:appended` push channel. */

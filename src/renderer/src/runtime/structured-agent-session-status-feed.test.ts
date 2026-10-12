@@ -125,6 +125,58 @@ describe('structured agent session status feed', () => {
     expect(feed.getSnapshot().get('session-2')?.status).toBe('idle')
   })
 
+  it('confirms sessions per connection and rejects late events from a disconnected stream', async () => {
+    const feed = getStructuredAgentSessionStatusFeed(LOCAL)
+    const deactivate = feed.activate()
+    await vi.advanceTimersByTimeAsync(0)
+    hostEmit()({ type: 'snapshot', sessions: [summary('one'), summary('two')] })
+    expect(feed.getSessionObservation('one')).toBe('live')
+    await vi.advanceTimersByTimeAsync(31 * 60_000)
+    expect(feed.getSessionObservation('one')).toBe('live')
+    expect(mocks.subscribeStatus).toHaveBeenCalledOnce()
+    hostEmit()({ type: 'end' })
+    expect(feed.getSessionObservation('one')).toBe('unverifiable')
+    hostEmit()({ type: 'status', session: summary('one') })
+    expect(feed.getSessionObservation('one')).toBe('unverifiable')
+    await vi.advanceTimersByTimeAsync(300)
+    hostEmit(1)({ type: 'snapshot', sessions: [summary('two')] })
+    expect(feed.getSessionObservation('two')).toBe('live')
+    expect(feed.getSessionObservation('one')).toBe('unverifiable')
+    expect(feed.getSnapshot().has('one')).toBe(true)
+    hostEmit(1)({ type: 'status', session: summary('one') })
+    expect(feed.getSessionObservation('one')).toBe('live')
+    deactivate()
+    expect(feed.getSessionObservation('one')).toBe('unverifiable')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each(['error', 'close', 'reject'] as const)(
+    'revokes confirmation on subscription %s',
+    async (failure) => {
+      let reject!: (error: Error) => void
+      mocks.subscribeStatus.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, rejectPromise) => {
+            reject = rejectPromise
+          })
+      )
+      const feed = getStructuredAgentSessionStatusFeed(LOCAL)
+      feed.activate()
+      hostEmit()({ type: 'status', session: summary('one') })
+      expect(feed.getSessionObservation('one')).toBe('live')
+      if (failure === 'reject') {
+        reject(new Error('disconnected'))
+      } else {
+        mocks.subscribeStatus.mock.calls[0][failure === 'error' ? 2 : 3]()
+      }
+      await vi.advanceTimersByTimeAsync(0)
+      expect(feed.getSessionObservation('one')).toBe('unverifiable')
+      hostEmit()({ type: 'status', session: summary('one') })
+      expect(feed.getSessionObservation('one')).toBe('unverifiable')
+      expect(vi.getTimerCount()).toBe(1)
+    }
+  )
+
   it('stops a pending reconnect when the feeds are reset between tests', async () => {
     getStructuredAgentSessionStatusFeed(LOCAL).activate()
     await vi.advanceTimersByTimeAsync(0)
@@ -136,26 +188,5 @@ describe('structured agent session status feed', () => {
     expect(vi.getTimerCount()).toBe(0)
     await vi.advanceTimersByTimeAsync(10_000)
     expect(mocks.subscribeStatus).toHaveBeenCalledOnce()
-  })
-
-  it('invalidates usage on disconnect and accepts a fresh or older-host snapshot', async () => {
-    const feed = getStructuredAgentSessionStatusFeed(REMOTE)
-    feed.activate()
-    await vi.advanceTimersByTimeAsync(0)
-    const session = {
-      ...summary('session-1', 'working'),
-      contextUsage: { usedTokens: 84000, maxTokens: 258400 },
-      codexWeeklyUsage: { usedPercent: 59 }
-    }
-    hostEmit()({ type: 'snapshot', sessions: [session] })
-    hostEmit()({ type: 'end' })
-    expect(feed.getSnapshot().get('session-1')?.contextUsage?.stale).toBe(true)
-    expect(feed.getSnapshot().get('session-1')?.codexWeeklyUsage).toBeUndefined()
-    expect(feed.getSnapshot().get('session-1')?.status).toBe('working')
-    await vi.advanceTimersByTimeAsync(300)
-    hostEmit(1)({ type: 'snapshot', sessions: [session] })
-    expect(feed.getSnapshot().get('session-1')?.contextUsage).toEqual(session.contextUsage)
-    hostEmit(1)({ type: 'snapshot', sessions: [summary('session-1')] })
-    expect(feed.getSnapshot().get('session-1')?.contextUsage).toBeUndefined()
   })
 })

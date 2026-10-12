@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native'
-import { GitBranch, Play } from 'lucide-react-native'
+import { Play } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { recentSessionConversationTurns } from '../../../src/shared/ai-vault-session-display'
@@ -17,33 +17,23 @@ const PREVIEW_TURN_LIMIT = 5
 type Props = {
   sections: MobileAgentHistorySection[]
   sessionsById: ReadonlyMap<string, AiVaultSession>
-  initialExpandedId?: string
   refreshing: boolean
   showCurrentWorktreeBadges: boolean
   resumeActionStateBySessionId?: ReadonlyMap<string, { disabled: boolean; loading: boolean }>
   onResume?: (session: AiVaultSession) => void | Promise<void>
-  portableBranchSessionIds?: ReadonlySet<string>
-  onPortableBranch?: (session: AiVaultSession) => void
   onRefresh: () => void
 }
 
 export function MobileAgentSessionHistoryList({
   sections,
   sessionsById,
-  initialExpandedId,
   refreshing,
   showCurrentWorktreeBadges,
   resumeActionStateBySessionId,
   onResume,
-  portableBranchSessionIds,
-  onPortableBranch,
   onRefresh
 }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId ?? null)
-
-  useEffect(() => {
-    setExpandedId(initialExpandedId ?? null)
-  }, [initialExpandedId])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))
@@ -58,16 +48,12 @@ export function MobileAgentSessionHistoryList({
         showCurrentWorktreeBadge={showCurrentWorktreeBadges}
         resumeActionState={resumeActionStateBySessionId?.get(item.id)}
         onResume={onResume}
-        canPortableBranch={portableBranchSessionIds?.has(item.id) === true}
-        onPortableBranch={onPortableBranch}
         onPress={() => toggleExpanded(item.id)}
       />
     ),
     [
       expandedId,
       onResume,
-      onPortableBranch,
-      portableBranchSessionIds,
       resumeActionStateBySessionId,
       sessionsById,
       showCurrentWorktreeBadges,
@@ -108,8 +94,6 @@ function AgentHistoryCardRow({
   showCurrentWorktreeBadge,
   resumeActionState,
   onResume,
-  canPortableBranch,
-  onPortableBranch,
   onPress
 }: {
   card: MobileAgentHistoryCard
@@ -118,8 +102,6 @@ function AgentHistoryCardRow({
   showCurrentWorktreeBadge: boolean
   resumeActionState?: { disabled: boolean; loading: boolean }
   onResume?: (session: AiVaultSession) => void | Promise<void>
-  canPortableBranch: boolean
-  onPortableBranch?: (session: AiVaultSession) => void
   onPress: () => void
 }) {
   const previewTurns = useMemo(
@@ -154,51 +136,30 @@ function AgentHistoryCardRow({
             <Text style={styles.currentBadgeText}>current worktree</Text>
           </View>
         ) : null}
-        {session && (onResume || (canPortableBranch && onPortableBranch)) ? (
-          <View style={styles.cardActions}>
-            {canPortableBranch && onPortableBranch ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.branchButton,
-                  pressed && styles.resumeButtonPressed
-                ]}
-                onPress={(event) => {
-                  event.stopPropagation()
-                  onPortableBranch(session)
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Create portable SSH branch"
-              >
-                <GitBranch size={17} color={colors.textPrimary} strokeWidth={2.2} />
-              </Pressable>
-            ) : null}
-            {onResume ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.resumeButton,
-                  resumeActionState?.disabled && styles.resumeButtonDisabled,
-                  pressed && !resumeActionState?.disabled && styles.resumeButtonPressed
-                ]}
-                onPress={(event) => {
-                  event.stopPropagation()
-                  if (!resumeActionState?.disabled) {
-                    void onResume(session)
-                  }
-                }}
-                disabled={resumeActionState?.disabled}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Resume agent session"
-              >
-                {resumeActionState?.loading ? (
-                  <ActivityIndicator size="small" color={colors.textPrimary} />
-                ) : (
-                  <Play size={17} color={colors.textPrimary} strokeWidth={2.4} />
-                )}
-              </Pressable>
-            ) : null}
-          </View>
+        {session && onResume ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.resumeButton,
+              resumeActionState?.disabled && styles.resumeButtonDisabled,
+              pressed && !resumeActionState?.disabled && styles.resumeButtonPressed
+            ]}
+            onPress={(event) => {
+              event.stopPropagation()
+              if (!resumeActionState?.disabled) {
+                void onResume(session)
+              }
+            }}
+            disabled={resumeActionState?.disabled}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Resume agent session"
+          >
+            {resumeActionState?.loading ? (
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            ) : (
+              <Play size={17} color={colors.textPrimary} strokeWidth={2.4} />
+            )}
+          </Pressable>
         ) : null}
       </View>
       {expanded && previewTurns.length > 0 ? (

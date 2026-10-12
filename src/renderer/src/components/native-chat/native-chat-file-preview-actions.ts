@@ -5,7 +5,8 @@ import { useAppStore } from '@/store'
 import { detectLanguage } from '@/lib/language-detect'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
 import { resolveNativeChatFileLink, type NativeChatFileLinkContext } from './native-chat-file-link'
-import { buildTerminalFileLinkActionDetails } from '@/components/terminal-pane/terminal-file-link-actions'
+import { buildFileLinkActions } from '@/components/terminal-pane/terminal-file-link-actions'
+import { resolveNativeChatHttpLinkSourceOwner } from './native-chat-http-link-source-owner'
 
 export function nativeChatFilePreviewActions(
   anchor: HTMLElement,
@@ -20,12 +21,12 @@ export function nativeChatFilePreviewActions(
   }
   const bounds = anchor.getBoundingClientRect()
   const state = useAppStore.getState()
-  const openActions = buildTerminalFileLinkActionDetails(
+  const openActions = buildFileLinkActions(
     target.absolutePath,
     target.line,
     target.column,
     context,
-    target.absolutePath
+    resolveNativeChatHttpLinkSourceOwner(state, context.worktreeId)
   )
   const relative = toWorktreeRelativePath(target.absolutePath, context.worktreePath)
   const changed = state.gitStatusByWorktree?.[context.worktreeId]?.find(
@@ -39,8 +40,8 @@ export function nativeChatFilePreviewActions(
     kind: openActions.kind,
     primary: openActions.primary,
     alternate: openActions.alternate,
-    additionalActions: [
-      ...(openActions.additionalActions ?? []),
+    secondaryActions: [
+      ...(openActions.secondaryActions ?? []),
       ...(changed
         ? [
             {

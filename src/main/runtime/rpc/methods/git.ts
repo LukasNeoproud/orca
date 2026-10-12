@@ -1,10 +1,11 @@
-import { z } from 'zod'
-import { defineMethod, type RpcMethod } from '../core'
+import { GitManageBranchParams } from '../../../../shared/rpc-contract/git-branch-management-params'
+import { defineMethod } from '../core'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
 import {
   GitBranchCompare,
   GitBulkPaths,
+  GitBulkStage,
   GitCheckIgnored,
   GitCheckout,
   GitCommit,
@@ -20,25 +21,25 @@ import {
   GitSubmoduleStatus,
   GitTargetedRemote,
   WorktreeSelector
-} from './git-params'
+} from '../../../../shared/rpc-contract/git-params'
 
-export const GIT_METHODS: RpcMethod[] = [
+export const GIT_METHODS = [
   defineMethod({
     name: 'git.branchManagementPreview',
+    permission: 'workspace',
     params: WorktreeSelector,
     handler: async (params, { runtime }) => runtime.inspectRuntimeBranchManagement(params.worktree)
   }),
   defineMethod({
     name: 'git.manageBranch',
-    params: WorktreeSelector.extend({
-      action: z.enum(['switch', 'create', 'rename']),
-      branch: z.string().min(1)
-    }),
+    permission: 'workspace',
+    params: GitManageBranchParams,
     handler: async (params, { runtime }) =>
       runtime.manageRuntimeBranch(params.worktree, params.action, params.branch)
   }),
   defineMethod({
     name: 'git.status',
+    permission: 'workspace',
     params: GitStatusParams,
     handler: async (params, { runtime, signal }) => {
       const options =
@@ -74,18 +75,21 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.checkIgnored',
+    permission: 'workspace',
     params: GitCheckIgnored,
     handler: async (params, { runtime }) =>
       runtime.checkRuntimeGitIgnoredPaths(params.worktree, params.paths)
   }),
   defineMethod({
     name: 'git.submoduleStatus',
+    permission: 'workspace',
     params: GitSubmoduleStatus,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitSubmoduleStatus(params.worktree, params.submodulePath, params.area)
   }),
   defineMethod({
     name: 'git.history',
+    permission: 'workspace',
     params: GitHistory,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitHistory(params.worktree, {
@@ -95,45 +99,53 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.conflictOperation',
+    permission: 'workspace',
     params: WorktreeSelector,
     handler: async (params, { runtime }) => runtime.getRuntimeGitConflictOperation(params.worktree)
   }),
   defineMethod({
     name: 'git.abortMerge',
+    permission: 'workspace',
     params: WorktreeSelector,
     handler: async (params, { runtime }) => runtime.abortRuntimeGitMerge(params.worktree)
   }),
   defineMethod({
     name: 'git.abortRebase',
+    permission: 'workspace',
     params: WorktreeSelector,
     handler: async (params, { runtime }) => runtime.abortRuntimeGitRebase(params.worktree)
   }),
   defineMethod({
     name: 'git.checkout',
+    permission: 'workspace',
     params: GitCheckout,
     handler: async (params, { runtime }) =>
       runtime.checkoutRuntimeGitBranch(params.worktree, params.branch)
   }),
   defineMethod({
     name: 'git.localBranches',
+    permission: 'workspace',
     params: WorktreeSelector,
     handler: async (params, { runtime }) => runtime.listRuntimeGitLocalBranches(params.worktree)
   }),
   ...GIT_DIFF_METHODS,
   defineMethod({
     name: 'git.branchCompare',
+    permission: 'workspace',
     params: GitBranchCompare,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitBranchCompare(params.worktree, params.baseRef, params.admissionTier)
   }),
   defineMethod({
     name: 'git.commitCompare',
+    permission: 'workspace',
     params: GitCommitCompare,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitCommitCompare(params.worktree, params.commitId)
   }),
   defineMethod({
     name: 'git.upstreamStatus',
+    permission: 'workspace',
     params: GitTargetedRemote,
     handler: async (params, { runtime }) =>
       params.pushTarget === undefined
@@ -142,6 +154,7 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.fetch',
+    permission: 'workspace',
     params: GitTargetedRemote,
     handler: async (params, { runtime }) =>
       params.pushTarget === undefined
@@ -150,12 +163,14 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.forkSync',
+    permission: 'workspace',
     params: GitForkSync,
     handler: async (params, { runtime }) =>
       runtime.syncRuntimeGitForkDefaultBranch(params.worktree, params.expectedUpstream)
   }),
   defineMethod({
     name: 'git.pull',
+    permission: 'workspace',
     params: GitTargetedRemote,
     handler: async (params, { runtime }) =>
       params.pushTarget === undefined
@@ -164,6 +179,7 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.fastForward',
+    permission: 'workspace',
     params: GitTargetedRemote,
     handler: async (params, { runtime }) =>
       params.pushTarget === undefined
@@ -172,12 +188,14 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.rebaseFromBase',
+    permission: 'workspace',
     params: GitRebaseFromBase,
     handler: async (params, { runtime }) =>
       runtime.rebaseRuntimeGitFromBase(params.worktree, params.baseRef)
   }),
   defineMethod({
     name: 'git.push',
+    permission: 'workspace',
     params: GitPush,
     handler: async (params, { runtime }) =>
       runtime.pushRuntimeGit(
@@ -189,6 +207,7 @@ export const GIT_METHODS: RpcMethod[] = [
   }),
   defineMethod({
     name: 'git.commit',
+    permission: 'workspace',
     params: GitCommit,
     handler: async (params, { runtime }) =>
       runtime.commitRuntimeGit(params.worktree, params.message)
@@ -196,48 +215,56 @@ export const GIT_METHODS: RpcMethod[] = [
   ...GIT_COMMIT_MESSAGE_GENERATION_METHODS,
   defineMethod({
     name: 'git.stage',
+    permission: 'workspace',
     params: GitFilePath,
     handler: async (params, { runtime }) =>
       runtime.stageRuntimeGitPath(params.worktree, params.filePath)
   }),
   defineMethod({
     name: 'git.bulkStage',
-    params: GitBulkPaths,
+    permission: 'workspace',
+    params: GitBulkStage,
     handler: async (params, { runtime }) =>
-      runtime.bulkStageRuntimeGitPaths(params.worktree, params.filePaths)
+      runtime.bulkStageRuntimeGitPaths(params.worktree, params.filePaths, params.scope)
   }),
   defineMethod({
     name: 'git.unstage',
+    permission: 'workspace',
     params: GitFilePath,
     handler: async (params, { runtime }) =>
       runtime.unstageRuntimeGitPath(params.worktree, params.filePath)
   }),
   defineMethod({
     name: 'git.bulkUnstage',
+    permission: 'workspace',
     params: GitBulkPaths,
     handler: async (params, { runtime }) =>
       runtime.bulkUnstageRuntimeGitPaths(params.worktree, params.filePaths)
   }),
   defineMethod({
     name: 'git.discard',
+    permission: 'workspace',
     params: GitFilePath,
     handler: async (params, { runtime }) =>
       runtime.discardRuntimeGitPath(params.worktree, params.filePath)
   }),
   defineMethod({
     name: 'git.bulkDiscard',
+    permission: 'workspace',
     params: GitBulkPaths,
     handler: async (params, { runtime }) =>
       runtime.bulkDiscardRuntimeGitPaths(params.worktree, params.filePaths)
   }),
   defineMethod({
     name: 'git.remoteFileUrl',
+    permission: 'workspace',
     params: GitRemoteFileUrl,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitRemoteFileUrl(params.worktree, params.relativePath, params.line)
   }),
   defineMethod({
     name: 'git.remoteCommitUrl',
+    permission: 'workspace',
     params: GitRemoteCommitUrl,
     handler: async (params, { runtime }) =>
       runtime.getRuntimeGitRemoteCommitUrl(params.worktree, params.sha)

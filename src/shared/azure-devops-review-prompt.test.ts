@@ -21,8 +21,8 @@ describe('azureDevOpsReviewMcpAgentArgs', () => {
     if (!parsed.ok) {
       throw new Error(parsed.error)
     }
-    expect(parsed.tokens[0]).toBe('--mcp-config')
-    expect(JSON.parse(parsed.tokens[1])).toEqual({
+    expect(parsed.tokens[0]).toMatch(/^--mcp-config=/)
+    expect(JSON.parse(parsed.tokens[0].slice('--mcp-config='.length))).toEqual({
       mcpServers: { orca_ado: { command: 'orca-dev', args: ['ado', 'mcp'] } }
     })
   })

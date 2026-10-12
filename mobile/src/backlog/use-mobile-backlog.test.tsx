@@ -34,7 +34,7 @@ afterEach(() => {
 
 describe('mobile Backlog lease', () => {
   it('loads a folder workspace through host RPC and releases its lease on unmount', async () => {
-    const sendRequest = vi.fn(async (method: string) =>
+    const sendRequest = vi.fn(async (method: string, _params?: unknown) =>
       ok(
         method === 'status.get'
           ? { capabilities: ['backlog.v1', 'backlog.task-associations.v1'] }
@@ -54,8 +54,10 @@ describe('mobile Backlog lease', () => {
       leaseId: expect.any(String)
     })
     expect(latest?.taskActionsSupported).toBe(true)
-    const leaseId = sendRequest.mock.calls.find(([method]) => method === 'backlog.snapshot')?.[1]
-      .leaseId
+    const snapshotParams = sendRequest.mock.calls.find(
+      ([method]) => method === 'backlog.snapshot'
+    )?.[1] as { leaseId?: string } | undefined
+    const leaseId = snapshotParams?.leaseId
     await act(async () => renderer.unmount())
     expect(sendRequest).toHaveBeenCalledWith('backlog.releaseSnapshot', {
       workspaceId: 'folder:workspace-1',
@@ -64,7 +66,7 @@ describe('mobile Backlog lease', () => {
   })
 
   it('does not call Backlog methods on an older host', async () => {
-    const sendRequest = vi.fn(async () => ok({ capabilities: [] }))
+    const sendRequest = vi.fn(async (_method: string) => ok({ capabilities: [] }))
     transport.client = { sendRequest }
     let renderer!: ReactTestRenderer
     await act(async () => {

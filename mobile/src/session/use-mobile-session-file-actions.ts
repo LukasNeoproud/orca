@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState } from 'react'
-import { Linking } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
+import { useClipboardWriter } from '../platform/clipboard'
+import { openExternalLink } from '../platform/external-link'
 import { triggerError, triggerSuccess } from '../platform/haptics'
 import type { MobileMarkdownLinkTarget } from '../components/MobileMarkdown'
 import type { TerminalLinkActionTarget } from '../terminal/terminal-webview-contract'
@@ -103,7 +103,7 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
       // Why: browser.tabCreate resolves a real worktree, which the floating
       // sentinel doesn't have — open taps in the phone browser instead.
       if (!/^https?:\/\//i.test(url) || mode === 'phone-browser' || isFloatingWorkspaceRoute) {
-        void Linking.openURL(url).catch(() => {})
+        openExternalLink(url)
         return
       }
       void handleCreateBrowserRef.current?.(url)
@@ -186,10 +186,12 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
     },
     [openWebLink]
   )
+  const clipboard = useClipboardWriter()
   const copyLinkActionDestination = useCallback(
     (target: MobileLinkActionTarget) => {
       setLinkActionTarget(null)
-      void Clipboard.setStringAsync(mobileLinkActionDestination(target))
+      void clipboard
+        .writeText(mobileLinkActionDestination(target))
         .then(() => {
           triggerSuccess()
           showToast(target.kind === 'file' ? 'Path copied' : 'Link copied')
@@ -199,7 +201,7 @@ export function useMobileSessionFileActions(scope: MobileSessionTerminalSendActi
           showToast("Couldn't copy", 1500)
         })
     },
-    [showToast]
+    [clipboard, showToast]
   )
   const addLinkActionToMessage = useCallback(
     (target: MobileLinkActionTarget) => {

@@ -53,6 +53,7 @@ describe('deleting a workspace owner session fields', () => {
       'activeFileIdByWorktree',
       'activeBrowserTabIdByWorktree',
       'clientHostedBrowserPagesByWorktree',
+      'headlessBacklogBoardPagesByWorktree',
       'activeTabTypeByWorktree',
       'activeTabIdByWorktree',
       'unifiedTabs',

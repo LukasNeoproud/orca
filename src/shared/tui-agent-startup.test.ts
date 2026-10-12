@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { withTerminalInteractionMcp } from './terminal-interaction-launch'
 import {
   buildAgentDraftLaunchPlan,
   buildAgentResumeStartupPlan,
@@ -46,6 +45,24 @@ describe('tui agent startup plans', () => {
     }
   )
 
+  // Structured native chat stopped reading the configured arguments; a terminal launch must
+  // still spell every token of them, in order, exactly as the user wrote them.
+  it('passes the whole configured argument string to a terminal launch', () => {
+    const plan = buildAgentStartupPlan({
+      agent: 'claude',
+      prompt: '',
+      agentArgs: resolveTuiAgentLaunchArgs('claude', {
+        claude: '--dangerously-skip-permissions --model Opus'
+      }),
+      cmdOverrides: {},
+      platform: 'linux',
+      allowEmptyPromptLaunch: true
+    })
+
+    // Every token, in order, shell-quoted as the terminal path has always quoted them.
+    expect(plan?.launchCommand).toBe("claude '--dangerously-skip-permissions' '--model' 'Opus'")
+  })
+
   it('uses POSIX quoting when the target shell is Linux', () => {
     const plan = buildAgentStartupPlan({
       agent: 'claude',
@@ -54,9 +71,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("claude -- 'fix Bob'\"'\"'s branch'", 'claude', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("claude 'fix Bob'\"'\"'s branch'")
   })
 
   it('uses PowerShell quoting by default when the target shell is Windows', () => {
@@ -67,14 +82,20 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp(
-        "claude -- 'fix Bob''s \"quoted\" branch'",
-        'claude',
-        'powershell',
-        'win32'
-      )
-    )
+    expect(plan?.launchCommand).toBe("claude 'fix Bob''s \"quoted\" branch'")
+  })
+
+  // Why: a typed line break submits early, and PowerShell 5.1 without PSReadLine then hangs at `>>`.
+  it('keeps a multi-line PowerShell launch on one physical line', () => {
+    const plan = buildAgentStartupPlan({
+      agent: 'claude',
+      prompt: 'first line\nsecond $line',
+      cmdOverrides: {},
+      platform: 'win32'
+    })
+
+    expect(plan?.launchCommand).not.toMatch(/[\r\n]/)
+    expect(plan?.launchCommand).toBe('claude "first line`nsecond `$line"')
   })
 
   it('invokes fully quoted argv commands in PowerShell', () => {
@@ -92,9 +113,7 @@ describe('tui agent startup plans', () => {
       shell: 'cmd'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp('claude -- "fix ^"quoted^" ^& ^%PATH^%"', 'claude', 'cmd', 'win32')
-    )
+    expect(plan?.launchCommand).toBe('claude "fix ^"quoted^" ^& ^%PATH^%"')
   })
 
   it('terminates Grok options before a flag-shaped POSIX prompt', () => {
@@ -151,9 +170,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("codex '--version'", 'codex', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("codex '--version'")
   })
 
   it.each([
@@ -220,9 +237,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("codex 'fix it'", 'codex', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("codex 'fix it'")
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -237,7 +252,7 @@ describe('tui agent startup plans', () => {
 
     expect(plan).toEqual({
       agent: 'codex',
-      launchCommand: withTerminalInteractionMcp('codex', 'codex', 'posix', 'linux'),
+      launchCommand: 'codex',
       expectedProcess: 'codex',
       followupPrompt: null,
       launchConfig: { agentCommand: 'codex', agentArgs: '', agentEnv: {} }
@@ -252,9 +267,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("claude -- 'fix it'", 'claude', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("claude 'fix it'")
     expect(plan?.launchCommand).not.toContain('--settings')
   })
 
@@ -369,7 +382,51 @@ describe('tui agent startup plans', () => {
     })
   })
 
-  it('preserves Claude command override arguments alongside interactive MCP', () => {
+  it.each([
+    ['yolo', 'linux', 'posix', undefined, "muse --trust-workspace '--yolo'"],
+    ['manual', 'linux', 'posix', { muse: '' }, 'muse --trust-workspace'],
+    ['yolo', 'darwin', 'posix', undefined, "muse --trust-workspace '--yolo'"],
+    ['manual', 'darwin', 'posix', { muse: '' }, 'muse --trust-workspace'],
+    ['yolo', 'win32', 'powershell', undefined, "muse --trust-workspace '--yolo'"],
+    ['manual', 'win32', 'powershell', { muse: '' }, 'muse --trust-workspace'],
+    ['yolo', 'win32', 'cmd', undefined, 'muse --trust-workspace "--yolo"'],
+    ['manual', 'win32', 'cmd', { muse: '' }, 'muse --trust-workspace']
+  ] as const)(
+    'launches Muse in %s mode on %s/%s before delivering its prompt',
+    (_, platform, shell, defaults, command) => {
+      const plan = buildAgentStartupPlan({
+        agent: 'muse',
+        prompt: 'fix it',
+        cmdOverrides: {},
+        platform,
+        shell,
+        agentArgs: resolveTuiAgentLaunchArgs('muse', defaults)
+      })
+
+      expect(plan).toMatchObject({
+        agent: 'muse',
+        launchCommand: command,
+        expectedProcess: 'muse',
+        followupPrompt: 'fix it'
+      })
+    }
+  )
+
+  it.each(['exec', 'resume', '--help'])(
+    'delivers the reserved Muse prompt %s as text',
+    (prompt) => {
+      const plan = buildAgentStartupPlan({
+        agent: 'muse',
+        prompt,
+        cmdOverrides: {},
+        platform: 'linux'
+      })
+      expect(plan?.launchCommand).toBe('muse --trust-workspace')
+      expect(plan?.followupPrompt).toBe(prompt)
+    }
+  )
+
+  it('leaves Claude command overrides untouched', () => {
     const plan = buildAgentStartupPlan({
       agent: 'claude',
       prompt: 'fix it',
@@ -377,17 +434,10 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp(
-        "claude --dangerously-skip-permissions -- 'fix it'",
-        'claude',
-        'posix',
-        'linux'
-      )
-    )
+    expect(plan?.launchCommand).toBe("claude --dangerously-skip-permissions 'fix it'")
   })
 
-  it('preserves Codex command override arguments alongside interactive MCP', () => {
+  it('leaves Codex command overrides untouched', () => {
     const plan = buildAgentStartupPlan({
       agent: 'codex',
       prompt: 'fix it',
@@ -395,9 +445,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("codex --profile work 'fix it'", 'codex', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("codex --profile work 'fix it'")
   })
 
   it('builds Windows resume plans that PowerShell can invoke', () => {
@@ -408,9 +456,7 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("codex 'resume' 's1'", 'codex', 'powershell', 'win32')
-    )
+    expect(plan?.launchCommand).toBe("codex 'resume' 's1'")
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -456,9 +502,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp("codex --profile work 'resume' 's1'", 'codex', 'posix', 'linux')
-    )
+    expect(plan?.launchCommand).toBe("codex --profile work 'resume' 's1'")
   })
 
   it('uses a captured launch command when building resume plans after overrides change', () => {
@@ -470,14 +514,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp(
-        "codex --profile captured 'resume' 's1'",
-        'codex',
-        'posix',
-        'linux'
-      )
-    )
+    expect(plan?.launchCommand).toBe("codex --profile captured 'resume' 's1'")
     expect(plan?.launchConfig).toEqual({
       agentCommand: 'codex --profile captured',
       agentArgs: '',
@@ -513,12 +550,7 @@ describe('tui agent startup plans', () => {
     })
 
     expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp(
-        "claude '--model' 'sonnet' '--add-dir' 'path with spaces' -- 'fix it'",
-        'claude',
-        'posix',
-        'linux'
-      )
+      "claude '--model' 'sonnet' '--add-dir' 'path with spaces' 'fix it'"
     )
   })
 
@@ -531,14 +563,7 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe(
-      withTerminalInteractionMcp(
-        "claude '--model' 'sonnet' '--name' 'Bob''s' -- 'fix it'",
-        'claude',
-        'powershell',
-        'win32'
-      )
-    )
+    expect(plan?.launchCommand).toBe("claude '--model' 'sonnet' '--name' 'Bob''s' 'fix it'")
   })
 
   it('carries agent launch environment defaults into startup plans', () => {
@@ -698,9 +723,7 @@ describe('tui agent startup plans', () => {
     expect(plan).not.toBeNull()
     expect(plan?.env).toEqual({ ORCA_OMP_PREFILL: 'fix the omp regression' })
     expect(plan?.expectedProcess).toBe('omp')
-    expect(plan?.launchCommand).toBe(
-      `omp; command test -n "$fish_pid" && set --erase -g ORCA_OMP_PREFILL; command test -z "$fish_pid" && unset ORCA_OMP_PREFILL; true`
-    )
+    expect(plan?.launchConfig.agentCommand).toBe('omp')
   })
 
   it('returns null for oversized Windows flag drafts so callers paste after ready', () => {
@@ -725,6 +748,22 @@ describe('tui agent startup plans', () => {
     ).toBeNull()
   })
 
+  it('launches Rovo Dev as an acli subcommand and types the prompt after start', () => {
+    // `acli rovodev run <instruction>` is one-shot, so the prompt must not ride argv.
+    const plan = buildAgentStartupPlan({
+      agent: 'rovo',
+      prompt: 'fix it',
+      cmdOverrides: {},
+      agentArgs: resolveTuiAgentLaunchArgs('rovo', null),
+      platform: 'linux'
+    })
+    expect(plan).toMatchObject({
+      launchCommand: "acli rovodev run '--yolo'",
+      expectedProcess: 'acli',
+      followupPrompt: 'fix it'
+    })
+  })
+
   it('launches Devin with stdin-after-start prompt delivery', () => {
     const plan = buildAgentStartupPlan({
       agent: 'devin',
@@ -735,12 +774,12 @@ describe('tui agent startup plans', () => {
     })
     expect(plan).toEqual({
       agent: 'devin',
-      launchCommand: "devin '--permission-mode' 'bypass'",
+      launchCommand: "devin '--permission-mode' 'bypass' '--respect-workspace-trust' 'false'",
       expectedProcess: 'devin',
       followupPrompt: 'fix the tests',
       launchConfig: {
-        agentCommand: "devin '--permission-mode' 'bypass'",
-        agentArgs: '--permission-mode bypass',
+        agentCommand: "devin '--permission-mode' 'bypass' '--respect-workspace-trust' 'false'",
+        agentArgs: '--permission-mode bypass --respect-workspace-trust false',
         agentEnv: {}
       }
     })
@@ -764,6 +803,8 @@ describe('tui agent startup plans', () => {
   })
 
   it('appends Devin default permission-mode bypass before stdin prompt delivery', () => {
-    expect(resolveTuiAgentLaunchArgs('devin', null)).toBe('--permission-mode bypass')
+    expect(resolveTuiAgentLaunchArgs('devin', null)).toBe(
+      '--permission-mode bypass --respect-workspace-trust false'
+    )
   })
 })

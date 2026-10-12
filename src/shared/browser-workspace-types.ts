@@ -159,12 +159,6 @@ export type BrowserTab = BrowserWorkspace
 
 export type BrowserSessionProfileScope = 'default' | 'isolated' | 'imported'
 
-export type BrowserSessionUserAgentMode = 'clean' | 'native'
-
-export type BrowserSessionProfileCreateOptions = {
-  userAgentMode?: BrowserSessionUserAgentMode
-}
-
 export type BrowserSessionProfileSource = {
   browserFamily:
     | 'chrome'
@@ -186,7 +180,6 @@ export type BrowserSessionProfile = {
   partition: string
   label: string
   source: BrowserSessionProfileSource | null
-  userAgentMode?: BrowserSessionUserAgentMode
 }
 
 export type BrowserCookieImportSummary = {

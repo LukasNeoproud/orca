@@ -1,9 +1,10 @@
-import { Platform } from 'react-native'
 import { classifyConnection, verdictDisplayLabel } from '../transport/connection-health'
 import { computeActiveTerminalKeyboardLift } from '../terminal/terminal-keyboard-avoidance-lift'
 import { useInitialSessionTerminalAutoCreate } from './use-initial-session-terminal-autocreate'
 import { MOBILE_SESSION_STATUS_LABELS } from './mobile-session-route-helpers'
 import type { MobileSessionBulkCloseModel } from './use-mobile-session-bulk-close'
+import { hostOs } from '../platform/host-os'
+import { NO_LOCAL_EMULATOR_TABS } from './mobile-local-emulator-tab'
 
 export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel) {
   const {
@@ -25,10 +26,11 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     toastOpacityRef,
     hostEndpoint,
     initialSessionAutoCreateRef,
-    terminalFrameHeightRef,
+    terminalFrameRef,
     handleCreateTerminal,
     visibleTabs,
-    localEmulatorTabs
+    localEmulatorTabs = NO_LOCAL_EMULATOR_TABS,
+    forceReconnectHost
   } = scope
   const visibleTabCount = visibleTabs.length + localEmulatorTabs.length
   const showLoadingState = connState === 'connected' && !terminalsLoaded && visibleTabCount === 0
@@ -57,8 +59,10 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     lastConnectedAt,
     endpoint: hostEndpoint
   })
-  const showConnectionRetry =
+  const connectionEscalated =
     connectionVerdict.kind === 'warning' || connectionVerdict.kind === 'unreachable'
+  // Not on the page: the shell owns the connection and the tap could only do nothing.
+  const showConnectionRetry = connectionEscalated && forceReconnectHost !== null
 
   const terminalSummary =
     connState === 'connected'
@@ -69,19 +73,21 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
           : `${visibleTabCount} tabs`
       : showConnectionRetry
         ? `${verdictDisplayLabel(connectionVerdict)} — tap to retry`
-        : MOBILE_SESSION_STATUS_LABELS[connState]
+        : connectionEscalated
+          ? verdictDisplayLabel(connectionVerdict)
+          : MOBILE_SESSION_STATUS_LABELS[connState]
 
   // Why: iOS keyboard height includes the home-indicator inset; Android IME height does not.
   const keyboardLift =
     keyboardHeight > 0
-      ? Platform.OS === 'ios'
+      ? hostOs() === 'ios'
         ? Math.max(0, keyboardHeight - insets.bottom)
         : keyboardHeight
       : 0
   const activeTerminalKeyboardLift = computeActiveTerminalKeyboardLift({
     keyboardLift,
     metrics: activeHandle ? terminalKeyboardMetrics.get(activeHandle) : undefined,
-    terminalFrameHeight: terminalFrameHeightRef.current
+    terminalFrameHeight: terminalFrameRef.current?.height ?? 0
   })
   const toastAnimatedStyle = {
     opacity: toastOpacityRef.current,

@@ -92,10 +92,8 @@ describe('mobile rpc-client capabilities', () => {
     expect(capabilityRequest.params).toMatchObject({
       clientCapabilities: expect.arrayContaining([
         'agent-session.structured.v1',
-        'agent-session.structured.claude.v1',
-        'agent-session.status-feed.v1',
-        'agent.context-structured-mobile.v1',
-        'conversation.continuation.v1'
+        'agent-session.pending-send-result.v1',
+        'agent-session.structured.claude.v1'
       ])
     })
     expect(socket.sent.some((payload) => payload.includes('session.tabs.subscribe'))).toBe(false)

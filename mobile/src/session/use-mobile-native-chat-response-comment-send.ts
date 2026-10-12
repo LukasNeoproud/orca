@@ -24,13 +24,12 @@ type StructuredCommentAwareSend = (
   composerDraftText?: string
 ) => Promise<MobileNativeChatSendOutcome>
 
-export function useMobileNativeChatResponseCommentSend(args: {
-  scopeKey: string | null
-  structured: boolean
-  legacySend: LegacyCommentAwareSend
-  structuredSend: StructuredCommentAwareSend
-}) {
-  const { scopeKey, structured, legacySend, structuredSend } = args
+export function useMobileNativeChatResponseCommentSend(
+  scopeKey: string | null,
+  structured: boolean,
+  sends: { legacy: LegacyCommentAwareSend; structured: StructuredCommentAwareSend }
+) {
+  const { legacy: legacySend, structured: structuredSend } = sends
   const responseComments = useMobileAiResponseComments(scopeKey)
   const sendWithOutcome = useCallback(
     async (

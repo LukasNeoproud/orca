@@ -23,8 +23,7 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
     activeSessionTabId,
     activeSessionTabIdRef,
     selectedSessionTabIdRef,
-    pendingActiveSessionTabIdRef,
-    pendingActiveTerminalHandleRef,
+    pendingSelectionRef,
     activeSessionTabTypeRef,
     activeHandleRef,
     setActiveHandle,
@@ -89,8 +88,7 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       if (
         snapshot.selectedTabId &&
         !explicitHostSelectionDuringLoadRef.current &&
-        !pendingActiveSessionTabIdRef.current &&
-        !pendingActiveTerminalHandleRef.current
+        !pendingSelectionRef.current
       ) {
         selectedSessionTabIdRef.current = snapshot.selectedTabId
         activeSessionTabTypeRef.current = 'emulator'
@@ -116,7 +114,7 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
 
   useEffect(() => {
     if (restoredScopeKey !== scopeKey) {
-      if (pendingActiveSessionTabIdRef.current || pendingActiveTerminalHandleRef.current) {
+      if (pendingSelectionRef.current) {
         explicitHostSelectionDuringLoadRef.current = true
       }
       return
@@ -140,8 +138,7 @@ export function useMobileSessionEmulatorTabs(scope: MobileSessionTabSwitchingMod
       triggerSelection()
       Keyboard.dismiss()
       setSelectModeActive(false)
-      pendingActiveSessionTabIdRef.current = null
-      pendingActiveTerminalHandleRef.current = null
+      pendingSelectionRef.current = null
       selectedSessionTabIdRef.current = tab.id
       activeSessionTabTypeRef.current = 'emulator'
       activeSessionTabIdRef.current = tab.id

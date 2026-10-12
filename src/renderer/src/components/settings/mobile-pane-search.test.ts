@@ -5,6 +5,7 @@ vi.mock('@/lib/renderer-app-platform', () => ({ getRendererAppPlatform: () => pl
 vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => platform.web }))
 
 import { getMobilePaneSearchEntries, shouldOpenMobilePairingAddress } from './mobile-pane-search'
+import { matchesSettingsSearch } from './settings-search'
 
 describe('getMobilePaneSearchEntries', () => {
   // Why: the network entries were split into their own catalog and spliced back
@@ -15,7 +16,8 @@ describe('getMobilePaneSearchEntries', () => {
       'Connected Devices',
       'Device Approvals',
       'Network Interface',
-      'When you leave the mobile app'
+      'When you leave the mobile app',
+      'Machine name'
     ])
   })
 
@@ -30,6 +32,14 @@ describe('getMobilePaneSearchEntries', () => {
       'Device Approvals'
     )
     platform.web = false
+  })
+
+  it('keeps the shared machine-name entry searchable from the Mobile pane', () => {
+    // Why: the entry is shared with Remote Servers; the Mobile pane only adds its own keyword.
+    const entries = getMobilePaneSearchEntries()
+
+    expect(matchesSettingsSearch('machine name', entries)).toBe(true)
+    expect(matchesSettingsSearch('hostname', entries)).toBe(true)
   })
 })
 

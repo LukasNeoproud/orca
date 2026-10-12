@@ -4,6 +4,7 @@ import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from './settings-search'
 import { getRendererAppPlatform } from '@/lib/renderer-app-platform'
 import { isWebClientLocation } from '@/lib/web-client-location'
+import { getMachineNameSearchEntries } from './machine-name-search'
 
 const getNetworkInterfaceSearchEntries = createLocalizedCatalog(() => [
   {
@@ -145,7 +146,16 @@ const getAllMobilePaneSearchEntries = createLocalizedCatalog(() => [
       ),
       ...translateSearchKeyword('auto.components.settings.mobile.pane.search.dbccde3a60', 'close')
     ]
-  }
+  },
+  // Why: the machine name is one setting shown on several panes; the Mobile pane only adds its
+  // own keyword so "mobile machine name" still lands here.
+  ...getMachineNameSearchEntries().map((entry) => ({
+    ...entry,
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.mobile.pane.search.6db86f445f', 'mobile'),
+      ...(entry.keywords ?? [])
+    ]
+  }))
 ])
 
 export function getMobilePaneSearchEntries(): ReturnType<typeof getAllMobilePaneSearchEntries> {

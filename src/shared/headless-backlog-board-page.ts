@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { normalizeExecutionHostId, type ExecutionHostId } from './execution-host'
 import type { BacklogBoardBinding } from './backlog-board-binding'
+import { salvagedOptional, salvagingArray, salvagingRecord } from './zod-salvage'
 
 export type PersistedHeadlessBacklogBoardPage = {
   browserPageId: string
@@ -20,3 +21,10 @@ export const persistedHeadlessBacklogBoardPageSchema: z.ZodType<PersistedHeadles
       runtimeEnvironmentId: z.string().nullable()
     })
   })
+
+export const headlessBacklogBoardSessionFields = {
+  headlessBacklogBoardPagesByWorktree: salvagedOptional(
+    'headlessBacklogBoardPagesByWorktree',
+    salvagingRecord(z.string(), salvagingArray(persistedHeadlessBacklogBoardPageSchema))
+  )
+}

@@ -8,6 +8,7 @@ import { resolveWorktreeOperationRouteForHost } from './worktree-operation-route
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import { webviewRegistry } from '@/components/browser-pane/host-guest/webview-registry'
+import { createBrowserUuid } from '@/lib/browser-uuid'
 
 const BOARD_RENEW_MS = 20_000
 const pendingOpens = new Map<string, Promise<void>>()
@@ -182,7 +183,7 @@ export async function acquireBoundBacklogBoard(
 
 async function acquireBoardForPage(route: BacklogRoute, pageId: string): Promise<string> {
   const existingLease = leases.get(pageId)
-  const leaseId = existingLease?.leaseId ?? crypto.randomUUID()
+  const leaseId = existingLease?.leaseId ?? createBrowserUuid()
   try {
     const board = await callBacklog<BacklogBoard>(route, 'acquireBoard', { leaseId })
     if (!board.url) {
@@ -220,7 +221,7 @@ async function openBoard(route: BacklogRoute, targetGroupId?: string): Promise<v
     return
   }
 
-  const leaseId = crypto.randomUUID()
+  const leaseId = createBrowserUuid()
   const board = await callBacklog<BacklogBoard>(route, 'acquireBoard', { leaseId })
   if (!board.url) {
     throw new Error('Backlog.md did not return a board URL.')

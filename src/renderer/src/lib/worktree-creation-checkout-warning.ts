@@ -5,17 +5,31 @@ import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import type { CreateWorktreeResult } from '../../../shared/worktree/create-types'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 
-export async function completeRecoveredWorktreeCreation(args: {
-  creationId: string
-  request: WorktreeCreationRequest
+// Only the creation flow handles a recovered checkout without launching fallback work.
+export function checkoutRecoveryCreateOptions(request: WorktreeCreationRequest): {
+  recoverCompletedCheckoutFailure: true
+  explicitCreation?: WorktreeCreationRequest['explicitCreation']
+} {
+  return {
+    recoverCompletedCheckoutFailure: true,
+    ...(request.explicitCreation ? { explicitCreation: request.explicitCreation } : {})
+  }
+}
+
+export async function completeRecoveredWorktreeCreation(
+  creationId: string,
+  request: WorktreeCreationRequest,
   result: CreateWorktreeResult
-  activate: boolean
-}): Promise<void> {
-  const { creationId, request, result, activate } = args
+): Promise<void> {
   const warning = result.checkoutWarning
   if (!warning) {
     return
   }
+  // Reveal the paused worktree only while its creation panel or no other surface is in view.
+  const state = useAppStore.getState()
+  const activate =
+    state.activeView === 'terminal' &&
+    (state.activePendingCreationId === creationId || state.activePendingCreationId === null)
 
   const prompt =
     request.launchDraftPrompt ||

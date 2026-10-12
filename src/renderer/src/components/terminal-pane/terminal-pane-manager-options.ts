@@ -12,7 +12,7 @@ import {
   normalizeTerminalScrollSensitivity,
   resolveTerminalCursorInactiveStyle
 } from '@/lib/pane-manager/pane-terminal-options'
-import { buildFontFamily } from './layout-serialization'
+import { buildFontFamily } from '@/lib/monospace-font-family'
 import { buildWindowsPtyCompatibilityOptions } from '@/lib/pane-manager/windows-pty-compatibility'
 import { buildTerminalKeyboardProtocolOptions } from '@/lib/pane-manager/terminal-keyboard-protocol'
 import { resolvePaneKeyboardProtocolAgent } from './terminal-keyboard-protocol-pane-agent'
@@ -31,6 +31,7 @@ import {
 } from './terminal-pane-lifecycle-primitives'
 import { resolveTerminalLayoutActiveLeafId } from './terminal-layout-leaf-ids'
 import type { TerminalPaneManagerOptionsContext } from './terminal-pane-mount-context'
+import { resolveTerminalInlineImagesEnabled } from '../../../../shared/terminal-inline-images-settings'
 
 /** Builds the imperative PaneManager option bag from the mount context. */
 export function createTerminalPaneManagerOptions(
@@ -84,7 +85,7 @@ export function createTerminalPaneManagerOptions(
         context.deps.updateTabTitle(tabId, paneTitle)
       }
     },
-    onLayoutChanged: () => {
+    onLayoutChanged: (intent) => {
       scheduleRuntimeGraphSync()
       context.deps.syncExpandedLayout()
       context.syncCanExpandState()
@@ -92,7 +93,7 @@ export function createTerminalPaneManagerOptions(
       context.syncPaneLayoutRevision()
       context.queueResizeAll(false)
       if (context.shouldPersistLayout()) {
-        context.deps.persistLayoutSnapshot()
+        context.deps.persistLayoutSnapshot(intent)
       }
     },
     onPaneDragActiveChange: (active) => {
@@ -111,6 +112,8 @@ export function createTerminalPaneManagerOptions(
         settingsRef.current?.terminalLigatures,
         settingsRef.current?.terminalFontFamily
       ),
+    terminalInlineImagesEnabled: () =>
+      resolveTerminalInlineImagesEnabled(settingsRef.current?.terminalInlineImages),
     terminalOptions: () => {
       const currentSettings = settingsRef.current
       const terminalFontWeights = resolveTerminalFontWeights(

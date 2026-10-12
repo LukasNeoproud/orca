@@ -10,11 +10,9 @@ import {
 } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { parseExecutionHostId, type ExecutionHostId } from '../../../src/shared/execution-host'
-import type { RepoIcon } from '../../../src/shared/repo-icon'
 import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
-import { MobileWorkspaceConversationHistory } from '../agent-history/MobileWorkspaceConversationHistory'
+import type { MobileRenderableRepoIcon } from '../host-screen/host-screen-reply-schema'
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { AgentSpinner } from './AgentSpinner'
@@ -60,14 +58,13 @@ export type WorktreeListRowItem = {
 }
 
 type WorktreeRollupStatus = 'working' | 'active' | 'permission' | 'done' | 'inactive'
-const EMPTY_HISTORY_SESSIONS: readonly AiVaultSession[] = []
 
 type Props<T extends WorktreeListRowItem> = {
   item: T
   isReadOnly: boolean
   now: number
   repoColor: string
-  repoIcon?: RepoIcon | null
+  repoIcon?: MobileRenderableRepoIcon | null
   // When the list is already grouped under this repo's section header, the row
   // omits its own repo icon+name to avoid the redundant "📁 orca" on every row.
   hideRepo?: boolean
@@ -75,14 +72,6 @@ type Props<T extends WorktreeListRowItem> = {
   onPress: (item: T) => void
   onLongPress?: (item: T) => void
   onToggleLineage?: (item: T) => void
-  historyExpanded?: boolean
-  historyAvailable?: boolean
-  historyStatus?: 'loading' | 'ready' | 'error' | 'offline'
-  historyError?: string
-  historySessions?: readonly AiVaultSession[]
-  onToggleHistory?: (item: T) => void
-  onOpenHistory?: (item: T, session?: AiVaultSession) => void
-  onRetryHistory?: (item: T) => void
 }
 
 function WorktreeListRowComponent<T extends WorktreeListRowItem>({
@@ -95,15 +84,7 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   status,
   onPress,
   onLongPress,
-  onToggleLineage,
-  historyExpanded = false,
-  historyAvailable = false,
-  historyStatus,
-  historyError,
-  historySessions = EMPTY_HISTORY_SESSIONS,
-  onToggleHistory,
-  onOpenHistory,
-  onRetryHistory
+  onToggleLineage
 }: Props<T>) {
   const isFolderWorkspace = item.workspaceKind === 'folder-workspace'
   const folderMeta = item.comment?.trim() || item.path || 'Folder'
@@ -112,152 +93,136 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   const lineageChildCount = item.lineageChildCount ?? 0
 
   return (
-    <View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.worktreeRow,
-          lineageDepth > 0 && { paddingLeft: spacing.lg + lineageDepth * 18 },
-          item.isActive && styles.worktreeRowActive,
-          pressed && styles.worktreeRowPressed
-        ]}
-        disabled={isReadOnly}
-        onPress={() => onPress(item)}
-        onLongPress={
-          onLongPress
-            ? () => {
-                triggerMediumImpact()
-                onLongPress(item)
-              }
-            : undefined
-        }
-        delayLongPress={400}
-      >
-        <View style={styles.indicatorCol}>
-          <AgentSpinner status={status} workingMode={item.workingMode} />
-          {item.unread && (
-            <Bell
-              size={10}
-              color={colors.statusAmber}
-              fill={colors.statusAmber}
-              style={styles.unreadBell}
-            />
-          )}
-        </View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.worktreeRow,
+        lineageDepth > 0 && { paddingLeft: spacing.lg + lineageDepth * 18 },
+        item.isActive && styles.worktreeRowActive,
+        pressed && styles.worktreeRowPressed
+      ]}
+      disabled={isReadOnly}
+      onPress={() => onPress(item)}
+      onLongPress={
+        onLongPress
+          ? () => {
+              triggerMediumImpact()
+              onLongPress(item)
+            }
+          : undefined
+      }
+      delayLongPress={400}
+    >
+      <View style={styles.indicatorCol}>
+        <AgentSpinner status={status} workingMode={item.workingMode} />
+        {item.unread && (
+          <Bell
+            size={10}
+            color={colors.statusAmber}
+            fill={colors.statusAmber}
+            style={styles.unreadBell}
+          />
+        )}
+      </View>
 
-        <View style={styles.worktreeMain}>
-          <View style={styles.worktreeNameRow}>
-            <Text
-              style={[
-                styles.worktreeName,
-                item.unread && styles.worktreeNameUnread,
-                isReadOnly && styles.textReadOnly
-              ]}
-              numberOfLines={1}
-            >
-              {item.displayName || item.repo}
-            </Text>
-            {item.linkedPR && (
-              <View style={styles.prBadge}>
-                <GitPullRequest size={10} color={prStateColor(item.linkedPR.state)} />
-                <Text style={[styles.prNumber, { color: prStateColor(item.linkedPR.state) }]}>
-                  #{item.linkedPR.number}
-                </Text>
-              </View>
-            )}
-            {isFolderWorkspace && (
-              <View style={styles.folderBadge}>
-                <Text style={styles.folderBadgeText}>Folder</Text>
-              </View>
-            )}
-            <WorktreeMetaGlyphs
-              comment={item.comment}
-              linkedLinearIssue={item.linkedLinearIssue}
-              linkedGitLabMR={item.linkedGitLabMR}
-              linkedIssue={item.linkedIssue}
-              linkedGitLabIssue={item.linkedGitLabIssue}
-            />
-          </View>
-          <View style={styles.worktreeMetaRow}>
-            {lineageDepth > 0 && (
-              <View style={styles.childBadge}>
-                <GitBranch size={10} color={colors.textMuted} />
-                <Text style={styles.childBadgeText}>Child</Text>
-              </View>
-            )}
-            {item.hostContextLabel ? (
-              <View style={[styles.childBadge, styles.hostBadge]}>
-                {/* Rows from hosts that predate hostId stamping are local: a remote row always carries one. */}
-                {(parseExecutionHostId(item.hostContextHostId ?? item.hostId)?.kind ?? 'local') ===
-                'local' ? (
-                  <Monitor size={10} color={colors.textMuted} />
-                ) : (
-                  <Server size={10} color={colors.textMuted} />
-                )}
-                <Text style={[styles.childBadgeText, styles.hostBadgeText]} numberOfLines={1}>
-                  {item.hostContextLabel}
-                </Text>
-              </View>
-            ) : null}
-            {/* Repo glyph+name only when not already grouped under this repo;
+      <View style={styles.worktreeMain}>
+        <View style={styles.worktreeNameRow}>
+          <Text
+            style={[
+              styles.worktreeName,
+              item.unread && styles.worktreeNameUnread,
+              isReadOnly && styles.textReadOnly
+            ]}
+            numberOfLines={1}
+          >
+            {item.displayName || item.repo}
+          </Text>
+          {item.linkedPR && (
+            <View style={styles.prBadge}>
+              <GitPullRequest size={10} color={prStateColor(item.linkedPR.state)} />
+              <Text style={[styles.prNumber, { color: prStateColor(item.linkedPR.state) }]}>
+                #{item.linkedPR.number}
+              </Text>
+            </View>
+          )}
+          {isFolderWorkspace && (
+            <View style={styles.folderBadge}>
+              <Text style={styles.folderBadgeText}>Folder</Text>
+            </View>
+          )}
+          <WorktreeMetaGlyphs
+            comment={item.comment}
+            linkedLinearIssue={item.linkedLinearIssue}
+            linkedGitLabMR={item.linkedGitLabMR}
+            linkedIssue={item.linkedIssue}
+            linkedGitLabIssue={item.linkedGitLabIssue}
+          />
+        </View>
+        <View style={styles.worktreeMetaRow}>
+          {lineageDepth > 0 && (
+            <View style={styles.childBadge}>
+              <GitBranch size={10} color={colors.textMuted} />
+              <Text style={styles.childBadgeText}>Child</Text>
+            </View>
+          )}
+          {item.hostContextLabel ? (
+            <View style={[styles.childBadge, styles.hostBadge]}>
+              {/* Rows from hosts that predate hostId stamping are local: a remote row always carries one. */}
+              {(parseExecutionHostId(item.hostContextHostId ?? item.hostId)?.kind ?? 'local') ===
+              'local' ? (
+                <Monitor size={10} color={colors.textMuted} />
+              ) : (
+                <Server size={10} color={colors.textMuted} />
+              )}
+              <Text style={[styles.childBadgeText, styles.hostBadgeText]} numberOfLines={1}>
+                {item.hostContextLabel}
+              </Text>
+            </View>
+          ) : null}
+          {/* Repo glyph+name only when not already grouped under this repo;
               MobileRepoIcon falls back to a Folder (matching desktop's default)
               rather than a bare colored dot. */}
-            {!hideRepo && (
-              <>
-                <MobileRepoIcon repoIcon={repoIcon} size={11} color={repoColor} />
-                <Text style={styles.repoName} numberOfLines={1}>
-                  {item.repo}
-                </Text>
-              </>
-            )}
-            <Text style={styles.branchName} numberOfLines={1}>
-              {metaText}
-            </Text>
-          </View>
-          {/* Only agents get a secondary activity line, matching desktop. A plain
-            terminal's shell-output tail is intentionally not surfaced here. */}
-          {item.agents && item.agents.length > 0 ? (
-            <WorktreeAgentList agents={item.agents} now={now} unvisited={item.unread} />
-          ) : null}
-          {lineageChildCount > 0 && onToggleLineage ? (
-            <Pressable
-              style={styles.lineageToggle}
-              onPress={(event) => {
-                event.stopPropagation()
-                onToggleLineage(item)
-              }}
-            >
-              {item.lineageCollapsed ? (
-                <ChevronRight size={12} color={colors.textSecondary} />
-              ) : (
-                <ChevronDown size={12} color={colors.textSecondary} />
-              )}
-              <GitBranch size={12} color={colors.textSecondary} />
-              <Text style={styles.lineageToggleText}>
-                {lineageChildCount} {lineageChildCount === 1 ? 'child' : 'children'}
+          {!hideRepo && (
+            <>
+              <MobileRepoIcon repoIcon={repoIcon} size={11} color={repoColor} />
+              <Text style={styles.repoName} numberOfLines={1}>
+                {item.repo}
               </Text>
-            </Pressable>
-          ) : null}
+            </>
+          )}
+          <Text style={styles.branchName} numberOfLines={1}>
+            {metaText}
+          </Text>
         </View>
+        {/* Only agents get a secondary activity line, matching desktop. A plain
+            terminal's shell-output tail is intentionally not surfaced here. */}
+        {item.agents && item.agents.length > 0 ? (
+          <WorktreeAgentList agents={item.agents} now={now} unvisited={item.unread} />
+        ) : null}
+        {lineageChildCount > 0 && onToggleLineage ? (
+          <Pressable
+            style={styles.lineageToggle}
+            onPress={(event) => {
+              event.stopPropagation()
+              onToggleLineage(item)
+            }}
+          >
+            {item.lineageCollapsed ? (
+              <ChevronRight size={12} color={colors.textSecondary} />
+            ) : (
+              <ChevronDown size={12} color={colors.textSecondary} />
+            )}
+            <GitBranch size={12} color={colors.textSecondary} />
+            <Text style={styles.lineageToggleText}>
+              {lineageChildCount} {lineageChildCount === 1 ? 'child' : 'children'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
 
-        {item.liveTerminalCount > 0 && (
-          <Text style={styles.terminalCount}>{item.liveTerminalCount}</Text>
-        )}
-      </Pressable>
-      {historyAvailable && onToggleHistory && onOpenHistory ? (
-        <MobileWorkspaceConversationHistory
-          name={item.displayName || item.repo}
-          path={item.path ?? null}
-          now={now}
-          expanded={historyExpanded}
-          status={historyStatus ?? 'loading'}
-          error={historyError}
-          sessions={historySessions}
-          onToggle={() => onToggleHistory(item)}
-          onOpen={(session) => onOpenHistory(item, session)}
-          onRetry={() => onRetryHistory?.(item)}
-        />
-      ) : null}
-    </View>
+      {item.liveTerminalCount > 0 && (
+        <Text style={styles.terminalCount}>{item.liveTerminalCount}</Text>
+      )}
+    </Pressable>
   )
 }
 

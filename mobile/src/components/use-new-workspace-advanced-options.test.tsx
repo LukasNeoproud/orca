@@ -16,7 +16,7 @@ describe('useNewWorkspaceAdvancedOptions', () => {
       }
     })
     const client = { sendRequest } as unknown as RpcClient
-    let current: ReturnType<typeof useNewWorkspaceAdvancedOptions>
+    let current!: ReturnType<typeof useNewWorkspaceAdvancedOptions>
     function Harness({ selectedRepo }: { selectedRepo: MobileWorkspaceRepo }) {
       current = useNewWorkspaceAdvancedOptions({ client, visible: true, repo: selectedRepo })
       return null
@@ -63,7 +63,7 @@ describe('useNewWorkspaceAdvancedOptions', () => {
     const client = {
       sendRequest: vi.fn().mockResolvedValue({ ok: true, result: { presets: [] } })
     } as unknown as RpcClient
-    let current: ReturnType<typeof useNewWorkspaceAdvancedOptions>
+    let current!: ReturnType<typeof useNewWorkspaceAdvancedOptions>
     function Harness({ selectedRepo }: { selectedRepo: MobileWorkspaceRepo }) {
       current = useNewWorkspaceAdvancedOptions({ client, visible: true, repo: selectedRepo })
       return null

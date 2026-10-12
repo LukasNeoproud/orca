@@ -26,6 +26,14 @@ export function emulatorVideoCodec(result: unknown): EmulatorVideoCodec | undefi
   return value === 'h264' || value === 'hevc' || value === 'av1' ? value : undefined
 }
 
+/** Only a ready emulator stream negotiates a codec; every other reply clears it. */
+export function emulatorStreamVideoCodec(
+  method: string,
+  result: unknown
+): EmulatorVideoCodec | undefined {
+  return method === 'emulator.mobile.stream' ? emulatorVideoCodec(result) : undefined
+}
+
 export function routeMobileImageFrame(
   bytes: Uint8Array,
   stream: EmulatorVideoStream | undefined

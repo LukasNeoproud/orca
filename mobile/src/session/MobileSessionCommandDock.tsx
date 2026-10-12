@@ -1,4 +1,5 @@
-import { View, TextInput, Pressable, Platform } from 'react-native'
+import { View, TextInput, Pressable } from 'react-native'
+import { hostOs } from '../platform/host-os'
 import { ArrowUp, Keyboard as KeyboardIcon } from 'lucide-react-native'
 import {
   getTerminalCommandKeyboardType,
@@ -18,15 +19,11 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
     autocompleteEnabled,
     liveInputCapture,
     dictationMode,
-    liveInputRef,
-    commandInputRef,
+    bindCommandField,
     handleLiveInputChange,
     handleLiveInputKeyPress,
-    handleLiveInputSubmit,
-    getLiveInteractionGeneration,
-    getSendCompletionGeneration,
-    dismissKeyboardAfterAgentSend,
-    activeSessionTab,
+    bindLiveInputField,
+    submitLiveInput,
     canSend,
     canCompose,
     liveInputEnabled,
@@ -98,25 +95,12 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
               onDictationCancel={cancelDictation}
             />
             <TextInput
-              ref={liveInputRef}
+              ref={bindLiveInputField}
               style={styles.liveInputCapture}
               value={liveInputCapture}
               onChange={handleLiveInputChange}
               onKeyPress={handleLiveInputKeyPress}
-              onSubmitEditing={() => {
-                const submit = handleLiveInputSubmit()
-                const sendOrigin = {
-                  tab: activeSessionTab,
-                  generation: getSendCompletionGeneration(),
-                  interaction: getLiveInteractionGeneration()
-                }
-                void submit.then((accepted) =>
-                  dismissKeyboardAfterAgentSend(
-                    sendOrigin,
-                    accepted && sendOrigin.interaction === getLiveInteractionGeneration()
-                  )
-                )
-              }}
+              onSubmitEditing={submitLiveInput}
               placeholder=""
               showSoftInputOnFocus
               autoCapitalize="none"
@@ -125,7 +109,7 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
               smartInsertDelete={false}
               // Why: iOS textContentType overrides autoComplete and can narrow the keyboard; keep IME switching available.
               autoComplete="off"
-              keyboardType={getTerminalLiveInputKeyboardType(Platform.OS)}
+              keyboardType={getTerminalLiveInputKeyboardType(hostOs())}
               returnKeyType="default"
               blurOnSubmit={false}
               editable={canSend}
@@ -135,10 +119,10 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
         ) : (
           <View style={styles.inputBar}>
             <TextInput
-              ref={commandInputRef}
+              ref={bindCommandField}
               // Why: Android caches IME inputType at mount, so toggling autocomplete must remount there; iOS updates in place.
               key={
-                Platform.OS === 'android'
+                hostOs() === 'android'
                   ? autocompleteEnabled
                     ? 'cmd-input-ac-on'
                     : 'cmd-input-ac-off'
@@ -156,7 +140,7 @@ export function MobileSessionCommandDock({ controller }: { controller: MobileSes
               smartInsertDelete={false}
               // Why: not autofill content, but keyboard must stay default so non-Latin IMEs remain selectable.
               autoComplete="off"
-              keyboardType={getTerminalCommandKeyboardType(Platform.OS, autocompleteEnabled)}
+              keyboardType={getTerminalCommandKeyboardType(hostOs(), autocompleteEnabled)}
               returnKeyType="send"
               blurOnSubmit={false}
               // Why: composing is local — an outage must not lock the field or discard typed text (#6713).

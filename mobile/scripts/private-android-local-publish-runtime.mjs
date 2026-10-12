@@ -20,6 +20,7 @@ import {
   privateDistributionKeychainPairs
 } from './private-android-local-publish-contract.mjs'
 
+/** @param {string | null} [approvalContextPath] */
 export function readPrivateDistributionSecrets(spawn = spawnSync, approvalContextPath = null) {
   const pairs = privateDistributionKeychainPairs()
   const result = spawn(

@@ -9,7 +9,6 @@ import {
 } from './mobile-native-chat-image-attachment'
 import {
   NO_NATIVE_CHAT_IMAGE_ATTACHMENTS,
-  copyScopeAttachments,
   withScopeAttachments,
   type MobileNativeChatImagesByScope
 } from './mobile-native-chat-image-scope-state'
@@ -37,6 +36,7 @@ type CurrentRef<T> = { readonly current: T }
 type ShowToast = (message: string, durationMs?: number) => void
 
 type Args = {
+  readonly agent?: string | null
   readonly client: RpcClient | null
   readonly activeHandleRef: CurrentRef<string | null>
   readonly deviceTokenRef: CurrentRef<string | null>
@@ -82,7 +82,6 @@ export type MobileNativeChatImageAttachments = {
   readonly isAttaching: boolean
   readonly attachImage: (source: MobileImageSource) => Promise<void>
   readonly removeAttachment: (id: string) => void
-  readonly copyAttachmentsToScope: (targetScopeKey: string) => void
   /** Ride any pending images along with `text`, then submit; clears the sent
    *  chips (and only those) once the send is accepted. */
   readonly sendNativeChat: (text: string) => Promise<boolean>
@@ -93,6 +92,7 @@ const defaultSleep = (ms: number): Promise<void> =>
 
 export function useMobileNativeChatImageAttachments({
   client,
+  agent,
   activeHandleRef,
   deviceTokenRef,
   getActiveWorktreeConnectionId,
@@ -151,16 +151,6 @@ export function useMobileNativeChatImageAttachments({
       )
     },
     [scopeKey]
-  )
-
-  const copyAttachmentsToScope = useCallback(
-    (targetScopeKey: string): void => {
-      if (!structuredNativeChat || !scopeKey || targetScopeKey === scopeKey) {
-        return
-      }
-      setAttachmentsByScope((previous) => copyScopeAttachments(previous, scopeKey, targetScopeKey))
-    },
-    [scopeKey, structuredNativeChat]
   )
 
   const sendNativeChat = useCallback(
@@ -250,6 +240,7 @@ export function useMobileNativeChatImageAttachments({
           const pasted = await pasteMobileNativeChatImagePaths({
             client,
             terminal: handle,
+            agent,
             deviceToken: deviceTokenRef.current,
             imagePaths: pendingImages.map((attachment) => attachment.path),
             followedByText: text.trim().length > 0,
@@ -329,6 +320,7 @@ export function useMobileNativeChatImageAttachments({
       baseSend,
       client,
       connState,
+      agent,
       deviceTokenRef,
       enabled,
       onError,
@@ -339,12 +331,5 @@ export function useMobileNativeChatImageAttachments({
     ]
   )
 
-  return {
-    attachments,
-    isAttaching,
-    attachImage,
-    removeAttachment,
-    copyAttachmentsToScope,
-    sendNativeChat
-  }
+  return { attachments, isAttaching, attachImage, removeAttachment, sendNativeChat }
 }

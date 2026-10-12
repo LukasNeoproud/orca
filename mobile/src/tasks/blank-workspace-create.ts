@@ -1,12 +1,14 @@
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import type { RpcClient } from '../transport/rpc-client'
 import { createWorktreeWithNameRetry, type WorktreeCreateResult } from './worktree-create-retry'
+import type { WorktreeCreateAgentLaunch } from './agent-launch-request'
 import type { WorktreeCreateIdempotencyProbe } from './worktree-create-idempotency-policy'
 import type { ExplicitWorktreeCreation } from '../../../src/shared/worktree/explicit-creation'
 import {
   advancedWorkspaceCreateFields,
-  agentLaunchCreateFields,
+  startupAgentCreateFields,
   type WorkspaceCreateAdvancedOptions,
+  type WorkspaceCreateParams,
   type WorkspaceCreateSetupDecision
 } from './workspace-create-params'
 
@@ -28,7 +30,12 @@ export async function createBlankWorkspace(args: {
   recoverCompletedCheckoutFailure?: boolean
   explicitCreation?: ExplicitWorktreeCreation
   advanced?: WorkspaceCreateAdvancedOptions
+  /** Whether the host can settle the surface itself; false keeps the agent-first create. */
+  agentLaunchSupported: WorktreeCreateAgentLaunch['supported']
 }): Promise<WorktreeCreateResult> {
+  const agentLaunch: WorktreeCreateAgentLaunch | undefined = args.createdWithAgentId
+    ? { agent: args.createdWithAgentId, supported: args.agentLaunchSupported }
+    : undefined
   return createWorktreeWithNameRetry({
     client: args.client,
     baseName: args.baseName,
@@ -37,8 +44,9 @@ export async function createBlankWorkspace(args: {
     recoverCompletedCheckoutFailure: args.recoverCompletedCheckoutFailure,
     createMethod: args.explicitCreation ? 'worktree.createExplicit' : 'worktree.create',
     maxAttempts: args.explicitCreation ? 1 : undefined,
+    ...(agentLaunch ? { agentLaunch } : {}),
     buildParams: (name) => {
-      const params: Record<string, unknown> = {
+      const params: WorkspaceCreateParams = {
         repo: `id:${args.repoId}`,
         setupDecision: args.setupDecision,
         name,
@@ -50,7 +58,7 @@ export async function createBlankWorkspace(args: {
           ? { displayNameKind: 'generated' as const }
           : { displayName: args.baseName, displayNameKind: 'user' as const }),
         ...(args.nameWasGenerated ? { nameWasGenerated: true } : {}),
-        ...agentLaunchCreateFields(args.createdWithAgentId)
+        ...startupAgentCreateFields(args.createdWithAgentId)
       }
       if (args.advanced) {
         Object.assign(params, advancedWorkspaceCreateFields(args.advanced))

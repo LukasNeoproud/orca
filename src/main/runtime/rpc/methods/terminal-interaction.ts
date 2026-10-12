@@ -1,50 +1,16 @@
-import { z } from 'zod'
-import { OrcaInteractionRequestSchema } from '../../../../shared/orca-interaction'
+import {
+  TerminalInteractionRequestParams,
+  TerminalInteractionWaitParams,
+  TerminalInteractionCancelParams,
+  TerminalInteractionRespondParams
+} from '../../../../shared/rpc-contract/terminal-interaction-params'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
-import { TERMINAL_INTERACTION_WAIT_MAX_MS } from '../../../../shared/terminal-interaction'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import {
   getTerminalInteractionRegistry,
   type TerminalInteractionBinding
 } from '../../terminal-interaction-registry'
-import { defineMethod, type RpcAnyMethod } from '../core'
-
-const InteractionCaller = z
-  .object({
-    terminalHandle: z.string().min(1).max(512),
-    paneKey: z.string().min(1).max(512)
-  })
-  .strict()
-
-const InteractionRequest = z
-  .object({
-    caller: InteractionCaller,
-    requestId: z.string().min(1).max(512),
-    request: OrcaInteractionRequestSchema
-  })
-  .strict()
-
-const InteractionWait = z
-  .object({
-    caller: InteractionCaller,
-    requestId: z.string().min(1).max(512),
-    timeoutMs: z.number().int().min(0).max(TERMINAL_INTERACTION_WAIT_MAX_MS)
-  })
-  .strict()
-
-const InteractionCancel = z
-  .object({
-    caller: InteractionCaller,
-    requestId: z.string().min(1).max(512)
-  })
-  .strict()
-
-const InteractionRespond = z
-  .object({
-    requestId: z.string().min(1).max(512),
-    result: z.unknown()
-  })
-  .strict()
+import { defineMethod } from '../core'
 
 async function resolveBinding(
   runtime: OrcaRuntimeService,
@@ -150,10 +116,11 @@ async function resolveExistingBinding(
   return observation.binding
 }
 
-export const TERMINAL_INTERACTION_METHODS: readonly RpcAnyMethod[] = [
+export const TERMINAL_INTERACTION_METHODS = [
   defineMethod({
     name: 'terminalInteraction.request',
-    params: InteractionRequest,
+    permission: 'workspace',
+    params: TerminalInteractionRequestParams,
     handler: async (params, { runtime }) =>
       getTerminalInteractionRegistry(runtime).request(
         params,
@@ -162,7 +129,8 @@ export const TERMINAL_INTERACTION_METHODS: readonly RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'terminalInteraction.wait',
-    params: InteractionWait,
+    permission: 'workspace',
+    params: TerminalInteractionWaitParams,
     handler: async (params, { runtime, signal }) =>
       getTerminalInteractionRegistry(runtime).wait(
         params.caller,
@@ -173,7 +141,8 @@ export const TERMINAL_INTERACTION_METHODS: readonly RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'terminalInteraction.cancel',
-    params: InteractionCancel,
+    permission: 'workspace',
+    params: TerminalInteractionCancelParams,
     handler: async (params, { runtime }) =>
       getTerminalInteractionRegistry(runtime).cancel(
         params.caller,
@@ -183,6 +152,7 @@ export const TERMINAL_INTERACTION_METHODS: readonly RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'terminalInteraction.pending',
+    permission: 'workspace',
     params: null,
     handler: async (_params, { runtime }) => {
       const registry = getTerminalInteractionRegistry(runtime)
@@ -208,7 +178,8 @@ export const TERMINAL_INTERACTION_METHODS: readonly RpcAnyMethod[] = [
   }),
   defineMethod({
     name: 'terminalInteraction.respond',
-    params: InteractionRespond,
+    permission: 'workspace',
+    params: TerminalInteractionRespondParams,
     handler: async (params, { runtime }) => {
       const registry = getTerminalInteractionRegistry(runtime)
       const expected = registry.getPendingBinding(params.requestId)

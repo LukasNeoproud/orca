@@ -22,17 +22,17 @@ import type { NativeChatBlock, NativeChatMessage } from '../../../shared/native-
 import { resolveNativeChatTranscriptAgent } from '../../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from '../session-file-resolver'
 import {
-  createCodexTranscriptLineDecoder,
   decodeClaudeTranscriptLine,
+  decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
   decodeOmpTranscriptLine
 } from '../transcript-line-decoders'
 import { decodeTranscriptStream } from '../transcript-stream-lines'
+import { boundSubagentEntryId } from '../subagent-entry-id-bounds'
 import { createLegacyIdentityTracker } from './journal-legacy-identity'
 import type { JournalReplacementItem } from './journal-epoch-replacement'
 import {
   boundInlineText,
-  boundPayload,
   boundToolInput,
   DEFAULT_JOURNAL_PAYLOAD_LIMITS,
   type JournalPayloadLimits
@@ -47,6 +47,8 @@ export type LegacyImportOptions = ResolveSessionFileOptions & {
 }
 
 const MAX_LEGACY_IMPORT_SOURCE_BYTES = 16 * 1024 * 1024
+/** A roster is a status list; an imported one is as untrusted as any other block. */
+const MAX_LEGACY_IMPORT_SUBAGENTS = 64
 
 export type LegacyImportResult =
   | {
@@ -59,30 +61,6 @@ export type LegacyImportResult =
     }
   | { ok: false; error: string }
 
-export async function appendLegacyTranscriptMessages(input: {
-  journal: AgentSessionJournal
-  agent: AgentType
-  sessionId: string
-  fence: number
-  messages: NativeChatMessage[]
-}): Promise<number> {
-  let appended = 0
-  for (const message of input.messages) {
-    await input.journal.appendItem(
-      {
-        provider: 'legacy',
-        agent: input.agent,
-        sessionId: input.sessionId,
-        recordId: message.id
-      },
-      legacyItemBody(message, DEFAULT_JOURNAL_PAYLOAD_LIMITS),
-      { fence: input.fence, observedAt: message.timestamp ?? undefined }
-    )
-    appended += 1
-  }
-  return appended
-}
-
 export async function importLegacyTranscriptIntoJournal(input: {
   journal: AgentSessionJournal
   agent: AgentType
@@ -94,7 +72,7 @@ export async function importLegacyTranscriptIntoJournal(input: {
   if (!prepared.ok) {
     return prepared
   }
-  // An empty import must preserve any existing repair anchor and disclosure.
+  // An empty import leaves the epoch as it stands.
   if (prepared.items.length === 0) {
     const current = input.journal.cursor()
     return { ok: true, epoch: current.epoch, cursor: current, imported: 0, replaced: false }
@@ -111,7 +89,7 @@ export async function prepareLegacyTranscriptImport(input: {
   const options = input.options ?? {}
   const limits = options.limits ?? DEFAULT_JOURNAL_PAYLOAD_LIMITS
   const transcriptAgent = resolveNativeChatTranscriptAgent(input.agent)
-  if (!transcriptAgent) {
+  if (!transcriptAgent || transcriptAgent === 'opencode') {
     return { ok: false, error: `Unsupported agent for journal import: ${input.agent}` }
   }
   const filePath =
@@ -168,6 +146,7 @@ export async function prepareLegacyTranscriptImport(input: {
 
 const TRANSCRIPT_DECODERS = {
   claude: decodeClaudeTranscriptLine,
+  codex: decodeCodexTranscriptLine,
   grok: decodeGrokTranscriptLine,
   omp: decodeOmpTranscriptLine
 } as const
@@ -176,7 +155,7 @@ const TRANSCRIPT_DECODERS = {
  *  index-aligned with `messages`. */
 async function decodeWithIdentities(input: {
   filePath: string
-  transcriptAgent: keyof typeof TRANSCRIPT_DECODERS | 'codex'
+  transcriptAgent: keyof typeof TRANSCRIPT_DECODERS
   agent: AgentType
   sessionId: string
   decodedMessageIdentities?: true
@@ -186,14 +165,12 @@ async function decodeWithIdentities(input: {
     agent: input.agent,
     sessionId: input.sessionId
   })
-  const decode =
-    input.transcriptAgent === 'codex'
-      ? createCodexTranscriptLineDecoder()
-      : TRANSCRIPT_DECODERS[input.transcriptAgent]
+  const decode = TRANSCRIPT_DECODERS[input.transcriptAgent]
   const identities: AgentJournalItemIdentity[] = []
   let lineIndex = 0
 
-  const stream = createReadStream(input.filePath, { encoding: 'utf-8' })
+  // Count raw bytes while reading: the source can grow after the stat check.
+  const stream = createReadStream(input.filePath)
   const { messages } = await decodeTranscriptStream(
     stream,
     input.filePath,
@@ -216,7 +193,8 @@ async function decodeWithIdentities(input: {
       }
       return message
     },
-    true
+    true,
+    MAX_LEGACY_IMPORT_SOURCE_BYTES
   )
   return { messages, identities }
 }
@@ -239,23 +217,14 @@ function legacyItemBody(
       kind: 'tool-call',
       name: only.name,
       input: boundToolInput(only.input, limits),
+      ...(only.callId !== undefined ? { callId: only.callId } : {}),
       state: 'completed'
-    }
-  }
-  if (only?.type === 'tool-result') {
-    return {
-      kind: 'tool-call',
-      name: 'tool-result',
-      input: null,
-      state: only.isError ? 'failed' : 'completed',
-      output: boundPayload(only.output, limits)
     }
   }
   return {
     kind: 'message',
     role: message.role,
-    blocks: message.blocks.map((block) => boundBlock(block, limits)),
-    ...(message.generation ? { generation: message.generation } : {})
+    blocks: message.blocks.map((block) => boundBlock(block, limits))
   }
 }
 
@@ -273,6 +242,18 @@ function boundBlock(block: NativeChatBlock, limits: JournalPayloadLimits): Nativ
   }
   if (block.type === 'tool-call') {
     return { ...block, input: boundToolInput(block.input, limits) }
+  }
+  if (block.type === 'subagent-group') {
+    return {
+      ...block,
+      agents: block.agents.slice(0, MAX_LEGACY_IMPORT_SUBAGENTS).map((agent) => ({
+        ...agent,
+        // The id is the roster key, so it is bounded with a digest rather than
+        // clipped to a prefix that two distinct children could share.
+        id: boundSubagentEntryId(agent.id),
+        label: boundInlineText(agent.label, limits).text
+      }))
+    }
   }
   return block
 }

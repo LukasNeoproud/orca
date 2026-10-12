@@ -61,6 +61,10 @@ export function getNativeChatExperimentalSearchEntry(): SettingsSearchEntry {
       ...translateSearchKeyword(
         'auto.components.settings.experimental.search.nativeChat.paragraph',
         'paragraph'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.experimental.search.nativeChat.queue',
+        'queue'
       )
     ]
   }

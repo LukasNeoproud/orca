@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { MobileWorktreeLocationState } from './use-mobile-worktree-location'
 import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { colors, radii, spacing } from '../theme/mobile-theme'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 export function MobileWorktreeLocationFields({
   state,
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.input,
     borderWidth: 1,
     color: colors.textPrimary,
-    fontSize: typography.bodySize,
+    fontSize: TEXT_INPUT_FONT_SIZE,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm
   },

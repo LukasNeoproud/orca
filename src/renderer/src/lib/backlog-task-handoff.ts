@@ -7,14 +7,15 @@ import type {
   AgentSessionMutationResult,
   AgentSessionSendResult
 } from '../../../shared/agent-session-wire'
+import { agentSessionSendSubmission } from '../../../shared/agent-session-wire'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import { deliverLaunchPromptToAgentTab } from '@/lib/agent-launch-prompt-delivery'
 import { sendNotesToActiveAgentSession } from '@/lib/active-agent-note-send'
 import {
-  createStructuredAgentSessionOutboxEntry,
-  structuredAgentSessionSendRequest
-} from '../../../shared/structured-agent-session-outbox'
+  structuredAgentSessionMessageSendMutation,
+  structuredAgentSessionSendBody
+} from '../../../shared/structured-agent-session-send-mutation'
 import { createStructuredAgentSessionOperationId } from '../../../shared/structured-agent-session-mutation'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
@@ -37,6 +38,7 @@ import {
   type PreparedBacklogConversation
 } from './backlog-task-handoff-preparation'
 import { waitForBacklogTerminalProviderSession } from './backlog-task-handoff-terminal-identity'
+import { createBrowserUuid } from '@/lib/browser-uuid'
 
 export type { BacklogTaskConversationOption } from './backlog-task-handoff-options'
 export {
@@ -98,17 +100,16 @@ async function sendStructuredPrompt(
   knownFence?: number
 ): Promise<boolean> {
   const fence = knownFence ?? (await structuredFence(route, sessionId))
-  const entry = createStructuredAgentSessionOutboxEntry({
-    clientMessageId,
+  const params = structuredAgentSessionMessageSendMutation({
     sessionId,
-    text: prompt,
-    attachments: [],
-    queuedAt: Date.now()
+    clientOperationId: clientMessageId,
+    expectedRuntimeFence: fence,
+    body: structuredAgentSessionSendBody(prompt, [])
   })
   const result = await callStructuredAgentSession<
     AgentSessionMutationResult<AgentSessionSendResult>
-  >(structuredTarget(route), 'agentSession.send', structuredAgentSessionSendRequest(entry, fence))
-  return result.ok && result.value.submission.dispatchState === 'accepted'
+  >(structuredTarget(route), 'agentSession.send', params)
+  return result.ok && agentSessionSendSubmission(result.value)?.dispatchState === 'accepted'
 }
 
 async function freshTask(sourceRoute: BacklogRoute, taskId: string): Promise<BacklogTask> {
@@ -178,7 +179,7 @@ export async function startBacklogTask(args: {
   ) {
     throw new BacklogTaskHandoffError('The selected terminal pane is no longer available.')
   }
-  const attemptId = createStructuredAgentSessionOperationId(() => crypto.randomUUID())
+  const attemptId = createStructuredAgentSessionOperationId(createBrowserUuid)
   let association = await saveBacklogTaskAssociation(
     args.sourceRoute,
     associationWrite({

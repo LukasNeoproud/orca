@@ -22,7 +22,6 @@ export type TabCreateMenuOption = {
 }
 
 export type TabCreateMenuOptionsContext = {
-  hasBacklog?: boolean
   hasNewBrowser: boolean
   hasNewMarkdown: boolean
   hasOpenMarkdown: boolean
@@ -116,7 +115,8 @@ export function buildTabCreateMenuOptions(
     })
   }
 
-  if (context.hasBacklog) {
+  // Why: the board opens in a managed browser tab, so it follows browser-tab availability.
+  if (context.hasNewBrowser) {
     options.push({
       id: 'open-backlog',
       kind: 'open-backlog',

@@ -85,6 +85,10 @@ export function MobileContextualFilePreviewCard(props: {
               onError={() => setFailedImageUri(imageUri)}
             />
           </View>
+        ) : model.preview.kind === 'media' ? (
+          <View style={styles.state}>
+            <Text style={styles.stateText}>Open this file to play it</Text>
+          </View>
         ) : model.preview.kind === 'markdown' ? (
           <ScrollView
             style={styles.markdownScroll}

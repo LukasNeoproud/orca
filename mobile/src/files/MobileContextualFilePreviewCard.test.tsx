@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileContextualFilePreviewCard } from './MobileContextualFilePreviewCard'
 import type { MobileContextualFilePreviewModel } from './use-mobile-contextual-file-preview'
+import { hostType } from '../test-support/host-type-predicate'
 
 const previewState = vi.hoisted(() => ({
   model: null as MobileContextualFilePreviewModel | null
@@ -73,7 +74,7 @@ describe('MobileContextualFilePreviewCard', () => {
 
     expect(JSON.stringify(renderer.toJSON())).toContain('outside the conversation workspace')
     await act(async () => {
-      renderer.root.findAllByType('Pressable').at(-1)?.props.onPress()
+      renderer.root.findAll(hostType('Pressable')).at(-1)?.props.onPress()
     })
     expect(approveOutsideWorkspace).toHaveBeenCalledOnce()
   })
@@ -87,7 +88,7 @@ describe('MobileContextualFilePreviewCard', () => {
 
       expect(JSON.stringify(renderer.toJSON())).toContain(message)
       await act(async () => {
-        renderer.root.findAllByType('Pressable').at(-1)?.props.onPress()
+        renderer.root.findAll(hostType('Pressable')).at(-1)?.props.onPress()
       })
       expect(reload).toHaveBeenCalledOnce()
     }
@@ -101,7 +102,7 @@ describe('MobileContextualFilePreviewCard', () => {
     setModel({ status: 'ready', kind, content: 'current', truncated: false, byteLength: 7 })
     const renderer = await renderCard()
 
-    expect(renderer.root.findAllByType(component)).toHaveLength(1)
+    expect(renderer.root.findAll(hostType(component))).toHaveLength(1)
     expect(JSON.stringify(renderer.toJSON())).toContain('message text may be historical')
   })
 
@@ -113,12 +114,12 @@ describe('MobileContextualFilePreviewCard', () => {
     )
     const renderer = await renderCard()
 
-    expect(renderer.root.findByType('Image').props.source.uri).toContain('image/png')
+    expect(renderer.root.find(hostType('Image')).props.source.uri).toContain('image/png')
     expect(JSON.stringify(renderer.toJSON())).toContain('Changed since first load')
 
-    await act(async () => renderer.root.findByType('Image').props.onError())
+    await act(async () => renderer.root.find(hostType('Image')).props.onError())
     expect(JSON.stringify(renderer.toJSON())).toContain('Unable to display image preview')
-    await act(async () => renderer.root.findAllByType('Pressable').at(-1)?.props.onPress())
+    await act(async () => renderer.root.findAll(hostType('Pressable')).at(-1)?.props.onPress())
     expect(reload).toHaveBeenCalledOnce()
   })
 })

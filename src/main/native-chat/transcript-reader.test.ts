@@ -1,8 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createCodexTranscriptLineDecoder } from './transcript-line-decoders-codex'
 import { readNativeChatTranscript } from './transcript-reader'
 import {
   nativeChatLineDecoderForAgent,
@@ -68,7 +67,7 @@ describe('readNativeChatTranscript (claude)', () => {
       timestamp: '2026-06-01T10:05:00.000Z',
       message: {
         role: 'assistant',
-        content: [{ type: 'tool_use', name: 'Bash', input: { command: 'ls' } }]
+        content: [{ type: 'tool_use', id: 'tool-call-1', name: 'Bash', input: { command: 'ls' } }]
       }
     })
     records.push({
@@ -99,7 +98,8 @@ describe('readNativeChatTranscript (claude)', () => {
     expect(toolCall?.blocks[0]).toEqual({
       type: 'tool-call',
       name: 'Bash',
-      input: { command: 'ls' }
+      input: { command: 'ls' },
+      callId: 'tool-call-1'
     })
 
     const toolResult = result.messages.at(-1)
@@ -259,153 +259,6 @@ describe('readNativeChatTranscript (codex)', () => {
     const reasoning = result.messages.find((m) => m.role === 'reasoning')
     expect(reasoning?.blocks[0]).toEqual({ type: 'text', text: 'I will run it' })
   })
-
-  it('returns current context and weekly status without emitting metadata as messages', async () => {
-    const filePath = await writeFixture('orca-native-chat-codex-status-', [
-      { type: 'turn_context', payload: { model: 'gpt-5.6' } },
-      {
-        type: 'event_msg',
-        payload: {
-          type: 'token_count',
-          info: {
-            last_token_usage: { total_tokens: 24_000 },
-            total_token_usage: { total_tokens: 900_000 },
-            model_context_window: 200_000
-          },
-          rate_limits: {
-            primary: { used_percent: 10, window_minutes: 300 },
-            secondary: {
-              used_percent: 40,
-              window_minutes: 10_080,
-              resets_at: 1_800_000_000
-            }
-          }
-        }
-      }
-    ])
-
-    const result = await readNativeChatTranscript('codex', 'codex-sess', { filePath })
-
-    expect(result).toEqual({
-      messages: [],
-      usageStatus: {
-        contextUsage: { usedTokens: 24_000, maxTokens: 200_000, stale: false },
-        codexWeeklyUsage: { usedPercent: 40, resetsAt: 1_800_000_000_000 }
-      }
-    })
-  })
-
-  it('freezes verified turn context metadata on each response without inventing timing', async () => {
-    const filePath = await writeFixture('orca-native-chat-codex-generation-', [
-      {
-        type: 'turn_context',
-        payload: { model: 'gpt-standard', service_tier: 'default' }
-      },
-      {
-        type: 'response_item',
-        payload: {
-          id: 'standard-response',
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: 'standard' }]
-        }
-      },
-      {
-        type: 'turn_context',
-        payload: { model: 'gpt-fast', service_tier: 'priority' }
-      },
-      {
-        type: 'response_item',
-        payload: {
-          id: 'fast-response',
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: 'fast' }]
-        }
-      },
-      { type: 'turn_context', payload: {} },
-      {
-        type: 'response_item',
-        payload: {
-          id: 'unknown-response',
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: 'unknown' }]
-        }
-      }
-    ])
-
-    const result = await readNativeChatTranscript('codex', 'codex-sess', { filePath })
-    const tail = await readNativeChatTranscriptTail({
-      agent: 'codex',
-      sessionId: 'codex-sess',
-      filePath,
-      limit: 3
-    })
-    if (!('messages' in result) || !('messages' in tail)) {
-      throw new Error('expected messages')
-    }
-
-    const expectedGeneration = {
-      method: 'stream-estimate',
-      unavailableReason: 'timing-unavailable'
-    }
-    expect(result.messages).toMatchObject([
-      {
-        id: 'standard-response',
-        generation: { ...expectedGeneration, model: 'gpt-standard', serviceTier: 'default' }
-      },
-      {
-        id: 'fast-response',
-        generation: { ...expectedGeneration, model: 'gpt-fast', serviceTier: 'priority' }
-      },
-      { id: 'unknown-response' }
-    ])
-    expect(result.messages[2]).not.toHaveProperty('generation')
-    expect(tail.messages).toEqual(result.messages)
-  })
-
-  it('primes the live decoder from the newest context in an initial tail', async () => {
-    const filePath = await writeFixture('orca-native-chat-codex-tail-context-', [
-      {
-        type: 'turn_context',
-        payload: { model: 'gpt-fast', service_tier: 'priority' }
-      },
-      {
-        type: 'response_item',
-        payload: {
-          id: 'initial-response',
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: 'initial' }]
-        }
-      }
-    ])
-    const decode = createCodexTranscriptLineDecoder()
-
-    await readNativeChatTranscriptTailFile(filePath, 1, decode, true)
-    const appended = decode(
-      JSON.stringify({
-        type: 'response_item',
-        payload: {
-          id: 'appended-response',
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: 'appended' }]
-        }
-      }),
-      'fallback'
-    )
-
-    expect(appended).toMatchObject({
-      generation: {
-        model: 'gpt-fast',
-        serviceTier: 'priority',
-        method: 'stream-estimate',
-        unavailableReason: 'timing-unavailable'
-      }
-    })
-  })
 })
 
 describe('readNativeChatTranscript (errors)', () => {
@@ -479,61 +332,5 @@ describe('readNativeChatTranscriptTailFile', () => {
 
     expect(result.messages).toEqual([])
     expect(result.hasMore).toBe(false)
-  })
-
-  it('enriches a Codex tail from the rollout home model catalog', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'orca-native-chat-codex-limits-'))
-    tempRoots.push(root)
-    const sessions = join(root, 'sessions', '2026', '09', '11')
-    await mkdir(sessions, { recursive: true })
-    await writeFile(
-      join(root, 'models_cache.json'),
-      JSON.stringify({
-        models: [
-          {
-            slug: 'gpt-test',
-            context_window: 200_000,
-            effective_context_window_percent: 95
-          }
-        ]
-      })
-    )
-    const filePath = join(sessions, 'rollout-test.jsonl')
-    await writeFile(
-      filePath,
-      jsonLines([
-        { type: 'turn_context', payload: { model: 'gpt-test' } },
-        {
-          type: 'event_msg',
-          payload: {
-            type: 'token_count',
-            info: {
-              last_token_usage: { total_tokens: 42_000 },
-              model_context_window: 190_000
-            }
-          }
-        }
-      ])
-    )
-
-    await expect(
-      readNativeChatTranscriptTail({
-        agent: 'codex',
-        sessionId: 'test',
-        filePath,
-        limit: 40
-      })
-    ).resolves.toMatchObject({
-      messages: [],
-      usageStatus: {
-        contextUsage: {
-          usedTokens: 42_000,
-          maxTokens: 190_000,
-          autoCompactThresholdTokens: 180_000,
-          thresholdSource: 'model-default',
-          thresholdEstimated: true
-        }
-      }
-    })
   })
 })

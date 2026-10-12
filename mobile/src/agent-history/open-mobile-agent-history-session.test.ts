@@ -7,7 +7,7 @@ import {
 import type { RpcClient } from '../transport/rpc-client'
 import { openMobileAgentHistorySession } from './open-mobile-agent-history-session'
 
-function session(ownerState: 'live' | 'unverifiable' | undefined): AiVaultSession {
+function session(): AiVaultSession {
   return {
     id: 'codex:thread-1',
     executionHostId: 'local',
@@ -31,8 +31,7 @@ function session(ownerState: 'live' | 'unverifiable' | undefined): AiVaultSessio
     subagent: null,
     structuredSession: {
       sessionId: 'codex_structured_1',
-      workspaceId: 'workspace-1',
-      ...(ownerState ? { ownerState } : {})
+      workspaceId: 'workspace-1'
     }
   }
 }
@@ -66,7 +65,7 @@ describe('openMobileAgentHistorySession', () => {
         })
     )
     const client = { sendRequest } as unknown as RpcClient
-    const args = openArgs(client, session('live'))
+    const args = openArgs(client, session())
 
     const first = openMobileAgentHistorySession(args)
     const second = openMobileAgentHistorySession(args)
@@ -83,17 +82,4 @@ describe('openMobileAgentHistorySession', () => {
       { kind: 'opened', message: 'Chat opened.', worktreeId: 'workspace-1' }
     ])
   })
-
-  it.each([undefined, 'unverifiable' as const])(
-    'blocks an %s owner before any RPC can launch a replacement',
-    async (ownerState) => {
-      const sendRequest = vi.fn()
-      const client = { sendRequest } as unknown as RpcClient
-
-      await expect(
-        openMobileAgentHistorySession(openArgs(client, session(ownerState)))
-      ).resolves.toMatchObject({ kind: 'blocked' })
-      expect(sendRequest).not.toHaveBeenCalled()
-    }
-  )
 })

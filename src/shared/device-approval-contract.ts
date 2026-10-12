@@ -155,3 +155,5 @@ export function parseDeviceApprovalPayload(payload: string, now = Date.now()) {
   }
   return value
 }
+
+export const DeviceApprovalListParams = z.object({}).strict()

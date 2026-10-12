@@ -1,4 +1,4 @@
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { parsePmsetSleepDisabled, readPmsetSettings } from './host-power-mode'
 import { PMSET_PATH, sudoNonInteractiveArgs } from './power-mode-sudoers-rule'
 

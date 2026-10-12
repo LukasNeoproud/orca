@@ -141,3 +141,22 @@ export function useMobileWorktreeLocation(args: {
 }
 
 export type MobileWorktreeLocationState = ReturnType<typeof useMobileWorktreeLocation>
+
+/** Re-previews an explicit location right before create; returns the refusal to show, if any. */
+export async function confirmMobileWorktreeLocation(
+  state: MobileWorktreeLocationState
+): Promise<string | null> {
+  if (state.location === 'automatic') {
+    return null
+  }
+  if (!state.explicitCreation || !state.preview) {
+    return 'Preview the worktree location before creating it.'
+  }
+  const currentPreview = await state.previewNow()
+  if (!currentPreview) {
+    return 'Could not confirm the selected worktree location.'
+  }
+  return currentPreview.occupyingWorktree || currentPreview.destinationExists
+    ? 'The selected branch or destination is already in use.'
+    : null
+}

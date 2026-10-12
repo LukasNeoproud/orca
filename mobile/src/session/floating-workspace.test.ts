@@ -16,7 +16,7 @@ describe('floating workspace routing', () => {
 
   it('builds the session route with an explicit title seed', () => {
     expect(floatingWorkspaceSessionPath('host-1')).toBe(
-      `/h/host-1/session/${FLOATING_WORKSPACE_WORKTREE_ID}?name=Floating%20Workspace`
+      `/h/host-1/session/${FLOATING_WORKSPACE_WORKTREE_ID}?name=Independent%20terminals`
     )
   })
 })

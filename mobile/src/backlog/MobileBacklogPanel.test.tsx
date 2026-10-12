@@ -1,7 +1,8 @@
-import { createElement } from 'react'
+import { createElement, type ReactNode } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBacklogPanel } from './MobileBacklogPanel'
+import { hostType } from '../test-support/host-type-predicate'
 
 const backlog = vi.hoisted(() => ({
   state: {
@@ -37,7 +38,7 @@ vi.mock('react-native', async () => {
   const React = await import('react')
   return {
     ActivityIndicator: 'ActivityIndicator',
-    FlatList: (props: { data: unknown[]; renderItem: (info: { item: unknown }) => unknown }) =>
+    FlatList: (props: { data: unknown[]; renderItem: (info: { item: unknown }) => ReactNode }) =>
       React.createElement('FlatList', {}, ...props.data.map((item) => props.renderItem({ item }))),
     Pressable: 'Pressable',
     Linking: { openURL: vi.fn().mockResolvedValue(undefined) },
@@ -107,11 +108,11 @@ describe('MobileBacklogPanel', () => {
     expect(output).toContain('**Detail**')
     expect(output).toContain('Terminal opens')
     expect(output).toContain('Check')
-    const markdown = renderer.root.findAllByType('Markdown')
+    const markdown = renderer.root.findAll(hostType('Markdown'))
     await act(async () =>
       markdown[0]!.props.onShowLinkActions({ kind: 'web', url: 'https://example.com' })
     )
-    expect(renderer.root.findByType('MobileLinkActionSheet').props).toMatchObject({
+    expect(renderer.root.find(hostType('MobileLinkActionSheet')).props).toMatchObject({
       target: { source: 'chat', kind: 'web', url: 'https://example.com' },
       worktreeId: 'folder:workspace',
       showAddToMessage: false
@@ -136,9 +137,9 @@ describe('MobileBacklogPanel', () => {
     })
     const renderer = await renderPanel()
     await act(async () =>
-      renderer.root.findAllByType('Markdown')[0]!.props.onOpenFile('/tmp/example.ts')
+      renderer.root.findAll(hostType('Markdown'))[0]!.props.onOpenFile('/tmp/example.ts')
     )
-    expect(renderer.root.findByType('MobileLinkActionSheet').props.target).toMatchObject({
+    expect(renderer.root.find(hostType('MobileLinkActionSheet')).props.target).toMatchObject({
       kind: 'file',
       pathText: '/tmp/example.ts'
     })

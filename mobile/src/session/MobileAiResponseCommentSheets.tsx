@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { MessageSquareQuote, Pencil, Trash2, X } from 'lucide-react-native'
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Pencil, Trash2, X } from 'lucide-react-native'
 import type { AiResponseComment } from '../../../src/shared/ai-response-comments'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { BottomDrawer } from '../components/BottomDrawer'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 export function MobileAiResponseCommentEditor({
   draft,
@@ -112,29 +122,6 @@ export function MobileAiResponseCommentsSheet({
   )
 }
 
-export function MobileAiResponseCommentsChip({
-  count,
-  onPress
-}: {
-  count: number
-  onPress?: () => void
-}) {
-  if (count === 0 || !onPress) {
-    return null
-  }
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${count} response ${count === 1 ? 'comment' : 'comments'}`}
-    >
-      <MessageSquareQuote size={14} color={colors.textSecondary} />
-      <Text style={styles.chipText}>{`${count} ${count === 1 ? 'comment' : 'comments'}`}</Text>
-    </Pressable>
-  )
-}
-
 function DrawerHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <View style={styles.header}>
@@ -158,10 +145,20 @@ function CommentDrawer({
   onClose: () => void
   children: React.ReactNode
 }) {
+  const insets = useSafeAreaInsets()
+  // Why Modal, not BottomDrawer: the chat view renders this, and the drawer pulls in reanimated.
   return (
-    <BottomDrawer visible onClose={onClose}>
-      <View style={styles.drawerContent}>{children}</View>
-    </BottomDrawer>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.sheetFrame}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, styles.drawerContent, { paddingBottom: insets.bottom }]}>
+          {children}
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   )
 }
 
@@ -219,7 +216,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radii.input,
     padding: spacing.md,
-    fontSize: typography.bodySize,
+    fontSize: TEXT_INPUT_FONT_SIZE,
     textAlignVertical: 'top',
     marginBottom: spacing.md
   },
@@ -249,17 +246,14 @@ const styles = StyleSheet.create({
   },
   rowButtonText: { color: colors.textSecondary, fontSize: typography.metaSize, fontWeight: '600' },
   deleteText: { color: colors.statusRed },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    minHeight: 28,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 14,
-    backgroundColor: colors.bgRaised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle
-  },
-  chipText: { color: colors.textSecondary, fontSize: typography.metaSize, fontWeight: '700' },
-  pressed: { opacity: 0.65 }
+  pressed: { opacity: 0.65 },
+  sheetFrame: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
+  sheet: {
+    backgroundColor: colors.bgBase,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md
+  }
 })

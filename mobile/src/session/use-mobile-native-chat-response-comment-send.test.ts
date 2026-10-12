@@ -13,11 +13,9 @@ describe('useMobileNativeChatResponseCommentSend', () => {
   const structuredSend = vi.fn()
 
   function Probe(): null {
-    api = useMobileNativeChatResponseCommentSend({
-      scopeKey: 'host\0worktree\0tab',
-      structured: false,
-      legacySend,
-      structuredSend
+    api = useMobileNativeChatResponseCommentSend('host\0worktree\0tab', false, {
+      legacy: legacySend,
+      structured: structuredSend
     })
     return null
   }

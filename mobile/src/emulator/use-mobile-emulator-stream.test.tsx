@@ -212,13 +212,17 @@ describe('emulator streaming lifecycle', () => {
     })
     const sub = test.subscriptions[0]!
     act(() => sub.event({ type: 'ready', subscriptionId: 'video1', videoCodec: 'hevc' }))
-    act(() => vi.advanceTimersByTime(30_000))
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
     expect(current.error).toBeNull()
     expect(sub.cancel).not.toHaveBeenCalled()
 
     act(() => renderer!.update(createElement(test.Harness, { visible: true })))
     expect(test.subscriptions).toHaveLength(1)
-    act(() => vi.advanceTimersByTime(15_000))
+    act(() => {
+      vi.advanceTimersByTime(15_000)
+    })
     expect(sub.cancel).toHaveBeenCalledOnce()
     await act(async () => {})
     expect(test.subscriptions).toHaveLength(2)
@@ -230,7 +234,9 @@ describe('emulator streaming lifecycle', () => {
       renderer = create(createElement(test.Harness))
     })
     act(() => test.subscriptions[0]!.event({ type: 'ready', subscriptionId: 's1' }))
-    act(() => vi.advanceTimersByTime(15_000))
+    act(() => {
+      vi.advanceTimersByTime(15_000)
+    })
     expect(current.error).toContain('No emulator frames')
     expect(test.subscriptions[0]!.cancel).toHaveBeenCalledOnce()
     await act(async () => current.retry())

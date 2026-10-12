@@ -76,7 +76,9 @@ describe('session-scoped Codex interaction MCP config', () => {
   })
 
   it('declares the headless bridge as a required hashed deployment artifact', () => {
-    expect(orcadArtifactFilenames()).toContain(ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME)
+    expect(orcadArtifactFilenames('linux-x64-glibc')).toContain(
+      ORCAD_STRUCTURED_INTERACTION_MCP_FILENAME
+    )
   })
 
   it('scopes the host-owned socket credentials to the interaction MCP process', () => {

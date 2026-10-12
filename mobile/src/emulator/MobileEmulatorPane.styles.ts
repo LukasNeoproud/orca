@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 export const emulatorStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bgBase },
@@ -61,7 +62,7 @@ export const emulatorStyles = StyleSheet.create({
     backgroundColor: colors.bgPanel,
     borderRadius: radii.input,
     padding: spacing.md,
-    fontSize: typography.bodySize,
+    fontSize: TEXT_INPUT_FONT_SIZE,
     minHeight: 44
   }
 })

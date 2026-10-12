@@ -71,7 +71,7 @@ vi.mock('./ai-vault-session-terminal-owner', () => ({
   findQueuedAiVaultSessionTerminal: () => mock.queued,
   classifyRememberedAiVaultTerminalOwner: () => mock.verdict
 }))
-vi.mock('@/components/right-sidebar/ai-vault-original-pane-actions', () => ({
+vi.mock('@/components/right-sidebar/ai-vault-running-pane-activation', () => ({
   activateRunningOriginalAiVaultSessionPane: () => 'pane-unavailable'
 }))
 vi.mock('@/components/right-sidebar/ai-vault-original-pane-index', () => ({
@@ -263,10 +263,11 @@ describe('Backlog Continue', () => {
       kind: 'environment',
       environmentId: 'owner'
     })
-    expect(mock.reveal).toHaveBeenCalledWith(
-      { worktreeId: 'target', sessionId: 'structured' },
-      { kind: 'environment', environmentId: 'owner' }
-    )
+    expect(mock.reveal).toHaveBeenCalledWith({
+      worktreeId: 'target',
+      sessionId: 'structured',
+      target: { kind: 'environment', environmentId: 'owner' }
+    })
     expect(mock.launch).not.toHaveBeenCalled()
   })
   it('restores paired history only after the owner proves the provider exited', async () => {

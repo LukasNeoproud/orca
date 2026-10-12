@@ -18,7 +18,6 @@ import { RuntimeGitHubIssueCommentCommands } from './runtime-github-issue-commen
 import { RuntimeGitHubProjectCommands } from './runtime-github-project-commands'
 import { RuntimeRepositoryHooksCommands } from './runtime-repository-hooks-commands'
 import { RuntimeRepositoryIssueCommand } from './runtime-repository-issue-command'
-import type { AgentSessionPtyWriteAdmittance } from './agent-session-pty-write-gate'
 import { ClientHostedBrowserRowPublisher } from './client-hosted-browser-row-publication'
 import { getRuntimeBrowserPageRegistry } from './runtime-browser-page-registry'
 import { getBrowserHostLeaseRegistry } from './browser-host-lease-registry-instance'
@@ -46,17 +45,24 @@ export class OrcaRuntimeWithFileCommands extends OrcaRuntimeWithPreservedBranchC
         absolutePath
       }),
     resolveRuntimeGitTarget: (selector) => this.resolveRuntimeGitTarget(selector),
-    openFile: (worktreeId, filePath, relativePath, runtimeEnvironmentId) => {
+    openFile: (worktreeId, filePath, relativePath, runtimeEnvironmentId, navigation) => {
       if (!this.notifier?.openFile) {
         throw new Error('renderer_unavailable')
       }
-      this.notifier.openFile(worktreeId, filePath, relativePath, runtimeEnvironmentId)
+      this.notifier.openFile(worktreeId, filePath, relativePath, runtimeEnvironmentId, navigation)
     },
-    openDiff: (worktreeId, filePath, relativePath, staged, runtimeEnvironmentId) => {
+    openDiff: (worktreeId, filePath, relativePath, staged, runtimeEnvironmentId, navigation) => {
       if (!this.notifier?.openDiff) {
         throw new Error('renderer_unavailable')
       }
-      this.notifier.openDiff(worktreeId, filePath, relativePath, staged, runtimeEnvironmentId)
+      this.notifier.openDiff(
+        worktreeId,
+        filePath,
+        relativePath,
+        staged,
+        runtimeEnvironmentId,
+        navigation
+      )
     }
   })
 
@@ -209,13 +215,9 @@ export class OrcaRuntimeWithFileCommands extends OrcaRuntimeWithPreservedBranchC
   })
 
   protected readonly repositoryIssueCommand = new RuntimeRepositoryIssueCommand({
-    resolveRepo: (selector) => this.resolveRepoSelector(selector)
+    resolveRepo: (selector) => this.resolveRepoSelector(selector),
+    getLocalGitArgs: (repo) => this.getLocalGitExecutionOptionArgs(repo)
   })
-
-  protected readonly orchestrationPointerAdmissionByPtyId = new Map<
-    string,
-    AgentSessionPtyWriteAdmittance
-  >()
 
   protected readonly clientHostedBrowserRows = new ClientHostedBrowserRowPublisher({
     listClientPages: (worktreeId) => getRuntimeBrowserPageRegistry(this).listPages(worktreeId),

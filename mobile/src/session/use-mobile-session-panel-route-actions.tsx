@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { Platform, type LayoutChangeEvent } from 'react-native'
+import type { LayoutChangeEvent } from 'react-native'
 import { Bot } from 'lucide-react-native'
 import {
   type ActivePanel,
@@ -35,6 +35,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     agentSessionHistorySupported,
     backlogSupported,
     clearDeliveredDiffComments,
+    sendDiffNotesToNewAgent,
     handleCreateTerminal
   } = scope
   const createTabAgentActions =
@@ -101,10 +102,12 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
                 if (!delivery) {
                   return
                 }
-                void handleCreateTerminal(option.agent, {
-                  initialPrompt: delivery.prompt,
-                  onPromptSent: () => void clearDeliveredDiffComments(delivery.comments)
-                })
+                void sendDiffNotesToNewAgent(delivery, () =>
+                  handleCreateTerminal(option.agent, {
+                    initialPrompt: delivery.prompt,
+                    onPromptSent: () => void clearDeliveredDiffComments(delivery.comments)
+                  })
+                )
               }
             }))
           : createTabAgentLoadState === 'loaded'
@@ -171,9 +174,10 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     repoContextLoaded: prRepoContextLoaded,
     hostedChecksSupported: prIsGithubRepo
   })
-  const showApkInstallAction = Platform.OS === 'android' && !isFloatingWorkspaceRoute
+  // The Android check lives in the header, which already loads react-native.
+  const apkInstallRouteEligible = !isFloatingWorkspaceRoute
   const showHeaderMoreButton =
-    showAgentSessionHistoryAction || showChecksAction || showBacklogAction || showApkInstallAction
+    showAgentSessionHistoryAction || showChecksAction || showBacklogAction
   const createTabBusy = creating || creatingBrowser || creatingMarkdown
   return {
     createTabAgentActions,
@@ -185,7 +189,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     showBacklogAction,
     showAgentSessionHistoryAction,
     showChecksAction,
-    showApkInstallAction,
+    apkInstallRouteEligible,
     showHeaderMoreButton,
     createTabBusy
   }

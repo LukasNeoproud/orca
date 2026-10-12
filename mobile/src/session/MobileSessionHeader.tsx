@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable } from 'react-native'
+import { View, Text, ScrollView, Platform, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   ChevronLeft,
@@ -8,6 +8,7 @@ import {
   GitBranch,
   Globe,
   MoreHorizontal,
+  PanelLeftOpen,
   Plus,
   Smartphone
 } from 'lucide-react-native'
@@ -22,7 +23,10 @@ import {
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
 import { styles } from './mobile-session-styles'
+import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
+import { useHostSidebarReveal } from '../layout/host-sidebar-reveal'
 import type { MobileSessionController } from './use-mobile-session-controller'
+import { NO_LOCAL_EMULATOR_TABS } from './mobile-local-emulator-tab'
 
 export function MobileSessionHeader({ controller }: { controller: MobileSessionController }) {
   const {
@@ -54,22 +58,37 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
     switchSessionTab,
     openSessionTabActionSheetAfterKeyboardDismiss,
     visibleTabs,
-    localEmulatorTabs,
+    localEmulatorTabs = NO_LOCAL_EMULATOR_TABS,
     switchEmulatorTab,
     closeEmulatorTab,
     setEmulatorActionTarget,
     showConnectionRetry,
     terminalSummary,
     handlePanelTap,
-    showHeaderMoreButton
+    showHeaderMoreButton,
+    apkInstallRouteEligible
   } = controller
+  const tabBarKeepsKeyboard = useKeyboardPersistingTaps('handled')
+  const revealSidebar = useHostSidebarReveal()
   return (
     <SafeAreaView style={styles.sessionChrome} edges={['top']}>
       <View style={styles.sessionTopBar}>
+        {revealSidebar ? (
+          <Pressable
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+            onPress={revealSidebar}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Show sidebar"
+          >
+            <PanelLeftOpen size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
         <Pressable
           style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
           onPress={requestLeaveSession}
           hitSlop={8}
+          accessibilityRole="button"
           accessibilityLabel="Back to worktrees"
         >
           <ChevronLeft size={22} color={colors.textSecondary} strokeWidth={2.2} />
@@ -83,7 +102,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
             style={styles.sessionMetaRow}
             disabled={!showConnectionRetry}
             onPress={() => {
-              if (hostId) {
+              if (hostId && forceReconnectHost) {
                 void forceReconnectHost(hostId)
               }
             }}
@@ -112,7 +131,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
             onPress={() => handlePanelTap('sourceControl')}
           />
         )}
-        {showHeaderMoreButton ? (
+        {showHeaderMoreButton || (apkInstallRouteEligible && Platform.OS === 'android') ? (
           <MobileSessionHeaderIconButton
             active={activePanel === 'pr'}
             accessibilityLabel="More session actions"
@@ -123,7 +142,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
       </View>
 
       {visibleTabs.length + localEmulatorTabs.length > 0 && (
-        <View style={styles.tabBar}>
+        <View ref={tabBarKeepsKeyboard} style={styles.tabBar}>
           {/* Why: tab taps must register on first press with the keyboard open instead of being eaten by dismissal (#5106). */}
           <ScrollView
             ref={tabStripRef}

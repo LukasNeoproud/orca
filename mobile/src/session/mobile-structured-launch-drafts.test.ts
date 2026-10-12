@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clearMobileStructuredLaunchDraft,
   readMobileStructuredLaunchDraft,
+  resolveMobileChatLaunchDraft,
   stageMobileStructuredLaunchDraft
 } from './mobile-structured-launch-drafts'
 
@@ -23,5 +24,30 @@ describe('mobile structured launch drafts', () => {
 
     clearMobileStructuredLaunchDraft('host-a', 'codex_next')
     expect(readMobileStructuredLaunchDraft('host-a', 'codex_next')).toBeNull()
+  })
+
+  it('seeds a structured chat from staged context until the host lists its own draft', () => {
+    stageMobileStructuredLaunchDraft({
+      hostId: 'h',
+      sessionId: 'codex_next',
+      text: 'Reference: /context/source.md',
+      createdAt: 9
+    })
+
+    expect(resolveMobileChatLaunchDraft('h', 'codex_next', null)).toEqual({
+      text: 'Reference: /context/source.md',
+      createdAt: 9
+    })
+    expect(
+      resolveMobileChatLaunchDraft('h', 'codex_next', {
+        launchDraft: 'Host draft',
+        launchDraftCreatedAt: 12
+      })
+    ).toEqual({ text: 'Host draft', createdAt: 12 })
+    expect(resolveMobileChatLaunchDraft('other', 'codex_next', null)).toEqual({
+      text: null,
+      createdAt: null
+    })
+    clearMobileStructuredLaunchDraft('h', 'codex_next')
   })
 })

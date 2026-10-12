@@ -11,9 +11,11 @@ import {
 import { triggerMediumImpact } from '../platform/haptics'
 import { createTerminalLiveAccessoryInput } from '../terminal/terminal-live-accessory-input'
 import { getVisibleTerminalAccessoryRows } from '../terminal/terminal-accessory-layout'
+import { keepHeldPressThroughLongPress } from './held-press-long-press'
 import { isTerminalPhoneDisplayMode } from './mobile-session-route-helpers'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
+import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
 import type { MobileSessionController } from './use-mobile-session-controller'
 
 export function MobileTerminalAccessoryRows({
@@ -60,8 +62,9 @@ export function MobileTerminalAccessoryRows({
     pendingModifiers.length > 0
       ? { bytes: consumePendingAccessoryKey(key.id, key.bytes ?? ''), resetMirrorBeforeSend: true }
       : createTerminalLiveAccessoryInput(key)
+  const accessoryBarKeepsKeyboard = useKeyboardPersistingTaps('always')
   return (
-    <View style={styles.accessoryBar}>
+    <View ref={accessoryBarKeepsKeyboard} style={styles.accessoryBar}>
       {/* Why: fixed keyboard escape hatch; outside ScrollView + shortcut path so it can't scroll away or be hidden (#5106). */}
       {keyboardLift > 0 && (
         <Pressable
@@ -243,6 +246,7 @@ export function MobileTerminalAccessoryRows({
                     }
                     void handleAccessoryKey(prepareBuiltIn(key))
                   }}
+                  onLongPress={key.repeatable ? keepHeldPressThroughLongPress : undefined}
                   accessibilityRole={isModifier ? 'togglebutton' : 'button'}
                   accessibilityState={
                     isModifier

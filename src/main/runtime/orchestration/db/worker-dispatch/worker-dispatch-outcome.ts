@@ -44,11 +44,7 @@ export function failWorkerStart(
   this: OrchestrationDb,
   dispatchId: string,
   stage: string,
-  reason: string,
-  // Why (#16095): revocation exists to stop a worker acting on a dispatch that never landed. A
-  // prompt whose turn start went unobserved provably landed, so its worker keeps the authority its
-  // own report needs.
-  options: { retainCapability?: boolean } = {}
+  reason: string
 ): WorkerDispatchRow {
   this.db.exec('BEGIN IMMEDIATE')
   try {
@@ -66,9 +62,7 @@ export function failWorkerStart(
       projection: {
         last_failure: reason,
         completed_at: now,
-        capability_revoked_at: options.retainCapability
-          ? dispatch.capability_revoked_at
-          : (dispatch.capability_revoked_at ?? now)
+        capability_revoked_at: dispatch.capability_revoked_at ?? now
       }
     })
     transitionLifecycleWithDb(this.db, {
@@ -110,7 +104,8 @@ export function markWorkerStartUnknown(
   this: OrchestrationDb,
   dispatchId: string,
   stage: string,
-  reason: string
+  reason: string,
+  effects?: unknown[]
 ): WorkerDispatchRow {
   this.db.exec('BEGIN IMMEDIATE')
   try {
@@ -124,7 +119,12 @@ export function markWorkerStartUnknown(
       id: dispatchId,
       from: 'starting',
       to: 'start_unknown',
-      projection: { stage, last_error: reason, updated_at: new Date().toISOString() }
+      projection: {
+        stage,
+        last_error: reason,
+        updated_at: new Date().toISOString(),
+        ...(effects ? { effects: JSON.stringify(effects) } : {})
+      }
     })
     transitionLifecycleWithDb(this.db, {
       entity: 'dispatch',
@@ -138,7 +138,7 @@ export function markWorkerStartUnknown(
       from: 'dispatched',
       to: 'blocked'
     })
-    this.closeQuestionsForDispatch(dispatchId)
+    // Authority survives uncertainty, so its outstanding questions must remain answerable.
     this.db.exec('COMMIT')
     return this.getWorkerDispatch(dispatchId) as WorkerDispatchRow
   } catch (error) {

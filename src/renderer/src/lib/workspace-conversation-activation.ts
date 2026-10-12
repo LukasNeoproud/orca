@@ -41,7 +41,7 @@ export function activateConversationTerminal(
     return false
   }
   const fresh = useAppStore.getState()
-  fresh.setActiveTabType('terminal')
+  fresh.setActiveTabType('terminal', route.workspaceId)
   fresh.setActiveTab(tabId)
   if (leafId) {
     activateTabAndFocusPane(tabId, leafId)
@@ -65,7 +65,8 @@ export async function activateStructuredConversation(
     {
       activate: activateStructuredAgentSessionById,
       refresh: (workspaceId) => refreshStructuredSessionTabs(workspaceId, runtimeTarget),
-      reveal: (target) => revealStructuredSession(target, runtimeTarget),
+      reveal: (target) =>
+        revealStructuredSession(runtimeTarget ? { ...target, target: runtimeTarget } : target),
       unavailable: () => {
         status = 'unverifiable'
       },

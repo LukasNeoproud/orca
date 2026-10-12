@@ -1,9 +1,9 @@
-import { z } from 'zod'
 import { defineMethod, type RpcContext } from '../core'
 import { deviceApprovalMailbox } from '../../../device-approval/device-approval-mailbox'
 import { isRequesterDescendantOfMobileTerminal } from '../../../device-approval/device-approval-request-origin'
 import {
   ApprovalResponseSchema,
+  DeviceApprovalListParams,
   EnrollmentResponseSchema,
   parseDeviceApprovalPayload
 } from '../../../../shared/device-approval-contract'
@@ -29,7 +29,8 @@ async function assertMobileTerminalRequest(ctx: RpcContext, requesterPid: number
 export const DEVICE_APPROVAL_METHODS = [
   defineMethod({
     name: 'deviceApproval.list',
-    params: z.object({}).strict(),
+    permission: 'pairing-admin',
+    params: DeviceApprovalListParams,
     handler: async (_, ctx) => {
       requirePhone(ctx)
       const listing = await deviceApprovalMailbox.list()
@@ -50,6 +51,7 @@ export const DEVICE_APPROVAL_METHODS = [
   }),
   defineMethod({
     name: 'deviceApproval.respond',
+    permission: 'pairing-admin',
     params: ApprovalResponseSchema,
     handler: async (response, ctx) => {
       requirePhone(ctx)
@@ -66,6 +68,7 @@ export const DEVICE_APPROVAL_METHODS = [
   }),
   defineMethod({
     name: 'deviceApproval.enroll',
+    permission: 'pairing-admin',
     params: EnrollmentResponseSchema,
     handler: async (response, ctx) => {
       requirePhone(ctx)
