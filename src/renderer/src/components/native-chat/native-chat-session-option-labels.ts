@@ -18,6 +18,9 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
       return translate('components.native-chat.composer.speed', 'Speed')
     case 'thinking':
       return translate('components.native-chat.composer.thinking', 'Thinking')
+    case 'permissionMode':
+    case 'permissions':
+      return translate('components.native-chat.composer.permissions', 'Permissions')
     default:
       return descriptor.label
   }

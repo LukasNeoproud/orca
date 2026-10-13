@@ -1,3 +1,4 @@
+import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import type { AgentJournalDispatchRejection } from '../../shared/agent-session-failure-words'
 import type { SubmissionRejectionFact } from '../../shared/agent-session-failure'
@@ -187,6 +188,8 @@ export type ClaudeSession = {
   launchedModel: string | null
   /** The launch left the saved Fast out, so the start applies it once the settings are read. */
   fastModeAtStart: boolean
+  /** The posture the child launched in; absent before a launch adopts its options. */
+  launchedPermissions?: ClaudeLaunchedPermissions
   /** CLI-advertised protocol capabilities from init; gates interrupt-receipt handling. */
   capabilities: readonly string[]
   backgroundTasks: ClaudeBackgroundTaskTracker
@@ -237,6 +240,12 @@ export type ClaudeSessionExit = {
   /** The whole ladder-then-settle tail, retained so a barrier can await an exit
    *  that is observed but not yet published. Never rejects. */
   publication?: Promise<void>
+}
+
+/** The permission posture a child launched in, and whether Agent Permissions let it bypass. */
+export type ClaudeLaunchedPermissions = {
+  mode: PermissionMode
+  allowsBypass: boolean
 }
 
 export type ClaudeAcquisitionAttempt = {

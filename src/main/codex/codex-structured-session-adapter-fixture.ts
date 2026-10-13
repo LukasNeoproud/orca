@@ -61,8 +61,12 @@ export function fakeCodex(routes: Record<string, Route> = {}): {
       pid: 4321,
       closed: false,
       request: async (method, params) => {
-        connection.calls.push({ method, params })
         const route = routes[method]
+        // Orca's permission prefetch on acquire; tests that pin the call sequence leave it out.
+        if (method === 'configRequirements/read' && !route) {
+          return {}
+        }
+        connection.calls.push({ method, params })
         return route ? route(params) : {}
       },
       notify: () => {},

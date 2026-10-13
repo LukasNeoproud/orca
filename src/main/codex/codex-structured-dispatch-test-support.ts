@@ -59,6 +59,10 @@ export function fakeCodexAppServer(routes: Record<string, CodexTestRoute> = {}):
       pid: 4321,
       closed: false,
       request: async (method, params) => {
+        // Orca's permission prefetch on acquire; tests that pin the call sequence leave it out.
+        if (method === 'configRequirements/read' && !routes[method]) {
+          return {}
+        }
         connection.calls.push({ method, params })
         const route = routes[method] ?? (method === 'turn/steer' ? refuseUnroutedSteer : undefined)
         return route?.(params) ?? {}

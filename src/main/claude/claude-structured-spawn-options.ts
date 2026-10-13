@@ -8,7 +8,7 @@ import type {
   ClaudeStructuredLaunch,
   ClaudeStructuredSdkOptions
 } from './claude-structured-launch-resolution'
-import type { ClaudeSession } from './claude-structured-session-state'
+import type { ClaudeLaunchedPermissions, ClaudeSession } from './claude-structured-session-state'
 import { restoredClaudeStructuredSessionOptions } from './claude-structured-options'
 
 const EFFORT_LEVELS: ReadonlySet<string> = new Set<EffortLevel>([
@@ -74,6 +74,8 @@ export type ClaudeStructuredSpawnOptions = {
   skipped: readonly string[]
   /** A saved Fast the launch does not carry, which the start applies. */
   fastModeAtStart: boolean
+  /** The posture the child starts in, and whether Agent Permissions let it bypass. */
+  permissions: ClaudeLaunchedPermissions
 }
 
 /**
@@ -138,18 +140,34 @@ export function claudeStructuredSpawnOptions(input: {
       skipped.push('permissionMode')
     }
   }
-  return { sdkOptions, options, skipped, fastModeAtStart }
+  const allowsBypass = claudeStructuredOptionsBypassPermissions(input.launch.options)
+  const launchedMode = sdkOptions.permissionMode
+  const permissions = {
+    mode: claudeStructuredOptionsBypassPermissions(sdkOptions)
+      ? 'bypassPermissions'
+      : launchedMode && isPermissionMode(launchedMode)
+        ? launchedMode
+        : 'default',
+    allowsBypass
+  } satisfies ClaudeLaunchedPermissions
+  return { sdkOptions, options, skipped, fastModeAtStart, permissions }
 }
 
 /** The published session takes on what its child was launched with. */
 export function adoptClaudeStructuredSpawnOptions(
   session: Pick<
     ClaudeSession,
-    'restoreSkippedOptions' | 'translator' | 'launchedModel' | 'fastModeAtStart'
+    | 'restoreSkippedOptions'
+    | 'translator'
+    | 'launchedModel'
+    | 'fastModeAtStart'
+    | 'launchedPermissions'
   >,
-  spawn: Pick<ClaudeStructuredSpawnOptions, 'options' | 'skipped' | 'fastModeAtStart'>
+  spawn: Pick<ClaudeStructuredSpawnOptions, 'options' | 'skipped' | 'fastModeAtStart'> &
+    Partial<Pick<ClaudeStructuredSpawnOptions, 'permissions'>>
 ): void {
   session.launchedModel = spawn.options.get('model') ?? null
+  session.launchedPermissions = spawn.permissions
   session.fastModeAtStart = spawn.fastModeAtStart
   for (const key of spawn.skipped) {
     session.restoreSkippedOptions.add(key)

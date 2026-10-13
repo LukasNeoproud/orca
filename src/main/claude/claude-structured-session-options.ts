@@ -19,6 +19,7 @@ import {
 import type { StructuredAgentSessionLiveOptions } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { AgentModelCatalogLiveListing } from '../native-chat/agent-model-catalog/agent-model-catalog-entry'
 import { decodeStructuredAgentSessionOptionValue } from '../../shared/structured-agent-session-option-codec'
+import { claudeStructuredPermissions } from './claude-structured-permissions'
 
 /**
  * The session's current effort, which only `get_settings` reports: the
@@ -323,6 +324,7 @@ export function claudeStructuredSessionOptionsFrom(
   ]
   return {
     models: wireClaudeModels(models),
+    permissions: claudeStructuredPermissions(session),
     ...(support ? { fastModeSupport: support } : {}),
     current: {
       model,

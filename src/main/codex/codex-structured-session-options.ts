@@ -18,12 +18,21 @@ import {
   type CodexSessionOptionCatalog
 } from './codex-structured-model-catalog'
 import { codexAcquireCatalogListing, listingFromEntry } from './codex-structured-catalog-entry'
+import {
+  assertCodexPermissionsValue,
+  CODEX_PERMISSIONS_OPTION,
+  codexStructuredPermissions
+} from './codex-structured-permissions'
 export { codexAcquireCatalogListing } from './codex-structured-catalog-entry'
 
 export function restoredCodexSessionOptions(
   options: Readonly<Record<string, string>> | undefined
 ): Map<string, string> {
-  return new Map(Object.entries(options ?? {}).filter(([key]) => isCodexTurnOptionKey(key)))
+  return new Map(
+    Object.entries(options ?? {}).filter(
+      ([key]) => isCodexTurnOptionKey(key) || key === CODEX_PERMISSIONS_OPTION
+    )
+  )
 }
 
 export type { CodexSessionOptionCatalog } from './codex-structured-model-catalog'
@@ -121,7 +130,8 @@ export async function readLiveCodexSessionOptions(
   timeoutMs: number | undefined
 ): Promise<AgentSessionOptionsResult> {
   const listing = await codexSessionCatalogListingForPicker(session, timeoutMs)
-  return applyLiveCodexCatalog(session, listing)
+  const permissions = codexStructuredPermissions(session)
+  return { ...applyLiveCodexCatalog(session, listing), ...(permissions ? { permissions } : {}) }
 }
 
 /** Fetch outside the session lane; apply against current options inside it. */
@@ -130,7 +140,10 @@ export async function prepareLiveCodexSessionOptions(
   timeoutMs: number | undefined
 ): Promise<() => AgentSessionOptionsResult> {
   const listing = await codexSessionCatalogListingForPicker(session, timeoutMs)
-  return () => applyLiveCodexCatalog(session, listing)
+  return () => {
+    const permissions = codexStructuredPermissions(session)
+    return { ...applyLiveCodexCatalog(session, listing), ...(permissions ? { permissions } : {}) }
+  }
 }
 
 export async function applyCodexStructuredSessionOption(
@@ -139,6 +152,9 @@ export async function applyCodexStructuredSessionOption(
   value: string
 ): Promise<Readonly<Record<string, string>>> {
   try {
+    if (key === CODEX_PERMISSIONS_OPTION) {
+      assertCodexPermissionsValue(value)
+    }
     return applyValidatedCodexStructuredSessionOption(session, key, value)
   } catch (error) {
     throw new AgentSessionOptionRejectedError(error)

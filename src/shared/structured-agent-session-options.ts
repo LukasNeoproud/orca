@@ -22,6 +22,11 @@ import {
   decodeStructuredAgentSessionOptionValue,
   encodeStructuredAgentSessionOptionValue
 } from './structured-agent-session-option-codec'
+import {
+  dispatchedStructuredPermissions,
+  structuredPermissionsDescriptor,
+  type StructuredPermissionsState
+} from './structured-agent-session-permissions'
 
 export function structuredAgentSessionOptionCatalog(
   seed: AgentSessionOptionCatalog,
@@ -48,6 +53,7 @@ export type StructuredAgentSessionOptionState = {
   catalogSource: 'seed' | 'builtin' | 'host' | 'live' | null
   record: NativeChatSessionOptionRecord
   pendingId: string | null
+  permissions?: StructuredPermissionsState
 }
 
 /** With `seedCatalog`, the state holds the static seed from the first frame, but the picker shows
@@ -138,7 +144,8 @@ export function applyStructuredAgentSessionOptions(
   return {
     ...state,
     catalog: structuredAgentSessionOptionCatalog(seed, result),
-    catalogSource: 'live'
+    catalogSource: 'live',
+    permissions: result.permissions
   }
 }
 
@@ -174,6 +181,10 @@ export function structuredAgentSessionOptionSnapshot(
     modelLabel: 'Model',
     liveTransport: 'agent-session'
   })
+  const permissions = structuredPermissionsDescriptor(state.permissions)
+  if (permissions && snapshot.length > 0) {
+    snapshot.push(permissions)
+  }
   return snapshot.length > 0 || state.catalogSource === 'live'
     ? snapshot
     : [PROVIDER_DEFAULT_MODEL_PLACEHOLDER]
@@ -213,6 +224,13 @@ export function commitStructuredAgentSessionOption(
 ): StructuredAgentSessionOptionState {
   if (!state.catalog) {
     return state
+  }
+  if (state.permissions && id === state.permissions.optionId) {
+    return {
+      ...state,
+      pendingId: null,
+      permissions: dispatchedStructuredPermissions(state.permissions, value)
+    }
   }
   const effectiveModel = resolveEffectiveNativeChatModelId(
     state.catalog,

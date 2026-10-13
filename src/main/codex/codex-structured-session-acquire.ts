@@ -45,6 +45,10 @@ import type { CodexStructuredSessionTeardown } from './codex-structured-session-
 import type { CodexStructuredNotificationRetry } from './codex-structured-notification-retry'
 import type { deliverCodexServerRequest } from './codex-structured-provider-events'
 import { codexAcquisitionNotificationHandler } from './codex-structured-acquisition-notification'
+import {
+  codexLaunchedPermissions,
+  readCodexPermissionChoices
+} from './codex-structured-permissions'
 
 export async function acquireCodexStructuredSession(input: {
   input: StructuredAgentSessionAcquireInput
@@ -233,6 +237,8 @@ export async function acquireCodexStructuredSession(input: {
       prompts: acquisition.prompts,
       options,
       reportedOptions: reportedCodexThreadOptions(opened),
+      workspaceCwd: launch.cwd,
+      launchedPermissions: codexLaunchedPermissions(launch.permissionPolicy),
       ...(catalogAccess ? { catalogAccess } : {}),
       dispatchEchoes,
       translator,
@@ -247,6 +253,8 @@ export async function acquireCodexStructuredSession(input: {
       ...(unbindReadingControl ? { unbindReadingControl } : {})
     }
     sessions.set(sessionId, session)
+    // Ahead of the first options read, which never waits for it.
+    void readCodexPermissionChoices(connection)
     for (const event of acquisition.drain()) {
       event()
     }

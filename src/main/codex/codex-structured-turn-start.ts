@@ -23,6 +23,7 @@ import {
   codexDispatchRejection,
   codexTurnEndRejection
 } from './codex-structured-turn-end-settlement'
+import { codexTurnOptionParams } from './codex-structured-permissions'
 
 // Writing a Codex turn and learning which message landed where, which are not
 // the same event. The answer proves admission and nothing about identity, which
@@ -66,6 +67,8 @@ export type CodexTurnHost = {
   turnOpenWaits: Pick<CodexTurnOpenWaits, 'wait'>
   /** Resumed or MCP-equipped chats get Orca's interactive UI instructions on each turn. */
   resumedInteractiveChat?: boolean
+  /** Where a workspace-write permission pick confines writes. */
+  workspaceCwd?: string
 }
 
 function turnInputFor(body: AgentJournalMessageItem): Record<string, unknown>[] {
@@ -159,8 +162,8 @@ export async function startCodexTurn(
           }
         }
       : {}),
-    // Codex omits a tier the model does not list.
-    ...Object.fromEntries(host.options)
+    // Codex omits a tier the model does not list; a permission pick becomes its policy fields.
+    ...codexTurnOptionParams(host.options, host.workspaceCwd)
   }
   let answer: unknown
   try {

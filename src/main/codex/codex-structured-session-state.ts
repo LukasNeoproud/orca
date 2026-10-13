@@ -155,6 +155,10 @@ export type CodexSession = {
     serviceTier?: string | null
     serviceTierKnown?: true
   }
+  /** The thread's workspace, which a workspace-write permission pick confines writes to. */
+  workspaceCwd?: string
+  /** The permission preset Agent Permissions opened the thread with, until the chat picks one. */
+  launchedPermissions?: string
   /** Absent when the adapter runs without a host catalog store (tests). */
   catalogAccess?: CodexSessionCatalogAccess
   /** Sends whose identity is still to be settled by the provider echo. */

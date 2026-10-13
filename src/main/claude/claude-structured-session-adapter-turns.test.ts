@@ -258,7 +258,8 @@ describe('ClaudeStructuredSessionAdapter turns and controls', () => {
         },
         { id: 'sonnet', label: 'Sonnet', isDefault: false, efforts: [] }
       ],
-      current: { model: 'sonnet', effort: 'high', confirmed: ['model', 'effort'] }
+      current: { model: 'sonnet', effort: 'high', confirmed: ['model', 'effort'] },
+      permissions: expect.objectContaining({ optionId: 'permissionMode' })
     })
   })
 

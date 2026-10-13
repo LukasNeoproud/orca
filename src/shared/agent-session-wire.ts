@@ -494,6 +494,8 @@ export type AgentSessionOptionsResult = {
   /** This session takes image attachments. Absent = unknown (an older host). */
   acceptsImages?: boolean
   models: AgentSessionModelOption[]
+  /** Absent from hosts that cannot change a chat's permissions; the picker is then not shown. */
+  permissions?: { optionId: string; current?: string; choices: AgentSessionOptionChoice[] }
   /** Session/account/transport support. Absent means unknown, never unsupported. */
   fastModeSupport?: AgentSessionFastModeSupport
   current: {
