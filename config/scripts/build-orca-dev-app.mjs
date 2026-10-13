@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { createLocalBuildVersion } from './build-mac-local.mjs'
@@ -61,6 +69,28 @@ export function isOrcaDevRunning(
     .some((line) => line.startsWith(executable))
 }
 
+/** The Node bin dir for the major the checkout pins in `engines.node`: this one, or an nvm install. */
+export function resolveBuildNodeBin(
+  pinnedMajor,
+  { currentVersion = process.versions.node, nvmRoot = path.join(homedir(), '.nvm') } = {}
+) {
+  if (currentVersion.split('.')[0] === pinnedMajor) {
+    return path.dirname(process.execPath)
+  }
+  const versionsDir = path.join(nvmRoot, 'versions', 'node')
+  const installed = existsSync(versionsDir)
+    ? readdirSync(versionsDir).filter((name) => name.startsWith(`v${pinnedMajor}.`))
+    : []
+  const collator = new Intl.Collator(undefined, { numeric: true })
+  const newest = installed.sort((a, b) => collator.compare(b, a))[0]
+  if (!newest) {
+    throw new Error(
+      `Orca builds need Node ${pinnedMajor}; install it with \`nvm install ${pinnedMajor}\`.`
+    )
+  }
+  return path.join(versionsDir, newest, 'bin')
+}
+
 function prepareSource(commit) {
   if (!existsSync(path.join(sourceDir, '.git'))) {
     mkdirSync(cacheRoot, { recursive: true })
@@ -73,9 +103,12 @@ function prepareSource(commit) {
 }
 
 function build(commit) {
+  const { engines } = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'))
+  const nodeBin = resolveBuildNodeBin(String(engines.node).match(/\d+/)[0])
   // Why CSC_NAME for every step: the native helpers are signed while they build, before packaging.
   const env = {
     ...process.env,
+    PATH: `${nodeBin}:${process.env.PATH}`,
     ORCA_BACKGROUND_LAUNCH: '1',
     ORCA_SKIP_DEV_CLI_SYMLINK: '1',
     CSC_NAME: DEV_SIGNING_IDENTITY
@@ -111,7 +144,9 @@ function build(commit) {
       '--mac',
       'dir',
       `--${process.arch}`,
-      `--config.directories.output=${outputDir}`
+      `--config.directories.output=${outputDir}`,
+      // Why: the installed Electron is the exact version; a GitHub download can stall for minutes.
+      `--config.electronDist=${path.join(sourceDir, 'node_modules', 'electron', 'dist')}`
     ],
     {
       cwd: sourceDir,
