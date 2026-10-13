@@ -49,13 +49,20 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
     const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', mcp: true })
     expect(prompt).toContain('`ado_get_pull_request`')
     expect(prompt).toContain('`ado_create_draft`')
-    expect(prompt).toContain('`orca-dev ado --help`')
+    expect(prompt).toContain('`mcp__orca_ado__ado_get_pull_request`')
+    expect(prompt).toContain('switch to the CLI at once')
+    expect(prompt).toContain(
+      '`orca-dev ado draft create --pr dev.azure.com/contoso+repo+7 --kind inline'
+    )
   })
 
   it('uses the given CLI for every Orca command without MCP', () => {
     const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', mcp: false })
     expect(prompt).toContain('`orca-dev ado pr dev.azure.com/contoso+repo+7 --json`')
-    expect(prompt).toContain('`orca-dev ado draft create`')
+    expect(prompt).toContain(
+      '`orca-dev ado draft create --pr dev.azure.com/contoso+repo+7 --kind reply --thread <id> --body-file -`'
+    )
+    expect(prompt).toContain('`.result.drafts`')
     expect(prompt).not.toMatch(/`orca ado/)
     expect(prompt).not.toContain('ado_create_draft')
   })

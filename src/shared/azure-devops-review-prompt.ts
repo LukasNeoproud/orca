@@ -34,16 +34,24 @@ export function buildAzureDevOpsReviewAgentPrompt(
   options: AzureDevOpsReviewOptions = DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS
 ): string {
   const { cli } = tools
+  const create = `${cli} ado draft create --pr ${pullRequest.key}`
+  // Spelled out because every review otherwise starts by reading each command's --help.
+  const cliSummary = [
+    `inline \`${create} --kind inline --file <path> --line <n> [--end-line <n>] --body-file -\`,`,
+    `general \`${create} --kind general --body-file -\`,`,
+    `reply \`${create} --kind reply --thread <id> --body-file -\`;`,
+    `fix one with \`${cli} ado draft update <id> --body-file -\`, list them with \`${cli} ado drafts ${pullRequest.key} --json\` (\`.result.drafts\`).`
+  ].join(' ')
   const access = tools.mcp
     ? [
         `Use the \`${MCP_SERVER}\` MCP tools: read the PR, its threads and drafts with \`ado_get_pull_request\` (pullRequestKey \`${pullRequest.key}\`).`,
         'Leave findings only as Orca drafts with `ado_create_draft` (inline on changed lines, file-level, general, or replies to existing threads); fix your own drafts with `ado_update_draft` / `ado_delete_draft`.',
-        `If the MCP tools are unavailable, use the \`${cli} ado\` CLI instead (\`${cli} ado --help\`).`
+        `The tools may load lazily: search for them by name (\`mcp__${MCP_SERVER}__ado_get_pull_request\`). If that search finds none, switch to the CLI at once: ${cliSummary}`
       ]
     : [
         `Use the \`${cli}\` CLI for Orca (run \`${cli} ado --help\` for all commands).`,
-        `Read the PR, its existing threads and drafts with \`${cli} ado pr ${pullRequest.key} --json\`.`,
-        `Leave findings only as Orca drafts with \`${cli} ado draft create\` (inline on changed lines, file-level, general, or replies to existing threads).`
+        `Read the PR, its existing threads and drafts with \`${cli} ado pr ${pullRequest.key} --json\` (the answer is under \`.result\`).`,
+        `Leave findings only as Orca drafts. ${cliSummary}`
       ]
   return [
     `Review Azure DevOps pull request !${pullRequest.pullRequestId} "${pullRequest.title}" (${pullRequest.repository}).`,

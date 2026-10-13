@@ -6,6 +6,8 @@ const PR_KEY_NOTE =
 
 const LOCATION_FLAGS = ['file', 'line', 'end-line', 'side']
 
+const JSON_ENVELOPE_NOTE = '`--json` wraps the answer as `{ "ok": true, "result": … }`.'
+
 export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['ado', 'prs'],
@@ -25,7 +27,10 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
     allowedFlags: [...GLOBAL_FLAGS, 'key'],
     positionalArgs: ['key'],
     examples: ['orca ado pr dev.azure.com/contoso+0f1e…+123 --json'],
-    notes: [PR_KEY_NOTE]
+    notes: [
+      PR_KEY_NOTE,
+      `${JSON_ENVELOPE_NOTE} \`.result\` holds pullRequest, latestIteration, threads, changes (paths only; read the code with git) and drafts.`
+    ]
   },
   {
     path: ['ado', 'drafts'],
@@ -35,6 +40,7 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
     positionalArgs: ['key'],
     notes: [
       PR_KEY_NOTE,
+      `${JSON_ENVELOPE_NOTE} The drafts are the array at \`.result.drafts\`.`,
       'Drafts marked outdated were written against an older iteration; re-anchor them with `orca ado draft update <id> --line …` or delete them.'
     ]
   },
