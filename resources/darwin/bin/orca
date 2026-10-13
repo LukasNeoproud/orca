@@ -20,6 +20,10 @@ fi
 
 CONTENTS="$APP_PATH/Contents"
 ELECTRON="$CONTENTS/MacOS/Orca"
+# Why: a bundle built under another product name (Orca Dev) names its executable after it.
+if [ ! -x "$ELECTRON" ]; then
+	ELECTRON="$CONTENTS/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$CONTENTS/Info.plist")"
+fi
 # Why: Orca packages the CLI entrypoint outside app.asar so the public shell
 # command can execute it directly with ELECTRON_RUN_AS_NODE, mirroring VS Code's
 # launcher model instead of requiring a separate npm-distributed binary.

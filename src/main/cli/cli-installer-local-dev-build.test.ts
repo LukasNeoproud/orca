@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('electron', () => ({
   app: { isPackaged: true, getPath: () => tmpdir(), getAppPath: () => tmpdir() }
 }))
-vi.mock('../startup/local-dev-build', () => ({ isLocalDevBuild: () => true }))
+vi.mock('../../shared/local-dev-build', () => ({ isLocalDevBuild: () => true }))
 
 import { CliInstaller } from './cli-installer'
 import { createPackagedMacLauncher, makeFixture } from './cli-installer-test-fixtures'

@@ -628,6 +628,8 @@ module.exports = {
         from: 'resources/darwin/bin/orca',
         to: 'bin/orca'
       },
+      // Why: Orca Dev terminals call `orca-dev`, which no installed Orca can shadow on PATH.
+      ...(isLocalDevBuild ? [{ from: 'resources/darwin/bin/orca', to: 'bin/orca-dev' }] : []),
       {
         from: 'node_modules/agent-browser/bin/agent-browser-darwin-${arch}',
         to: 'agent-browser-darwin-${arch}'

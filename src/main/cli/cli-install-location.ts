@@ -29,7 +29,7 @@ import {
   readWindowsUserPathRegistry,
   type WindowsUserPathReadResult
 } from './windows-user-path-registry'
-import { isLocalDevBuild } from '../startup/local-dev-build'
+import { isLocalDevBuild } from '../../shared/local-dev-build'
 
 export abstract class CliInstallLocation {
   protected abstract inspectSymlink(

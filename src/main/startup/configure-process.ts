@@ -15,7 +15,7 @@ import {
   readActiveProfileId,
   readPersistedHttp1CompatibilityMode
 } from './http1-compatibility-profile-state'
-import { isLocalDevBuild } from './local-dev-build'
+import { isLocalDevBuild } from '../../shared/local-dev-build'
 
 const DEV_PARENT_SHUTDOWN_GRACE_MS = 3000
 const HTTP1_COMPATIBILITY_ENV_VAR = 'ORCA_DISABLE_HTTP2'

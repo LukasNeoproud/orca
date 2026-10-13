@@ -1,5 +1,5 @@
 import { is } from '@electron-toolkit/utils'
-import { isLocalDevBuild } from './local-dev-build'
+import { isLocalDevBuild } from '../../shared/local-dev-build'
 
 /**
  * Dev data, Keychain name, CLI and no auto-update. True for `pnpm dev` and for a packaged Orca Dev

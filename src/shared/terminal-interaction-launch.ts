@@ -6,6 +6,7 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import type { TuiAgent } from './tui-agent'
+import { isLocalDevBuild } from './local-dev-build'
 
 const MCP_SERVER = 'orca_interactive'
 const MCP_ENV = [
@@ -19,7 +20,8 @@ const MCP_ENV = [
 
 /** The Orca CLI an agent in this build's terminals must call; dev builds expose `orca-dev`. */
 export function orcaLaunchCliCommand(platform: NodeJS.Platform, isDev: boolean): string {
-  if (isDev) {
+  // Why also Orca Dev: a login shell's path_helper puts the installed Orca's `orca` first.
+  if (isDev || isLocalDevBuild()) {
     return platform === 'win32' ? 'orca-dev.cmd' : 'orca-dev'
   }
   return getOrcaCliCommandNameForPlatform(platform)

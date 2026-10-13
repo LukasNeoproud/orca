@@ -23,6 +23,3 @@ declare const ORCA_DIAGNOSTICS_TOKEN_URL: string | null
 
 // Full commit the build was made from (`git rev-parse HEAD`); official skill installs pin to it.
 declare const ORCA_BUILD_COMMIT: string
-
-// A packaged Orca Dev build (config/scripts/build-orca-dev-app.mjs): dev identity, packaged files.
-declare const ORCA_LOCAL_DEV_BUILD: boolean
