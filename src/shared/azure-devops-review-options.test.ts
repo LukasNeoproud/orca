@@ -25,6 +25,12 @@ describe('normalizeAzureDevOpsReviewOptions', () => {
     ).toEqual(['security'])
   })
 
+  it('opens in the terminal unless the chat was chosen', () => {
+    expect(normalizeAzureDevOpsReviewOptions({}).surface).toBe('terminal')
+    expect(normalizeAzureDevOpsReviewOptions({ surface: 'chat' }).surface).toBe('chat')
+    expect(normalizeAzureDevOpsReviewOptions({ surface: 'popup' }).surface).toBe('terminal')
+  })
+
   it('trims and bounds the reviewer instructions', () => {
     const options = normalizeAzureDevOpsReviewOptions({ instructions: `  ${'x'.repeat(5000)} ` })
     expect(options.instructions).toHaveLength(4000)
@@ -44,7 +50,8 @@ describe('azureDevOpsReviewOptionLines', () => {
       language: 'en',
       depth: 'build-and-test',
       checks: ['full-test-suite', 'dependency-audit'],
-      instructions: 'Start Docker first.'
+      instructions: 'Start Docker first.',
+      surface: 'terminal'
     }).join('\n')
     expect(lines).toContain('in English')
     expect(lines).toContain('run the tests that cover the changed code')

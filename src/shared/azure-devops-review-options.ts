@@ -1,6 +1,8 @@
 export type AzureDevOpsReviewLanguage = 'cs' | 'en'
 export type AzureDevOpsReviewDepth = 'static' | 'build' | 'build-and-test'
 export type AzureDevOpsReviewCheck = 'lint' | 'full-test-suite' | 'dependency-audit' | 'security'
+/** Where the agent runs: its own TUI (auto mode, chat/terminal toggle) or Orca's structured chat. */
+export type AzureDevOpsReviewSurface = 'terminal' | 'chat'
 
 export type AzureDevOpsReviewOptions = {
   language: AzureDevOpsReviewLanguage
@@ -8,6 +10,7 @@ export type AzureDevOpsReviewOptions = {
   checks: AzureDevOpsReviewCheck[]
   /** Free text for setup a check needs, e.g. "tests need Docker running". */
   instructions: string
+  surface: AzureDevOpsReviewSurface
 }
 
 export const AZURE_DEVOPS_REVIEW_CHECKS: readonly AzureDevOpsReviewCheck[] = [
@@ -21,7 +24,8 @@ export const DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS: AzureDevOpsReviewOptions = {
   language: 'cs',
   depth: 'static',
   checks: [],
-  instructions: ''
+  instructions: '',
+  surface: 'terminal'
 }
 
 const MAX_INSTRUCTIONS_LENGTH = 4000
@@ -48,7 +52,8 @@ export function normalizeAzureDevOpsReviewOptions(value: unknown): AzureDevOpsRe
     instructions:
       typeof input.instructions === 'string'
         ? input.instructions.trim().slice(0, MAX_INSTRUCTIONS_LENGTH)
-        : defaults.instructions
+        : defaults.instructions,
+    surface: input.surface === 'chat' ? 'chat' : defaults.surface
   }
 }
 

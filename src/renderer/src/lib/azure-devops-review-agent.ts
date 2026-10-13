@@ -61,13 +61,17 @@ export async function startAzureDevOpsReviewAgent(
   const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
   const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
-    // Why terminal: the review runs in the agent's TUI, with its auto mode and chat/terminal toggle.
-    agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({
-      route: 'terminal-tui',
-      requestId: newAgentLaunchRequestId(),
-      agent,
-      worktreeId
-    }),
+    // Why terminal by default: the agent's TUI keeps its auto mode and the chat/terminal toggle.
+    ...(options?.surface === 'chat'
+      ? { requestId: newAgentLaunchRequestId() }
+      : {
+          agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({
+            route: 'terminal-tui',
+            requestId: newAgentLaunchRequestId(),
+            agent,
+            worktreeId
+          })
+        }),
     agent,
     worktreeId,
     groupId: worktreeId,

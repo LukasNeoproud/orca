@@ -20320,6 +20320,9 @@
     "optionsInstructions": "Setup notes for the agent",
     "optionsInstructionsPlaceholder": "For example: tests need Docker running; build with the Release configuration.",
     "optionsCancel": "Cancel",
-    "optionsStart": "Start review"
+    "optionsStart": "Start review",
+    "optionsSurface": "Open in",
+    "surfaceTerminal": "Terminal",
+    "surfaceChat": "Structured chat"
   }
 }

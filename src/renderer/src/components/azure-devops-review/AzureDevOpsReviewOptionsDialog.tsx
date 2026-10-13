@@ -26,7 +26,8 @@ import {
   type AzureDevOpsReviewCheck,
   type AzureDevOpsReviewDepth,
   type AzureDevOpsReviewLanguage,
-  type AzureDevOpsReviewOptions
+  type AzureDevOpsReviewOptions,
+  type AzureDevOpsReviewSurface
 } from '../../../../shared/azure-devops-review-options'
 
 function checkLabel(check: AzureDevOpsReviewCheck): { title: string; hint: string } {
@@ -89,7 +90,7 @@ export function AzureDevOpsReviewOptionsDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{translate('azureDevOpsReview.optionsTitle', 'AI review')}</DialogTitle>
           <DialogDescription>
@@ -99,7 +100,7 @@ export function AzureDevOpsReviewOptionsDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
             <Label htmlFor="ado-review-language">
               {translate('azureDevOpsReview.optionsLanguage', 'Comment language')}
@@ -141,6 +142,27 @@ export function AzureDevOpsReviewOptionsDialog({
                 </SelectItem>
                 <SelectItem value="build-and-test">
                   {translate('azureDevOpsReview.depthBuildAndTest', 'Build and run tests')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ado-review-surface">
+              {translate('azureDevOpsReview.optionsSurface', 'Open in')}
+            </Label>
+            <Select
+              value={options.surface}
+              onValueChange={(value) => update({ surface: value as AzureDevOpsReviewSurface })}
+            >
+              <SelectTrigger id="ado-review-surface" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="terminal">
+                  {translate('azureDevOpsReview.surfaceTerminal', 'Terminal')}
+                </SelectItem>
+                <SelectItem value="chat">
+                  {translate('azureDevOpsReview.surfaceChat', 'Structured chat')}
                 </SelectItem>
               </SelectContent>
             </Select>
