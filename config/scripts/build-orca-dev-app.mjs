@@ -173,15 +173,34 @@ function build(commit) {
   return builtApp
 }
 
-/** Quits Orca Dev like Cmd+Q; its terminals live in the daemon and survive. */
-function quitOrcaDev() {
-  run('/usr/bin/osascript', ['-e', 'tell application id "com.stablyai.orca.dev" to quit'])
-  const deadline = Date.now() + 60_000
+function waitForOrcaDevExit(timeoutMs) {
+  const deadline = Date.now() + timeoutMs
   while (isOrcaDevRunning(installedApp)) {
     if (Date.now() > deadline) {
-      throw new Error('Orca Dev did not quit within a minute; the new build is not installed.')
+      return false
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
+  }
+  return true
+}
+
+/**
+ * Quits Orca Dev; its terminals live in the daemon and survive. Asked like Cmd+Q first, without
+ * waiting on the answer: a confirmation dialog (running terminals) would hold that answer forever.
+ * SIGTERM then quits it without the dialog.
+ */
+function quitOrcaDev() {
+  run('/usr/bin/osascript', [
+    '-e',
+    'ignoring application responses\ntell application id "com.stablyai.orca.dev" to quit\nend ignoring'
+  ])
+  if (waitForOrcaDevExit(10_000)) {
+    return
+  }
+  const executable = path.join(installedApp, 'Contents', 'MacOS', 'Orca Dev')
+  run('/usr/bin/pkill', ['-TERM', '-x', '-f', executable])
+  if (!waitForOrcaDevExit(60_000)) {
+    throw new Error('Orca Dev did not quit within a minute; the new build is not installed.')
   }
 }
 
