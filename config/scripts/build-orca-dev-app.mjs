@@ -198,7 +198,8 @@ function quitOrcaDev() {
     return
   }
   const executable = path.join(installedApp, 'Contents', 'MacOS', 'Orca Dev')
-  run('/usr/bin/pkill', ['-TERM', '-x', '-f', executable])
+  // Exit status 1 only means it quit by itself meanwhile.
+  spawnSync('/usr/bin/pkill', ['-TERM', '-x', '-f', executable])
   if (!waitForOrcaDevExit(60_000)) {
     throw new Error('Orca Dev did not quit within a minute; the new build is not installed.')
   }
