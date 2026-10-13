@@ -15,6 +15,10 @@ if (!commandPath) {
   console.log('[orca-dev] Skipping global symlink (unsupported platform).')
   process.exit(0)
 }
+// Why: a packaged Orca Dev build runs from a throwaway clone that no global command may point into.
+if (process.env.ORCA_SKIP_DEV_CLI_SYMLINK === '1') {
+  process.exit(0)
+}
 
 function isOwnedByUs(target) {
   try {

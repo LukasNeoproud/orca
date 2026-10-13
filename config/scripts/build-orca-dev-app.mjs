@@ -73,7 +73,13 @@ function prepareSource(commit) {
 }
 
 function build(commit) {
-  const env = { ...process.env, ORCA_BACKGROUND_LAUNCH: '1' }
+  // Why CSC_NAME for every step: the native helpers are signed while they build, before packaging.
+  const env = {
+    ...process.env,
+    ORCA_BACKGROUND_LAUNCH: '1',
+    ORCA_SKIP_DEV_CLI_SYMLINK: '1',
+    CSC_NAME: DEV_SIGNING_IDENTITY
+  }
   run('pnpm', ['install', '--frozen-lockfile'], { cwd: sourceDir, env })
   run('pnpm', ['install', '--frozen-lockfile'], {
     cwd: path.join(sourceDir, 'mobile'),
@@ -114,8 +120,7 @@ function build(commit) {
         ORCA_LOCAL_DEV_BUILD: '1',
         ORCA_LOCAL_DEV_ICON: icon,
         ORCA_BUILD_COMMIT: commit.slice(0, 12),
-        ORCA_LOCAL_BUILD_VERSION: createLocalBuildVersion(version, Date.now(), commit),
-        CSC_NAME: DEV_SIGNING_IDENTITY
+        ORCA_LOCAL_BUILD_VERSION: createLocalBuildVersion(version, Date.now(), commit)
       }
     }
   )
