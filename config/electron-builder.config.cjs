@@ -610,6 +610,8 @@ module.exports = {
     // explicit release path so production artifacts remain strict while dev
     // artifacts do not fail with broken ad-hoc launch behavior.
     hardenedRuntime: isMacRelease,
+    // Why: Apple's timestamp service refuses the self-signed Orca Dev identity; nothing notarizes it.
+    ...(isLocalDevBuild ? { timestamp: 'none' } : {}),
     // Why dev builds notarize too, despite the ~10min notary round trip: TCC
     // anchors a notarized Developer ID app's permission grants on identifier +
     // team, which is cdhash-independent and so survives an update. Without a
