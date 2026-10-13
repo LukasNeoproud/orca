@@ -3,11 +3,13 @@ import { devIconIcns, isOrcaDevRunning, parseArguments } from './build-orca-dev-
 
 describe('build-orca-dev-app', () => {
   it('builds HEAD and installs by default', () => {
-    expect(parseArguments([])).toEqual({ ref: 'HEAD', install: true })
+    expect(parseArguments([])).toEqual({ ref: 'HEAD', install: true, build: true })
     expect(parseArguments(['--ref', 'personal', '--no-install'])).toEqual({
       ref: 'personal',
-      install: false
+      install: false,
+      build: true
     })
+    expect(parseArguments(['--install-only'])).toMatchObject({ install: true, build: false })
     expect(() => parseArguments(['--ref'])).toThrow('--ref needs')
     expect(() => parseArguments(['--force'])).toThrow('Unknown argument')
   })

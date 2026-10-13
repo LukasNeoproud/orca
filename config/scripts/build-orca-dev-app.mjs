@@ -33,12 +33,14 @@ const read = (command, args, options = {}) =>
   execFileSync(command, args, { encoding: 'utf8', ...options }).trim()
 
 export function parseArguments(argv) {
-  const options = { ref: 'HEAD', install: true }
+  const options = { ref: 'HEAD', install: true, build: true }
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === '--ref') {
       options.ref = argv[++index]
     } else if (argv[index] === '--no-install') {
       options.install = false
+    } else if (argv[index] === '--install-only') {
+      options.build = false
     } else {
       throw new Error(`Unknown argument: ${argv[index]}`)
     }
@@ -171,9 +173,27 @@ function build(commit) {
   return builtApp
 }
 
+/** Quits Orca Dev like Cmd+Q; its terminals live in the daemon and survive. */
+function quitOrcaDev() {
+  run('/usr/bin/osascript', ['-e', 'tell application id "com.stablyai.orca.dev" to quit'])
+  const deadline = Date.now() + 60_000
+  while (isOrcaDevRunning(installedApp)) {
+    if (Date.now() > deadline) {
+      throw new Error('Orca Dev did not quit within a minute; the new build is not installed.')
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
+  }
+}
+
 function install(builtApp) {
-  if (isOrcaDevRunning(installedApp)) {
-    throw new Error(`Quit Orca Dev first; the new build stays at ${builtApp}.`)
+  if (!existsSync(builtApp)) {
+    throw new Error(`No built Orca Dev at ${builtApp}; run without --install-only first.`)
+  }
+  run('codesign', ['--verify', '--deep', '--strict', builtApp])
+  const wasRunning = isOrcaDevRunning(installedApp)
+  if (wasRunning) {
+    console.log('[orca-dev] Quitting Orca Dev to install the new build.')
+    quitOrcaDev()
   }
   if (existsSync(installedApp)) {
     // The old Raycast launcher is a tiny wrapper, not Electron; keep it once in case of rollback.
@@ -191,6 +211,9 @@ function install(builtApp) {
   run('/usr/bin/ditto', [builtApp, staged])
   rmSync(installedApp, { recursive: true, force: true })
   renameSync(staged, installedApp)
+  if (wasRunning) {
+    run('/usr/bin/open', ['-a', installedApp])
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
@@ -198,6 +221,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
     throw new Error('Orca Dev builds are macOS only.')
   }
   const options = parseArguments(process.argv.slice(2))
+  if (!options.build) {
+    install(path.join(outputDir, `mac-${process.arch}`, 'Orca Dev.app'))
+    console.log(`[orca-dev] Installed the last build into ${installedApp}`)
+    process.exit(0)
+  }
   const commit = read('git', ['-C', repoRoot, 'rev-parse', '--verify', `${options.ref}^{commit}`])
   if (read('git', ['-C', repoRoot, 'status', '--porcelain'])) {
     console.warn('[orca-dev] Uncommitted changes are not part of this build.')
