@@ -12,14 +12,21 @@ import {
   buildAzureDevOpsReviewAgentPrompt
 } from '../../../shared/azure-devops-review-prompt'
 import { orcaLaunchCliCommand } from '../../../shared/terminal-interaction-launch'
-import { resolveTuiAgentLaunchArgs } from '../../../shared/tui-agent-launch-defaults'
+import {
+  resolvedTuiAgentArgsBypassPermissions,
+  resolveTuiAgentLaunchArgs
+} from '../../../shared/tui-agent-launch-defaults'
 import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
 import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { pruneAzureDevOpsReviewChatLinks } from '@/lib/azure-devops-review-chat'
 import { linkNextReviewTab, linkReviewTab, reviewTabIds } from '@/lib/azure-devops-review-tab-link'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
-import type { AzureDevOpsReviewOptions } from '../../../shared/azure-devops-review-options'
+import {
+  azureDevOpsReviewPermissionArg,
+  normalizeAzureDevOpsReviewOptions,
+  type AzureDevOpsReviewOptions
+} from '../../../shared/azure-devops-review-options'
 
 /** Launches the default agent in the review worktree with the review prompt. */
 export async function startAzureDevOpsReviewAgent(
@@ -59,10 +66,21 @@ export async function startAzureDevOpsReviewAgent(
   const cli = orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
   const mcpArgs = azureDevOpsReviewMcpAgentArgs(agent, shell, cli)
   const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
+  const reviewOptions = normalizeAzureDevOpsReviewOptions(options)
+  // A structured chat takes its permissions from its own picker, not from TUI flags.
+  const permissionArg =
+    reviewOptions.surface === 'terminal'
+      ? azureDevOpsReviewPermissionArg(
+          agent,
+          reviewOptions,
+          resolvedTuiAgentArgsBypassPermissions(agent, store.settings, CLIENT_PLATFORM)
+        )
+      : null
+  const launchArgs = [mcpArgs, permissionArg].filter(Boolean)
   const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
     // Why terminal by default: the agent's TUI keeps its auto mode and the chat/terminal toggle.
-    ...(options?.surface === 'chat'
+    ...(reviewOptions.surface === 'chat'
       ? { requestId: newAgentLaunchRequestId() }
       : {
           agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({
@@ -76,8 +94,14 @@ export async function startAzureDevOpsReviewAgent(
     worktreeId,
     groupId: worktreeId,
     // Why first: user defaults may end with `--`, after which flags are literal.
-    agentArgs: mcpArgs ? [mcpArgs, defaultArgs].filter(Boolean).join(' ') : undefined,
-    prompt: buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }, options),
+    agentArgs: launchArgs.length
+      ? [...launchArgs, defaultArgs].filter(Boolean).join(' ')
+      : undefined,
+    prompt: buildAzureDevOpsReviewAgentPrompt(
+      pullRequest,
+      { cli, mcp: mcpArgs !== null },
+      reviewOptions
+    ),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })

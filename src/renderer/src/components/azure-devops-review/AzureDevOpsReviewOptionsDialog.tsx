@@ -27,6 +27,7 @@ import {
   type AzureDevOpsReviewDepth,
   type AzureDevOpsReviewLanguage,
   type AzureDevOpsReviewOptions,
+  type AzureDevOpsReviewPermissions,
   type AzureDevOpsReviewSurface
 } from '../../../../shared/azure-devops-review-options'
 
@@ -90,7 +91,7 @@ export function AzureDevOpsReviewOptionsDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{translate('azureDevOpsReview.optionsTitle', 'AI review')}</DialogTitle>
           <DialogDescription>
@@ -100,7 +101,7 @@ export function AzureDevOpsReviewOptionsDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="ado-review-language">
               {translate('azureDevOpsReview.optionsLanguage', 'Comment language')}
@@ -163,6 +164,30 @@ export function AzureDevOpsReviewOptionsDialog({
                 </SelectItem>
                 <SelectItem value="chat">
                   {translate('azureDevOpsReview.surfaceChat', 'Structured chat')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ado-review-permissions">
+              {translate('azureDevOpsReview.optionsPermissions', 'Permissions')}
+            </Label>
+            <Select
+              value={options.permissions}
+              disabled={options.surface === 'chat'}
+              onValueChange={(value) =>
+                update({ permissions: value as AzureDevOpsReviewPermissions })
+              }
+            >
+              <SelectTrigger id="ado-review-permissions" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">
+                  {translate('azureDevOpsReview.permissionsAuto', 'Auto (agent approves)')}
+                </SelectItem>
+                <SelectItem value="settings">
+                  {translate('azureDevOpsReview.permissionsSettings', 'Agent Permissions setting')}
                 </SelectItem>
               </SelectContent>
             </Select>

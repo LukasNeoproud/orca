@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   azureDevOpsReviewOptionLines,
+  azureDevOpsReviewPermissionArg,
   DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS,
   normalizeAzureDevOpsReviewOptions
 } from './azure-devops-review-options'
@@ -51,7 +52,8 @@ describe('azureDevOpsReviewOptionLines', () => {
       depth: 'build-and-test',
       checks: ['full-test-suite', 'dependency-audit'],
       instructions: 'Start Docker first.',
-      surface: 'terminal'
+      surface: 'terminal',
+      permissions: 'auto'
     }).join('\n')
     expect(lines).toContain('in English')
     expect(lines).toContain('run the tests that cover the changed code')
@@ -59,5 +61,22 @@ describe('azureDevOpsReviewOptionLines', () => {
     expect(lines).toContain('known vulnerabilities')
     expect(lines).toContain('leave tracked files unchanged')
     expect(lines).toContain('Start Docker first.')
+  })
+})
+
+describe('azureDevOpsReviewPermissionArg', () => {
+  it('asks each terminal agent for its own automatic approvals', () => {
+    expect(azureDevOpsReviewPermissionArg('claude', { permissions: 'auto' }, false)).toBe(
+      '--permission-mode auto'
+    )
+    expect(azureDevOpsReviewPermissionArg('codex', { permissions: 'auto' }, false)).toBe(
+      '--approve-for-me'
+    )
+    expect(azureDevOpsReviewPermissionArg('gemini', { permissions: 'auto' }, false)).toBeNull()
+  })
+
+  it('adds nothing when Agent Permissions already bypasses or the user keeps it', () => {
+    expect(azureDevOpsReviewPermissionArg('claude', { permissions: 'auto' }, true)).toBeNull()
+    expect(azureDevOpsReviewPermissionArg('claude', { permissions: 'settings' }, false)).toBeNull()
   })
 })

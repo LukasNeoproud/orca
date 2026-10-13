@@ -3,6 +3,8 @@ export type AzureDevOpsReviewDepth = 'static' | 'build' | 'build-and-test'
 export type AzureDevOpsReviewCheck = 'lint' | 'full-test-suite' | 'dependency-audit' | 'security'
 /** Where the agent runs: its own TUI (auto mode, chat/terminal toggle) or Orca's structured chat. */
 export type AzureDevOpsReviewSurface = 'terminal' | 'chat'
+/** `auto`: the agent's own automatic approvals; `settings`: whatever Agent Permissions launches. */
+export type AzureDevOpsReviewPermissions = 'auto' | 'settings'
 
 export type AzureDevOpsReviewOptions = {
   language: AzureDevOpsReviewLanguage
@@ -11,6 +13,7 @@ export type AzureDevOpsReviewOptions = {
   /** Free text for setup a check needs, e.g. "tests need Docker running". */
   instructions: string
   surface: AzureDevOpsReviewSurface
+  permissions: AzureDevOpsReviewPermissions
 }
 
 export const AZURE_DEVOPS_REVIEW_CHECKS: readonly AzureDevOpsReviewCheck[] = [
@@ -25,7 +28,8 @@ export const DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS: AzureDevOpsReviewOptions = {
   depth: 'static',
   checks: [],
   instructions: '',
-  surface: 'terminal'
+  surface: 'terminal',
+  permissions: 'auto'
 }
 
 const MAX_INSTRUCTIONS_LENGTH = 4000
@@ -53,7 +57,8 @@ export function normalizeAzureDevOpsReviewOptions(value: unknown): AzureDevOpsRe
       typeof input.instructions === 'string'
         ? input.instructions.trim().slice(0, MAX_INSTRUCTIONS_LENGTH)
         : defaults.instructions,
-    surface: input.surface === 'chat' ? 'chat' : defaults.surface
+    surface: input.surface === 'chat' ? 'chat' : defaults.surface,
+    permissions: input.permissions === 'settings' ? 'settings' : defaults.permissions
   }
 }
 
@@ -94,4 +99,23 @@ export function azureDevOpsReviewOptionLines(options: AzureDevOpsReviewOptions):
     lines.push(`Reviewer's setup notes (trusted, from the user): ${options.instructions}`)
   }
   return lines
+}
+
+/**
+ * The flag that puts a terminal agent into its own automatic approvals, so builds and tests do not
+ * stall on each command. Null when Agent Permissions already bypasses them or the agent has none.
+ */
+export function azureDevOpsReviewPermissionArg(
+  agent: string,
+  options: Pick<AzureDevOpsReviewOptions, 'permissions'>,
+  bypassesPermissions: boolean
+): string | null {
+  if (options.permissions !== 'auto' || bypassesPermissions) {
+    return null
+  }
+  return agent === 'claude'
+    ? '--permission-mode auto'
+    : agent === 'codex'
+      ? '--approve-for-me'
+      : null
 }
