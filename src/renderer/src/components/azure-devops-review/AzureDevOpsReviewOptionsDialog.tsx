@@ -158,17 +158,20 @@ export function AzureDevOpsReviewOptionsDialog({
               <div key={check} className="flex items-start gap-2">
                 <Checkbox
                   id={`ado-review-check-${check}`}
+                  aria-describedby={`ado-review-check-${check}-hint`}
                   checked={available && options.checks.includes(check)}
                   disabled={!available}
                   onCheckedChange={(checked) => toggleCheck(check, checked === true)}
                 />
-                <Label
-                  htmlFor={`ado-review-check-${check}`}
-                  className="flex-col items-start gap-0.5"
-                >
-                  <span>{title}</span>
-                  <span className="font-normal text-muted-foreground">{hint}</span>
-                </Label>
+                <div className="grid gap-0.5">
+                  <Label htmlFor={`ado-review-check-${check}`}>{title}</Label>
+                  <p
+                    id={`ado-review-check-${check}-hint`}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {hint}
+                  </p>
+                </div>
               </div>
             )
           })}

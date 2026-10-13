@@ -16,7 +16,7 @@ import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
 import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { pruneAzureDevOpsReviewChatLinks } from '@/lib/azure-devops-review-chat'
-import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
+import { linkNextReviewTab, linkReviewTab, reviewTabIds } from '@/lib/azure-devops-review-tab-link'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 import type { AzureDevOpsReviewOptions } from '../../../shared/azure-devops-review-options'
 
@@ -58,6 +58,7 @@ export async function startAzureDevOpsReviewAgent(
   const cli = orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
   const mcpArgs = azureDevOpsReviewMcpAgentArgs(agent, shell, cli)
   const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
+  const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     agent,
@@ -75,15 +76,12 @@ export async function startAzureDevOpsReviewAgent(
     )
     return false
   }
+  pruneAzureDevOpsReviewChatLinks()
   if (result.surface.kind === 'local-terminal') {
-    const tabId = result.surface.tabId
-    pruneAzureDevOpsReviewChatLinks()
-    useAzureDevOpsReviewChatLinks.getState().linkTab(tabId, pullRequest.key)
-    // Why: the tab's PR chip carries the number; the agent's own OSC titles would hide which tab reviews.
-    useAppStore
-      .getState()
-      .setTabCustomTitle(tabId, translate('azureDevOpsReview.agentTabTitle', 'Review'))
-    focusTerminalTabSurface(tabId)
+    linkReviewTab(result.surface.tabId, pullRequest.key, true)
+    focusTerminalTabSurface(result.surface.tabId)
+  } else {
+    linkNextReviewTab(worktreeId, tabsBeforeLaunch, pullRequest.key)
   }
   return true
 }
