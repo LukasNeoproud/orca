@@ -41,6 +41,13 @@ describe('findAzureDevOpsReviewChatTab', () => {
     })
   })
 
+  it('returns the same chat tab object for unchanged state, as store selectors require', () => {
+    const links = { 'chat-1': { pullRequestKey: 'pr-1', linkedAt: 4 } }
+    expect(findAzureDevOpsReviewChatTab(state, links, 'pr-1')).toBe(
+      findAzureDevOpsReviewChatTab(state, links, 'pr-1')
+    )
+  })
+
   it('ignores links to closed tabs', () => {
     const links = { gone: { pullRequestKey: 'pr-1', linkedAt: 5 } }
     expect(findAzureDevOpsReviewChatTab(state, links, 'pr-1')).toBeNull()

@@ -5,8 +5,30 @@ import { activateWorkspaceTabPaletteResult } from '@/lib/workspace-tab-palette-a
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
 import type { TerminalTab } from '../../../shared/terminal-tab-types'
+import type { Tab } from '../../../shared/tab-types'
 
 type ChatTabState = Pick<AppState, 'tabsByWorktree' | 'unifiedTabsByWorktree'>
+
+// Why cached: store selectors call the lookup, and a fresh object per call re-renders forever.
+const chatTabViews = new WeakMap<Tab, TerminalTab>()
+
+function chatTabAsTerminalTab(tab: Tab): TerminalTab {
+  let view = chatTabViews.get(tab)
+  if (!view) {
+    view = {
+      id: tab.id,
+      ptyId: null,
+      worktreeId: tab.worktreeId,
+      title: tab.label,
+      customTitle: tab.customLabel,
+      color: tab.color,
+      sortOrder: tab.sortOrder,
+      createdAt: tab.createdAt
+    }
+    chatTabViews.set(tab, view)
+  }
+  return view
+}
 
 /** The newest live agent tab started for this pull request, if any. */
 export function findAzureDevOpsReviewChatTab(
@@ -31,16 +53,7 @@ export function findAzureDevOpsReviewChatTab(
   for (const tabs of Object.values(state.unifiedTabsByWorktree)) {
     for (const tab of tabs) {
       if (tab.contentType === 'agent-session') {
-        consider({
-          id: tab.id,
-          ptyId: null,
-          worktreeId: tab.worktreeId,
-          title: tab.label,
-          customTitle: tab.customLabel,
-          color: tab.color,
-          sortOrder: tab.sortOrder,
-          createdAt: tab.createdAt
-        })
+        consider(chatTabAsTerminalTab(tab))
       }
     }
   }
