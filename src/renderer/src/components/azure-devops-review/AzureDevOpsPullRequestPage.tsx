@@ -21,6 +21,12 @@ import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
 import { AzureDevOpsReviewDrafts } from './AzureDevOpsReviewDrafts'
 import { AzureDevOpsReviewAiButton } from './AzureDevOpsReviewAiButton'
 import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
+import {
+  readAzureDevOpsReviewOptions,
+  storeAzureDevOpsReviewOptions
+} from '@/store/azure-devops-review-options'
+import type { AzureDevOpsReviewOptions } from '../../../../shared/azure-devops-review-options'
+import { AzureDevOpsReviewOptionsDialog } from './AzureDevOpsReviewOptionsDialog'
 
 type ReviewMode = 'workspace' | 'agent'
 
@@ -51,10 +57,11 @@ export function AzureDevOpsPullRequestPage({
   const { detail, loading, error, reload } = useAzureDevOpsReviewDetail(pullRequestKey)
   const confirm = useConfirmationDialog()
   const [busy, setBusy] = useState<ReviewMode | null>(null)
+  const [choosingOptions, setChoosingOptions] = useState(false)
   const pr = detail?.pullRequest ?? null
   const unpublished = detail?.drafts.filter((draft) => draft.state !== 'published').length ?? 0
 
-  const review = async (mode: ReviewMode): Promise<void> => {
+  const review = async (mode: ReviewMode, options?: AzureDevOpsReviewOptions): Promise<void> => {
     if (!pr) {
       return
     }
@@ -88,7 +95,7 @@ export function AzureDevOpsPullRequestPage({
         .setWorktreePullRequest(result.worktree.worktreeId, result.worktree.pullRequestKey)
       const opened =
         mode === 'agent'
-          ? await startAzureDevOpsReviewAgent(pr, result.worktree)
+          ? await startAzureDevOpsReviewAgent(pr, result.worktree, options)
           : await revealAzureDevOpsReviewWorktree(result.worktree)
       if (opened) {
         closeAzureDevOpsPullRequestPage()
@@ -161,7 +168,7 @@ export function AzureDevOpsPullRequestPage({
           <AzureDevOpsReviewAiButton
             pullRequestKey={pullRequestKey}
             disabled={!pr || busy !== null || forkBlocked}
-            onStartReview={() => void review('agent')}
+            onStartReview={() => setChoosingOptions(true)}
           />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -277,6 +284,17 @@ export function AzureDevOpsPullRequestPage({
           </TabsContent>
         </Tabs>
       )}
+      {choosingOptions ? (
+        <AzureDevOpsReviewOptionsDialog
+          initialOptions={readAzureDevOpsReviewOptions()}
+          onCancel={() => setChoosingOptions(false)}
+          onStart={(options) => {
+            setChoosingOptions(false)
+            storeAzureDevOpsReviewOptions(options)
+            void review('agent', options)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

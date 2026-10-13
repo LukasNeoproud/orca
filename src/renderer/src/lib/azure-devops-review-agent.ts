@@ -18,11 +18,13 @@ import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { pruneAzureDevOpsReviewChatLinks } from '@/lib/azure-devops-review-chat'
 import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
+import type { AzureDevOpsReviewOptions } from '../../../shared/azure-devops-review-options'
 
 /** Launches the default agent in the review worktree with the review prompt. */
 export async function startAzureDevOpsReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
-  worktree: { worktreeId: string; repoId: string }
+  worktree: { worktreeId: string; repoId: string },
+  options?: AzureDevOpsReviewOptions
 ): Promise<boolean> {
   const worktreeId = worktree.worktreeId
   await useAppStore.getState().fetchWorktrees(worktree.repoId)
@@ -63,7 +65,7 @@ export async function startAzureDevOpsReviewAgent(
     groupId: worktreeId,
     // Why first: user defaults may end with `--`, after which flags are literal.
     agentArgs: mcpArgs ? [mcpArgs, defaultArgs].filter(Boolean).join(' ') : undefined,
-    prompt: buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }),
+    prompt: buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }, options),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })
