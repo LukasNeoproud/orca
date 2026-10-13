@@ -5,6 +5,7 @@ import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import {
   azureDevOpsReviewMcpAgentArgs,
@@ -60,7 +61,13 @@ export async function startAzureDevOpsReviewAgent(
   const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
   const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
-    requestId: newAgentLaunchRequestId(),
+    // Why terminal: the review runs in the agent's TUI, with its auto mode and chat/terminal toggle.
+    agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({
+      route: 'terminal-tui',
+      requestId: newAgentLaunchRequestId(),
+      agent,
+      worktreeId
+    }),
     agent,
     worktreeId,
     groupId: worktreeId,
