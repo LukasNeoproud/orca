@@ -185,7 +185,8 @@ function install(builtApp) {
       ])
     }
   }
-  const staged = `${installedApp}.installing`
+  // Why outside ~/Applications: launchers like Raycast index any .app there, even mid-install.
+  const staged = path.join(cacheRoot, 'Orca Dev.app')
   rmSync(staged, { recursive: true, force: true })
   run('/usr/bin/ditto', [builtApp, staged])
   rmSync(installedApp, { recursive: true, force: true })
