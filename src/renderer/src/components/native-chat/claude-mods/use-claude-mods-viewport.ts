@@ -1,4 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import {
+  claudeModsCellMetrics,
+  claudeModsColumnsFitting,
+  claudeModsRowsFitting
+} from './claude-mods-layout-metrics'
 import type {
   ClaudeModsComponent,
   ClaudeModsSurfaceController
@@ -8,20 +13,19 @@ import type {
 export function useClaudeModsViewport(
   controller: ClaudeModsSurfaceController | null,
   component: ClaudeModsComponent,
+  element: HTMLElement | null,
   isFullscreen?: boolean
-): React.RefObject<HTMLDivElement | null> {
-  const ref = useRef<HTMLDivElement>(null)
+): void {
   useEffect(() => {
-    const element = ref.current
     if (!controller || !element) {
       return
     }
     const report = (): void => {
-      const fontSize = Number.parseFloat(getComputedStyle(element).fontSize) || 14
+      const metrics = claudeModsCellMetrics(element)
       const rect = element.getBoundingClientRect()
       controller.setViewport(component, {
-        columns: Math.max(1, Math.floor(rect.width / (fontSize * 0.6))),
-        rows: Math.max(1, Math.floor(rect.height / (fontSize * 1.4))),
+        columns: Math.max(1, claudeModsColumnsFitting(rect.width, metrics)),
+        rows: Math.max(1, claudeModsRowsFitting(rect.height, metrics)),
         ...(isFullscreen === undefined ? {} : { isFullscreen })
       })
     }
@@ -29,6 +33,5 @@ export function useClaudeModsViewport(
     const observer = new ResizeObserver(report)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [controller, component, isFullscreen])
-  return ref
+  }, [controller, component, element, isFullscreen])
 }

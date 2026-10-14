@@ -1,0 +1,6 @@
+{
+  "name": "transcript-marks",
+  "version": "0.1.0",
+  "description": "ui.render hooks for the transcript sites: marks around the engine's own drawing",
+  "author": { "name": "Orca fixtures" }
+}

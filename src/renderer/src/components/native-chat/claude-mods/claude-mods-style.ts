@@ -87,6 +87,11 @@ function cellsY(value: unknown): string | undefined {
   return typeof value === 'string' ? (STEPS[value] ?? percent(value)) : undefined
 }
 
+/** A placed Box's offset is a whole number of cells, negative allowed. */
+function wholeCells(value: unknown): unknown {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : value
+}
+
 function percent(value: string): string | undefined {
   return /^\d{1,3}(\.\d+)?%$/.test(value) ? value : undefined
 }
@@ -157,17 +162,33 @@ export function claudeModsBoxStyle(props: Record<string, unknown>): CSSPropertie
       maxHeight: cellsY(props.maxHeight),
       overflow: propString(props, 'overflow') === 'hidden' ? 'hidden' : undefined,
       backgroundColor: claudeModsColor(props.backgroundColor),
-      position: absolute ? 'absolute' : undefined,
-      top: absolute ? cellsY(props.top) : undefined,
-      bottom: absolute ? cellsY(props.bottom) : undefined,
-      left: absolute ? cellsX(props.left) : undefined,
-      right: absolute ? cellsX(props.right) : undefined
+      // Every Box is a positioning parent, so a placed child lands against its own parent.
+      position: absolute ? 'absolute' : 'relative',
+      top: absolute ? cellsY(wholeCells(props.top)) : undefined,
+      bottom: absolute ? cellsY(wholeCells(props.bottom)) : undefined,
+      left: absolute ? cellsX(wholeCells(props.left)) : undefined,
+      right: absolute ? cellsX(wholeCells(props.right)) : undefined
     }),
     ...borderStyle(props)
   }
 }
 
-const WEIGHTS: Record<string, number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
+const WEIGHTS: Record<string, number> = {
+  regular: 400,
+  normal: 400,
+  medium: 500,
+  semibold: 600,
+  bold: 700
+}
+
+// The chat has four text steps; headings stand out by weight within the reading step.
+const SIZES: Record<string, { fontSize: string; fontWeight?: number }> = {
+  caption: { fontSize: 'var(--text-2xs)' },
+  footnote: { fontSize: 'var(--text-xs)' },
+  body: { fontSize: 'var(--text-sm)' },
+  heading: { fontSize: 'var(--text-sm)', fontWeight: 600 },
+  title: { fontSize: 'var(--text-sm)', fontWeight: 700 }
+}
 
 export function claudeModsTextStyle(props: Record<string, unknown>): CSSProperties {
   const inverse = propTrue(props, 'inverse')
@@ -180,10 +201,12 @@ export function claudeModsTextStyle(props: Record<string, unknown>): CSSProperti
     propTrue(props, 'strikethrough') ? 'line-through' : ''
   ].filter(Boolean)
   const weight = propString(props, 'weight')
+  const size = SIZES[propString(props, 'size') ?? '']
   return compact({
+    fontSize: size?.fontSize,
     color: inverse ? (background ?? 'var(--chat-canvas)') : color,
     backgroundColor: inverse ? (color ?? 'var(--chat-foreground)') : background,
-    fontWeight: weight ? WEIGHTS[weight] : propTrue(props, 'bold') ? 600 : undefined,
+    fontWeight: weight ? WEIGHTS[weight] : propTrue(props, 'bold') ? 600 : size?.fontWeight,
     fontStyle: propTrue(props, 'italic') ? 'italic' : undefined,
     textDecorationLine: decorations.length > 0 ? decorations.join(' ') : undefined,
     opacity: propTrue(props, 'dimColor') ? 0.6 : undefined,

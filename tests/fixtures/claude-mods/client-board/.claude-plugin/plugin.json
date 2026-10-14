@@ -1,0 +1,6 @@
+{
+  "name": "client-board",
+  "version": "0.1.0",
+  "description": "Opens a pane whose board runs its own surface module: a counter, a field, a timer, keys, clicks and a reply from the plugin",
+  "author": { "name": "Orca fixtures" }
+}

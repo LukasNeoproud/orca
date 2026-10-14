@@ -6,11 +6,19 @@ import { NativeChatMarkdown } from '../NativeChatMarkdown'
 import { NativeChatHighlightedCode } from '../NativeChatHighlightedCode'
 import { NativeChatDiffView } from '../NativeChatDiffView'
 import { diffFromText } from '../native-chat-diff'
+import { claudeModsDeclarationStyle, claudeModsTextStyle } from './claude-mods-style'
 import {
-  claudeModsBoxStyle,
-  claudeModsDeclarationStyle,
-  claudeModsTextStyle
-} from './claude-mods-style'
+  claudeModsHoveredBoxStyle,
+  claudeModsHoveredTextProps,
+  claudeModsHoveredTextStyle
+} from './claude-mods-hover-style'
+import { ClaudeModsHoverBoxContext, useClaudeModsHoverNode } from './claude-mods-hover-node'
+import { isClaudeModsHoverKey } from './claude-mods-hover-store'
+import {
+  CLAUDE_MODS_KEY_ATTRIBUTE,
+  CLAUDE_MODS_OWNER_ATTRIBUTE
+} from './claude-mods-layout-measure'
+import { claudeModsControlAttributes } from './claude-mods-focus-sync'
 import {
   keyedClaudeModsChildren,
   propNumber,
@@ -20,6 +28,7 @@ import {
 } from './claude-mods-tree'
 import { claudeModsDispatch, useClaudeModsDrawScope } from './claude-mods-draw-scope'
 import { ClaudeModsInput, ClaudeModsSelect } from './ClaudeModsFields'
+import { ClaudeModsClientRegion } from './client/ClaudeModsClientRegion'
 
 /** Links a mod draws open outside the app, and only these: the engine already bounded them. */
 export function isClaudeModsOpenableUrl(href: string | undefined): href is string {
@@ -80,25 +89,9 @@ function ClaudeModsElementView({ node }: { node: ElementNode }): React.JSX.Eleme
   const { props } = node
   switch (node.type) {
     case 'Box':
-      return (
-        <div data-claude-mods-plugin={node.plugin} style={claudeModsBoxStyle(props)}>
-          {keyedClaudeModsChildren(node.children).map(([key, child]) =>
-            child.kind === 'text' ? (
-              <span key={key} style={claudeModsTextStyle({})}>
-                {child.text}
-              </span>
-            ) : (
-              <ClaudeModsNodeView key={key} node={child} />
-            )
-          )}
-        </div>
-      )
+      return <ClaudeModsBox node={node} />
     case 'Text':
-      return (
-        <span data-claude-mods-plugin={node.plugin} style={claudeModsTextStyle(props)}>
-          <ClaudeModsChildren nodes={node.children} />
-        </span>
-      )
+      return <ClaudeModsText node={node} />
     case 'div':
       return (
         <div style={claudeModsDeclarationStyle(props.style)}>
@@ -132,15 +125,58 @@ function ClaudeModsElementView({ node }: { node: ElementNode }): React.JSX.Eleme
     case 'Svg':
       return <ClaudeModsSvg props={props} />
     case 'Client':
-      return (
-        <span className="text-xs text-muted-foreground">
-          {translate(
-            'components.native-chat.claudeMods.clientUnsupported',
-            'This part of the mod runs its own code, which Orca does not draw yet.'
-          )}
-        </span>
-      )
+      return <ClaudeModsClientSlot node={node} />
   }
+}
+
+function ClaudeModsBox({ node }: { node: ElementNode }): React.JSX.Element {
+  const { props } = node
+  const hover = useClaudeModsHoverNode({
+    boxKey: props.key,
+    hover: node.hover,
+    owner: node.group
+  })
+  const key = isClaudeModsHoverKey(props.key) ? props.key : undefined
+  const box = (
+    <div
+      data-claude-mods-plugin={node.plugin}
+      {...(key && node.owner
+        ? { [CLAUDE_MODS_KEY_ATTRIBUTE]: key, [CLAUDE_MODS_OWNER_ATTRIBUTE]: node.owner }
+        : {})}
+      style={claudeModsHoveredBoxStyle(props, node.hover, hover.lit)}
+      {...hover.pointerHandlers}
+    >
+      {keyedClaudeModsChildren(node.children).map(([childKey, child]) =>
+        child.kind === 'text' ? (
+          <span key={childKey} style={claudeModsTextStyle({})}>
+            {child.text}
+          </span>
+        ) : (
+          <ClaudeModsNodeView key={childKey} node={child} />
+        )
+      )}
+    </div>
+  )
+  return key ? (
+    <ClaudeModsHoverBoxContext.Provider value={hover.contextId}>
+      {box}
+    </ClaudeModsHoverBoxContext.Provider>
+  ) : (
+    box
+  )
+}
+
+function ClaudeModsText({ node }: { node: ElementNode }): React.JSX.Element {
+  const hover = useClaudeModsHoverNode({ hover: node.hover, owner: node.group })
+  return (
+    <span
+      data-claude-mods-plugin={node.plugin}
+      style={claudeModsHoveredTextStyle(node.props, node.hover, hover.lit)}
+      {...hover.pointerHandlers}
+    >
+      <ClaudeModsChildren nodes={node.children} />
+    </span>
+  )
 }
 
 function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
@@ -148,23 +184,40 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
   const { props } = node
   const label = propString(props, 'label') ?? ''
   const hotkey = propString(props, 'hotkey')
+  const key = propString(props, 'key')
   const plain = propTrue(props, 'plain')
   const variant = plain ? 'ghost' : props.variant === 'primary' ? 'default' : 'outline'
+  const hover = useClaudeModsHoverNode({ hover: node.hover, owner: node.press?.plugin })
+  const labelProps = claudeModsHoveredTextProps(
+    { dimColor: propTrue(props, 'dimColor') },
+    hover.lit ? node.hover : undefined
+  )
+  const dim = labelProps.dimColor === true
   return (
     <Button
       type="button"
       size="xs"
       variant={variant}
-      data-claude-mods-key={propString(props, 'key')}
-      autoFocus={propTrue(props, 'autoFocus') && scope?.focusRequested === true}
+      className="group/mods"
+      aria-label={node.children.length > 0 && label ? label : undefined}
+      {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
       disabled={!node.press || !scope}
+      {...hover.pointerHandlers}
       onClick={() => {
         if (node.press && scope) {
-          claudeModsDispatch(scope).press(node.press, propString(props, 'key'))
+          claudeModsDispatch(scope).press(node.press, key)
         }
       }}
     >
-      <span style={propTrue(props, 'dimColor') ? { opacity: 0.6 } : undefined}>{label}</span>
+      {/* Full strength under the pointer or the ring, as a dim label is at rest only. */}
+      <span
+        className={
+          dim ? 'opacity-60 group-hover/mods:opacity-100 group-focus-visible/mods:opacity-100' : ''
+        }
+        style={{ ...claudeModsTextStyle({ ...labelProps, dimColor: false }), whiteSpace: 'nowrap' }}
+      >
+        {node.children.length > 0 ? <ClaudeModsChildren nodes={node.children} /> : label}
+      </span>
       {hotkey ? <ShortcutKeyCombo keys={[hotkey.toUpperCase()]} /> : null}
     </Button>
   )
@@ -270,4 +323,15 @@ function ClaudeModsSvg({ props }: { props: Record<string, unknown> }): React.JSX
   return src ? (
     <img src={src} alt={propString(props, 'alt') ?? ''} className="max-w-full" draggable={false} />
   ) : null
+}
+
+function ClaudeModsClientSlot({ node }: { node: ElementNode }): React.JSX.Element {
+  const scope = useClaudeModsDrawScope()
+  return (
+    <ClaudeModsClientRegion
+      node={node}
+      {...(scope?.clientModules ? { clientModules: scope.clientModules } : {})}
+      {...(scope?.redrawSite ? { redraw: scope.redrawSite } : {})}
+    />
+  )
 }

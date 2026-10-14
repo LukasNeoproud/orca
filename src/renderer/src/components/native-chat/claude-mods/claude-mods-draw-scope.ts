@@ -25,6 +25,10 @@ export type ClaudeModsDrawScope = {
   dispatch?: ClaudeModsDispatch
   /** Draws core's own component where the tree holds `{type:'engine', ref}`; absent draws nothing. */
   renderEngine?: (ref: number) => ReactNode
+  /** The site's drawing's `client_modules`: which surface-module hash each `Client` runs. */
+  clientModules?: Readonly<Record<string, string>>
+  /** Asks for the site's drawing again (a Client press reached a stale tree). */
+  redrawSite?: () => void
 }
 
 export const ClaudeModsDrawContext = createContext<ClaudeModsDrawScope | null>(null)

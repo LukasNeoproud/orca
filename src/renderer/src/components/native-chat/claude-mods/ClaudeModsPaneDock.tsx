@@ -5,11 +5,12 @@ import { translate } from '@/i18n/i18n'
 import { Button } from '../../ui/button'
 import { ClaudeModsDrawContext } from './claude-mods-draw-scope'
 import { ClaudeModsNodeView } from './ClaudeModsElement'
-import { collectClaudeModsHotkeys } from './claude-mods-tree'
+import { claudeModsHotkeyTarget } from './claude-mods-focus-keyboard'
 import { useClaudeModsSurface, type ClaudeModsSurface } from './use-claude-mods-surface'
-import { useClaudeModsViewport } from './use-claude-mods-viewport'
+import { useClaudeModsSite } from './claude-mods-scroll-site'
 import { publishClaudeModsController } from './claude-mods-pane-surfaces'
 import { ClaudeModsControllerContext } from './claude-mods-controller-context'
+import { useClaudeModsTranscriptViewport } from './claude-mods-transcript-viewport'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
 
@@ -17,13 +18,6 @@ export { ClaudeModsAbovePromptBand } from './ClaudeModsBand'
 
 /** Below this the pane stacks under the transcript instead of docking beside it. */
 const DOCK_MIN_WIDTH_PX = 720
-
-function isTextField(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
 
 export function ClaudeModsPaneDock({
   session,
@@ -55,11 +49,12 @@ export function ClaudeModsPaneDock({
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+  const transcriptRef = useClaudeModsTranscriptViewport(snapshot.available ? controller : null)
   const { roster } = snapshot
   const shown = roster.panes.find((pane) => pane.id === roster.shown_id) ?? null
   return (
     <div ref={rootRef} className={cn('flex min-h-0 flex-1', docked ? 'flex-row' : 'flex-col')}>
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <div ref={transcriptRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <ClaudeModsControllerContext.Provider value={snapshot.available ? controller : null}>
           {children}
         </ClaudeModsControllerContext.Provider>
@@ -95,7 +90,14 @@ function ClaudeModsPane({
   const pane = roster.panes.find((candidate) => candidate.id === paneId)
   const drawing = drawings[paneId]
   const focusRequested = roster.focus_requested_id === paneId
-  const bodyRef = useClaudeModsViewport(controller, 'Pane', docked)
+  const site = useClaudeModsSite({
+    controller,
+    component: 'Pane',
+    instanceId: paneId,
+    drawing: drawing?.tree,
+    isFullscreen: docked,
+    info: { placement: docked ? 'dock' : 'inline' }
+  })
   const asideRef = useRef<HTMLElement>(null)
   // A pane asking for the keyboard gets it only while the person is not typing elsewhere.
   useEffect(() => {
@@ -112,14 +114,22 @@ function ClaudeModsPane({
       return
     }
     if (!asideRef.current?.contains(document.activeElement)) {
-      const target = asideRef.current?.querySelector<HTMLElement>('[autofocus]') ?? bodyRef.current
-      target?.focus()
+      if (!site.takeAutoFocus()) {
+        site.element?.focus()
+      }
     }
     controller.focusPane(paneId)
-  }, [focusRequested, drawing, controller, paneId, bodyRef])
+  }, [focusRequested, drawing, controller, paneId, site])
   const scope = useMemo(
-    () => ({ controller, component: 'Pane', instanceId: paneId, focusRequested }),
-    [controller, paneId, focusRequested]
+    () => ({
+      controller,
+      component: 'Pane',
+      instanceId: paneId,
+      focusRequested,
+      ...(drawing?.clientModules ? { clientModules: drawing.clientModules } : {}),
+      redrawSite: () => controller.redraw(paneId)
+    }),
+    [controller, paneId, focusRequested, drawing?.clientModules]
   )
   const close = (): void => controller.closePane(paneId)
   return (
@@ -153,10 +163,7 @@ function ClaudeModsPane({
           focusComposer()
           return
         }
-        if (event.metaKey || event.ctrlKey || event.altKey || isTextField(event.target)) {
-          return
-        }
-        const hit = drawing ? collectClaudeModsHotkeys(drawing.tree).get(event.key) : undefined
+        const hit = drawing ? claudeModsHotkeyTarget(drawing.tree, event) : undefined
         if (hit) {
           event.preventDefault()
           controller.press(paneId, hit.press, hit.key)
@@ -189,7 +196,7 @@ function ClaudeModsPane({
         </Button>
       </div>
       <div
-        ref={bodyRef}
+        ref={site.setElement}
         tabIndex={-1}
         className="scrollbar-sleek min-h-0 flex-1 overflow-auto p-3 focus-visible:outline-none"
       >

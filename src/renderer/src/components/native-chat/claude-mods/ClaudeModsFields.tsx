@@ -3,6 +3,7 @@ import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { propString, propTrue, readSelectOptions, type ClaudeModsNode } from './claude-mods-tree'
 import { claudeModsDispatch, useClaudeModsDrawScope } from './claude-mods-draw-scope'
+import { claudeModsControlAttributes } from './claude-mods-focus-sync'
 
 type ElementNode = Extract<ClaudeModsNode, { kind: 'element' }>
 
@@ -51,8 +52,7 @@ export function ClaudeModsInput({ node }: { node: ElementNode }): React.JSX.Elem
       <Input
         value={text}
         placeholder={propString(props, 'placeholder')}
-        autoFocus={propTrue(props, 'autoFocus') && scope?.focusRequested === true}
-        data-claude-mods-key={key}
+        {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
         aria-label={label ?? propString(props, 'placeholder') ?? key}
         disabled={!node.press || !scope}
         onChange={(event) => {
@@ -103,7 +103,11 @@ export function ClaudeModsSelect({ node }: { node: ElementNode }): React.JSX.Ele
           }
         }}
       >
-        <SelectTrigger size="sm" data-claude-mods-key={key} aria-label={label ?? key}>
+        <SelectTrigger
+          size="sm"
+          {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
+          aria-label={label ?? key}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

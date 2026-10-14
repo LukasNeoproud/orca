@@ -4,7 +4,13 @@ import {
   type ClaudeModsRequestSubtype,
   type ClaudeModsSurfaceEvent
 } from '../../../../../shared/claude-mods-surface'
-import { readClaudeModsTree, type ClaudeModsPress } from './claude-mods-tree'
+import {
+  readClaudeModsTree,
+  type ClaudeModsPress,
+  readClaudeModsClientModules
+} from './claude-mods-tree'
+import { ClaudeModsHoverStore } from './claude-mods-hover-store'
+import { ClaudeModsLayoutRegistry } from './claude-mods-layout-registry'
 import { openClaudeModsResubscribingStream } from './claude-mods-resubscribing-stream'
 import {
   CLAUDE_MODS_BAND_ID,
@@ -54,7 +60,10 @@ export class ClaudeModsSurfaceController {
   private readonly dirty = new Set<string>()
   // A band no mod draws is not asked again until something invalidates.
   private bandUnhooked = false
-  private readonly viewports = new Map<ClaudeModsComponent, ClaudeModsViewport>()
+  /** The mounted sites' layout and the viewports; what each `ui_render` ask tells the engine. */
+  readonly layout = new ClaudeModsLayoutRegistry()
+  /** Which hover contexts the pointer is over, across the pane, the band and the transcript. */
+  readonly hover = new ClaudeModsHoverStore()
 
   constructor(
     private readonly transport: ClaudeModsTransport,
@@ -82,17 +91,8 @@ export class ClaudeModsSurfaceController {
   }
 
   setViewport(component: ClaudeModsComponent, viewport: ClaudeModsViewport): void {
-    const previous = this.viewports.get(component)
-    if (
-      previous?.columns === viewport.columns &&
-      previous.rows === viewport.rows &&
-      previous.isFullscreen === viewport.isFullscreen
-    ) {
-      return
-    }
-    this.viewports.set(component, viewport)
     // A change of columns re-runs the hooked sites, as it does in the terminal.
-    if (previous) {
+    if (this.layout.setViewport(component, viewport)) {
       this.redrawMounted(component === 'Pane' ? 'panes' : 'band')
     }
   }
@@ -176,6 +176,11 @@ export class ClaudeModsSurfaceController {
     }
   }
 
+  /** Asks for one pane's or the band's drawing again, e.g. after a press reached a stale tree. */
+  redraw(instanceId: string): void {
+    this.render(instanceId)
+  }
+
   /** One raw `ui_*` request through this chat's transport; null when it failed (already logged). */
   request(subtype: ClaudeModsRequestSubtype, fields: Record<string, unknown>): Promise<unknown> {
     return this.send(subtype, fields)
@@ -210,7 +215,7 @@ export class ClaudeModsSurfaceController {
     switch (event.type) {
       case 'scroll':
       case 'focus':
-        // Plugin-initiated moves this surface does not draw yet.
+        // Plugin-initiated moves belong to the mounted site; it hears them through onPush.
         return
       case 'state':
         this.generation += 1
@@ -293,12 +298,10 @@ export class ClaudeModsSurfaceController {
     this.inFlight.add(instanceId)
     const generation = this.generation
     const component = this.componentOf(instanceId)
-    const viewport = this.viewports.get(component)
     void this.send('ui_render', {
       component,
       instance_id: instanceId,
-      props: {},
-      ...(viewport ? { viewport } : {})
+      ...this.layout.renderFields(component, instanceId, this.snapshot.roster)
     }).then((answer) => {
       this.inFlight.delete(instanceId)
       if (generation === this.generation && isRecord(answer)) {
@@ -322,11 +325,13 @@ export class ClaudeModsSurfaceController {
     const drawnBy = Array.isArray(answer.drawn_by)
       ? answer.drawn_by.filter((name): name is string => typeof name === 'string')
       : []
+    const clientModules = readClaudeModsClientModules(answer.client_modules)
+    const drawing = { tree: readClaudeModsTree(answer.tree), hooked, drawnBy }
     this.update({
       ...this.snapshot,
       drawings: {
         ...this.snapshot.drawings,
-        [instanceId]: { tree: readClaudeModsTree(answer.tree), hooked, drawnBy }
+        [instanceId]: clientModules ? { ...drawing, clientModules } : drawing
       }
     })
   }

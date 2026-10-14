@@ -381,6 +381,7 @@ export function NativeChatStructuredSession(
             <NativeChatStructuredQuestionCard
               key={`${prompt.itemId}:${prompt.revision}`}
               questions={questions}
+              toolUseId={questionBody.toolUseId}
               onAnswer={(response) => void promptResponse.respond(prompt, response)}
               isSubmitting={promptResponse.holds(prompt)}
               onCancel={cancelPrompt}
@@ -388,7 +389,7 @@ export function NativeChatStructuredSession(
               answerInputRef={questionAnswerInputRef}
             />
           ) : null}
-          <ClaudeModsAbovePromptBand paneKey={paneKey} />
+          <ClaudeModsAbovePromptBand paneKey={paneKey} isWorking={controller.isWorking} />
           {composerShown ? (
             <NativeChatComposer
               ref={composerRef}

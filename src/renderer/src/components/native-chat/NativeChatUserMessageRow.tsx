@@ -16,6 +16,7 @@ import { NativeChatMessageTimestamp } from './NativeChatMessageTimestamp'
 import { NativeChatAgentMessageSenders } from './NativeChatAgentMessageSenders'
 import { NativeChatImageAttachments } from './NativeChatTranscriptChrome'
 import type { deriveNativeChatRowContent } from '../../../../shared/native-chat-row-content'
+import { ClaudeModsUserTextSite } from './claude-mods/ClaudeModsSiteRows'
 
 const USER_META_REVEAL =
   'transition-opacity can-hover:pointer-events-none can-hover:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 [.group:has(:focus-visible)_&]:pointer-events-auto [.group:has(:focus-visible)_&]:opacity-100'
@@ -118,14 +119,21 @@ export function NativeChatUserMessageRow({
               markdown={markdown}
               onRefolded={onRefolded}
             >
-              <NativeChatMarkdown
-                rowKey={message.id}
-                content={markdown}
-                variant="document"
-                className="text-sm"
-                renderCodeBlock={NativeChatCodeBlock}
-                onLinkClick={onLinkClick}
-                allowFileUriLinks={allowFileUriLinks}
+              <ClaudeModsUserTextSite
+                rowId={message.id}
+                text={markdown}
+                enabled={from === undefined}
+                renderDrawing={(text) => (
+                  <NativeChatMarkdown
+                    rowKey={message.id}
+                    content={text}
+                    variant="document"
+                    className="text-sm"
+                    renderCodeBlock={NativeChatCodeBlock}
+                    onLinkClick={onLinkClick}
+                    allowFileUriLinks={allowFileUriLinks}
+                  />
+                )}
               />
             </NativeChatUserMessageFold>
           </>

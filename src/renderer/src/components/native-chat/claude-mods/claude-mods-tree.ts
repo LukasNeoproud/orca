@@ -29,6 +29,12 @@ export type ClaudeModsNode =
       press?: ClaudeModsPress
       /** The mod whose drawing starts here, as the engine stamped it. */
       plugin?: string
+      /** The mod that drew this node: its `part`, else the nearest one above, else its `press`. */
+      owner?: string
+      /** Style overrides while the pointer is over its hover context; plain data. */
+      hover?: Record<string, unknown>
+      /** The mod whose hover group `hover.scope` names. */
+      group?: string
     }
   /** Core's own drawing: meaningful only at transcript sites, so panes and the band skip it. */
   | { kind: 'engine'; ref: number }
@@ -77,7 +83,12 @@ export function readClaudeModsTree(value: unknown): ClaudeModsNode {
   return readNode(value, 0, budget)
 }
 
-function readNode(value: unknown, depth: number, budget: { nodes: number }): ClaudeModsNode {
+function readNode(
+  value: unknown,
+  depth: number,
+  budget: { nodes: number },
+  inherited?: string
+): ClaudeModsNode {
   budget.nodes += 1
   if (budget.nodes > MAX_NODES || depth > MAX_DEPTH) {
     return { kind: 'unsupported', type: 'tree too large' }
@@ -104,15 +115,28 @@ function readNode(value: unknown, depth: number, budget: { nodes: number }): Cla
   // Children ride beside props on the wire; a mod's own `props.children` never reaches here.
   const rawChildren = Array.isArray(value.children) ? value.children : []
   const press = readPress(value.press)
+  // A Client names its plugin in `client`, not `part`: the surface module it runs is that plugin's.
+  const client =
+    value.type === 'Client' && isRecord(value.client) && typeof value.client.plugin === 'string'
+      ? value.client.plugin
+      : undefined
   const part =
-    isRecord(value.part) && typeof value.part.plugin === 'string' ? value.part.plugin : undefined
+    client ??
+    (isRecord(value.part) && typeof value.part.plugin === 'string' ? value.part.plugin : undefined)
+  const owner = part ?? inherited ?? press?.plugin
+  const hover = isRecord(value.hover) ? value.hover : undefined
+  const group =
+    isRecord(value.group) && typeof value.group.plugin === 'string' ? value.group.plugin : undefined
   return {
     kind: 'element',
     type: value.type,
     props,
-    children: rawChildren.map((child) => readNode(child, depth + 1, budget)),
+    children: rawChildren.map((child) => readNode(child, depth + 1, budget, owner)),
     ...(press ? { press } : {}),
-    ...(part ? { plugin: part } : {})
+    ...(part ? { plugin: part } : {}),
+    ...(owner ? { owner } : {}),
+    ...(hover ? { hover } : {}),
+    ...(group ? { group } : {})
   }
 }
 
@@ -146,7 +170,7 @@ export function readSelectOptions(props: Record<string, unknown>): ClaudeModsSel
   )
 }
 
-/** Every keyed Button's hotkey in drawing order, for the site that holds the keyboard. */
+/** Every Button's hotkey in drawing order; on two Buttons for one key the later wins. */
 export function collectClaudeModsHotkeys(
   node: ClaudeModsNode,
   into = new Map<string, { press: ClaudeModsPress; key: string | undefined }>()
@@ -155,8 +179,8 @@ export function collectClaudeModsHotkeys(
     return into
   }
   const hotkey = propString(node.props, 'hotkey')
-  if (node.type === 'Button' && node.press && hotkey && !into.has(hotkey)) {
-    into.set(hotkey, { press: node.press, key: propString(node.props, 'key') })
+  if (node.type === 'Button' && node.press && hotkey) {
+    into.set(hotkey.toLowerCase(), { press: node.press, key: propString(node.props, 'key') })
   }
   for (const child of node.children) {
     collectClaudeModsHotkeys(child, into)
@@ -175,4 +199,15 @@ export function keyedClaudeModsChildren(nodes: ClaudeModsNode[]): [string, Claud
     seen.set(base, ordinal + 1)
     return [`${base}:${ordinal}`, node]
   })
+}
+
+/** A `ui_render` answer's `client_modules`: each plugin's surface-module hash, strings only. */
+export function readClaudeModsClientModules(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string'
+  )
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
 }

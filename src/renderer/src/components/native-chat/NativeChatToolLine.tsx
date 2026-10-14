@@ -24,6 +24,7 @@ import { diffFromText, diffFromToolCall } from './native-chat-diff'
 import { NativeChatExpandable } from './NativeChatExpandable'
 import { useNativeChatDisclosure } from './native-chat-disclosure-store'
 import { truncateToolDetail } from './native-chat-tool-summary'
+import { ClaudeModsToolResultSite } from './claude-mods/ClaudeModsSiteRows'
 
 const NO_SEARCH_RESULTS: NonNullable<NativeChatToolCallBlock['webSearchResults']> = []
 const TARGET_CLASS =
@@ -193,14 +194,16 @@ export function NativeChatToolLine({
       </button>
       {hasDetail ? (
         <NativeChatExpandable open={expanded}>
-          <ToolLineDetail
-            block={block}
-            body={body}
-            fullCommand={fullCommand}
-            commandLanguage={label?.commandLanguage ?? null}
-            results={results}
-            onLinkClick={onLinkClick}
-          />
+          <ClaudeModsToolResultSite block={block} result={result}>
+            <ToolLineDetail
+              block={block}
+              body={body}
+              fullCommand={fullCommand}
+              commandLanguage={label?.commandLanguage ?? null}
+              results={results}
+              onLinkClick={onLinkClick}
+            />
+          </ClaudeModsToolResultSite>
         </NativeChatExpandable>
       ) : null}
     </div>

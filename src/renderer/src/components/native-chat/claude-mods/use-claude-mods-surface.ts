@@ -7,6 +7,7 @@ import {
   subscribeClaudeMods,
   supportsClaudeMods
 } from '../../../runtime/claude-mods-surface-client'
+import { disposeClaudeModsClientFrames } from './client/claude-mods-client-frames'
 import {
   ClaudeModsSurfaceController,
   type ClaudeModsSnapshot
@@ -63,7 +64,10 @@ export function useClaudeModsSurface(input: {
     })
     return () => {
       cancelled = true
-      started?.stop()
+      if (started) {
+        disposeClaudeModsClientFrames(started)
+        started.stop()
+      }
       setController(null)
     }
     // targetKey stands for target: a fresh object per render must not resubscribe.

@@ -12,7 +12,13 @@ export type ClaudeModsComponent = 'Pane' | 'AbovePrompt'
 
 export type ClaudeModsViewport = { columns: number; rows: number; isFullscreen?: boolean }
 
-export type ClaudeModsDrawing = { tree: ClaudeModsNode; hooked: boolean; drawnBy: string[] }
+export type ClaudeModsDrawing = {
+  tree: ClaudeModsNode
+  hooked: boolean
+  drawnBy: string[]
+  /** Each plugin's surface-module hash for the `Client` nodes the tree carries. */
+  clientModules?: Record<string, string>
+}
 
 export type ClaudeModsLogLine = { id: number; plugin: string; text: string }
 

@@ -17,8 +17,9 @@ const argValue = (name) => {
 }
 const claudePath = argValue('--claude') ?? 'claude'
 const outFile = argValue('--out')
-const pluginNames = (argValue('--plugins') ?? 'hello-tabs').split(',')
 const scenario = argValue('--scenario') ?? 'hello-tabs'
+const defaultPlugins = scenario === 'transcript' ? 'transcript-marks,spinner-word' : 'hello-tabs'
+const pluginNames = (argValue('--plugins') ?? defaultPlugins).split(',')
 if (outFile) {
   writeFileSync(outFile, '')
 }
@@ -241,6 +242,159 @@ async function helloTabs() {
   await waitFor(isSystem('ui_panes'), 5000).catch(() => null)
 }
 
+// Realistic transcript props per the Phase 3 scout cheat-sheet.
+const transcriptCases = [
+  ['UserMessage', 'user-1', { text: 'hello', origin: { kind: 'sdk' }, isExpanded: true }],
+  ['AssistantMessage', 'msg-1', { text: 'Hi **there**', isFirstOfReply: true, isSummary: false }],
+  [
+    'ToolUse',
+    'toolu-bash',
+    {
+      tool: 'Bash',
+      input: { command: 'ls' },
+      isRunning: false,
+      isErrored: false,
+      isInterrupted: false,
+      output: { stdout: 'a', stderr: '', interrupted: false, isImage: false }
+    }
+  ],
+  [
+    'ToolUse',
+    'toolu-read',
+    {
+      tool: 'Read',
+      input: { file_path: '/x' },
+      isRunning: true,
+      isErrored: false,
+      isInterrupted: false
+    }
+  ],
+  [
+    'ToolResult',
+    'toolu-bash',
+    {
+      tool: 'Bash',
+      output: { stdout: 'a', stderr: '', interrupted: false, isImage: false },
+      isErrored: false
+    }
+  ],
+  [
+    'ToolGroup',
+    'group-1',
+    {
+      calls: [
+        {
+          tool_use_id: 'g-1',
+          tool: 'Read',
+          input: { file_path: '/a' },
+          isRunning: false,
+          isErrored: false,
+          isInterrupted: false
+        },
+        {
+          tool_use_id: 'g-2',
+          tool: 'Grep',
+          input: { pattern: 'x' },
+          isRunning: false,
+          isErrored: false,
+          isInterrupted: false
+        }
+      ],
+      isActive: false,
+      isExpanded: false
+    }
+  ],
+  [
+    'AskUserQuestion',
+    'toolu-ask',
+    {
+      tool: 'AskUserQuestion',
+      questions: [
+        {
+          question: 'Pick one?',
+          header: 'Pick',
+          multiSelect: false,
+          options: [
+            { label: 'A', description: 'first' },
+            { label: 'B', description: 'second' }
+          ]
+        }
+      ]
+    }
+  ],
+  ['CommandOutput', 'cmd-1', { command: 'hello-tabs', args: '', text: 'done', isErrored: false }],
+  ['Spinner', 'main', { word: 'Thinking', message: null, suffix: '…', mode: 'thinking' }],
+  ['SessionMode', 'session-mode', { modes: ['focus'] }],
+  ['TurnDuration', 'turn-1', { word: 'Baked', durationMs: 1234 }],
+  ['InfoNotice', 'notice-1', { text: 'notice', command: null }],
+  ['PromptHint', 'prompt-hint', { isDraft: false, isWorking: false, hint: 'hint', tail: 'tail' }]
+]
+const onScreenComponents = new Set([
+  'UserMessage',
+  'AssistantMessage',
+  'ToolUse',
+  'ToolResult',
+  'ToolGroup',
+  'CommandOutput',
+  'TurnDuration',
+  'InfoNotice'
+])
+
+async function transcript() {
+  const invalidated = waitFor(isSystem('ui_invalidate'), 12_000).catch(() => null)
+  const rows = []
+  for (const [component, instanceId, props] of transcriptCases) {
+    const variants = onScreenComponents.has(component)
+      ? [undefined, { first: 0, last: 2, of: 3 }, null]
+      : [undefined]
+    for (const onScreen of variants) {
+      const answer = await request({
+        subtype: 'ui_render',
+        component,
+        instance_id: instanceId,
+        props,
+        viewport,
+        ...(onScreen === undefined ? {} : { on_screen: onScreen }),
+        ...SURFACE
+      })
+      rows.push({
+        component,
+        instance_id: instanceId,
+        on_screen: onScreen,
+        request_props: props,
+        answer
+      })
+      log('transcript_answer', {
+        component,
+        on_screen: onScreen,
+        tree: answer?.tree,
+        props: answer?.props,
+        rewritten: answer?.rewritten,
+        hooked: answer?.hooked,
+        drawn_by: answer?.drawn_by
+      })
+    }
+  }
+  // A component no loaded plugin hooks.
+  const unhooked = await request({
+    subtype: 'ui_render',
+    component: 'AbovePrompt',
+    instance_id: 'above-prompt',
+    props: {},
+    viewport,
+    ...SURFACE
+  })
+  log('transcript_answer', { component: 'AbovePrompt(unhooked)', answer: unhooked })
+  // Re-ask after the invalidate so the instances shape and the redraw are recorded.
+  const push = await invalidated
+  log('transcript_invalidate', push)
+  const again = await render('UserMessage', 'user-1')
+  log('transcript_answer', { component: 'UserMessage(after invalidate)', answer: again })
+  if (outFile) {
+    writeFileSync(`${outFile}.rows.json`, JSON.stringify(rows, null, 2))
+  }
+}
+
 async function runCommand(command, settleMs = 2000) {
   sendUser(command)
   await new Promise((resolve) => setTimeout(resolve, settleMs))
@@ -252,6 +406,8 @@ async function main() {
   await request({ subtype: 'ui_attach', ...SURFACE, viewport })
   if (scenario === 'scroll-log') {
     await scrollLog()
+  } else if (scenario === 'transcript') {
+    await transcript()
   } else if (scenario === 'hello-tabs') {
     await helloTabs()
   } else {

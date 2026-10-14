@@ -179,4 +179,52 @@ describe('ClaudeModsSurfaceController', () => {
     expect(snapshot.logs).toHaveLength(20)
     expect(snapshot.logs.at(-1)?.text).toBe('line 24')
   })
+
+  it('tells the engine how a mounted site laid out its last drawing', async () => {
+    const { controller, calls, emit } = harness(renderAnswer)
+    controller.layout.register('hello-tabs', () => ({
+      offset: 3,
+      bodyRows: 10,
+      bodyColumns: 44,
+      contentRows: 30,
+      keyed: [{ plugin: 'hello-tabs', key: 'tab-two', top: 4, bottom: 5 }],
+      placement: 'dock'
+    }))
+    controller.setViewport('Pane', { columns: 50, rows: 20 })
+    await flush()
+    emit({
+      type: 'state',
+      available: true,
+      roster: { ...ROSTER, focused_id: 'hello-tabs' },
+      statuses: {}
+    })
+    await flush()
+    const pane = calls.find((call) => call.fields.instance_id === 'hello-tabs')
+    expect(pane?.fields).toMatchObject({
+      component: 'Pane',
+      props: {
+        title: 'Hello tabs',
+        isFocused: true,
+        bodyColumns: 44,
+        placement: 'dock',
+        scroll: { offset: 3, bodyRows: 10 },
+        view: {}
+      },
+      content_rows: 30,
+      keyed: [{ plugin: 'hello-tabs', key: 'tab-two', top: 4, bottom: 5 }],
+      viewport: { columns: 50, rows: 20 }
+    })
+    const band = calls.find((call) => call.fields.instance_id === CLAUDE_MODS_BAND_ID)
+    expect(band?.fields.props).toMatchObject({ hasSurvey: false, isWorking: false, maxRows: 8 })
+    expect(band?.fields).not.toHaveProperty('content_rows')
+  })
+
+  it('hands scroll and focus pushes to sites through onPush', async () => {
+    const { controller, emit } = harness(renderAnswer)
+    const heard: string[] = []
+    controller.onPush((event) => heard.push(event.type))
+    emit({ type: 'scroll', push: { component: 'Pane', instance_id: 'hello-tabs', offset: 4 } })
+    emit({ type: 'focus', push: { component: 'Pane', instance_id: 'hello-tabs', key: 'k' } })
+    expect(heard).toEqual(['scroll', 'focus'])
+  })
 })
