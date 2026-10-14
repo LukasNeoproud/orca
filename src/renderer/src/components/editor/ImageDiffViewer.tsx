@@ -6,8 +6,6 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { selectWorktreeDiffComments } from '@/store/worktree-diff-comments-selector'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { DiffCommentCard } from '../diff-comments/DiffCommentCard'
 import type { DiffComment, ImageReviewRegion } from '../../../../shared/diff-comment-types'
 import {
   getAnchoredImageViewerScrollOffset,
@@ -19,6 +17,9 @@ import {
 import { isImageReviewRegion } from './image-review-region'
 import { ImageDiffPane } from './ImageDiffPane'
 import { PdfDiffViewer } from './PdfDiffViewer'
+import { ImageDiffNotesPanel } from './ImageDiffNotesPanel'
+import { ImageDiffModeToggle } from './ImageDiffModeToggle'
+import { ImageDifferencePane } from './ImageDifferencePane'
 import { getDiffContentSignature } from './diff-content-signature'
 
 type ImageDiffViewerProps = {
@@ -46,6 +47,9 @@ function ImageDiffViewerContent({
   worktreeId
 }: ImageDiffViewerProps): JSX.Element {
   const [zoom, setZoom] = useState(1)
+  const [showDifference, setShowDifference] = useState(false)
+  // Why both sides: a difference needs an image on each side of the change.
+  const canCompare = Boolean(originalContent && modifiedContent)
   const [annotating, setAnnotating] = useState(false)
   const [region, setRegion] = useState<ImageReviewRegion | null>(null)
   const [body, setBody] = useState('')
@@ -53,8 +57,6 @@ function ImageDiffViewerContent({
   const [error, setError] = useState(false)
   const surfacesRef = useRef<(HTMLDivElement | null)[]>([null, null])
   const addDiffComment = useAppStore((s) => s.addDiffComment)
-  const deleteDiffComment = useAppStore((s) => s.deleteDiffComment)
-  const updateDiffComment = useAppStore((s) => s.updateDiffComment)
   const scrollToDiffCommentId = useAppStore((s) => s.scrollToDiffCommentId)
   const setScrollToDiffCommentId = useAppStore((s) => s.setScrollToDiffCommentId)
   const allComments = useAppStore((s): DiffComment[] | undefined =>
@@ -196,9 +198,6 @@ function ImageDiffViewerContent({
     }
   }
 
-  const updateRegion = (field: keyof ImageReviewRegion, value: number): void => {
-    setRegion((current) => (current ? { ...current, [field]: value } : null))
-  }
   const gridRowStyle =
     !sideBySide && layout === 'fill'
       ? {
@@ -249,6 +248,9 @@ function ImageDiffViewerContent({
           <ZoomIn className="size-3.5" />
         </Button>
         <span className="w-10 tabular-nums">{Math.round(zoom * 100)}%</span>
+        {canCompare && (
+          <ImageDiffModeToggle showDifference={showDifference} onChange={setShowDifference} />
+        )}
         {worktreeId && modifiedContent && (
           <Button
             variant={annotating ? 'secondary' : 'ghost'}
@@ -276,121 +278,83 @@ function ImageDiffViewerContent({
           {translate('image.review.zoomHint', 'Ctrl + scroll to zoom; scroll to pan both images')}
         </span>
       </div>
-      <div
-        className={cn(
-          'grid min-h-0 gap-3 p-3',
-          layout === 'intrinsic' ? 'h-auto' : 'flex-1',
-          sideBySide ? 'grid-cols-2' : 'grid-cols-1',
-          !sideBySide && layout === 'fill' && 'overflow-y-auto scrollbar-editor'
-        )}
-        style={gridRowStyle}
-      >
-        <ImageDiffPane
-          label={translate('auto.components.editor.ImageDiffViewer.57aac3979a', 'Original')}
-          content={originalContent}
-          filePath={filePath}
-          mimeType={mimeType}
-          zoom={zoom}
-          layout={layout}
-          annotating={false}
-          region={null}
-          savedRegions={[]}
-          onRegion={() => {}}
-          onScroll={syncScroll}
-          onSurface={(surface) => {
-            surfacesRef.current[0] = surface
-          }}
-        />
-        <ImageDiffPane
-          label={translate('auto.components.editor.ImageDiffViewer.a651be62b0', 'Modified')}
-          content={modifiedContent}
-          filePath={filePath}
-          mimeType={mimeType}
-          zoom={zoom}
-          layout={layout}
-          annotating={annotating}
-          region={region}
-          savedRegions={comments.flatMap((comment) =>
-            comment.imageRegion ? [comment.imageRegion] : []
-          )}
-          onRegion={(next) => {
-            setRegion(next)
-            setAnnotating(false)
-          }}
-          onScroll={syncScroll}
-          onSurface={(surface) => {
-            surfacesRef.current[1] = surface
-          }}
-        />
-      </div>
-      {worktreeId && modifiedContent && (region || comments.length > 0) && (
-        <div className="max-h-72 shrink-0 space-y-2 overflow-y-auto border-t border-border bg-background p-3 scrollbar-editor">
-          {region && (
-            <div className="rounded-md border border-border p-3">
-              <div className="mb-2 text-xs font-medium text-foreground">
-                {translate('image.review.areaNote', 'Note on selected area')}
-              </div>
-              <div className="mb-2 flex flex-wrap items-end gap-2">
-                {(['x', 'y', 'width', 'height'] as const).map((field) => (
-                  <label key={field} className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    {field} (%)
-                    <input
-                      type="number"
-                      min={field === 'width' || field === 'height' ? 0.1 : 0}
-                      max={100}
-                      step={0.1}
-                      value={region[field]}
-                      onChange={(event) => updateRegion(field, Number(event.target.value))}
-                      className="h-8 w-20 rounded-md border border-input bg-background px-2 text-foreground"
-                    />
-                  </label>
-                ))}
-              </div>
-              <Textarea
-                aria-label={translate('image.review.noteBody', 'Image area note')}
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                placeholder={translate(
-                  'image.review.notePlaceholder',
-                  'Describe what should change in this area…'
-                )}
-                className="min-h-16 text-sm"
-              />
-              {error && (
-                <p role="alert" className="mt-2 text-xs text-destructive">
-                  {translate('image.review.saveFailed', 'Could not save the note. Try again.')}
-                </p>
-              )}
-              <div className="mt-2 flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setRegion(null)}>
-                  {translate(
-                    'auto.components.diff.comments.DiffCommentPopover.2b3ce6d394',
-                    'Cancel'
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!body.trim() || !isImageReviewRegion(region) || submitting}
-                  onClick={() => void saveNote()}
-                >
-                  {translate('image.review.saveNote', 'Add note')}
-                </Button>
-              </div>
-            </div>
-          )}
-          {comments.map((comment) => (
-            <div key={comment.id} id={`image-review-note-${comment.id}`}>
-              <DiffCommentCard
-                lineNumber={0}
-                label={translate('image.review.imageArea', 'image area')}
-                body={comment.body}
-                sentAt={comment.sentAt}
-                onDelete={() => void deleteDiffComment(worktreeId, comment.id)}
-                onSubmitEdit={(next) => updateDiffComment(worktreeId, comment.id, next)}
-              />
-            </div>
-          ))}
+      {canCompare && showDifference ? (
+        <div
+          className={cn('min-h-0 p-3', layout === 'intrinsic' ? 'h-auto' : 'flex flex-1 flex-col')}
+        >
+          <ImageDifferencePane
+            originalContent={originalContent}
+            modifiedContent={modifiedContent}
+            filePath={filePath}
+            mimeType={mimeType}
+            zoom={zoom}
+            layout={layout}
+            onSurface={(surface) => {
+              surfacesRef.current[1] = surface
+            }}
+          />
         </div>
+      ) : (
+        <div
+          className={cn(
+            'grid min-h-0 gap-3 p-3',
+            layout === 'intrinsic' ? 'h-auto' : 'flex-1',
+            sideBySide ? 'grid-cols-2' : 'grid-cols-1',
+            !sideBySide && layout === 'fill' && 'overflow-y-auto scrollbar-editor'
+          )}
+          style={gridRowStyle}
+        >
+          <ImageDiffPane
+            label={translate('auto.components.editor.ImageDiffViewer.57aac3979a', 'Original')}
+            content={originalContent}
+            filePath={filePath}
+            mimeType={mimeType}
+            zoom={zoom}
+            layout={layout}
+            annotating={false}
+            region={null}
+            savedRegions={[]}
+            onRegion={() => {}}
+            onScroll={syncScroll}
+            onSurface={(surface) => {
+              surfacesRef.current[0] = surface
+            }}
+          />
+          <ImageDiffPane
+            label={translate('auto.components.editor.ImageDiffViewer.a651be62b0', 'Modified')}
+            content={modifiedContent}
+            filePath={filePath}
+            mimeType={mimeType}
+            zoom={zoom}
+            layout={layout}
+            annotating={annotating}
+            region={region}
+            savedRegions={comments.flatMap((comment) =>
+              comment.imageRegion ? [comment.imageRegion] : []
+            )}
+            onRegion={(next) => {
+              setRegion(next)
+              setAnnotating(false)
+            }}
+            onScroll={syncScroll}
+            onSurface={(surface) => {
+              surfacesRef.current[1] = surface
+            }}
+          />
+        </div>
+      )}
+      {worktreeId && modifiedContent && (region || comments.length > 0) && (
+        <ImageDiffNotesPanel
+          worktreeId={worktreeId}
+          comments={comments}
+          region={region}
+          onRegionChange={setRegion}
+          body={body}
+          onBodyChange={setBody}
+          error={error}
+          submitting={submitting}
+          onSave={() => void saveNote()}
+        />
       )}
     </div>
   )

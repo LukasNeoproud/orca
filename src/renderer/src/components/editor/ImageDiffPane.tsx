@@ -25,6 +25,9 @@ import {
   type ImageReviewPoint
 } from './image-review-region'
 
+// Why: tall screenshots at full width dwarf the diff list; 2rem below the pane's 32rem cap.
+const INTRINSIC_MAX_IMAGE_HEIGHT_PX = 480
+
 type Props = {
   label: string
   content: string
@@ -119,15 +122,19 @@ export function ImageDiffPane({
     return () => observer.disconnect()
   }, [content])
 
-  const size =
+  const intrinsicScale =
     intrinsic && imageSize && surfaceSize
+      ? Math.min(
+          1,
+          Math.max(0, surfaceSize.width - 32) / imageSize.width,
+          INTRINSIC_MAX_IMAGE_HEIGHT_PX / imageSize.height
+        )
+      : null
+  const size =
+    intrinsicScale !== null && imageSize
       ? {
-          width: Math.min(imageSize.width, Math.max(0, surfaceSize.width - 32)) * zoom,
-          height:
-            (Math.min(imageSize.width, Math.max(0, surfaceSize.width - 32)) *
-              zoom *
-              imageSize.height) /
-            imageSize.width
+          width: imageSize.width * intrinsicScale * zoom,
+          height: imageSize.height * intrinsicScale * zoom
         }
       : getZoomedImageLayoutSize({ imageDimensions: imageSize, surfaceSize, zoom })
   const popupLayoutSize = getZoomedImageLayoutSize({
@@ -215,7 +222,8 @@ export function ImageDiffPane({
           }}
           className={cn(
             'scrollbar-editor overflow-auto bg-muted/20',
-            intrinsic ? 'min-h-32' : 'min-h-0 flex-1'
+            // Why the cap: a zoomed image scrolls inside the pane instead of stretching the list.
+            intrinsic ? 'max-h-[32rem] min-h-32' : 'min-h-0 flex-1'
           )}
           onScroll={(event) => onScroll(event.currentTarget)}
         >

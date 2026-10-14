@@ -20170,7 +20170,12 @@
       "saveNote": "Add note",
       "imageArea": "image area",
       "imageBadge": "Image",
-      "copyNote": "Copy note on image area"
+      "copyNote": "Copy note on image area",
+      "modeCompare": "Both versions",
+      "modeDifference": "Difference",
+      "differenceLoading": "Comparing images…",
+      "differenceFailed": "These images cannot be compared.",
+      "differenceLabel": "Changed pixels: {{value0}} %"
     }
   },
   "landing": {
