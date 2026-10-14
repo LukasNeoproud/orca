@@ -1,0 +1,6 @@
+{
+  "name": "notify",
+  "version": "0.1.0",
+  "description": "Toast, status line and transcript log from a command",
+  "author": { "name": "Orca fixtures" }
+}

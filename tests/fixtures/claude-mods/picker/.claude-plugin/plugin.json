@@ -1,0 +1,6 @@
+{
+  "name": "picker",
+  "version": "0.1.0",
+  "description": "Pane with a Select, Code, Markdown and Link",
+  "author": { "name": "Orca fixtures" }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "notes",
+  "version": "0.1.0",
+  "description": "Pane with a text field that adds rows and per-row delete buttons",
+  "author": { "name": "Orca fixtures" }
+}
