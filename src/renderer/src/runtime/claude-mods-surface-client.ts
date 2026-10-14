@@ -41,7 +41,7 @@ export function requestClaudeMods(
     target,
     'agentSession.claudeModsRequest',
     { sessionId, subtype, fields },
-    { timeoutMs: CLAUDE_MODS_REQUEST_TIMEOUT_MS, suppressFeatureInteraction: true }
+    { timeoutMs: CLAUDE_MODS_REQUEST_TIMEOUT_MS }
   ).then((result) => result.response)
 }
 

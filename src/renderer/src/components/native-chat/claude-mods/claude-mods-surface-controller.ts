@@ -2,38 +2,27 @@ import {
   EMPTY_CLAUDE_MODS_PANE_ROSTER,
   type ClaudeModsPaneRoster,
   type ClaudeModsRequestSubtype,
-  type ClaudeModsSurfaceEvent,
-  type ClaudeModsUnavailableReason
+  type ClaudeModsSurfaceEvent
 } from '../../../../../shared/claude-mods-surface'
-import { readClaudeModsTree, type ClaudeModsNode, type ClaudeModsPress } from './claude-mods-tree'
+import { readClaudeModsTree, type ClaudeModsPress } from './claude-mods-tree'
+import { openClaudeModsResubscribingStream } from './claude-mods-resubscribing-stream'
+import {
+  CLAUDE_MODS_BAND_ID,
+  type ClaudeModsComponent,
+  type ClaudeModsSnapshot,
+  type ClaudeModsTransport,
+  type ClaudeModsViewport
+} from './claude-mods-surface-types'
 
-export const CLAUDE_MODS_BAND_ID = 'above-prompt'
-
-export type ClaudeModsComponent = 'Pane' | 'AbovePrompt'
-
-export type ClaudeModsViewport = { columns: number; rows: number; isFullscreen?: boolean }
-
-export type ClaudeModsDrawing = { tree: ClaudeModsNode; hooked: boolean; drawnBy: string[] }
-
-export type ClaudeModsLogLine = { id: number; plugin: string; text: string }
-
-export type ClaudeModsSnapshot = {
-  available: boolean
-  reason?: ClaudeModsUnavailableReason
-  roster: ClaudeModsPaneRoster
-  statuses: Record<string, string>
-  logs: ClaudeModsLogLine[]
-  drawings: Record<string, ClaudeModsDrawing>
-}
-
-export type ClaudeModsTransport = {
-  request: (subtype: ClaudeModsRequestSubtype, fields: Record<string, unknown>) => Promise<unknown>
-  subscribe: (handlers: {
-    onEvent: (event: ClaudeModsSurfaceEvent) => void
-    onError: (error: unknown) => void
-    onClose: () => void
-  }) => Promise<{ unsubscribe: () => void }>
-}
+export {
+  CLAUDE_MODS_BAND_ID,
+  type ClaudeModsComponent,
+  type ClaudeModsDrawing,
+  type ClaudeModsLogLine,
+  type ClaudeModsSnapshot,
+  type ClaudeModsTransport,
+  type ClaudeModsViewport
+} from './claude-mods-surface-types'
 
 const MAX_LOG_LINES = 20
 
@@ -57,8 +46,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export class ClaudeModsSurfaceController {
   private snapshot: ClaudeModsSnapshot = INITIAL
   private readonly listeners = new Set<() => void>()
-  private subscription: { unsubscribe: () => void } | null = null
-  private stopped = false
+  private closeStream: (() => void) | null = null
   private generation = 0
   private logId = 0
   private readonly inFlight = new Set<string>()
@@ -80,26 +68,14 @@ export class ClaudeModsSurfaceController {
   }
 
   start(): void {
-    void this.transport
-      .subscribe({
-        onEvent: (event) => this.onEvent(event),
-        onError: (error) => console.warn('[claude-mods] surface stream failed:', error),
-        onClose: () => this.update({ ...INITIAL })
-      })
-      .then((subscription) => {
-        if (this.stopped) {
-          subscription.unsubscribe()
-        } else {
-          this.subscription = subscription
-        }
-      })
-      .catch((error: unknown) => console.warn('[claude-mods] could not subscribe:', error))
+    this.closeStream ??= openClaudeModsResubscribingStream(this.transport, {
+      onEvent: (event) => this.onEvent(event),
+      onClose: () => this.update({ ...INITIAL })
+    })
   }
 
   stop(): void {
-    this.stopped = true
-    this.subscription?.unsubscribe()
-    this.subscription = null
+    this.closeStream?.()
     this.listeners.clear()
   }
 

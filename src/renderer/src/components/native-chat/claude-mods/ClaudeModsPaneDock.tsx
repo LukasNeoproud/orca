@@ -131,6 +131,13 @@ function ClaudeModsPane({
           controller.focusPane(paneId)
         }
       }}
+      onBlur={(event) => {
+        // The keyboard left the pane (a click in the composer, the transcript): the CLI holds a
+        // focused pane over a newly opened one until it hears so.
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          controller.focusPane(null)
+        }
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault()

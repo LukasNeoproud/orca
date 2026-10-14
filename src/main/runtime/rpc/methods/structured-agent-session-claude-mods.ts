@@ -13,13 +13,21 @@ import {
   existingClaudeModsSessionChannel
 } from '../../../claude/claude-mods-surface-channel'
 import { defineMethod, defineStreamingMethod, type RpcContext } from '../core'
-import { requireStructuredSessionHost } from './structured-agent-session-gate'
+import {
+  requireStructuredAgentAudience,
+  requireStructuredHost
+} from './structured-agent-session-gate'
 import { bindStructuredAgentSessionStream } from './structured-agent-session-status-stream'
 
+/** A chat subscribes before its first message starts the child, so an unknown session is
+ *  admitted (its channel waits for the child); only a known non-Claude session is refused. */
 function requireClaudeSession(ctx: RpcContext, sessionId: string): void {
-  const host = requireStructuredSessionHost(ctx, sessionId)
-  if (host.sessionAgent(sessionId) !== 'claude') {
-    throw new Error('Claude mods are drawn only in Claude chats')
+  const agent = requireStructuredHost(ctx).sessionAgent(sessionId)
+  if (agent) {
+    requireStructuredAgentAudience(ctx, agent)
+    if (agent !== 'claude') {
+      throw new Error('Claude mods are drawn only in Claude chats')
+    }
   }
 }
 

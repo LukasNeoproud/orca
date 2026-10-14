@@ -1,0 +1,35 @@
+import type {
+  ClaudeModsPaneRoster,
+  ClaudeModsRequestSubtype,
+  ClaudeModsSurfaceEvent,
+  ClaudeModsUnavailableReason
+} from '../../../../../shared/claude-mods-surface'
+import type { ClaudeModsNode } from './claude-mods-tree'
+
+export const CLAUDE_MODS_BAND_ID = 'above-prompt'
+
+export type ClaudeModsComponent = 'Pane' | 'AbovePrompt'
+
+export type ClaudeModsViewport = { columns: number; rows: number; isFullscreen?: boolean }
+
+export type ClaudeModsDrawing = { tree: ClaudeModsNode; hooked: boolean; drawnBy: string[] }
+
+export type ClaudeModsLogLine = { id: number; plugin: string; text: string }
+
+export type ClaudeModsSnapshot = {
+  available: boolean
+  reason?: ClaudeModsUnavailableReason
+  roster: ClaudeModsPaneRoster
+  statuses: Record<string, string>
+  logs: ClaudeModsLogLine[]
+  drawings: Record<string, ClaudeModsDrawing>
+}
+
+export type ClaudeModsTransport = {
+  request: (subtype: ClaudeModsRequestSubtype, fields: Record<string, unknown>) => Promise<unknown>
+  subscribe: (handlers: {
+    onEvent: (event: ClaudeModsSurfaceEvent) => void
+    onError: (error: unknown) => void
+    onClose: () => void
+  }) => Promise<{ unsubscribe: () => void }>
+}
