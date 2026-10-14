@@ -60,23 +60,4 @@ export function register(on) {
       children: [Text({ dimColor: true, children: ['mod output'] }), await next(e)]
     })
   })
-
-  on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
-    await $.ui.log(`ToolGroup render: ${e.props.calls?.length ?? 0} calls`)
-    return next(e)
-  })
-
-  // Pass-through hooks: `hooked` and the log show whether a desktop surface raises these sites.
-  for (const component of [
-    'TurnDuration',
-    'InfoNotice',
-    'PromptHint',
-    'SessionMode',
-    'ToolProgress'
-  ]) {
-    on('ui.render', { component }, async ($, e, next) => {
-      await $.ui.log(`${component} render`)
-      return next(e)
-    })
-  }
 }
