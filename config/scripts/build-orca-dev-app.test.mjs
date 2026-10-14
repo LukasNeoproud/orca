@@ -29,6 +29,9 @@ describe('build-orca-dev-app', () => {
       `${app}/Contents/Frameworks/Orca Dev Helper.app/Contents/MacOS/Orca Dev Helper\n`
     expect(isOrcaDevRunning(app, running)).toBe(true)
     expect(isOrcaDevRunning(app, helperOnly)).toBe(false)
+    const cliOnly = () =>
+      `${app}/Contents/MacOS/Orca Dev ${app}/Contents/Resources/app.asar.unpacked/out/cli/index.js ado mcp\n`
+    expect(isOrcaDevRunning(app, cliOnly)).toBe(false)
   })
 })
 

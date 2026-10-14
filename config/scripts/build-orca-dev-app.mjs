@@ -73,9 +73,12 @@ export function isOrcaDevRunning(
   readProcesses = () => read('/bin/ps', ['-axo', 'command'])
 ) {
   const executable = path.join(appPath, 'Contents', 'MacOS', 'Orca Dev')
+  // Why: agent sessions run the bundled CLI (`orca ado mcp`) through the same binary; those never quit.
   return readProcesses()
     .split('\n')
-    .some((line) => line.startsWith(executable))
+    .some(
+      (line) => line.startsWith(executable) && !line.includes('/app.asar.unpacked/out/cli/index.js')
+    )
 }
 
 /** The Node bin dir for the major the checkout pins in `engines.node`: this one, or an nvm install. */
