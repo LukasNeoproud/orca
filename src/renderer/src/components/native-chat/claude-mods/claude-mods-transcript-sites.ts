@@ -171,9 +171,10 @@ export class ClaudeModsTranscriptSites {
 
   /** Presses, typing and picks of a drawn tree: they answer for this site, not for a pane. */
   dispatch(component: string, instanceId: string): ClaudeModsDispatch {
-    return claudeModsSiteDispatch(this.transport, component, instanceId, () =>
-      this.enqueue(keyOf(component, instanceId))
-    )
+    return claudeModsSiteDispatch(this.transport, component, instanceId, {
+      onRetired: () => this.enqueue(keyOf(component, instanceId)),
+      latest: () => this.getAnswer(component, instanceId)?.tree
+    })
   }
 
   private onPush(event: ClaudeModsSurfaceEvent): void {

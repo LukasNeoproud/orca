@@ -20,14 +20,11 @@ export type ClaudeModsDrawing = {
   clientModules?: Record<string, string>
 }
 
-export type ClaudeModsLogLine = { id: number; plugin: string; text: string }
-
 export type ClaudeModsSnapshot = {
   available: boolean
   reason?: ClaudeModsUnavailableReason
   roster: ClaudeModsPaneRoster
   statuses: Record<string, string>
-  logs: ClaudeModsLogLine[]
   drawings: Record<string, ClaudeModsDrawing>
 }
 

@@ -117,6 +117,12 @@ export function claudeModsAssistantMessageProps(text: string): ClaudeModsSitePro
   return { text, isFirstOfReply: true, isSummary: false }
 }
 
+/** A slash command's printed reply; `command` and `args` stay empty on a host that does not name them. */
+/** Orca's command-output row names no command, so `command`/`args` are empty. */
+export function claudeModsCommandOutputProps(text: string): ClaudeModsSiteProps {
+  return { command: '', args: '', text, isErrored: false }
+}
+
 export function claudeModsUserMessageProps(text: string): ClaudeModsSiteProps {
   return { text, origin: { kind: 'sdk' }, isExpanded: true }
 }

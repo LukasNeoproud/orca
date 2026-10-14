@@ -125,10 +125,66 @@ describe('ClaudeModsSurfaceController', () => {
     emit({ type: 'state', available: true, roster: ROSTER, statuses: {} })
     await flush()
     calls.length = 0
-    controller.press('hello-tabs', { plugin: 'hello-tabs', handle: 1 }, 'tab-two')
+    // No key, so nothing to heal the handle against: the engine's refusal asks for a redraw.
+    controller.press('hello-tabs', { plugin: 'hello-tabs', handle: 1 })
     await flush()
     expect(calls.map((call) => call.subtype)).toEqual(['ui_press', 'ui_render'])
-    expect(calls[0]?.fields).toEqual({ plugin: 'hello-tabs', handle: 1, key: 'tab-two' })
+    expect(calls[0]?.fields).toEqual({ plugin: 'hello-tabs', handle: 1 })
+  })
+
+  it('heals a press on a superseded drawing to the newest handle, after a redraw in flight', async () => {
+    let releaseRender: () => void = () => {}
+    let held = false
+    const { controller, calls, emit } = harness((call) => {
+      if (call.subtype === 'ui_render' && held && call.fields.instance_id === 'hello-tabs') {
+        return new Promise((resolve) => {
+          releaseRender = () => resolve(renderAnswer(call))
+        })
+      }
+      return renderAnswer(call)
+    })
+    await flush()
+    emit({ type: 'state', available: true, roster: ROSTER, statuses: {} })
+    await flush()
+    held = true
+    controller.redraw('hello-tabs')
+    calls.length = 0
+    controller.press('hello-tabs', { plugin: 'hello-tabs', handle: 1 }, 'tab-two')
+    controller.press('hello-tabs', { plugin: 'hello-tabs', handle: 1 }, 'tab-two')
+    await flush()
+    expect(calls).toEqual([])
+    releaseRender()
+    await flush()
+    expect(calls).toEqual([
+      {
+        subtype: 'ui_press',
+        fields: { plugin: 'hello-tabs', handle: 784744200, key: 'tab-two' }
+      }
+    ])
+  })
+
+  it('reports an unchanged pane holder when it answers a focus request', async () => {
+    const { controller, calls, emit } = harness(renderAnswer)
+    await flush()
+    emit({
+      type: 'state',
+      available: true,
+      roster: { ...ROSTER, focused_id: 'hello-tabs' },
+      statuses: {}
+    })
+    await flush()
+    calls.length = 0
+    controller.focusPane('hello-tabs')
+    controller.focusPane('hello-tabs', true)
+    expect(calls).toEqual([{ subtype: 'ui_pane_focus', fields: { id: 'hello-tabs' } }])
+  })
+
+  it('draws the first pane when the roster names none shown', async () => {
+    const { calls, emit } = harness(renderAnswer)
+    await flush()
+    emit({ type: 'state', available: true, roster: { ...ROSTER, shown_id: null }, statuses: {} })
+    await flush()
+    expect(calls.map((call) => call.fields.instance_id)).toContain('hello-tabs')
   })
 
   it('names the site an input was typed in, so a retired handle re-resolves', async () => {
@@ -165,19 +221,13 @@ describe('ClaudeModsSurfaceController', () => {
     expect(controller.getSnapshot().drawings).toEqual({})
   })
 
-  it('forgets a closed pane and keeps the last log lines', async () => {
+  it('forgets a closed pane', async () => {
     const { controller, emit } = harness(renderAnswer)
     await flush()
     emit({ type: 'state', available: true, roster: ROSTER, statuses: {} })
     await flush()
     emit({ type: 'panes', roster: { ...ROSTER, panes: [], shown_id: null } })
-    for (let i = 0; i < 25; i++) {
-      emit({ type: 'log', plugin: 'notify', text: `line ${i}` })
-    }
-    const snapshot = controller.getSnapshot()
-    expect(snapshot.drawings['hello-tabs']).toBeUndefined()
-    expect(snapshot.logs).toHaveLength(20)
-    expect(snapshot.logs.at(-1)?.text).toBe('line 24')
+    expect(controller.getSnapshot().drawings['hello-tabs']).toBeUndefined()
   })
 
   it('tells the engine how a mounted site laid out its last drawing', async () => {
@@ -215,7 +265,7 @@ describe('ClaudeModsSurfaceController', () => {
       viewport: { columns: 50, rows: 20 }
     })
     const band = calls.find((call) => call.fields.instance_id === CLAUDE_MODS_BAND_ID)
-    expect(band?.fields.props).toMatchObject({ hasSurvey: false, isWorking: false, maxRows: 8 })
+    expect(band?.fields.props).toMatchObject({ hasSurvey: false, isWorking: false, maxRows: 12 })
     expect(band?.fields).not.toHaveProperty('content_rows')
   })
 

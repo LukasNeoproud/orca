@@ -18867,10 +18867,15 @@
       "continueInTerminal": "Continue in Terminal",
       "continueInTerminalTooltip": "Closes this chat and continues the same conversation in a terminal.",
       "claudeMods": {
-        "clearLog": "Clear mod log",
-        "unsupportedElement": "[unsupported: {{type}}]",
         "clientUnsupported": "This part of the mod runs its own code, which Orca does not draw yet.",
-        "closePane": "Close pane"
+        "closePane": "Close pane",
+        "closeNamedPane": "Close {{title}}",
+        "paneTabs": "Mod panes",
+        "paneWaiting": "Waiting for you",
+        "resizePane": "Resize pane",
+        "paneEmptyTitle": "Nothing to show yet",
+        "paneEmptyBody": "{{plugin}} has not drawn in this pane",
+        "statusLines": "Plugin status lines"
       }
     },
     "tab": {

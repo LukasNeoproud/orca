@@ -1,6 +1,8 @@
 // The plain-data tree a mod's `ui.render` hook returned, read defensively: the CLI validated
 // it, but its element table can grow before Orca learns a new node, and a malformed node must
-// draw a placeholder rather than take the chat down.
+// draw nothing rather than take the chat down.
+
+import { markMonospaceTexts, markMultilineMonospace } from './claude-mods-text-heuristics'
 
 export type ClaudeModsPress = { plugin: string; handle: number }
 
@@ -38,7 +40,6 @@ export type ClaudeModsNode =
     }
   /** Core's own drawing: meaningful only at transcript sites, so panes and the band skip it. */
   | { kind: 'engine'; ref: number }
-  | { kind: 'unsupported'; type: string }
 
 const ELEMENT_TYPES: ReadonlySet<string> = new Set<ClaudeModsElementType>([
   'Box',
@@ -59,6 +60,7 @@ const ELEMENT_TYPES: ReadonlySet<string> = new Set<ClaudeModsElementType>([
 /** Above the terminal's own bounds; a deeper or larger tree is not one a mod meant to draw. */
 const MAX_DEPTH = 64
 const MAX_NODES = 5_000
+const MAX_NEWLINES = 100
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -79,39 +81,77 @@ function isElementType(type: string): type is ClaudeModsElementType {
 
 /** One `ui_render` answer's `tree` as nodes; never throws. */
 export function readClaudeModsTree(value: unknown): ClaudeModsNode {
-  const budget = { nodes: 0 }
-  return readNode(value, 0, budget)
+  const budget = { nodes: 0, exceeded: false }
+  const nodes = readNodes(value, 0, budget)
+  if (budget.exceeded) {
+    warnOnce('tree too large')
+    return { kind: 'text', text: '' }
+  }
+  const [only] = nodes
+  if (nodes.length === 1 && only) {
+    return only
+  }
+  // A dropped or unknown root left several nodes or none: one Box holds them for the site.
+  return nodes.length === 0
+    ? { kind: 'text', text: '' }
+    : { kind: 'element', type: 'Box', props: {}, children: nodes }
 }
 
-function readNode(
+const warned = new Set<string>()
+
+function warnOnce(what: string): void {
+  if (!warned.has(what)) {
+    warned.add(what)
+    console.warn(`[claude-mods] not drawing: ${what}`)
+  }
+}
+
+/** A newline's `count` lines, the way Ink repeats it. */
+function newlines(props: Record<string, unknown>): string {
+  const count = propNumber(props, 'count')
+  return '\n'.repeat(
+    count === undefined ? 1 : Math.min(Math.max(Math.trunc(count), 1), MAX_NEWLINES)
+  )
+}
+
+/**
+ * A node as the nodes it draws: an element is itself, an unknown type is its children without
+ * the wrapper, and a malformed node is nothing. Splicing keeps every Button and engine slot
+ * under an unknown wrapper visible to the walkers over the tree.
+ */
+function readNodes(
   value: unknown,
   depth: number,
-  budget: { nodes: number },
+  budget: { nodes: number; exceeded: boolean },
   inherited?: string
-): ClaudeModsNode {
+): ClaudeModsNode[] {
   budget.nodes += 1
   if (budget.nodes > MAX_NODES || depth > MAX_DEPTH) {
-    return { kind: 'unsupported', type: 'tree too large' }
+    budget.exceeded = true
+    return []
   }
   if (typeof value === 'string') {
-    return { kind: 'text', text: value }
+    return [{ kind: 'text', text: value }]
   }
   if (typeof value === 'number') {
-    return { kind: 'text', text: String(value) }
+    return [{ kind: 'text', text: String(value) }]
   }
   if (!isRecord(value) || typeof value.type !== 'string') {
-    return { kind: 'unsupported', type: 'malformed node' }
+    warnOnce('malformed node')
+    return []
   }
   if (value.type === 'engine') {
-    return {
-      kind: 'engine',
-      ref: typeof value.ref === 'number' && Number.isInteger(value.ref) ? value.ref : 0
-    }
-  }
-  if (!isElementType(value.type)) {
-    return { kind: 'unsupported', type: value.type }
+    return [
+      {
+        kind: 'engine',
+        ref: typeof value.ref === 'number' && Number.isInteger(value.ref) ? value.ref : 0
+      }
+    ]
   }
   const props = isRecord(value.props) ? value.props : {}
+  if (value.type === 'Newline') {
+    return [{ kind: 'text', text: newlines(props) }]
+  }
   // Children ride beside props on the wire; a mod's own `props.children` never reaches here.
   const rawChildren = Array.isArray(value.children) ? value.children : []
   const press = readPress(value.press)
@@ -124,20 +164,30 @@ function readNode(
     client ??
     (isRecord(value.part) && typeof value.part.plugin === 'string' ? value.part.plugin : undefined)
   const owner = part ?? inherited ?? press?.plugin
+  const children = rawChildren.flatMap((child) => readNodes(child, depth + 1, budget, owner))
+  if (!isElementType(value.type)) {
+    warnOnce(`unknown type ${value.type}`)
+    return children
+  }
   const hover = isRecord(value.hover) ? value.hover : undefined
   const group =
     isRecord(value.group) && typeof value.group.plugin === 'string' ? value.group.plugin : undefined
-  return {
+  const node: ClaudeModsNode = {
     kind: 'element',
     type: value.type,
     props,
-    children: rawChildren.map((child) => readNode(child, depth + 1, budget, owner)),
+    children: value.type === 'Box' && isColumn(props) ? markMonospaceTexts(children) : children,
     ...(press ? { press } : {}),
     ...(part ? { plugin: part } : {}),
     ...(owner ? { owner } : {}),
     ...(hover ? { hover } : {}),
     ...(group ? { group } : {})
   }
+  return [value.type === 'Text' ? markMultilineMonospace(node) : node]
+}
+
+function isColumn(props: Record<string, unknown>): boolean {
+  return props.flexDirection === 'column' || props.flexDirection === 'column-reverse'
 }
 
 export function propString(props: Record<string, unknown>, name: string): string | undefined {

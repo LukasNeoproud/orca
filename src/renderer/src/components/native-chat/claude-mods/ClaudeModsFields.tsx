@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { propString, propTrue, readSelectOptions, type ClaudeModsNode } from './claude-mods-tree'
@@ -46,65 +47,94 @@ export function ClaudeModsInput({ node }: { node: ElementNode }): React.JSX.Elem
       void claudeModsDispatch(scope).input(node.press, key, kind, value)
     }
   }
-  return (
-    <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-      {label ? <span className="shrink-0 text-muted-foreground">{label}</span> : null}
-      <Input
-        value={text}
-        placeholder={propString(props, 'placeholder')}
-        {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
-        aria-label={label ?? propString(props, 'placeholder') ?? key}
-        disabled={!node.press || !scope}
-        onChange={(event) => {
-          const value = event.target.value
-          setText(value)
-          if (pending.current) {
-            clearTimeout(pending.current)
-          }
-          pending.current = setTimeout(() => send('change', value), CHANGE_DEBOUNCE_MS)
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== 'Enter' || event.nativeEvent.isComposing) {
-            return
-          }
+  const submitLabel = propString(props, 'submitLabel')
+  const field = (
+    <Input
+      size="xs"
+      value={text}
+      placeholder={propString(props, 'placeholder')}
+      {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
+      aria-label={label ?? propString(props, 'placeholder') ?? key}
+      disabled={!node.press || !scope}
+      onChange={(event) => {
+        const value = event.target.value
+        setText(value)
+        if (pending.current) {
+          clearTimeout(pending.current)
+        }
+        pending.current = setTimeout(() => send('change', value), CHANGE_DEBOUNCE_MS)
+      }}
+      onKeyDown={(event) => {
+        // The Enter key and the submit button share the form's one submit path.
+        if (event.key === 'Enter') {
           event.preventDefault()
-          if (pending.current) {
-            clearTimeout(pending.current)
-            pending.current = null
-          }
-          submitted.current = true
-          send('submit', text)
-        }}
-      />
-      {propString(props, 'submitLabel') ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          ⏎ {propString(props, 'submitLabel')}
-        </span>
+          event.currentTarget.form?.requestSubmit()
+        }
+      }}
+    />
+  )
+  return (
+    <form
+      className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (pending.current) {
+          clearTimeout(pending.current)
+          pending.current = null
+        }
+        submitted.current = true
+        send('submit', text)
+      }}
+    >
+      {label ? (
+        <label className="inline-flex min-w-0 items-center gap-2">
+          <span className="shrink-0 whitespace-nowrap text-muted-foreground">{label}</span>
+          {field}
+        </label>
+      ) : (
+        field
+      )}
+      {submitLabel ? (
+        <Button type="submit" size="xs" variant="outline" disabled={!node.press || !scope}>
+          {submitLabel}
+        </Button>
       ) : null}
-    </label>
+    </form>
   )
 }
 
+/** The label follows the person's pick at once; the mod's next `value` wins over it. */
 export function ClaudeModsSelect({ node }: { node: ElementNode }): React.JSX.Element {
   const scope = useClaudeModsDrawScope()
   const { props } = node
   const options = readSelectOptions(props)
   const label = propString(props, 'label')
   const key = propString(props, 'key')
+  const drawn = propString(props, 'value') ?? options[0]?.value
+  const [selected, setSelected] = useState(drawn)
+  // Any new drawing wins, even one repeating the old value: the mod may have refused the pick.
+  const [lastNode, setLastNode] = useState(node)
+  if (node !== lastNode) {
+    setLastNode(node)
+    setSelected(drawn)
+  }
   return (
-    <div className="flex min-w-0 items-center gap-2 text-sm">
-      {label ? <span className="shrink-0 text-muted-foreground">{label}</span> : null}
+    <div className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm">
+      {label ? (
+        <span className="shrink-0 whitespace-nowrap text-muted-foreground">{label}</span>
+      ) : null}
       <Select
-        value={propString(props, 'value')}
+        value={selected}
         disabled={!node.press || !scope}
         onValueChange={(value) => {
+          setSelected(value)
           if (node.press && scope) {
             claudeModsDispatch(scope).select(node.press, key, value)
           }
         }}
       >
         <SelectTrigger
-          size="sm"
+          size="xs"
           {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
           aria-label={label ?? key}
         >

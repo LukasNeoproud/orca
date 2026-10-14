@@ -33,7 +33,7 @@ Validation messages quoted from the binary give the exact fields.
 
 | subtype         | fields Orca sends                                                                                                                                                  | answer                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `ui_attach`     | `surface: 'desktop'`, `client_id: 'orca'` (optional `viewport`, `answers`)                                                                                         | `{ surfaces: ['desktop'] }`                                     |
+| `ui_attach`     | `surface: 'desktop'`, `client_id: 'orca'`, `answers` while a composer answers asks (optional `viewport`)                                                           | `{ surfaces: ['desktop'] }`                                     |
 | `ui_detach`     | `client_id`                                                                                                                                                        | `{ detached, surfaces }`                                        |
 | `ui_panes`      | `client_id`                                                                                                                                                        | the roster (below)                                              |
 | `ui_render`     | `component` (`Pane` / `AbovePrompt`), `instance_id` (pane id or `above-prompt`), `props: {}`, `viewport: { columns, rows, isFullscreen? }`, `surface`, `client_id` | `{ tree, props, rewritten, hooked, drawn_by, client_modules? }` |
@@ -46,9 +46,11 @@ Validation messages quoted from the binary give the exact fields.
 | `ui_scroll`     | `component`, `instance_id`, `offset`, `by`, `body_rows`, `content_rows`, `pointer?`, `keyed?`                                                                      | `{ moved, offset, deny?, follow_end? }`                         |
 | `ui_focus`      | `component`, `instance_id`, `is_held`, `element?`, `by?`                                                                                                           | `{ moved, element }`                                            |
 
-Phase 2 and 3 requests (including the four Client subtypes) are in the sections below. Not used yet: `ui_prompt_edit`, `ui_prompt_autocomplete`, and the engine → client requests a client
-opts into with `answers` (`ui_copy`, `ui_prompt_read`, `ui_prompt_fill`, `ui_prompt_suggest`,
-`ui_read_selection`).
+Phase 2 and 3 requests (including the four Client subtypes) are in the sections below. The
+engine → client asks Orca answers (`ui_copy`, `ui_prompt_read`, `ui_prompt_fill`,
+`ui_prompt_suggest`) are under [Engine → client asks](#engine--client-asks). Not used yet:
+`ui_prompt_edit`, `ui_prompt_autocomplete` and the `ui_read_selection` ask (Desktop answers neither
+of the last two).
 
 Observed behaviour:
 
@@ -85,6 +87,64 @@ whose `surface` is absent or `desktop`, and hands the renderer `instances: strin
 ids, deduplicated. When the field is absent or nothing parseable remains it omits `instances`,
 which means redraw everything; the CLI documents that as always correct.
 
+## Engine → client asks
+
+A plugin's `$.ui.copy`, `$.prompt.read`, `$.prompt.fill` and `$.prompt.suggest` (and the CLI's own
+prompt suggestion after a turn) reach a headless session's core, which asks an attached client. Read
+from the 2.1.300 binary's schema text and confirmed live with
+`node tests/tools/claude-mods-surface-probe.mjs --scenario prompt-asks` (fixture `prompt-asks`).
+
+- **Opt-in**: `ui_attach` names `answers: ['ui_copy', 'ui_prompt_read', 'ui_prompt_fill',
+'ui_prompt_suggest']`. The CLI asks only a client that named the subtype; one that never names
+  any is never asked (`$.ui.copy` then answers `no-clipboard`, the prompt calls the empty box /
+  false). A repeated `ui_attach` with a list (including `[]`) replaces the earlier one; an absent
+  field keeps it.
+- **Transport**: each ask is an ordinary inbound `control_request` on the CLI's stdout, answered
+  with a `control_response` under its `request_id`. The SDK has no handler for these subtypes and
+  answers an error, which the CLI reads as "another client refused" and waits on; unanswered for
+  5 s, or unparsable, it resolves the plugin's default. Orca wraps the `Query`'s
+  `processControlRequest` (`claudeQueryUiAskInterceptor` in
+  `src/main/claude/claude-mods-surface-ask-intercept.ts`); without that method it never names
+  `answers`.
+- No timestamp rides the ask over the pipes, so Desktop's 4 s staleness rule (it measures its page
+  bridge's server time) is kept host-side: an ask unanswered 4 s after it reached the host is
+  answered with the default, and a later answer is dropped.
+
+| ask (`request`)                                                                                            | answer             | default                   |
+| ---------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------- |
+| `ui_copy`: `surface`, `client_id`, `plugin`, `text`                                                        | `{ copied }`       | `{ copied: false }`       |
+| `ui_prompt_read`: `surface`, `client_id`                                                                   | `{ text, cursor }` | `{ text: '', cursor: 0 }` |
+| `ui_prompt_fill`: `surface`, `client_id`, `text`, `mode` (`replace` / `append` / `insert`), `decorations?` | `{ filled }`       | `{ filled: false }`       |
+| `ui_prompt_suggest`: `surface`, `client_id`, `text`                                                        | `{ shown }`        | `{ shown: false }`        |
+
+- `cursor` is a UTF-16 offset, `0..text.length`. After a fill the CLI sends `ui_prompt_read` at
+  once and hands the plugin that box (`{ isFilled, text, cursor }`), so the read must already see
+  the filled draft.
+- The plugin sees `{ isCopied }`, `{ isFilled, text, cursor }`, `{ text, cursor }`, `{ isShown }`.
+
+How Orca answers (Desktop's behaviour, translated):
+
+- The host routes each ask to the composer that subscribed last for the session
+  (`agentSession.claudeModsAsks`, a stream of `{ id, subtype, text?, mode? }` with the host's own
+  `id`), and takes its answer through `agentSession.claudeModsAnswer`
+  `{ sessionId, askId, response }`, checking the shape against the ask. Both need the runtime
+  capability `agent-session.claude-mods.prompt-answers.v1`; an older host has neither and its
+  client never listens. The host names `answers` only while a composer listens and the SDK can be
+  intercepted, and withdraws them (`answers: []`) when the last composer leaves, so a chat with no
+  composer gets the default at once instead of after 5 s. A CLI that refuses `answers` on
+  `ui_attach` is attached again without it.
+- Texts longer than 300,000 characters (under the CLI's 1,000,000, so an ask or a read fits one
+  1 MiB RPC frame) get the default answer.
+- Copy writes the app clipboard (`window.api.ui.writeClipboardText`).
+- Read answers the composer's draft and caret.
+- Fill is refused while a prompt card owns the composer (the composer is then unmounted, so the
+  host answers the default), an IME composition is open, or a dialog is on screen; it places the
+  text without moving focus. `decorations` are not painted.
+- Suggest shows only in an empty composer with no attachments while no turn runs. It replaces the
+  placeholder, shown on one line, and is dropped when a turn starts; Tab or ArrowRight with no
+  modifier takes it, typing simply covers it.
+- Remote and SSH sessions answer through the same two methods on the host that runs the session.
+
 ## Element tree
 
 ```jsonc
@@ -120,9 +180,18 @@ which means redraw everything; the CLI documents that as always correct.
   push out of the transcript journal.
 - `agentSession.claudeModsRequest` / `agentSession.claudeModsSubscribe`, negotiated with the
   runtime capability `agent-session.claude-mods.v1`, so a paired client and an older host simply
-  draw nothing.
+  draw nothing. `agentSession.claudeModsAsks` / `agentSession.claudeModsAnswer` carry the asks
+  (`agent-session.claude-mods.prompt-answers.v1`); the renderer side is
+  `use-native-chat-claude-mods-prompt-answers.ts` in the native-chat composer.
 - `src/renderer/src/components/native-chat/claude-mods/` — the controller (redraw scheduling,
   presses), the element renderer, the pane dock and the band above the composer.
+- Presses follow Claude Desktop (`claude-mods-press-queue.ts`): a press repeated while the same one
+  is in flight is dropped (a press alone retires no handle, so a double click would run twice),
+  and a keyed press on an older drawing moves to the newest handle with that unique key.
+- A pane that asks for focus (`focus_requested_id`) while another holds it is shown when the
+  person is not typing elsewhere; otherwise its tab gets a dot and the real holder is reported.
+- A prompt a plugin submits (`$.prompt.submit`, `$.command.run`) reaches the transcript as a user
+  row: the CLI replays it with `origin: { kind: "plugin" }` (`claude-plugin-submitted-prompt.ts`).
 - Setting: **Settings → Chat → Claude Code mods** (`nativeChatClaudeMods`, absent means on).
 
 ## Phase 2: scroll, focus, keyed layout, hover

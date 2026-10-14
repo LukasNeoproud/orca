@@ -187,7 +187,7 @@ describe('ClaudeModsLayoutRegistry', () => {
       props: {
         hasSurvey: false,
         isWorking: false,
-        maxRows: 8,
+        maxRows: 12,
         bodyColumns: 80,
         scroll: { offset: 0, bodyRows: 0 },
         view: {}

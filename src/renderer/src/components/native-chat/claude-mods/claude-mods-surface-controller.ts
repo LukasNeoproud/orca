@@ -4,7 +4,10 @@ import {
   type ClaudeModsRequestSubtype,
   type ClaudeModsSurfaceEvent
 } from '../../../../../shared/claude-mods-surface'
-import type { ClaudeModsPress } from './claude-mods-tree'
+import type { ClaudeModsNode, ClaudeModsPress } from './claude-mods-tree'
+import { ClaudeModsPressQueue, type ClaudeModsActSite } from './claude-mods-press-queue'
+import { ClaudeModsRenderPacing } from './claude-mods-render-pacing'
+import { openClaudeModsDrawings, shownClaudeModsPaneId } from './claude-mods-pane-roster'
 import { readClaudeModsDrawing } from './claude-mods-drawing-answer'
 import { ClaudeModsHoverStore } from './claude-mods-hover-store'
 import { ClaudeModsLayoutRegistry } from './claude-mods-layout-registry'
@@ -21,19 +24,18 @@ export {
   CLAUDE_MODS_BAND_ID,
   type ClaudeModsComponent,
   type ClaudeModsDrawing,
-  type ClaudeModsLogLine,
   type ClaudeModsSnapshot,
   type ClaudeModsTransport,
   type ClaudeModsViewport
 } from './claude-mods-surface-types'
 
-const MAX_LOG_LINES = 20
+/** A press waits this long at most for a drawing in flight before it goes with what it has. */
+const MAX_PRESS_REBASE_WAIT_MS = 1_500
 
 const INITIAL: ClaudeModsSnapshot = {
   available: false,
   roster: EMPTY_CLAUDE_MODS_PANE_ROSTER,
   statuses: {},
-  logs: [],
   drawings: {}
 }
 
@@ -52,9 +54,8 @@ export class ClaudeModsSurfaceController {
   private readonly pushListeners = new Set<(event: ClaudeModsSurfaceEvent) => void>()
   private closeStream: (() => void) | null = null
   private generation = 0
-  private logId = 0
-  private readonly inFlight = new Set<string>()
-  private readonly dirty = new Set<string>()
+  private readonly pacing = new ClaudeModsRenderPacing()
+  private readonly acts = new ClaudeModsPressQueue((subtype, fields) => this.send(subtype, fields))
   // A band no mod draws is not asked again until something invalidates.
   private bandUnhooked = false
   /** The mounted sites' layout and the viewports; what each `ui_render` ask tells the engine. */
@@ -95,11 +96,7 @@ export class ClaudeModsSurfaceController {
   }
 
   press(instanceId: string, press: ClaudeModsPress, key?: string, href?: string): void {
-    void this.act(instanceId, 'ui_press', {
-      ...press,
-      ...(key ? { key } : {}),
-      ...(href ? { href } : {})
-    })
+    this.acts.press(this.actSite(instanceId), press, key, href)
   }
 
   input(
@@ -110,14 +107,20 @@ export class ClaudeModsSurfaceController {
     value: string,
     component: string = this.componentOf(instanceId)
   ): Promise<void> {
-    return this.act(instanceId, 'ui_input', {
-      ...press,
-      kind,
-      value,
-      ...(key ? { key } : {}),
-      component,
-      instance_id: instanceId
-    })
+    return this.acts.queue(
+      this.actSite(instanceId),
+      'ui_input',
+      { press, key },
+      kind === 'change',
+      {
+        ...press,
+        kind,
+        value,
+        ...(key ? { key } : {}),
+        component,
+        instance_id: instanceId
+      }
+    )
   }
 
   select(
@@ -127,7 +130,7 @@ export class ClaudeModsSurfaceController {
     value: string,
     component: string = this.componentOf(instanceId)
   ): void {
-    void this.act(instanceId, 'ui_select', {
+    void this.acts.queue(this.actSite(instanceId), 'ui_select', { press, key }, false, {
       ...press,
       value,
       ...(key ? { key } : {}),
@@ -142,9 +145,14 @@ export class ClaudeModsSurfaceController {
     }
   }
 
-  focusPane(id: string | null): void {
+  /** `answersRequest` reports even an unchanged holder: it is the refusal of a focus request. */
+  focusPane(id: string | null, answersRequest = false): void {
     const roster = this.snapshot.roster
-    if (roster.focused_id !== id || (id !== null && roster.focus_requested_id === id)) {
+    if (
+      answersRequest ||
+      roster.focused_id !== id ||
+      (id !== null && roster.focus_requested_id === id)
+    ) {
       void this.send('ui_pane_focus', { id })
     }
   }
@@ -153,24 +161,22 @@ export class ClaudeModsSurfaceController {
     void this.send('ui_close', { id })
   }
 
-  clearLogs(): void {
-    this.update({ ...this.snapshot, logs: [] })
-  }
-
   private componentOf(instanceId: string): ClaudeModsComponent {
     return instanceId === CLAUDE_MODS_BAND_ID ? 'AbovePrompt' : 'Pane'
   }
 
-  private async act(
-    instanceId: string,
-    subtype: ClaudeModsRequestSubtype,
-    fields: Record<string, unknown>
-  ): Promise<void> {
-    const answer = await this.send(subtype, fields)
-    // A retired handle ran nothing: the tree on screen is stale, so ask for the current one.
-    if (isRecord(answer) && answer.handled === false) {
-      this.render(instanceId)
+  private actSite(instanceId: string): ClaudeModsActSite {
+    return {
+      id: instanceId,
+      latest: () => this.settledTree(instanceId),
+      // A retired handle ran nothing: the tree on screen is stale, so ask for the current one.
+      onRetired: () => this.render(instanceId)
     }
+  }
+
+  private async settledTree(instanceId: string): Promise<ClaudeModsNode | undefined> {
+    await this.pacing.settled(instanceId, MAX_PRESS_REBASE_WAIT_MS)
+    return this.snapshot.drawings[instanceId]?.tree
   }
 
   /** Asks for one pane's or the band's drawing again, e.g. after a press reached a stale tree. */
@@ -230,8 +236,7 @@ export class ClaudeModsSurfaceController {
           available: event.available,
           ...(event.reason ? { reason: event.reason } : {}),
           roster: event.roster,
-          statuses: event.statuses,
-          logs: this.snapshot.logs
+          statuses: event.statuses
         })
         this.redrawMounted('all')
         return
@@ -253,26 +258,21 @@ export class ClaudeModsSurfaceController {
           statuses[event.plugin] = event.text
         }
         this.update({ ...this.snapshot, statuses })
-        return
+        break
       }
-      case 'log': {
-        const line = { id: ++this.logId, plugin: event.plugin, text: event.text }
-        this.update({ ...this.snapshot, logs: [...this.snapshot.logs, line].slice(-MAX_LOG_LINES) })
-      }
+      case 'log':
+        // Desktop keeps a mod's log lines off screen; so does Orca.
+        break
     }
   }
 
   private applyRoster(roster: ClaudeModsPaneRoster): void {
-    const open = new Set(roster.panes.map((pane) => pane.id))
-    const drawings = Object.fromEntries(
-      Object.entries(this.snapshot.drawings).filter(
-        ([id]) => id === CLAUDE_MODS_BAND_ID || open.has(id)
-      )
-    )
-    const shownChanged = roster.shown_id !== this.snapshot.roster.shown_id
+    const drawings = openClaudeModsDrawings(roster, this.snapshot.drawings)
+    const shown = shownClaudeModsPaneId(roster)
+    const shownChanged = shown !== shownClaudeModsPaneId(this.snapshot.roster)
     this.update({ ...this.snapshot, roster, drawings })
-    if (shownChanged && roster.shown_id && !drawings[roster.shown_id]) {
-      this.render(roster.shown_id)
+    if (shownChanged && shown && !drawings[shown]) {
+      this.render(shown)
     }
   }
 
@@ -284,7 +284,7 @@ export class ClaudeModsSurfaceController {
     if (scope !== 'panes' && !this.bandUnhooked) {
       mounted.push(CLAUDE_MODS_BAND_ID)
     }
-    const shown = this.snapshot.roster.shown_id
+    const shown = shownClaudeModsPaneId(this.snapshot.roster)
     if (scope !== 'band' && shown) {
       mounted.push(shown)
     }
@@ -296,11 +296,9 @@ export class ClaudeModsSurfaceController {
   }
 
   private render(instanceId: string): void {
-    if (this.inFlight.has(instanceId)) {
-      this.dirty.add(instanceId)
+    if (!this.pacing.begin(instanceId)) {
       return
     }
-    this.inFlight.add(instanceId)
     const generation = this.generation
     const component = this.componentOf(instanceId)
     void this.send('ui_render', {
@@ -308,11 +306,10 @@ export class ClaudeModsSurfaceController {
       instance_id: instanceId,
       ...this.layout.renderFields(component, instanceId, this.snapshot.roster)
     }).then((answer) => {
-      this.inFlight.delete(instanceId)
       if (generation === this.generation && isRecord(answer)) {
         this.adoptDrawing(instanceId, answer)
       }
-      if (this.dirty.delete(instanceId)) {
+      if (this.pacing.end(instanceId)) {
         this.render(instanceId)
       }
     })

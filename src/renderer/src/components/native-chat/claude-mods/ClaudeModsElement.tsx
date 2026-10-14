@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { translate } from '@/i18n/i18n'
 import { Button } from '../../ui/button'
 import { ShortcutKeyCombo } from '../../ShortcutKeyCombo'
 import { NativeChatMarkdown } from '../NativeChatMarkdown'
@@ -27,7 +26,9 @@ import {
   type ClaudeModsNode
 } from './claude-mods-tree'
 import { claudeModsDispatch, useClaudeModsDrawScope } from './claude-mods-draw-scope'
+import { claudeModsStringContent } from './claude-mods-text-heuristics'
 import { ClaudeModsInput, ClaudeModsSelect } from './ClaudeModsFields'
+import { ClaudeModsSvg } from './ClaudeModsSvg'
 import { ClaudeModsClientRegion } from './client/ClaudeModsClientRegion'
 
 /** Links a mod draws open outside the app, and only these: the engine already bounded them. */
@@ -56,19 +57,6 @@ export function ClaudeModsNodeView({ node }: { node: ClaudeModsNode }): React.JS
   }
   if (node.kind === 'engine') {
     return scope?.renderEngine ? <>{scope.renderEngine(node.ref)}</> : null
-  }
-  if (node.kind === 'unsupported') {
-    return (
-      <span className="text-xs text-muted-foreground">
-        {translate(
-          'components.native-chat.claudeMods.unsupportedElement',
-          '[unsupported: {{type}}]',
-          {
-            type: node.type
-          }
-        )}
-      </span>
-    )
   }
   return <ClaudeModsElementView node={node} />
 }
@@ -137,8 +125,17 @@ function ClaudeModsBox({ node }: { node: ElementNode }): React.JSX.Element {
     owner: node.group
   })
   const key = isClaudeModsHoverKey(props.key) ? props.key : undefined
+  // A row of text next to a button lines up on the middle unless the mod chose an alignment.
+  const centresInline =
+    (props.flexDirection === undefined || props.flexDirection === 'row') &&
+    props.alignItems === undefined
   const box = (
     <div
+      className={
+        centresInline
+          ? '[&>a]:self-center [&>b]:self-center [&>button]:self-center [&>span]:self-center'
+          : undefined
+      }
       data-claude-mods-plugin={node.plugin}
       {...(key && node.owner
         ? { [CLAUDE_MODS_KEY_ATTRIBUTE]: key, [CLAUDE_MODS_OWNER_ATTRIBUTE]: node.owner }
@@ -171,7 +168,12 @@ function ClaudeModsText({ node }: { node: ElementNode }): React.JSX.Element {
   return (
     <span
       data-claude-mods-plugin={node.plugin}
-      style={claudeModsHoveredTextStyle(node.props, node.hover, hover.lit)}
+      style={claudeModsHoveredTextStyle(
+        node.props,
+        node.hover,
+        hover.lit,
+        claudeModsStringContent(node.children)
+      )}
       ref={hover.hoverRef}
     >
       <ClaudeModsChildren nodes={node.children} />
@@ -201,7 +203,6 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
       className="group/mods"
       aria-label={node.children.length > 0 && label ? label : undefined}
       {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
-      disabled={!node.press || !scope}
       ref={hover.hoverRef}
       onClick={() => {
         if (node.press && scope) {
@@ -209,6 +210,7 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
         }
       }}
     >
+      {hotkey && plain ? <ShortcutKeyCombo keys={[hotkey.toUpperCase()]} /> : null}
       {/* Full strength under the pointer or the ring, as a dim label is at rest only. */}
       <span
         className={
@@ -218,7 +220,7 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
       >
         {node.children.length > 0 ? <ClaudeModsChildren nodes={node.children} /> : label}
       </span>
-      {hotkey ? <ShortcutKeyCombo keys={[hotkey.toUpperCase()]} /> : null}
+      {hotkey && !plain ? <ShortcutKeyCombo keys={[hotkey.toUpperCase()]} /> : null}
     </Button>
   )
 }
@@ -237,7 +239,7 @@ function ClaudeModsLink({ node }: { node: ElementNode }): React.JSX.Element {
   return (
     <a
       href={href}
-      className="underline underline-offset-2 hover:text-chat-foreground-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="w-fit max-w-full rounded-sm text-chat-foreground-strong underline decoration-current/40 underline-offset-2 hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={(event) => {
         event.preventDefault()
         openClaudeModsUrl(href)
@@ -308,21 +310,6 @@ function ClaudeModsMarkdown({ node }: { node: ElementNode }): React.JSX.Element 
       />
     </div>
   )
-}
-
-/** Drawn as an image, never inline: an SVG in an `<img>` runs no script and fetches nothing. */
-function ClaudeModsSvg({ props }: { props: Record<string, unknown> }): React.JSX.Element | null {
-  const source = propString(props, 'source')
-  const src = useMemo(
-    () =>
-      source
-        ? `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(source)))}`
-        : null,
-    [source]
-  )
-  return src ? (
-    <img src={src} alt={propString(props, 'alt') ?? ''} className="max-w-full" draggable={false} />
-  ) : null
 }
 
 function ClaudeModsClientSlot({ node }: { node: ElementNode }): React.JSX.Element {

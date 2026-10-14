@@ -83,6 +83,7 @@ export function NativeChatStructuredSession(
   // Paste target while a question card replaces the composer.
   const questionAnswerInputRef = useRef<HTMLInputElement>(null)
   const { rewindHost, focusComposer } = useNativeChatRewindHost(props, composerRef)
+  const modsSite = { paneKey, focusComposer }
   const controller = useStructuredAgentSession({
     ...props,
     // Why: Stop and a queued card's Edit give text back to the conversation's draft, as the composer keeps it.
@@ -275,7 +276,7 @@ export function NativeChatStructuredSession(
       style={appearanceStyle}
       data-native-chat-scheme={appearanceStyle.colorScheme}
     >
-      <ClaudeModsPaneDock session={props} paneKey={paneKey} focusComposer={focusComposer}>
+      <ClaudeModsPaneDock session={props} {...modsSite}>
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
         <NativeChatResumeInCliButton {...props} worktreeId={find.isOpen ? null : ownerWorktreeId} />
         {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
@@ -390,7 +391,7 @@ export function NativeChatStructuredSession(
               answerInputRef={questionAnswerInputRef}
             />
           ) : null}
-          <ClaudeModsAbovePromptBand paneKey={paneKey} isWorking={controller.isWorking} />
+          <ClaudeModsAbovePromptBand {...modsSite} isWorking={controller.isWorking} />
           {composerShown ? (
             <NativeChatComposer
               ref={composerRef}

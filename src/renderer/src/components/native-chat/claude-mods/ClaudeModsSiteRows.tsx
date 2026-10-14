@@ -10,6 +10,7 @@ import { useClaudeModsController } from './claude-mods-controller-context'
 import { isClaudeModsQuestionTree } from './claude-mods-transcript-answer'
 import {
   claudeModsAssistantMessageProps,
+  claudeModsCommandOutputProps,
   claudeModsQuestionProps,
   claudeModsSpinnerProps,
   claudeModsText,
@@ -150,6 +151,7 @@ export function ClaudeModsAssistantTextSite({
   text: string
   /** False for anything but an assistant row's settled prose: thoughts, notices, a streaming row. */
   enabled: boolean
+  /** False when another assistant row of the same turn comes before this one. */
   renderDrawing: (text: string) => ReactNode
 }): React.JSX.Element {
   const props = useSiteProps('AssistantMessage', () => claudeModsAssistantMessageProps(text), [
@@ -188,6 +190,24 @@ export function ClaudeModsUserTextSite({
       instanceId={enabled && props ? rowId : null}
       props={props ?? {}}
     >
+      {(drawn) => renderDrawing(claudeModsText(drawn, 'text') ?? text)}
+    </ClaudeModsSite>
+  )
+}
+
+/** A slash command's printed reply, asked as `CommandOutput`; a mod may rewrite its text only. */
+export function ClaudeModsCommandOutputSite({
+  rowId,
+  text,
+  renderDrawing
+}: {
+  rowId: string | undefined
+  text: string
+  renderDrawing: (text: string) => ReactNode
+}): React.JSX.Element {
+  const props = useSiteProps('CommandOutput', () => claudeModsCommandOutputProps(text), [text])
+  return (
+    <ClaudeModsSite component="CommandOutput" instanceId={props ? rowId : null} props={props ?? {}}>
       {(drawn) => renderDrawing(claudeModsText(drawn, 'text') ?? text)}
     </ClaudeModsSite>
   )

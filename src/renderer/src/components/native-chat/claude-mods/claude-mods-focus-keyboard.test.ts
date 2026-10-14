@@ -32,6 +32,17 @@ describe('claudeModsHotkeyTarget', () => {
     expect(claudeModsHotkeyTarget(tree, { ...event, key: 'n' })).toBeUndefined()
   })
 
+  it('ignores auto-repeat and Shift on anything but a digit', () => {
+    expect(claudeModsHotkeyTarget(tree, { ...event, repeat: true })).toBeUndefined()
+    expect(claudeModsHotkeyTarget(tree, { ...event, shiftKey: true })).toBeUndefined()
+    const digits = readClaudeModsTree({
+      type: 'Button',
+      props: { hotkey: '1' },
+      press: { plugin: 'p', handle: 3 }
+    })
+    expect(claudeModsHotkeyTarget(digits, { ...event, key: '1', shiftKey: true })).toBeDefined()
+  })
+
   it('answers a focused Button', () => {
     expect(
       claudeModsHotkeyTarget(tree, { ...event, target: document.createElement('button') })

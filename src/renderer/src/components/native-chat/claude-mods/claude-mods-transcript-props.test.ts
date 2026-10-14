@@ -5,6 +5,8 @@ import type {
 } from '../../../../../shared/native-chat-types'
 import {
   capClaudeModsSiteValue,
+  claudeModsAssistantMessageProps,
+  claudeModsCommandOutputProps,
   claudeModsQuestionToolUseId,
   claudeModsSpinnerProps,
   claudeModsToolGroup,
@@ -99,5 +101,24 @@ describe('question tool_use_id', () => {
     expect(claudeModsQuestionToolUseId({ toolUseId: '' })).toBeUndefined()
     expect(claudeModsQuestionToolUseId({})).toBeUndefined()
     expect(claudeModsQuestionToolUseId(null)).toBeUndefined()
+  })
+})
+
+describe('transcript site props for replies and commands', () => {
+  it('describes assistant prose', () => {
+    expect(claudeModsAssistantMessageProps('hi')).toEqual({
+      text: 'hi',
+      isFirstOfReply: true,
+      isSummary: false
+    })
+  })
+
+  it('describes a command reply', () => {
+    expect(claudeModsCommandOutputProps('out')).toEqual({
+      command: '',
+      args: '',
+      text: 'out',
+      isErrored: false
+    })
   })
 })

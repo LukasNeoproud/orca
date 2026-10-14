@@ -49,26 +49,13 @@ describe('readClaudeModsTree', () => {
     })
   })
 
-  it('keeps engine nodes and turns unknown or malformed ones into placeholders', () => {
+  it('keeps engine nodes and drops what it cannot draw', () => {
     expect(readClaudeModsTree({ type: 'engine', ref: 0 })).toEqual({ kind: 'engine', ref: 0 })
     expect(readClaudeModsTree({ type: 'engine', ref: 3 })).toEqual({ kind: 'engine', ref: 3 })
-    expect(readClaudeModsTree({ type: 'Raster', props: {} })).toEqual({
-      kind: 'unsupported',
-      type: 'Raster'
-    })
-    expect(readClaudeModsTree(null)).toEqual({ kind: 'unsupported', type: 'malformed node' })
-    // A press without an integer handle is dropped, so the control renders disabled.
+    // A press without an integer handle is dropped, so the control draws without one.
     expect(
       readClaudeModsTree({ type: 'Button', props: {}, press: { plugin: 'p', handle: '1' } })
     ).not.toHaveProperty('press')
-  })
-
-  it('bounds a tree no mod would draw', () => {
-    let deep: unknown = 'leaf'
-    for (let i = 0; i < 200; i++) {
-      deep = { type: 'Box', children: [deep] }
-    }
-    expect(JSON.stringify(readClaudeModsTree(deep))).toContain('tree too large')
   })
 
   it('finds hotkeys and keys siblings stably', () => {
@@ -150,6 +137,9 @@ describe('claude mods styles', () => {
     expect(claudeModsColor('warning')).toBe('var(--chat-warning)')
     expect(claudeModsColor('#d97757')).toBe('#d97757')
     expect(claudeModsColor('url(https://x)')).toBeUndefined()
+    // A free-form CSS name would draw pure blue on a dark canvas.
+    expect(claudeModsColor('rebeccapurple')).toBeUndefined()
+    expect(claudeModsColor('constructor')).toBeUndefined()
   })
 
   it('lays out a Box in cells, Ink style', () => {
@@ -157,7 +147,7 @@ describe('claude mods styles', () => {
       display: 'flex',
       flexDirection: 'row',
       columnGap: 'calc(2 * 0.6em)',
-      paddingTop: 'calc(1 * 1.4em)',
+      paddingTop: 'calc(1 * var(--claude-mods-row-unit, 0.5lh))',
       width: '50%'
     })
     expect(claudeModsBoxStyle({ gap: 'md', display: 'none' })).toMatchObject({
@@ -177,7 +167,10 @@ describe('claude mods styles', () => {
       backgroundColor: 'var(--chat-warning)'
     })
     expect(claudeModsTextStyle({ wrap: 'truncate-end' })).toMatchObject({
-      whiteSpace: 'nowrap',
+      display: 'inline-block',
+      maxWidth: '100%',
+      minWidth: 0,
+      whiteSpace: 'pre',
       textOverflow: 'ellipsis'
     })
   })
@@ -200,7 +193,7 @@ describe('claude mods styles', () => {
     expect(claudeModsBoxStyle({})).toMatchObject({ position: 'relative' })
     expect(claudeModsBoxStyle({ position: 'absolute', top: -2.5, left: 3 })).toMatchObject({
       position: 'absolute',
-      top: 'calc(-2 * 1.4em)',
+      top: 'calc(-2 * 1lh)',
       left: 'calc(3 * 0.6em)'
     })
   })

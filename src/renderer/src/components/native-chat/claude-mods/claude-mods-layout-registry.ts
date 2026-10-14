@@ -10,7 +10,7 @@ import {
 } from './claude-mods-surface-types'
 
 /** The rows the band may grow to before it scrolls. */
-export const CLAUDE_MODS_BAND_MAX_ROWS = 8
+export const CLAUDE_MODS_BAND_MAX_ROWS = 12
 
 /** A mounted site: its layout now, plus the props only its component knows. */
 export type ClaudeModsSiteReading = ClaudeModsSiteLayout & {

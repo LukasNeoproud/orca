@@ -43,12 +43,16 @@ function side(value: unknown, emPerCell: number): string | undefined {
   return typeof value === 'string' && /^\d+(\.\d+)?%$/.test(value) ? value : undefined
 }
 
-function regionStyle(props: Record<string, unknown>): React.CSSProperties {
+function regionStyle(
+  props: Record<string, unknown>
+): React.CSSProperties & Record<`--${string}`, string> {
   const width = side(props.width, 0.6)
   const height = side(props.height, 1.4)
   const flexGrow = propNumber(props, 'flexGrow')
   // An absent side is as large as what the module draws.
   return {
+    // Inside a Client a row of spacing is a whole line, not the half a site's Boxes use.
+    '--claude-mods-row-unit': '1lh',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,

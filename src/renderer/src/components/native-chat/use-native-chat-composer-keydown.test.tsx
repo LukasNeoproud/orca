@@ -12,6 +12,7 @@ import { getNativeChatAgentProfile } from '../../../../shared/native-chat-agent-
 import { useNativeChatRecallPosition } from './use-native-chat-composer-recall'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import { useNativeChatComposerKeyDown } from './use-native-chat-composer-keydown'
+import { latchClaudeModsEscapeRepeat } from './claude-mods/claude-mods-escape-latch'
 
 const COMMAND = {
   kind: 'command' as const,
@@ -188,6 +189,20 @@ describe('useNativeChatComposerKeyDown', () => {
     handler(keyEvent('Escape') as never)
     expect(callbacks.dismissPicker).toHaveBeenCalledWith('/:0')
     expect(callbacks.interrupt).not.toHaveBeenCalled()
+  })
+
+  it('swallows the auto-repeat of an Escape that left a mod pane until it is released', () => {
+    const { handler, callbacks } = setup({ mode: 'none' }, false, '')
+    render(<div data-testid="composer" onKeyDown={handler} />)
+    const composer = screen.getByTestId('composer')
+    latchClaudeModsEscapeRepeat()
+    // fireEvent answers false when the handler prevented the default.
+    expect(fireEvent.keyDown(composer, { key: 'Escape', repeat: true })).toBe(false)
+    expect(callbacks.interrupt).not.toHaveBeenCalled()
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape' }))
+    fireEvent.keyDown(composer, { key: 'Escape', repeat: true })
+    expect(callbacks.interrupt).toHaveBeenCalledOnce()
+    cleanup()
   })
 
   it('does not accept or submit while IME composition is active', () => {

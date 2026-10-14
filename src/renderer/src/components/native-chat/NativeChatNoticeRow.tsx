@@ -1,6 +1,7 @@
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import { ClaudeModsCommandOutputSite } from './claude-mods/ClaudeModsSiteRows'
 import { NativeChatMarkdown } from './NativeChatMarkdown'
 import { NativeChatCodeBlock } from './NativeChatCodeBlock'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -77,9 +78,15 @@ export function NativeChatNoticeRow({
   if (block.presentation === 'command-output') {
     // Why: command output is laid out in columns; proportional type breaks its grid.
     return (
-      <pre className="whitespace-pre-wrap break-words font-mono text-xs text-chat-foreground">
-        {block.text}
-      </pre>
+      <ClaudeModsCommandOutputSite
+        rowId={messageId}
+        text={block.text}
+        renderDrawing={(text) => (
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs text-chat-foreground">
+            {text}
+          </pre>
+        )}
+      />
     )
   }
   if (isAgentSessionHostStatusPresentation(block.presentation)) {

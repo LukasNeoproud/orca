@@ -1,5 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { toast } from 'sonner'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import { useAppStore } from '../../../store'
 import {
@@ -7,6 +6,7 @@ import {
   subscribeClaudeMods,
   supportsClaudeMods
 } from '../../../runtime/claude-mods-surface-client'
+import { ClaudeModsToaster } from './claude-mods-toasts'
 import { disposeClaudeModsClientFrames } from './client/claude-mods-client-frames'
 import {
   ClaudeModsSurfaceController,
@@ -17,7 +17,6 @@ const IDLE_SNAPSHOT: ClaudeModsSnapshot = {
   available: false,
   roster: { panes: [], shown_id: null, focused_id: null, focus_requested_id: null },
   statuses: {},
-  logs: [],
   drawings: {}
 }
 
@@ -34,12 +33,21 @@ export function useClaudeModsSurface(input: {
   agent: string
   sessionId: string
   target: RuntimeClientTarget
+  /** Whether the chat is on screen; toasts wait for it. Absent means visible. */
+  isVisible?: boolean
 }): ClaudeModsSurface {
   // Absent means on in this fork; only an explicit off keeps the chat from attaching.
   const enabled = useAppStore((store) => store.settings?.nativeChatClaudeMods !== false)
   const wanted = enabled && input.agent === 'claude'
   const [controller, setController] = useState<ClaudeModsSurfaceController | null>(null)
   const { sessionId, target } = input
+  const isVisible = input.isVisible !== false
+  const visibleRef = useRef(isVisible)
+  const toasterRef = useRef<ClaudeModsToaster | null>(null)
+  useEffect(() => {
+    visibleRef.current = isVisible
+    toasterRef.current?.setVisible(isVisible)
+  }, [isVisible])
   const targetKey = target.kind === 'local' ? 'local' : target.environmentId
   useEffect(() => {
     if (!wanted) {
@@ -51,13 +59,14 @@ export function useClaudeModsSurface(input: {
       if (cancelled || !supported) {
         return
       }
+      const toaster = new ClaudeModsToaster(sessionId, visibleRef.current)
+      toasterRef.current = toaster
       started = new ClaudeModsSurfaceController(
         {
           request: (subtype, fields) => requestClaudeMods(target, sessionId, subtype, fields),
           subscribe: (handlers) => subscribeClaudeMods(target, sessionId, handlers)
         },
-        (plugin, text, timeoutMs) =>
-          toast(text, { description: plugin, ...(timeoutMs ? { duration: timeoutMs } : {}) })
+        (plugin, text, timeoutMs) => toaster.push(plugin, text, timeoutMs)
       )
       started.start()
       setController(started)
@@ -68,6 +77,7 @@ export function useClaudeModsSurface(input: {
         disposeClaudeModsClientFrames(started)
         started.stop()
       }
+      toasterRef.current = null
       setController(null)
     }
     // targetKey stands for target: a fresh object per render must not resubscribe.

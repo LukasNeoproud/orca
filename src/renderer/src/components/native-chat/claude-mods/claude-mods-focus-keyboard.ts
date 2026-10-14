@@ -17,11 +17,13 @@ export function isClaudeModsTextField(target: EventTarget | null): boolean {
 const OWNS_KEYS = '[role="combobox"], [role="listbox"], [role="option"], [role="menu"]'
 
 type HotkeyEvent = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'target'> & {
+  repeat?: boolean
+  shiftKey?: boolean
   defaultPrevented?: boolean
   currentTarget?: EventTarget | null
 }
 
-/** The Button a key presses in `tree`, matched on the lowercased key ("Shift+w" is "w"). */
+/** The Button a key presses in `tree`, matched on the lowercased key; Shift only counts on a digit. */
 export function claudeModsHotkeyTarget(
   tree: ClaudeModsNode,
   event: HotkeyEvent
@@ -30,6 +32,8 @@ export function claudeModsHotkeyTarget(
     event.metaKey ||
     event.ctrlKey ||
     event.altKey ||
+    event.repeat ||
+    (event.shiftKey && !/^\d$/.test(event.key)) ||
     event.defaultPrevented ||
     isClaudeModsTextField(event.target)
   ) {

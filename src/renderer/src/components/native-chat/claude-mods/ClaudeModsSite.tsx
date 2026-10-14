@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode
+} from 'react'
 import { createPortal } from 'react-dom'
 import { ClaudeModsDrawContext, type ClaudeModsDrawScope } from './claude-mods-draw-scope'
 import { useClaudeModsController } from './claude-mods-controller-context'
@@ -7,11 +15,13 @@ import {
   markClaudeModsPrimaryEngine,
   type ClaudeModsSiteAnswer
 } from './claude-mods-transcript-answer'
+import { claudeModsHotkeyTarget } from './claude-mods-focus-keyboard'
 import { claudeModsPropsEqual } from './claude-mods-transcript-props-equal'
 import type { ClaudeModsTranscriptSites } from './claude-mods-transcript-sites'
 import { claudeModsTranscriptSites } from './claude-mods-transcript-sites-registry'
 import type { ClaudeModsNode } from './claude-mods-tree'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
+import { useClaudeModsCoreWithheld } from './use-claude-mods-core-withhold'
 
 /** A site's props change as a row streams or a call ends; asks follow once they settle. */
 const ASK_DEBOUNCE_MS = 150
@@ -21,6 +31,9 @@ type SiteProps = Record<string, unknown>
 const CORE_ONLY: ClaudeModsNode = { kind: 'engine', ref: 0 }
 const SLOT_VISIBLE = { display: 'contents' } as const
 const SLOT_HIDDEN = { display: 'none' } as const
+const WITHHELD = { visibility: 'hidden' } as const
+
+const noopSubscribe = (): (() => void) => () => {}
 
 /** The same object while its contents hold, so a row redrawing for other reasons asks nothing. */
 function useStableProps(props: SiteProps): SiteProps {
@@ -86,6 +99,12 @@ export function ClaudeModsSite({
   }, [sites, component, instanceId, stable, settled])
 
   const answer = sites && instanceId && settled ? sites.getAnswer(component, instanceId) : null
+  const hooked = useSyncExternalStore(
+    sites ? sites.subscribeHooked : noopSubscribe,
+    () => sites?.isHooked(component) ?? false
+  )
+  // A mod hooks this component and has not answered for the row yet: core's row would flash.
+  const awaiting = hooked && sites !== null && Boolean(instanceId) && settled && answer === null
   // Once a mod may draw this row, core's drawing keeps one place in the tree for good: a
   // different shape around it would remount it and lose its state (an open line, a half answer).
   const framed = useRef(false)
@@ -102,6 +121,7 @@ export function ClaudeModsSite({
       component={component}
       instanceId={instanceId ?? null}
       answer={answer?.hooked ? answer : null}
+      awaiting={awaiting}
       props={props}
       validate={validate}
       draw={children}
@@ -119,6 +139,7 @@ function ClaudeModsSiteFrame({
   component,
   instanceId,
   answer,
+  awaiting,
   props,
   validate,
   draw
@@ -128,6 +149,7 @@ function ClaudeModsSiteFrame({
   component: string
   instanceId: string | null
   answer: ClaudeModsSiteAnswer | null
+  awaiting: boolean
   props: SiteProps
   validate: ((tree: ClaudeModsNode) => boolean) | undefined
   draw: (props: SiteProps) => ReactNode
@@ -145,6 +167,7 @@ function ClaudeModsSiteFrame({
       ? answer.tree
       : CORE_ONLY
   const placed = useMemo(() => markClaudeModsPrimaryEngine(tree), [tree])
+  const withheld = useClaudeModsCoreWithheld(awaiting)
   const answerProps = answer?.props ?? props
   const primaryProps = placed.ref === null || placed.ref === 0 ? props : answerProps
   const scope = useMemo<ClaudeModsDrawScope | null>(
@@ -172,7 +195,20 @@ function ClaudeModsSiteFrame({
   return (
     <>
       <ClaudeModsDrawContext.Provider value={scope}>
-        <div ref={rootRef} data-claude-mods-site={component} className="min-w-0 max-w-full">
+        <div
+          ref={rootRef}
+          data-claude-mods-site={component}
+          className="min-w-0 max-w-full"
+          style={withheld ? WITHHELD : undefined}
+          onKeyDown={(event) => {
+            const hit =
+              answer && !event.repeat ? claudeModsHotkeyTarget(placed.tree, event) : undefined
+            if (hit && scope?.dispatch) {
+              event.preventDefault()
+              scope.dispatch.press(hit.press, hit.key)
+            }
+          }}
+        >
           {scope ? <ClaudeModsNodeView node={placed.tree} /> : null}
           {!scope ? <ClaudeModsEngineSlot host={host} /> : null}
           {scope && placed.ref === null ? <ClaudeModsEngineSlot host={host} hidden /> : null}

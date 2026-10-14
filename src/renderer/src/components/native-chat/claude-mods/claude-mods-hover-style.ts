@@ -117,7 +117,8 @@ export function claudeModsHoveredBoxStyle(
 export function claudeModsHoveredTextStyle(
   props: Record<string, unknown>,
   hover: ClaudeModsHover | undefined,
-  lit: boolean
+  lit: boolean,
+  content?: string
 ): CSSProperties {
-  return claudeModsTextStyle(lit ? claudeModsHoveredTextProps(props, hover) : props)
+  return claudeModsTextStyle(lit ? claudeModsHoveredTextProps(props, hover) : props, content)
 }

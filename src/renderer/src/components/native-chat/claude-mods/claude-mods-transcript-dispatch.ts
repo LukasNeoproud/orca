@@ -1,48 +1,40 @@
 import type { ClaudeModsDispatch } from './claude-mods-draw-scope'
+import { claudeModsPressQueueFor, type ClaudeModsActSite } from './claude-mods-press-queue'
+import type { ClaudeModsNode } from './claude-mods-tree'
 import type { ClaudeModsSitesTransport } from './claude-mods-transcript-sites'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 /**
  * Presses, typing and picks of a drawn tree: they answer for this site, not for a pane.
- * `onRetired` runs when the CLI no longer knows the handle, so the tree on screen is stale.
+ * `onRetired` runs when the CLI no longer knows the handle, so the tree on screen is stale;
+ * `latest` is the site's newest tree, which a press on an older drawing heals against.
  */
 export function claudeModsSiteDispatch(
   transport: Pick<ClaudeModsSitesTransport, 'request'>,
   component: string,
   instanceId: string,
-  onRetired: () => void
+  { onRetired, latest }: { onRetired: () => void; latest: () => ClaudeModsNode | undefined }
 ): ClaudeModsDispatch {
-  const act = async (
-    subtype: 'ui_press' | 'ui_input' | 'ui_select',
-    fields: Record<string, unknown>
-  ): Promise<void> => {
-    const answer = await transport.request(subtype, fields)
-    if (isRecord(answer) && answer.handled === false) {
-      onRetired()
-    }
-  }
+  const queue = claudeModsPressQueueFor(transport)
+  const site: ClaudeModsActSite = { id: `${component}\0${instanceId}`, latest, onRetired }
+  const fields = (key: string | undefined): Record<string, unknown> => ({
+    ...(key ? { key } : {}),
+    component,
+    instance_id: instanceId
+  })
   return {
-    press: (press, key, href) =>
-      void act('ui_press', { ...press, ...(key ? { key } : {}), ...(href ? { href } : {}) }),
+    press: (press, key, href) => queue.press(site, press, key, href),
     input: (press, key, kind, value) =>
-      act('ui_input', {
+      queue.queue(site, 'ui_input', { press, key }, kind === 'change', {
         ...press,
         kind,
         value,
-        ...(key ? { key } : {}),
-        component,
-        instance_id: instanceId
+        ...fields(key)
       }),
     select: (press, key, value) =>
-      void act('ui_select', {
+      void queue.queue(site, 'ui_select', { press, key }, false, {
         ...press,
         value,
-        ...(key ? { key } : {}),
-        component,
-        instance_id: instanceId
+        ...fields(key)
       })
   }
 }
