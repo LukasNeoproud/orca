@@ -10,7 +10,6 @@ import {
 import { claudeModsPropsEqual } from './claude-mods-transcript-props-equal'
 import type { ClaudeModsTranscriptSites } from './claude-mods-transcript-sites'
 import { claudeModsTranscriptSites } from './claude-mods-transcript-sites-registry'
-import { measureClaudeModsTranscriptViewport } from './claude-mods-transcript-viewport'
 import type { ClaudeModsNode } from './claude-mods-tree'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
 
@@ -148,12 +147,6 @@ function ClaudeModsSiteFrame({
   const placed = useMemo(() => markClaudeModsPrimaryEngine(tree), [tree])
   const answerProps = answer?.props ?? props
   const primaryProps = placed.ref === null || placed.ref === 0 ? props : answerProps
-  // A transcript drawn only by mods has no other element to read its column from.
-  useEffect(() => {
-    if (sites && rootRef.current && !sites.hasViewport()) {
-      sites.setViewport(measureClaudeModsTranscriptViewport(rootRef.current))
-    }
-  }, [sites])
   const scope = useMemo<ClaudeModsDrawScope | null>(
     () =>
       controller && sites && instanceId

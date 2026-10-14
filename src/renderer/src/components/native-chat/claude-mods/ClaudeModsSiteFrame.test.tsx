@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import { act, useState } from 'react'
+import { act, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ClaudeModsSurfaceEvent } from '../../../../../shared/claude-mods-surface'
 import { ClaudeModsControllerContext } from './claude-mods-controller-context'
 import { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
-import { useClaudeModsTranscriptViewport } from './claude-mods-transcript-viewport'
+import { useClaudeModsSurfaceViewport } from './claude-mods-surface-viewport'
 import { ClaudeModsSpinnerSite } from './ClaudeModsSiteRows'
 import { ClaudeModsSite } from './ClaudeModsSite'
 
@@ -170,7 +170,8 @@ describe('transcript viewport', () => {
   it('reports the column before the rows send their first asks', async () => {
     const { controller, requests } = liveController(() => reply(ENGINE(0)))
     function Dock({ attached }: { attached: boolean }) {
-      const ref = useClaudeModsTranscriptViewport(attached ? controller : null)
+      const ref = useRef<HTMLDivElement>(null)
+      useClaudeModsSurfaceViewport(ref, attached ? controller : null, true)
       return (
         <div ref={ref}>
           <ClaudeModsControllerContext.Provider value={attached ? controller : null}>

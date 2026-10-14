@@ -10,7 +10,7 @@ import { useClaudeModsSurface, type ClaudeModsSurface } from './use-claude-mods-
 import { useClaudeModsSite } from './claude-mods-scroll-site'
 import { publishClaudeModsController } from './claude-mods-pane-surfaces'
 import { ClaudeModsControllerContext } from './claude-mods-controller-context'
-import { useClaudeModsTranscriptViewport } from './claude-mods-transcript-viewport'
+import { useClaudeModsSurfaceViewport } from './claude-mods-surface-viewport'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
 
@@ -49,12 +49,12 @@ export function ClaudeModsPaneDock({
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  const transcriptRef = useClaudeModsTranscriptViewport(snapshot.available ? controller : null)
+  useClaudeModsSurfaceViewport(rootRef, snapshot.available ? controller : null, docked)
   const { roster } = snapshot
   const shown = roster.panes.find((pane) => pane.id === roster.shown_id) ?? null
   return (
     <div ref={rootRef} className={cn('flex min-h-0 flex-1', docked ? 'flex-row' : 'flex-col')}>
-      <div ref={transcriptRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <ClaudeModsControllerContext.Provider value={snapshot.available ? controller : null}>
           {children}
         </ClaudeModsControllerContext.Provider>
@@ -95,7 +95,6 @@ function ClaudeModsPane({
     component: 'Pane',
     instanceId: paneId,
     drawing: drawing?.tree,
-    isFullscreen: docked,
     info: { placement: docked ? 'dock' : 'inline' }
   })
   const asideRef = useRef<HTMLElement>(null)

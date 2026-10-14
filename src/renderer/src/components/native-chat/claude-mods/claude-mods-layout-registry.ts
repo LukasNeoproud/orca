@@ -29,6 +29,8 @@ export type ClaudeModsRenderFields = {
 export class ClaudeModsLayoutRegistry {
   private readonly viewports = new Map<ClaudeModsComponent, ClaudeModsViewport>()
   private readonly sites = new Map<string, () => ClaudeModsSiteReading | null>()
+  // What the last ask told the engine of each site's layout.
+  private readonly told = new Map<string, string>()
 
   /** True when a viewport already known changed, so mounted sites should be drawn again. */
   setViewport(component: ClaudeModsComponent, viewport: ClaudeModsViewport): boolean {
@@ -50,8 +52,19 @@ export class ClaudeModsLayoutRegistry {
     return () => {
       if (this.sites.get(instanceId) === read) {
         this.sites.delete(instanceId)
+        this.told.delete(instanceId)
       }
     }
+  }
+
+  /**
+   * True when the site now lays out other than its last ask said. The engine learns `content_rows`
+   * and `keyed` only from an ask, and an ask describes the drawing before it, so a drawing that
+   * moved them is asked once more; `$.ui.scroll` to `end` or to a key lands only then.
+   */
+  layoutDrifted(instanceId: string): boolean {
+    const reading = this.sites.get(instanceId)?.() ?? null
+    return reading !== null && this.told.get(instanceId) !== layoutSignature(reading)
   }
 
   renderFields(
@@ -61,6 +74,9 @@ export class ClaudeModsLayoutRegistry {
   ): ClaudeModsRenderFields {
     const viewport = this.viewports.get(component)
     const reading = this.sites.get(instanceId)?.() ?? null
+    if (reading) {
+      this.told.set(instanceId, layoutSignature(reading))
+    }
     const scroll = {
       offset: reading?.offset ?? 0,
       bodyRows: reading?.bodyRows ?? viewport?.rows ?? 0
@@ -91,4 +107,11 @@ export class ClaudeModsLayoutRegistry {
       ...(reading ? { content_rows: reading.contentRows, keyed: reading.keyed } : {})
     }
   }
+}
+
+function layoutSignature(reading: ClaudeModsSiteReading): string {
+  const keyed = reading.keyed.map(
+    (entry) => `${entry.plugin}:${entry.key}:${entry.top}:${entry.bottom}`
+  )
+  return `${reading.bodyRows}|${reading.contentRows}|${keyed.join(',')}`
 }

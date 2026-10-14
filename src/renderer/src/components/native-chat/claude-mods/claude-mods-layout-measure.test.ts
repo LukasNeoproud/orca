@@ -160,6 +160,26 @@ describe('ClaudeModsLayoutRegistry', () => {
     })
   })
 
+  it('says a site drifted once its layout differs from what the last ask told', () => {
+    const registry = new ClaudeModsLayoutRegistry()
+    let contentRows = 36
+    registry.register('notes', () => ({
+      offset: 0,
+      bodyRows: 36,
+      bodyColumns: 40,
+      contentRows,
+      keyed: []
+    }))
+    // Nothing told yet: the first drawing's layout is news.
+    expect(registry.layoutDrifted('notes')).toBe(true)
+    registry.renderFields('Pane', 'notes', roster)
+    expect(registry.layoutDrifted('notes')).toBe(false)
+    contentRows = 85
+    expect(registry.layoutDrifted('notes')).toBe(true)
+    registry.renderFields('Pane', 'notes', roster)
+    expect(registry.layoutDrifted('notes')).toBe(false)
+  })
+
   it('sends the band its own props and leaves the layout out before the first drawing', () => {
     const registry = new ClaudeModsLayoutRegistry()
     const fields = registry.renderFields('AbovePrompt', 'above-prompt', roster)

@@ -41,9 +41,9 @@ export function register(on) {
             }),
             Button({
               key: 'reveal',
-              label: 'Row 15',
+              label: 'Row 60',
               hotkey: 'r',
-              onPress: () => $.ui.scroll({ in: PANE, to: { key: 'row-15' }, block: 'center' })
+              onPress: () => $.ui.scroll({ in: PANE, to: { key: 'row-60' }, block: 'center' })
             }),
             Button({
               key: 'follow',
@@ -51,7 +51,7 @@ export function register(on) {
               hotkey: 'f',
               onPress: async () => {
                 if (ticking) {
-                  ticking()
+                  ticking.cancel()
                   ticking = null
                 } else {
                   await $.ui.scroll({ in: PANE, to: 'end' })

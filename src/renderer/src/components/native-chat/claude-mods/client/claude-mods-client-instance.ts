@@ -42,6 +42,10 @@ export class ClaudeModsClientInstance {
   private readonly stopListening: () => void
   private propsJson: string
   private handles: number[] = []
+  // One drawing older: a press resolved against it may still be queued for the frame.
+  private retiring: number[] = []
+  // The latest drawing's handle per element key: a redraw (a tick) may retire the one pressed.
+  private handleByKey = new Map<string, number>()
   private listening: ClaudeModsClientListeners = { key: false, pointer: false }
   private closed = false
   private faulted = false
@@ -136,7 +140,8 @@ export class ClaudeModsClientInstance {
       this.handlers.stale()
     } else if (outcome.kind === 'reached') {
       this.guard.prompted()
-      this.work.act('held', { handle: press.handle, event: outcome.reached })
+      const handle = (key === undefined ? undefined : this.handleByKey.get(key)) ?? press.handle
+      this.work.act('held', { handle, event: outcome.reached })
     }
   }
 
@@ -186,8 +191,10 @@ export class ClaudeModsClientInstance {
       this.fail('render', drawn.reason)
       return
     }
-    const retired = this.handles
+    const retired = this.retiring
+    this.retiring = this.handles
     this.handles = drawn.handles
+    this.handleByKey = claudeModsHandlesByKey(drawn.tree)
     if (retired.length > 0) {
       this.frame.note({ op: 'dropHeld', id: this.id, handles: retired })
     }
@@ -234,4 +241,21 @@ export class ClaudeModsClientInstance {
         this.fail('run', signal.reason)
     }
   }
+}
+
+/** Each keyed control's handle in a drawing: the CLI addresses a press by the element's key. */
+export function claudeModsHandlesByKey(tree: ClaudeModsNode): Map<string, number> {
+  const byKey = new Map<string, number>()
+  const visit = (node: ClaudeModsNode): void => {
+    if (node.kind !== 'element') {
+      return
+    }
+    const key = node.props.key
+    if (node.press && typeof key === 'string' && !byKey.has(key)) {
+      byKey.set(key, node.press.handle)
+    }
+    node.children.forEach(visit)
+  }
+  visit(tree)
+  return byKey
 }

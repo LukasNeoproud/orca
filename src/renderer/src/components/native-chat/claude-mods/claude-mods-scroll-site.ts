@@ -12,7 +12,9 @@ import type {
   ClaudeModsComponent,
   ClaudeModsSurfaceController
 } from './claude-mods-surface-controller'
-import { useClaudeModsViewport } from './use-claude-mods-viewport'
+
+/** Lets a burst of layout changes (a growing log, a resize) settle into one more ask. */
+const LAYOUT_TELL_DELAY_MS = 120
 
 export type ClaudeModsSiteInfo = Pick<ClaudeModsSiteReading, 'placement' | 'maxRows' | 'isWorking'>
 
@@ -30,7 +32,6 @@ export function useClaudeModsSite(input: {
   instanceId: string
   /** Changes whenever a new drawing was committed to the container. */
   drawing: unknown
-  isFullscreen?: boolean
   info?: ClaudeModsSiteInfo
 }): ClaudeModsSite {
   const { controller, component, instanceId, drawing } = input
@@ -39,7 +40,6 @@ export function useClaudeModsSite(input: {
   const focusRef = useRef<ClaudeModsFocusSync | null>(null)
   const infoRef = useRef(input.info)
   infoRef.current = input.info
-  useClaudeModsViewport(controller, component, element, input.isFullscreen)
 
   useEffect(() => {
     if (!controller || !element) {
@@ -125,6 +125,18 @@ export function useClaudeModsSite(input: {
       ...measureClaudeModsSite(element),
       ...infoRef.current
     }))
+    // One more ask once a drawing settles into a layout the engine was not told of.
+    let tellTimer: ReturnType<typeof setTimeout> | null = null
+    const tellLayout = (): void => {
+      if (tellTimer === null) {
+        tellTimer = setTimeout(() => {
+          tellTimer = null
+          if (controller.layout.layoutDrifted(instanceId)) {
+            controller.redraw(instanceId)
+          }
+        }, LAYOUT_TELL_DELAY_MS)
+      }
+    }
     // A resize or a growing child moves the end: stay pinned, or reach an offset now allowed.
     const layout = observeClaudeModsSiteLayout(element, () => {
       // Content that shrank under the window clamps it: the engine clamps its own offset the
@@ -135,6 +147,9 @@ export function useClaudeModsSite(input: {
       }
       lastTop = element.scrollTop
       scroll.afterLayout()
+      if (controller.layout.layoutDrifted(instanceId)) {
+        tellLayout()
+      }
     })
     layoutRef.current = layout.refresh
     layout.refresh()
@@ -143,6 +158,9 @@ export function useClaudeModsSite(input: {
       focusRef.current = null
       scroll.dispose()
       layout.stop()
+      if (tellTimer !== null) {
+        clearTimeout(tellTimer)
+      }
       unregister()
       unsubscribe()
       detachFocus()
