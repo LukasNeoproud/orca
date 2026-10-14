@@ -18,13 +18,16 @@ ordinal: 44000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Zrušení efektu během claim RPC zahodí úspěšně převzatou nabídku. Host čeká na dokončení a přejde do unconfirmed, přestože restart nezačal.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [x] #1 Opravit potvrzený scénář a ověřit cílenou regresní kontrolou.
+
 <!-- AC:END -->
 
 ## Implementation Notes

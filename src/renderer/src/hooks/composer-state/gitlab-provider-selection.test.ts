@@ -5,7 +5,9 @@ import { useGitLabProviderSelection } from './gitlab-provider-selection'
 import type { GitLabWorkItem } from '../../../../shared/gitlab-types'
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), toast: vi.fn() }))
-vi.mock('@/lib/repo-runtime-owner', () => ({ runtimeTargetForRepoOwner: () => ({ kind: 'local' }) }))
+vi.mock('@/lib/repo-runtime-owner', () => ({
+  runtimeTargetForRepoOwner: () => ({ kind: 'local' })
+}))
 vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: mocks.toast } }))
 vi.mock('@/components/sidebar/folder-workspace-composer-helpers', () => ({

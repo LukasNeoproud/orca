@@ -1,90 +1,621 @@
 <div id="orca-link-prototype" aria-label="Orca — náhledy odkazů">
   <style>
-    #orca-link-prototype{--op-bg:light-dark(#ffffff,#171717);--op-surface:light-dark(#ffffff,#262626);--op-muted:light-dark(#737373,#a3a3a3);--op-fg:light-dark(#171717,#fafafa);--op-border:light-dark(#e5e5e5,#404040);--op-hover:light-dark(#f5f5f5,#303030);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--op-fg)}
-    #orca-link-prototype *{box-sizing:border-box}
-    #orca-link-prototype button,#orca-link-prototype textarea{font:inherit;color:inherit}
-    #orca-link-prototype button{cursor:pointer}
-    #orca-link-prototype [hidden]{display:none!important}
-    #orca-link-prototype .op-window{background:var(--op-bg);border:1px solid var(--op-border);border-radius:10px;overflow:hidden}
-    #orca-link-prototype .op-toolbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--op-border)}
-    #orca-link-prototype .op-project{font-weight:500;flex:1}
-    #orca-link-prototype .op-switch{display:flex;gap:2px}
-    #orca-link-prototype .op-switch button{border:0;border-radius:5px;padding:5px 10px;background:transparent;color:var(--op-muted)}
-    #orca-link-prototype .op-switch button[aria-pressed=true]{background:var(--op-hover);color:var(--op-fg)}
-    #orca-link-prototype .op-stage{position:relative;min-height:535px;padding:22px 24px}
-    #orca-link-prototype .op-author{font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-    #orca-link-prototype .op-meta{color:var(--op-muted);font-size:12px;font-weight:400}
-    #orca-link-prototype p{margin:0 0 12px}
-    #orca-link-prototype .op-link{color:inherit;text-decoration:underline;text-decoration-color:var(--op-muted);text-underline-offset:3px;border-radius:2px}
-    #orca-link-prototype .op-terminal{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.9}
-    #orca-link-prototype .op-card{position:absolute;z-index:3;left:24px;top:110px;width:min(480px,calc(100% - 48px));background:var(--op-surface);border:1px solid var(--op-border);border-radius:8px;box-shadow:0 10px 24px rgb(0 0 0 / .18);overflow:visible}
-    #orca-link-prototype .op-card.op-expanded{width:calc(100% - 48px)}
-    #orca-link-prototype .op-heading{display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--op-border)}
-    #orca-link-prototype .op-heading-text{flex:1;min-width:0}
-    #orca-link-prototype .op-title{font-weight:500;overflow-wrap:anywhere}
-    #orca-link-prototype .op-link[aria-expanded=true]{background:var(--op-hover)}
-    #orca-link-prototype .op-icon[aria-pressed=true]{background:var(--op-hover)}
-    #orca-link-prototype .op-card::before{content:"";position:absolute;top:-10px;height:10px;left:0;right:0}
-    #orca-link-prototype .op-line>span{min-width:0}
-    #orca-link-prototype .op-path{font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--op-muted);overflow-wrap:anywhere}
-    #orca-link-prototype .op-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:5px;border:0;border-radius:4px;background:transparent;flex-shrink:0}
-    #orca-link-prototype button:hover{background:var(--op-hover)}
-    #orca-link-prototype svg{width:16px;height:16px;flex-shrink:0}
-    #orca-link-prototype .op-code{padding:12px 0;font:12px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
-    #orca-link-prototype .op-line{display:flex;padding:0 14px;gap:14px;white-space:pre-wrap}
-    #orca-link-prototype .op-line em{font-style:normal;color:var(--op-muted);width:20px;flex-shrink:0;user-select:none}
-    #orca-link-prototype .op-line.op-highlight{background:var(--op-hover)}
-    #orca-link-prototype .op-note{padding:0 12px 10px;font-size:11px;color:var(--op-muted)}
-    #orca-link-prototype .op-actions{border-top:1px solid var(--op-border);padding:6px}
-    #orca-link-prototype .op-action{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:4px;background:transparent;text-align:left;min-height:32px}
-    #orca-link-prototype .op-action span:first-of-type{flex:1}
-    #orca-link-prototype .op-shortcut{font-size:11px;color:var(--op-muted);white-space:nowrap}
-    #orca-link-prototype .op-bottom{border-top:1px solid var(--op-border);display:flex;justify-content:space-between;align-items:center;padding:6px 10px;position:relative}
-    #orca-link-prototype .op-small{display:flex;gap:6px;align-items:center;background:transparent;border:0;border-radius:4px;padding:4px;font-size:12px}
-    #orca-link-prototype .op-overflow{position:absolute;bottom:40px;right:8px;background:var(--op-surface);border:1px solid var(--op-border);border-radius:6px;box-shadow:0 10px 24px rgb(0 0 0 / .18);padding:4px;min-width:200px}
-    #orca-link-prototype .op-web{padding:16px 12px;min-height:100px}
-    #orca-link-prototype .op-compose{margin:0 18px 16px;border:1px solid var(--op-border);border-radius:7px;padding:10px 12px}
-    #orca-link-prototype textarea{display:block;width:100%;resize:none;border:0;background:transparent;min-height:36px}
-    #orca-link-prototype .op-compose-foot{display:flex;justify-content:space-between;color:var(--op-muted);font-size:11px}
-    #orca-link-prototype .op-feedback{min-height:28px;padding:2px 18px 10px;color:var(--op-muted);font-size:12px}
-    @media(max-width:450px){#orca-link-prototype .op-stage{padding:18px 14px;min-height:600px}#orca-link-prototype .op-card{left:12px;width:calc(100% - 24px)}#orca-link-prototype .op-card.op-expanded{width:calc(100% - 24px)}#orca-link-prototype .op-shortcut{display:none}#orca-link-prototype .op-toolbar{padding:8px}#orca-link-prototype .op-line{gap:8px;padding:0 8px}}
-    @media(pointer:coarse){#orca-link-prototype button{min-height:44px}#orca-link-prototype .op-icon{min-width:44px}}
+    #orca-link-prototype {
+      --op-bg: light-dark(#ffffff, #171717);
+      --op-surface: light-dark(#ffffff, #262626);
+      --op-muted: light-dark(#737373, #a3a3a3);
+      --op-fg: light-dark(#171717, #fafafa);
+      --op-border: light-dark(#e5e5e5, #404040);
+      --op-hover: light-dark(#f5f5f5, #303030);
+      font:
+        13px/1.55 -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        sans-serif;
+      color: var(--op-fg);
+    }
+    #orca-link-prototype * {
+      box-sizing: border-box;
+    }
+    #orca-link-prototype button,
+    #orca-link-prototype textarea {
+      font: inherit;
+      color: inherit;
+    }
+    #orca-link-prototype button {
+      cursor: pointer;
+    }
+    #orca-link-prototype [hidden] {
+      display: none !important;
+    }
+    #orca-link-prototype .op-window {
+      background: var(--op-bg);
+      border: 1px solid var(--op-border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #orca-link-prototype .op-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--op-border);
+    }
+    #orca-link-prototype .op-project {
+      font-weight: 500;
+      flex: 1;
+    }
+    #orca-link-prototype .op-switch {
+      display: flex;
+      gap: 2px;
+    }
+    #orca-link-prototype .op-switch button {
+      border: 0;
+      border-radius: 5px;
+      padding: 5px 10px;
+      background: transparent;
+      color: var(--op-muted);
+    }
+    #orca-link-prototype .op-switch button[aria-pressed='true'] {
+      background: var(--op-hover);
+      color: var(--op-fg);
+    }
+    #orca-link-prototype .op-stage {
+      position: relative;
+      min-height: 535px;
+      padding: 22px 24px;
+    }
+    #orca-link-prototype .op-author {
+      font-weight: 500;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #orca-link-prototype .op-meta {
+      color: var(--op-muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+    #orca-link-prototype p {
+      margin: 0 0 12px;
+    }
+    #orca-link-prototype .op-link {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--op-muted);
+      text-underline-offset: 3px;
+      border-radius: 2px;
+    }
+    #orca-link-prototype .op-terminal {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.9;
+    }
+    #orca-link-prototype .op-card {
+      position: absolute;
+      z-index: 3;
+      left: 24px;
+      top: 110px;
+      width: min(480px, calc(100% - 48px));
+      background: var(--op-surface);
+      border: 1px solid var(--op-border);
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgb(0 0 0 / 0.18);
+      overflow: visible;
+    }
+    #orca-link-prototype .op-card.op-expanded {
+      width: calc(100% - 48px);
+    }
+    #orca-link-prototype .op-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--op-border);
+    }
+    #orca-link-prototype .op-heading-text {
+      flex: 1;
+      min-width: 0;
+    }
+    #orca-link-prototype .op-title {
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+    #orca-link-prototype .op-link[aria-expanded='true'] {
+      background: var(--op-hover);
+    }
+    #orca-link-prototype .op-icon[aria-pressed='true'] {
+      background: var(--op-hover);
+    }
+    #orca-link-prototype .op-card::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      height: 10px;
+      left: 0;
+      right: 0;
+    }
+    #orca-link-prototype .op-line > span {
+      min-width: 0;
+    }
+    #orca-link-prototype .op-path {
+      font:
+        11px/1.5 ui-monospace,
+        SFMono-Regular,
+        Consolas,
+        monospace;
+      color: var(--op-muted);
+      overflow-wrap: anywhere;
+    }
+    #orca-link-prototype .op-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 5px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      flex-shrink: 0;
+    }
+    #orca-link-prototype button:hover {
+      background: var(--op-hover);
+    }
+    #orca-link-prototype svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    #orca-link-prototype .op-code {
+      padding: 12px 0;
+      font:
+        12px/1.85 ui-monospace,
+        SFMono-Regular,
+        Consolas,
+        monospace;
+      overflow-wrap: anywhere;
+    }
+    #orca-link-prototype .op-line {
+      display: flex;
+      padding: 0 14px;
+      gap: 14px;
+      white-space: pre-wrap;
+    }
+    #orca-link-prototype .op-line em {
+      font-style: normal;
+      color: var(--op-muted);
+      width: 20px;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    #orca-link-prototype .op-line.op-highlight {
+      background: var(--op-hover);
+    }
+    #orca-link-prototype .op-note {
+      padding: 0 12px 10px;
+      font-size: 11px;
+      color: var(--op-muted);
+    }
+    #orca-link-prototype .op-actions {
+      border-top: 1px solid var(--op-border);
+      padding: 6px;
+    }
+    #orca-link-prototype .op-action {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      text-align: left;
+      min-height: 32px;
+    }
+    #orca-link-prototype .op-action span:first-of-type {
+      flex: 1;
+    }
+    #orca-link-prototype .op-shortcut {
+      font-size: 11px;
+      color: var(--op-muted);
+      white-space: nowrap;
+    }
+    #orca-link-prototype .op-bottom {
+      border-top: 1px solid var(--op-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      position: relative;
+    }
+    #orca-link-prototype .op-small {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      font-size: 12px;
+    }
+    #orca-link-prototype .op-overflow {
+      position: absolute;
+      bottom: 40px;
+      right: 8px;
+      background: var(--op-surface);
+      border: 1px solid var(--op-border);
+      border-radius: 6px;
+      box-shadow: 0 10px 24px rgb(0 0 0 / 0.18);
+      padding: 4px;
+      min-width: 200px;
+    }
+    #orca-link-prototype .op-web {
+      padding: 16px 12px;
+      min-height: 100px;
+    }
+    #orca-link-prototype .op-compose {
+      margin: 0 18px 16px;
+      border: 1px solid var(--op-border);
+      border-radius: 7px;
+      padding: 10px 12px;
+    }
+    #orca-link-prototype textarea {
+      display: block;
+      width: 100%;
+      resize: none;
+      border: 0;
+      background: transparent;
+      min-height: 36px;
+    }
+    #orca-link-prototype .op-compose-foot {
+      display: flex;
+      justify-content: space-between;
+      color: var(--op-muted);
+      font-size: 11px;
+    }
+    #orca-link-prototype .op-feedback {
+      min-height: 28px;
+      padding: 2px 18px 10px;
+      color: var(--op-muted);
+      font-size: 12px;
+    }
+    @media (max-width: 450px) {
+      #orca-link-prototype .op-stage {
+        padding: 18px 14px;
+        min-height: 600px;
+      }
+      #orca-link-prototype .op-card {
+        left: 12px;
+        width: calc(100% - 24px);
+      }
+      #orca-link-prototype .op-card.op-expanded {
+        width: calc(100% - 24px);
+      }
+      #orca-link-prototype .op-shortcut {
+        display: none;
+      }
+      #orca-link-prototype .op-toolbar {
+        padding: 8px;
+      }
+      #orca-link-prototype .op-line {
+        gap: 8px;
+        padding: 0 8px;
+      }
+    }
+    @media (pointer: coarse) {
+      #orca-link-prototype button {
+        min-height: 44px;
+      }
+      #orca-link-prototype .op-icon {
+        min-width: 44px;
+      }
+    }
   </style>
   <div class="op-window">
-    <div class="op-toolbar"><i data-lucide="panels-top-left" aria-hidden="true"></i><span class="op-project">orca <span class="op-meta">/ link-preview</span></span><div class="op-switch" aria-label="Zobrazení"><button type="button" data-view="chat" aria-pressed="true">Chat</button><button type="button" data-view="terminal" aria-pressed="false">Terminál</button></div></div>
+    <div class="op-toolbar">
+      <i data-lucide="panels-top-left" aria-hidden="true"></i
+      ><span class="op-project">orca <span class="op-meta">/ link-preview</span></span>
+      <div class="op-switch" aria-label="Zobrazení">
+        <button type="button" data-view="chat" aria-pressed="true">Chat</button
+        ><button type="button" data-view="terminal" aria-pressed="false">Terminál</button>
+      </div>
+    </div>
     <div class="op-stage">
-      <div data-transcript="chat"><div class="op-author"><i data-lucide="sparkles" aria-hidden="true"></i>Codex <span class="op-meta">právě teď</span></div><p>Našel jsem obsluhu odkazů v <a class="op-link" href="#preview" data-target="file">NativeChatPreviewLink.tsx:42</a>.</p><p class="op-meta">Kliknutí může připnout stejnou kartu. Souvislosti jsou v <a class="op-link" href="#preview" data-target="web">dokumentaci</a>.</p></div>
-      <div class="op-terminal" data-transcript="terminal" hidden><div class="op-meta">~/Projects/orca · agent session</div><div>› Propoj náhled a akce odkazu</div><div>• Obsluha: <a class="op-link" href="#preview" data-target="file">src/NativeChatPreviewLink.tsx:42</a></div><div>• Reference: <a class="op-link" href="#preview" data-target="web">https://docs.example.com/links</a></div></div>
+      <div data-transcript="chat">
+        <div class="op-author">
+          <i data-lucide="sparkles" aria-hidden="true"></i>Codex
+          <span class="op-meta">právě teď</span>
+        </div>
+        <p>
+          Našel jsem obsluhu odkazů v
+          <a class="op-link" href="#preview" data-target="file">NativeChatPreviewLink.tsx:42</a>.
+        </p>
+        <p class="op-meta">
+          Kliknutí může připnout stejnou kartu. Souvislosti jsou v
+          <a class="op-link" href="#preview" data-target="web">dokumentaci</a>.
+        </p>
+      </div>
+      <div class="op-terminal" data-transcript="terminal" hidden>
+        <div class="op-meta">~/Projects/orca · agent session</div>
+        <div>› Propoj náhled a akce odkazu</div>
+        <div>
+          • Obsluha:
+          <a class="op-link" href="#preview" data-target="file">src/NativeChatPreviewLink.tsx:42</a>
+        </div>
+        <div>
+          • Reference:
+          <a class="op-link" href="#preview" data-target="web">https://docs.example.com/links</a>
+        </div>
+      </div>
       <section class="op-card" aria-label="Náhled odkazu" id="op-preview">
-        <div class="op-heading"><i data-lucide="file-code-2" aria-hidden="true"></i><div class="op-heading-text"><div class="op-title">NativeChatPreviewLink.tsx:42</div><div class="op-path">src/components/native-chat/link-preview/</div></div><button type="button" class="op-icon" data-command="copy" aria-label="Kopírovat cestu"><i data-lucide="copy" aria-hidden="true"></i></button><button type="button" class="op-icon" data-command="pin" aria-label="Připnout náhled" aria-pressed="false"><i data-lucide="pin" aria-hidden="true"></i></button><button type="button" class="op-icon" data-command="close" aria-label="Zavřít náhled"><i data-lucide="x" aria-hidden="true"></i></button></div>
-        <div data-content="file"><div class="op-code"><div class="op-line"><em>40</em><span>onClick={(event) =&gt; {</span></div><div class="op-line"><em>41</em><span>  event.preventDefault()</span></div><div class="op-line op-highlight"><em>42</em><span>  setPinned(true)</span></div><div class="op-line"><em>43</em><span>  setOpen(true)</span></div><div class="op-line"><em>44</em><span>}}</span></div><div class="op-line op-extra" hidden><em>45</em><span>onPointerEnter={showPreview}</span></div><div class="op-line op-extra" hidden><em>46</em><span>onPointerLeave={scheduleClose}</span></div></div><div class="op-note">Ukázkový obsah · řádek 42</div></div>
-        <div class="op-web" data-content="web" hidden><div>docs.example.com/links</div><div class="op-meta">Obsah stránky zobrazíte otevřením odkazu.</div></div>
-        <div class="op-actions"><button type="button" class="op-action" data-command="primary"><i data-lucide="panel-left" aria-hidden="true"></i><span data-primary-label>Otevřít v editoru</span><span class="op-shortcut" data-shortcut="primary"></span></button><button type="button" class="op-action" data-command="alternate"><i data-lucide="external-link" aria-hidden="true"></i><span data-alternate-label>Otevřít ve výchozí aplikaci</span><span class="op-shortcut" data-shortcut="alternate"></span></button></div>
-        <div class="op-bottom"><button type="button" class="op-small" data-command="expand"><i data-lucide="maximize-2" aria-hidden="true"></i><span>Zvětšit náhled</span></button><span class="op-meta" data-pin-label>Náhled</span><button type="button" class="op-icon" data-command="more" aria-label="Další akce" aria-expanded="false"><i data-lucide="ellipsis" aria-hidden="true"></i></button><div class="op-overflow" hidden><button type="button" class="op-action" data-command="reference">Vložit referenci do promptu</button><button type="button" class="op-action" data-command="settings">Nastavení odkazů</button></div></div>
+        <div class="op-heading">
+          <i data-lucide="file-code-2" aria-hidden="true"></i>
+          <div class="op-heading-text">
+            <div class="op-title">NativeChatPreviewLink.tsx:42</div>
+            <div class="op-path">src/components/native-chat/link-preview/</div>
+          </div>
+          <button type="button" class="op-icon" data-command="copy" aria-label="Kopírovat cestu">
+            <i data-lucide="copy" aria-hidden="true"></i></button
+          ><button
+            type="button"
+            class="op-icon"
+            data-command="pin"
+            aria-label="Připnout náhled"
+            aria-pressed="false"
+          >
+            <i data-lucide="pin" aria-hidden="true"></i></button
+          ><button type="button" class="op-icon" data-command="close" aria-label="Zavřít náhled">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div data-content="file">
+          <div class="op-code">
+            <div class="op-line"><em>40</em><span>onClick={(event) =&gt; {</span></div>
+            <div class="op-line"><em>41</em><span> event.preventDefault()</span></div>
+            <div class="op-line op-highlight"><em>42</em><span> setPinned(true)</span></div>
+            <div class="op-line"><em>43</em><span> setOpen(true)</span></div>
+            <div class="op-line"><em>44</em><span>}}</span></div>
+            <div class="op-line op-extra" hidden>
+              <em>45</em><span>onPointerEnter={showPreview}</span>
+            </div>
+            <div class="op-line op-extra" hidden>
+              <em>46</em><span>onPointerLeave={scheduleClose}</span>
+            </div>
+          </div>
+          <div class="op-note">Ukázkový obsah · řádek 42</div>
+        </div>
+        <div class="op-web" data-content="web" hidden>
+          <div>docs.example.com/links</div>
+          <div class="op-meta">Obsah stránky zobrazíte otevřením odkazu.</div>
+        </div>
+        <div class="op-actions">
+          <button type="button" class="op-action" data-command="primary">
+            <i data-lucide="panel-left" aria-hidden="true"></i
+            ><span data-primary-label>Otevřít v editoru</span
+            ><span class="op-shortcut" data-shortcut="primary"></span></button
+          ><button type="button" class="op-action" data-command="alternate">
+            <i data-lucide="external-link" aria-hidden="true"></i
+            ><span data-alternate-label>Otevřít ve výchozí aplikaci</span
+            ><span class="op-shortcut" data-shortcut="alternate"></span>
+          </button>
+        </div>
+        <div class="op-bottom">
+          <button type="button" class="op-small" data-command="expand">
+            <i data-lucide="maximize-2" aria-hidden="true"></i><span>Zvětšit náhled</span></button
+          ><span class="op-meta" data-pin-label>Náhled</span
+          ><button
+            type="button"
+            class="op-icon"
+            data-command="more"
+            aria-label="Další akce"
+            aria-expanded="false"
+          >
+            <i data-lucide="ellipsis" aria-hidden="true"></i>
+          </button>
+          <div class="op-overflow" hidden>
+            <button type="button" class="op-action" data-command="reference">
+              Vložit referenci do promptu</button
+            ><button type="button" class="op-action" data-command="settings">
+              Nastavení odkazů
+            </button>
+          </div>
+        </div>
       </section>
     </div>
-    <div class="op-compose"><textarea aria-label="Prompt" placeholder="Navázat na konverzaci…" rows="1"></textarea><div class="op-compose-foot"><span>Codex</span><span>Prototyp</span></div></div>
+    <div class="op-compose">
+      <textarea aria-label="Prompt" placeholder="Navázat na konverzaci…" rows="1"></textarea>
+      <div class="op-compose-foot"><span>Codex</span><span>Prototyp</span></div>
+    </div>
     <div class="op-feedback" role="status" aria-live="polite"></div>
   </div>
   <script>
-    (()=>{
-      const root=document.getElementById('orca-link-prototype'), card=root.querySelector('.op-card'), feedback=root.querySelector('.op-feedback');
-      const prefs={delay:250,actionsFirst:false};
-      let pinned=false, target='file', opener=null, enterTimer, leaveTimer, expanded=false, restoring=false;
-      const mod=navigator.userAgent.includes('Mac')?'⌘':'Ctrl+';
-      root.querySelector('[data-shortcut=primary]').textContent=mod+' Click';
-      root.querySelector('[data-shortcut=alternate]').textContent=(mod==='⌘'?'⇧⌘':'Shift+Ctrl+')+' Click';
-      function pin(value){pinned=value;root.querySelector('[data-pin-label]').textContent=value?'Připnuto':'Náhled';root.querySelector('[data-command=pin]').setAttribute('aria-pressed',String(value));root.querySelector('[data-command=pin]').setAttribute('aria-label',value?'Odepnout náhled':'Připnout náhled');}
-      function close(restore=false){clearTimeout(enterTimer);clearTimeout(leaveTimer);card.hidden=true;pin(false);root.querySelector('.op-overflow').hidden=true;root.querySelector('[data-command=more]').setAttribute('aria-expanded','false');if(restore&&opener){restoring=true;opener.focus();restoring=false;}}
-      function show(link,sticky=false){clearTimeout(enterTimer);clearTimeout(leaveTimer);opener=link;target=link.dataset.target;card.hidden=false;pin(sticky);root.querySelector('.op-title').textContent=target==='file'?'NativeChatPreviewLink.tsx:42':'docs.example.com';root.querySelector('.op-path').textContent=target==='file'?'src/components/native-chat/link-preview/':'https://docs.example.com/links';root.querySelector('[data-content=file]').hidden=target!=='file';root.querySelector('[data-content=web]').hidden=target!=='web';root.querySelector('[data-primary-label]').textContent=target==='file'?'Otevřít v editoru':'Otevřít v Orca prohlížeči';root.querySelector('[data-alternate-label]').textContent=target==='file'?'Otevřít ve výchozí aplikaci':'Otevřít v externím prohlížeči';root.querySelector('[data-command=copy]').setAttribute('aria-label',target==='file'?'Kopírovat cestu':'Kopírovat odkaz');root.querySelector('[data-command=expand]').hidden=target==='web';const stage=root.querySelector('.op-stage').getBoundingClientRect(),r=link.getBoundingClientRect();card.style.top=(r.bottom-stage.top+8)+'px';}
-      function scheduleClose(){clearTimeout(enterTimer);clearTimeout(leaveTimer);if(!pinned)leaveTimer=setTimeout(()=>close(),150);}
-      root.querySelectorAll('[data-target]').forEach(link=>{link.setAttribute('aria-controls','op-preview');link.addEventListener('pointerenter',()=>{clearTimeout(leaveTimer);if(!pinned)enterTimer=setTimeout(()=>show(link),prefs.delay);});link.addEventListener('pointerleave',scheduleClose);link.addEventListener('focus',()=>{if(!pinned&&!restoring)show(link);});link.addEventListener('click',event=>{event.preventDefault();if(event.shiftKey||(navigator.userAgent.includes('Mac')?event.metaKey:event.ctrlKey)){feedback.textContent='Simulace: přímé otevření odkazu.';close();return;}show(link,true);});});
-      card.addEventListener('pointerenter',()=>clearTimeout(leaveTimer));card.addEventListener('pointerleave',scheduleClose);card.addEventListener('focusin',()=>{clearTimeout(leaveTimer);});
-      root.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{close();root.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));root.querySelectorAll('[data-transcript]').forEach(panel=>panel.hidden=panel.dataset.transcript!==button.dataset.view);feedback.textContent='';}));
-      root.addEventListener('click',event=>{const button=event.target.closest('[data-command]');if(!button){if(!card.contains(event.target)&&!event.target.closest('[data-target]'))close();return;}switch(button.dataset.command){case'close':close(true);break;case'pin':pin(!pinned);break;case'copy':feedback.textContent='Simulace: '+(target==='file'?'cesta k souboru':'URL')+' zkopírována.';break;case'primary':case'alternate':feedback.textContent='Simulace: '+button.querySelector('span').textContent+'.';close(true);break;case'expand':expanded=!expanded;pin(true);card.classList.toggle('op-expanded',expanded);root.querySelectorAll('.op-extra').forEach(line=>line.hidden=!expanded);button.querySelector('span').textContent=expanded?'Zmenšit náhled':'Zvětšit náhled';break;case'more':{const menu=root.querySelector('.op-overflow');menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));pin(true);break;}case'reference':root.querySelector('textarea').value=target==='file'?'@src/components/native-chat/link-preview/NativeChatPreviewLink.tsx:42 ':'https://docs.example.com/links ';close();root.querySelector('textarea').focus();feedback.textContent='Reference vložena do promptu.';break;case'settings':feedback.textContent='Simulace: otevření nastavení odkazů.';close();break;}});
-      root.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close(true);}});
-      function applyPrefs(){const actions=root.querySelector('.op-actions'), firstContent=root.querySelector('[data-content=file]');if(prefs.actionsFirst)card.insertBefore(actions,firstContent);else card.insertBefore(actions,root.querySelector('.op-bottom'));}
-      if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:applyPrefs});tweak.addSlider(prefs,'delay',{label:'Prodleva náhledu',min:150,max:600,step:50,unit:'ms'});tweak.addToggle(prefs,'actionsFirst',{label:'Akce nad náhledem'});}
-    })();
+    ;(() => {
+      const root = document.getElementById('orca-link-prototype'),
+        card = root.querySelector('.op-card'),
+        feedback = root.querySelector('.op-feedback')
+      const prefs = { delay: 250, actionsFirst: false }
+      let pinned = false,
+        target = 'file',
+        opener = null,
+        enterTimer,
+        leaveTimer,
+        expanded = false,
+        restoring = false
+      const mod = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+'
+      root.querySelector('[data-shortcut=primary]').textContent = mod + ' Click'
+      root.querySelector('[data-shortcut=alternate]').textContent =
+        (mod === '⌘' ? '⇧⌘' : 'Shift+Ctrl+') + ' Click'
+      function pin(value) {
+        pinned = value
+        root.querySelector('[data-pin-label]').textContent = value ? 'Připnuto' : 'Náhled'
+        root.querySelector('[data-command=pin]').setAttribute('aria-pressed', String(value))
+        root
+          .querySelector('[data-command=pin]')
+          .setAttribute('aria-label', value ? 'Odepnout náhled' : 'Připnout náhled')
+      }
+      function close(restore = false) {
+        clearTimeout(enterTimer)
+        clearTimeout(leaveTimer)
+        card.hidden = true
+        pin(false)
+        root.querySelector('.op-overflow').hidden = true
+        root.querySelector('[data-command=more]').setAttribute('aria-expanded', 'false')
+        if (restore && opener) {
+          restoring = true
+          opener.focus()
+          restoring = false
+        }
+      }
+      function show(link, sticky = false) {
+        clearTimeout(enterTimer)
+        clearTimeout(leaveTimer)
+        opener = link
+        target = link.dataset.target
+        card.hidden = false
+        pin(sticky)
+        root.querySelector('.op-title').textContent =
+          target === 'file' ? 'NativeChatPreviewLink.tsx:42' : 'docs.example.com'
+        root.querySelector('.op-path').textContent =
+          target === 'file'
+            ? 'src/components/native-chat/link-preview/'
+            : 'https://docs.example.com/links'
+        root.querySelector('[data-content=file]').hidden = target !== 'file'
+        root.querySelector('[data-content=web]').hidden = target !== 'web'
+        root.querySelector('[data-primary-label]').textContent =
+          target === 'file' ? 'Otevřít v editoru' : 'Otevřít v Orca prohlížeči'
+        root.querySelector('[data-alternate-label]').textContent =
+          target === 'file' ? 'Otevřít ve výchozí aplikaci' : 'Otevřít v externím prohlížeči'
+        root
+          .querySelector('[data-command=copy]')
+          .setAttribute('aria-label', target === 'file' ? 'Kopírovat cestu' : 'Kopírovat odkaz')
+        root.querySelector('[data-command=expand]').hidden = target === 'web'
+        const stage = root.querySelector('.op-stage').getBoundingClientRect(),
+          r = link.getBoundingClientRect()
+        card.style.top = r.bottom - stage.top + 8 + 'px'
+      }
+      function scheduleClose() {
+        clearTimeout(enterTimer)
+        clearTimeout(leaveTimer)
+        if (!pinned) leaveTimer = setTimeout(() => close(), 150)
+      }
+      root.querySelectorAll('[data-target]').forEach((link) => {
+        link.setAttribute('aria-controls', 'op-preview')
+        link.addEventListener('pointerenter', () => {
+          clearTimeout(leaveTimer)
+          if (!pinned) enterTimer = setTimeout(() => show(link), prefs.delay)
+        })
+        link.addEventListener('pointerleave', scheduleClose)
+        link.addEventListener('focus', () => {
+          if (!pinned && !restoring) show(link)
+        })
+        link.addEventListener('click', (event) => {
+          event.preventDefault()
+          if (
+            event.shiftKey ||
+            (navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey)
+          ) {
+            feedback.textContent = 'Simulace: přímé otevření odkazu.'
+            close()
+            return
+          }
+          show(link, true)
+        })
+      })
+      card.addEventListener('pointerenter', () => clearTimeout(leaveTimer))
+      card.addEventListener('pointerleave', scheduleClose)
+      card.addEventListener('focusin', () => {
+        clearTimeout(leaveTimer)
+      })
+      root.querySelectorAll('[data-view]').forEach((button) =>
+        button.addEventListener('click', () => {
+          close()
+          root
+            .querySelectorAll('[data-view]')
+            .forEach((b) => b.setAttribute('aria-pressed', String(b === button)))
+          root
+            .querySelectorAll('[data-transcript]')
+            .forEach((panel) => (panel.hidden = panel.dataset.transcript !== button.dataset.view))
+          feedback.textContent = ''
+        })
+      )
+      root.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-command]')
+        if (!button) {
+          if (!card.contains(event.target) && !event.target.closest('[data-target]')) close()
+          return
+        }
+        switch (button.dataset.command) {
+          case 'close':
+            close(true)
+            break
+          case 'pin':
+            pin(!pinned)
+            break
+          case 'copy':
+            feedback.textContent =
+              'Simulace: ' + (target === 'file' ? 'cesta k souboru' : 'URL') + ' zkopírována.'
+            break
+          case 'primary':
+          case 'alternate':
+            feedback.textContent = 'Simulace: ' + button.querySelector('span').textContent + '.'
+            close(true)
+            break
+          case 'expand':
+            expanded = !expanded
+            pin(true)
+            card.classList.toggle('op-expanded', expanded)
+            root.querySelectorAll('.op-extra').forEach((line) => (line.hidden = !expanded))
+            button.querySelector('span').textContent = expanded
+              ? 'Zmenšit náhled'
+              : 'Zvětšit náhled'
+            break
+          case 'more': {
+            const menu = root.querySelector('.op-overflow')
+            menu.hidden = !menu.hidden
+            button.setAttribute('aria-expanded', String(!menu.hidden))
+            pin(true)
+            break
+          }
+          case 'reference':
+            root.querySelector('textarea').value =
+              target === 'file'
+                ? '@src/components/native-chat/link-preview/NativeChatPreviewLink.tsx:42 '
+                : 'https://docs.example.com/links '
+            close()
+            root.querySelector('textarea').focus()
+            feedback.textContent = 'Reference vložena do promptu.'
+            break
+          case 'settings':
+            feedback.textContent = 'Simulace: otevření nastavení odkazů.'
+            close()
+            break
+        }
+      })
+      root.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          close(true)
+        }
+      })
+      function applyPrefs() {
+        const actions = root.querySelector('.op-actions'),
+          firstContent = root.querySelector('[data-content=file]')
+        if (prefs.actionsFirst) card.insertBefore(actions, firstContent)
+        else card.insertBefore(actions, root.querySelector('.op-bottom'))
+      }
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: applyPrefs })
+        tweak.addSlider(prefs, 'delay', {
+          label: 'Prodleva náhledu',
+          min: 150,
+          max: 600,
+          step: 50,
+          unit: 'ms'
+        })
+        tweak.addToggle(prefs, 'actionsFirst', { label: 'Akce nad náhledem' })
+      }
+    })()
   </script>
 </div>

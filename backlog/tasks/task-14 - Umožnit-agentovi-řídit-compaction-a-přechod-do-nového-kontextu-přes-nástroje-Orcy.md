@@ -21,6 +21,7 @@ ordinal: 14000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Umožnit modelu rozhodnout, kdy po dokončení uceleného tématu zmenší kontext nebo začne novou etapu s čistým kontextem. Agent má používat běžný nástroj Orcy a stručné instrukce (skill nebo instrukce dodávané runtime), nikoli čekat pouze na pevný tokenový limit či ruční /compact. Tento task je zadání pro pozdější implementaci; nyní žádnou funkci nezapínat ani nedistribuovat instrukce do spotřebitelských projektů.
 
 ## Navržený kontrakt
@@ -52,7 +53,9 @@ Související TASK-4/5/6/7 řeší větvení, předání kontextu a vazby vláke
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [ ] #1 Agent má skutečně dostupné nástroje compaction a fresh context i stručné instrukce kdy je použít; ověřeno v nové i obnovené podporované relaci. Nepodporované runtime/provider verze vracejí explicitní stav.
 - [ ] #2 Checkpoint obsahuje cíl, autorizovaný rozsah, rozhodnutí/omezení, ověření a další krok; reference je svázaná s vlastnícím workspace/hostem a konkrétní revizí, bez úniku do cizí relace nebo automatických změn projektových AGENTS.md.
 - [ ] #3 Tool call pouze zařadí požadavek a vrátí ID; provedení čeká na bezpečnou hranici bez deadlocku. Souběžné zprávy, změna checkpointu a probíhající nástroje/subagenti nezpůsobí ztrátu práce ani zastaralé předání.
@@ -63,4 +66,5 @@ Související TASK-4/5/6/7 řeší větvení, předání kontextu a vazby vláke
 - [ ] #8 Podporovány folder workspaces a správné vlastnictví SSH/paired hostů, negotiated capabilities a mixed versions; odpojení je unverifiable bez fallbacku na jiný host.
 - [ ] #9 Cílené testy pokrývají oba režimy, deadlock/race s novým vstupem, stale checkpoint, duplicity, restart, cancellation, chybu provideru, izolaci hostů a automatické pokračování; real-binary integrace ověří podporovaný Codex kontrakt. UI testy respektují background launch politiku Orcy.
 - [ ] #10 Implementace znovupoužívá existující continuation/compaction infrastrukturu po ověření jejího aktuálního stavu; dokumentace uvádí podporované providery/verze a že funkce je dostupná až po dodání runtime integrace.
+
 <!-- AC:END -->

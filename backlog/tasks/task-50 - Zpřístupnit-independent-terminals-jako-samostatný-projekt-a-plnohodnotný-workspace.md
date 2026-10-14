@@ -14,6 +14,7 @@ type: feature
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Independent terminals jsou v Orca desktop aktuálně dostupné pouze přes nabídku `+` → `New independent terminal`. Tato akce zároveň vytvoří nový terminál, takže chybí přímý vstup k již existujícím terminálům bez zakládání dalšího.
 
 Zobrazit independent terminals jako samostatný projekt v hlavní navigaci Orcy, aby byly snadno dostupné i bez otevřeného repozitáře či git worktree. Otevření projektu má zobrazit existující terminály; vytvoření nového terminálu musí být samostatná explicitní akce.
@@ -24,6 +25,7 @@ Nahradit plovoucí okno klasickým workspace s taby, který využívá celou hla
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [ ] #1 Independent terminals mají vlastní přímo dostupnou položku projektu v hlavní navigaci Orca desktop.
 - [ ] #2 Otevření tohoto projektu zobrazí existující terminály a nevytvoří automaticky nový terminál.
 - [ ] #3 Pokud žádný terminál neexistuje, workspace zobrazí prázdný stav s explicitní akcí pro vytvoření terminálu.
@@ -31,4 +33,5 @@ Nahradit plovoucí okno klasickým workspace s taby, který využívá celou hla
 - [ ] #5 Uživatel může terminály vytvářet, přepínat a zavírat stejně jako taby v běžném workspace; přepnutí projektu zachová běžící relace.
 - [ ] #6 Akce `+` → `New independent terminal`, pokud zůstane dostupná, vytvoří terminál a otevře jej v novém workspace zobrazení.
 - [ ] #7 Přístup není podmíněn git repozitářem ani worktree; změna zachová podporované lokální a SSH scénáře a chování na macOS, Linuxu a Windows.
+
 <!-- AC:END -->

@@ -18,13 +18,16 @@ ordinal: 45000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Android používá předkompilovaný React Native AAR. Kotlin změny v patchi node_modules se proto nedostávají do APK a události neobsahují isComposing.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [x] #1 Opravit potvrzený scénář a ověřit cílenou regresní kontrolou.
+
 <!-- AC:END -->
 
 ## Implementation Notes

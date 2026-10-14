@@ -18,13 +18,16 @@ ordinal: 43000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Dva klienti mohou před uložením kandidáta oba projít kontrolou checkpointu a vytvořit dvě kopie i dvě kompakce.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [x] #1 Ověřit podezření proti skutečnému úložišti.
+
 <!-- AC:END -->
 
 ## Review Resolution

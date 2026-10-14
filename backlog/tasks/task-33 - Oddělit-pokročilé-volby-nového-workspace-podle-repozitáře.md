@@ -18,17 +18,22 @@ ordinal: 33000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Při přepnutí projektu ve formuláři nového workspace zůstává `baseRef` a zobrazovaný název z předchozího repozitáře. Vytvoření workspace pak může selhat nebo použít jinou větev se stejným názvem. Hodnoty musí být svázané s vybraným repozitářem.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [x] #1 Přepnutí repozitáře nepřenese `baseRef` ani zobrazovaný název do jiného repozitáře.
 - [x] #2 Test pokryje přepnutí po zadání obou polí.
+
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+
 Opraveno v pracovním stromu po review změn za posledních 48 hodin; cílené regresní testy a typové kontroly prošly.
 <!-- SECTION:NOTES:END -->

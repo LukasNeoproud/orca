@@ -18,13 +18,16 @@ ordinal: 41000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Kontrola cizího repozitáře odmítá i shodný Git remote na vlastní GHES doméně, kterou heuristika nerozpozná jako GitHub.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [x] #1 Opravit potvrzený scénář a ověřit cílenou regresní kontrolou.
+
 <!-- AC:END -->
 
 ## Implementation Notes

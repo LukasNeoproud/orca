@@ -18,13 +18,16 @@ ordinal: 42000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Trvalý limit 512 záznamů zahrnuje dokončené a zastaralé kandidáty. Po jeho dosažení již nejde vytvořit další pokračování ani po restartu.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 <!-- AC:BEGIN -->
+
 - [x] #1 Opravit potvrzený scénář a ověřit cílenou regresní kontrolou.
+
 <!-- AC:END -->
 
 ## Implementation Notes
