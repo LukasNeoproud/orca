@@ -24,7 +24,6 @@ import { orcaLaunchCliCommand } from '../../../../shared/terminal-interaction-la
 import { buildAzureDevOpsDraftReworkPrompt } from '../../../../shared/azure-devops-draft-rework-prompt'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { draftLocationLabel } from './azure-devops-review-labels'
-import { azureDevOpsDraftAiPresets } from './azure-devops-draft-ai-presets'
 import { sendAzureDevOpsDraftReworkPrompt } from './azure-devops-draft-rework-delivery'
 
 /** Collects drafts and their AI prompts and sends them to the pull request's AI chat. */
@@ -171,19 +170,6 @@ export function AzureDevOpsDraftsAiDialog({
             )}
             onChange={(event) => setGeneral(event.target.value)}
           />
-          <div className="flex flex-wrap gap-1">
-            {azureDevOpsDraftAiPresets().map((preset) => (
-              <Button
-                key={preset.id}
-                variant="outline"
-                size="xs"
-                title={preset.text}
-                onClick={() => setGeneral(preset.text)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

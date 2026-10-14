@@ -6,10 +6,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
-import { azureDevOpsDraftAiPresets } from './azure-devops-draft-ai-presets'
 
 /**
- * Attaches an AI instruction to one draft; prompts collect until the user sends them together.
+ * Attaches an AI prompt to one draft; prompts collect until the user sends them together.
  * `pill` matches the inline diff card's action pill, `button` the Drafts tab card header.
  */
 export function AzureDevOpsDraftAiPrompt({
@@ -59,13 +58,10 @@ export function AzureDevOpsDraftAiPrompt({
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80">
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            {translate(
-              'azureDevOpsReview.aiPromptHint',
-              'What should the AI check or change in this draft? Prompts wait until you send them.'
-            )}
+      <PopoverContent align="end" className="w-96">
+        <div className="space-y-2 p-3">
+          <p className="text-sm font-medium">
+            {translate('azureDevOpsReview.aiPromptTitle', 'AI prompt for this draft')}
           </p>
           <Textarea
             autoFocus
@@ -77,33 +73,12 @@ export function AzureDevOpsDraftAiPrompt({
                 save(text)
               }
             }}
-            placeholder={translate(
-              'azureDevOpsReview.aiPromptPlaceholder',
-              'e.g. Is this really a race?'
-            )}
             aria-label={translate('azureDevOpsReview.aiPrompt', 'AI prompt')}
-            className="min-h-20 text-sm"
+            className="min-h-24"
           />
-          <div className="flex flex-wrap gap-1">
-            {azureDevOpsDraftAiPresets().map((preset) => (
-              <Button
-                key={preset.id}
-                variant="outline"
-                size="xs"
-                title={preset.text}
-                onClick={() => setText(preset.text)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            {saved ? (
-              <Button variant="ghost" size="xs" onClick={() => save('')}>
-                {translate('azureDevOpsReview.removeAiPrompt', 'Remove')}
-              </Button>
-            ) : null}
-            <Button size="xs" disabled={!text.trim()} onClick={() => save(text)}>
+          <div className="flex justify-end">
+            {/* Saving blank text removes the prompt. */}
+            <Button size="xs" disabled={!text.trim() && !saved} onClick={() => save(text)}>
               {translate('azureDevOpsReview.saveAiPrompt', 'Save prompt')}
             </Button>
           </div>

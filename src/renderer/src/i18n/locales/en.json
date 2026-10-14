@@ -20340,10 +20340,7 @@
     "sendAiPrompts": "Send AI prompts ({{value0}})",
     "editAiPrompt": "Edit AI prompt",
     "addAiPrompt": "Add AI prompt",
-    "aiPromptHint": "What should the AI check or change in this draft? Prompts wait until you send them.",
-    "aiPromptPlaceholder": "e.g. Is this really a race?",
     "aiPrompt": "AI prompt",
-    "removeAiPrompt": "Remove",
     "saveAiPrompt": "Save prompt",
     "askAi": "Ask AI",
     "aiDraftsTitle": "Send drafts to AI",
@@ -20356,14 +20353,7 @@
     "aiGeneralPromptPlaceholder": "For example: check each finding for thread safety and drop the ones that do not hold.",
     "aiDraftsSend": "Send {{value0}} drafts to AI",
     "aiDraftsSent": "Sent to the AI chat.",
-    "aiPresetVerify": "Verify",
-    "aiPresetVerifyText": "Verify the claim against the code; fix the draft if it is wrong or delete it if it no longer applies.",
-    "aiPresetConcise": "Shorten",
-    "aiPresetConciseText": "Make the comment shorter and clearer without losing the point.",
-    "aiPresetFix": "Suggest fix",
-    "aiPresetFixText": "Add a concrete suggested fix, with a short code snippet when it helps.",
-    "aiPresetTone": "Soften tone",
-    "aiPresetToneText": "Rephrase it as a friendly, constructive suggestion for the author."
+    "aiPromptTitle": "AI prompt for this draft"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",
