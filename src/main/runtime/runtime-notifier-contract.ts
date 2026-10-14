@@ -1,4 +1,8 @@
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
+import type {
+  AzureDevOpsReviewAgentRequest,
+  AzureDevOpsReviewAgentResult
+} from '../../shared/azure-devops-review-agent-request'
 import type { SleepingAgentLaunchConfig } from '../../shared/agent-session-resume'
 import type {
   AgentLaunchTabPublished,
@@ -137,6 +141,9 @@ export type RuntimeNotifier = {
     navigation?: RuntimeNavigationTarget
   ): void
   readMobileMarkdownTab?(worktreeId: string, tabId: string): Promise<RuntimeMarkdownReadTabResult>
+  runAzureDevOpsReviewAgent?(
+    request: AzureDevOpsReviewAgentRequest
+  ): Promise<AzureDevOpsReviewAgentResult>
   saveMobileMarkdownTab?(
     worktreeId: string,
     tabId: string,

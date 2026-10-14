@@ -14,6 +14,7 @@ import { runWorktreeChangeInvalidators } from '../ipc/worktree-change-invalidato
 import { requestAgentLaunchTabPublishFromRenderer } from './agent-launch-tab-publish-relay'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { requestMobileMarkdownFromRenderer } from './mobile-markdown-request-relay'
+import { requestAzureDevOpsReviewAgentFromRenderer } from './azure-devops-review-agent-request-relay'
 import { registerRendererDocumentNavigation } from './renderer-document-navigation'
 import { createRuntimeRendererNotificationSender } from './runtime-renderer-notification-sender'
 import { requestSessionTabCloseFromRenderer } from './session-tab-close-request-relay'
@@ -194,6 +195,8 @@ export function registerRuntimeWindowLifecycle(
         runtimeEnvironmentId,
         ...(navigation ? { navigation } : {})
       }),
+    runAzureDevOpsReviewAgent: (request) =>
+      requestAzureDevOpsReviewAgentFromRenderer(mainWindow, request),
     readMobileMarkdownTab: (worktreeId, tabId) =>
       requestMobileMarkdownFromRenderer(mainWindow, {
         operation: 'read',

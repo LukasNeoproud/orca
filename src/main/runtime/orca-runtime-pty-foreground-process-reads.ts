@@ -22,7 +22,10 @@ import type { TerminalQuickCommand } from '../../shared/terminal-quick-command-t
 import type { TerminalQuickCommandMutation } from '../../shared/terminal-quick-commands'
 import type { NativeChatSessionOptionSettingsMutation } from '../../shared/native-chat-session-options'
 import type { Automation } from '../../shared/automations-types'
-import type { GlobalSettings } from '../../shared/global-settings-types'
+import type {
+  AzureDevOpsReviewAgentRequest,
+  AzureDevOpsReviewAgentResult
+} from '../../shared/azure-devops-review-agent-request'
 
 export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithStateFields {
   get ptyForegroundProcessReads() {
@@ -210,13 +213,14 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
     return this.clientSettings.getTerminalQuickCommands()
   }
 
-  /** Host settings that shape an agent's startup command line. */
-  getAgentStartupSettings(): Pick<GlobalSettings, 'agentDefaultArgs' | 'terminalWindowsShell'> {
-    const settings = this.store?.getSettings()
-    return {
-      agentDefaultArgs: settings?.agentDefaultArgs,
-      terminalWindowsShell: settings?.terminalWindowsShell
+  /** Runs a paired client's review agent request in the desktop window, which owns the launch. */
+  async runAzureDevOpsReviewAgent(
+    request: AzureDevOpsReviewAgentRequest
+  ): Promise<AzureDevOpsReviewAgentResult> {
+    if (!this.notifier?.runAzureDevOpsReviewAgent) {
+      throw new Error('Open Orca on the computer to start a review agent.')
     }
+    return await this.notifier.runAzureDevOpsReviewAgent(request)
   }
 
   getClientAgentLaunchSettings() {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizeAzureDevOpsReviewOptions } from '../azure-devops-review-options'
 import {
   AZURE_DEVOPS_REVIEW_THREAD_STATUSES,
   type AzureDevOpsThreadStatus
@@ -72,8 +73,24 @@ export const AzureDevOpsReviewOpenWorktreeParams = z.object({
   discardChanges: z.boolean().optional()
 })
 
-export const AzureDevOpsReviewAgentLaunchArgsParams = z.object({
-  agent: z.string().min(1).max(64),
-  permissions: z.enum(['auto', 'settings']).optional(),
-  surface: z.enum(['terminal', 'chat']).optional()
-})
+const ReviewOptions = z.unknown().transform((value) => normalizeAzureDevOpsReviewOptions(value))
+
+export const AzureDevOpsReviewRunAgentParams = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('review'),
+    pullRequestKey: PullRequestKey,
+    discardChanges: z.boolean().optional(),
+    options: ReviewOptions
+  }),
+  z.object({
+    kind: z.literal('rework'),
+    pullRequestKey: PullRequestKey,
+    discardChanges: z.boolean().optional(),
+    items: z
+      .array(z.object({ draftId: z.string().min(1).max(128), instruction: z.string().max(16_000) }))
+      .min(1)
+      .max(200),
+    generalInstruction: z.string().max(16_000),
+    options: ReviewOptions.optional()
+  })
+])

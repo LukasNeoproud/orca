@@ -1,7 +1,6 @@
 import type { SourceControlLaunchActionId } from '../../../src/shared/source-control-ai-actions'
 import { buildSourceControlRecoveryAgentCommandInput } from '../../../src/shared/source-control-recovery-agent-command'
 import type { RpcClient } from '../transport/rpc-client'
-import type { TuiAgent } from '../../../src/shared/tui-agent'
 import {
   AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE,
   launchAgentInExistingWorkspace,
@@ -35,8 +34,6 @@ export async function launchAgentWithPrompt(args: {
   actionId: SourceControlLaunchActionId | null
   prompt: string
   launchSource: string
-  /** Builds the prompt and launch arguments once the agent is known, replacing `prompt`. */
-  beforeLaunch?: (agent: TuiAgent) => Promise<{ prompt: string; agentArgs?: string | null }>
 }): Promise<MobilePromptedAgentLaunch> {
   if (!supportsMobileExistingAgentLaunch(args.hostCapabilities)) {
     return { kind: 'not-started', message: AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE }
@@ -59,23 +56,14 @@ export async function launchAgentWithPrompt(args: {
     return { kind: 'not-started', message: resolved.message }
   }
   const { recipe } = resolved
-  let prepared: { prompt: string; agentArgs?: string | null } = { prompt: args.prompt }
-  if (args.beforeLaunch) {
-    try {
-      prepared = await args.beforeLaunch(resolved.agent)
-    } catch (error) {
-      const message = error instanceof Error ? error.message.trim() : ''
-      return { kind: 'not-started', message: message || 'Could not prepare the agent launch.' }
-    }
-  }
   // The desktop wraps each action's prompt in the user's saved template the same way.
   const text = args.actionId
     ? buildSourceControlRecoveryAgentCommandInput({
         actionId: args.actionId,
         commandInputTemplate: recipe?.commandInputTemplate,
-        basePrompt: prepared.prompt
+        basePrompt: args.prompt
       })
-    : prepared.prompt
+    : args.prompt
   if (!text) {
     return {
       kind: 'not-started',
@@ -91,8 +79,7 @@ export async function launchAgentWithPrompt(args: {
     // Why no saved agent arguments: whether they apply depends on the route and shell the host picks
     // after this request, so the phone leaves them out and the agent's default arguments apply.
     prompt: { text, delivery: 'submit' },
-    launchSource: args.launchSource,
-    ...(prepared.agentArgs !== undefined ? { agentArgs: prepared.agentArgs } : {})
+    launchSource: args.launchSource
   })
   switch (launched.kind) {
     case 'launched': {

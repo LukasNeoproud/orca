@@ -78,7 +78,6 @@ import {
   AutomationUpdate
 } from './automation-params'
 import {
-  AzureDevOpsReviewAgentLaunchArgsParams,
   AzureDevOpsReviewCreateDraftParams,
   AzureDevOpsReviewDeleteDraftParams,
   AzureDevOpsReviewFileDiffParams,
@@ -86,6 +85,7 @@ import {
   AzureDevOpsReviewListParams,
   AzureDevOpsReviewOpenWorktreeParams,
   AzureDevOpsReviewPublishParams,
+  AzureDevOpsReviewRunAgentParams,
   AzureDevOpsReviewUpdateDraftParams
 } from './azure-devops-review-params'
 import {
@@ -736,7 +736,6 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.runs': AutomationRuns,
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
-  'azureDevOpsReview.agentLaunchArgs': AzureDevOpsReviewAgentLaunchArgsParams,
   'azureDevOpsReview.createDraft': AzureDevOpsReviewCreateDraftParams,
   'azureDevOpsReview.deleteDraft': AzureDevOpsReviewDeleteDraftParams,
   'azureDevOpsReview.drafts': AzureDevOpsReviewKeyParams,
@@ -746,6 +745,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'azureDevOpsReview.openWorktree': AzureDevOpsReviewOpenWorktreeParams,
   'azureDevOpsReview.publishDrafts': AzureDevOpsReviewPublishParams,
   'azureDevOpsReview.repos': null,
+  'azureDevOpsReview.runAgent': AzureDevOpsReviewRunAgentParams,
   'azureDevOpsReview.updateDraft': AzureDevOpsReviewUpdateDraftParams,
   'backlog.acquireBoard': BacklogLeasedTarget,
   'backlog.releaseBoard': BacklogLeasedTarget,

@@ -15,6 +15,10 @@ import type { TerminalSurfaceCloseTarget } from '../../shared/terminal-surface-c
 import type { ClipboardImageThumbnail } from '../../shared/clipboard-image'
 import type { ReadClipboardTextOptions } from '../../shared/clipboard-text'
 import type { PreloadApi } from '../api-types'
+import type {
+  AzureDevOpsReviewAgentRendererRequest,
+  AzureDevOpsReviewAgentRendererResponse
+} from '../../shared/azure-devops-review-agent-request'
 
 export const uiClipboardAndWindowControlsApi = {
   onOpenDiffFromMobile: (
@@ -51,6 +55,21 @@ export const uiClipboardAndWindowControlsApi = {
   },
   respondMobileMarkdownRequest: (response: RuntimeMobileMarkdownResponse): void => {
     ipcRenderer.send('ui:mobileMarkdownResponse', response)
+  },
+  onAzureDevOpsReviewAgentRequest: (
+    callback: (request: AzureDevOpsReviewAgentRendererRequest) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      request: AzureDevOpsReviewAgentRendererRequest
+    ) => callback(request)
+    ipcRenderer.on('azureDevOpsReview:agentRequest', listener)
+    return () => ipcRenderer.removeListener('azureDevOpsReview:agentRequest', listener)
+  },
+  respondAzureDevOpsReviewAgentRequest: (
+    response: AzureDevOpsReviewAgentRendererResponse
+  ): void => {
+    ipcRenderer.send('azureDevOpsReview:agentResponse', response)
   },
   onCloseTerminal: (callback: (target: TerminalSurfaceCloseTarget) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, target: TerminalSurfaceCloseTarget) =>

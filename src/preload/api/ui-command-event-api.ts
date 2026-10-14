@@ -1,4 +1,8 @@
 import type { MarkdownDocument } from '../../shared/filesystem-entry-types'
+import type {
+  AzureDevOpsReviewAgentRendererRequest,
+  AzureDevOpsReviewAgentRendererResponse
+} from '../../shared/azure-devops-review-agent-request'
 import type { BacklogBoardBinding } from '../../shared/backlog-board-binding'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { TuiAgent } from '../../shared/tui-agent'
@@ -252,6 +256,11 @@ export type UiCommandEventApi = {
   ) => () => void
   onMobileMarkdownRequest: (callback: (request: RuntimeMobileMarkdownRequest) => void) => () => void
   respondMobileMarkdownRequest: (response: RuntimeMobileMarkdownResponse) => void
+  /** Desktop only: a paired client asks this window to start or brief a review agent. */
+  onAzureDevOpsReviewAgentRequest?: (
+    callback: (request: AzureDevOpsReviewAgentRendererRequest) => void
+  ) => () => void
+  respondAzureDevOpsReviewAgentRequest?: (response: AzureDevOpsReviewAgentRendererResponse) => void
   onCloseTerminal: (callback: (target: TerminalSurfaceCloseTarget) => void) => () => void
   onTerminalTabCloseRequest: (callback: (request: TerminalTabCloseRequest) => void) => () => void
   respondTerminalTabClose: (response: TerminalTabCloseResponse) => void

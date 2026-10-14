@@ -34,9 +34,10 @@ export async function startAzureDevOpsReviewAgent(
 export function startAzureDevOpsReviewAgentInBackground(
   pullRequest: AzureDevOpsReviewPullRequest,
   worktree: { worktreeId: string; repoId: string },
-  options: AzureDevOpsReviewOptions
+  options: AzureDevOpsReviewOptions,
+  prompt?: string
 ): Promise<ReviewAgentLaunch | null> {
-  return launchReviewAgent(pullRequest, worktree, options, undefined, true)
+  return launchReviewAgent(pullRequest, worktree, options, prompt, true)
 }
 
 /** `tabId` is null for a tab the host opens itself (a structured chat). */

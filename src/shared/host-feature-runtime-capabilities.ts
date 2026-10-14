@@ -11,7 +11,7 @@ export const TERMINAL_INTERACTION_RUNTIME_CAPABILITY = 'terminal-interaction.v1'
 export const HOST_SYSTEM_RUNTIME_CAPABILITY = 'host-system.v1' as const
 // azureDevOpsReview.* for the Azure DevOps pull request review surfaces.
 export const AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY = 'azure-devops-review.v1' as const
-// Paired phones may read file diffs and plan an AI review agent's launch arguments.
+// Paired phones may read file diffs and have the desktop start or brief review agents.
 export const AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY =
   'azure-devops-review.mobile-agent.v1' as const
 
