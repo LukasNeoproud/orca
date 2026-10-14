@@ -55,11 +55,13 @@ function find(tree: unknown, predicate: (node: Tree) => boolean): Tree | null {
 }
 
 const byKey = (key: string) => (node: Tree) => node.props?.key === key
-const countText = (tree: unknown): string | undefined =>
-  find(
+function countText(tree: unknown): string | undefined {
+  const label = find(
     tree,
     (node) => typeof node.children?.[0] === 'string' && node.children[0].startsWith('Count:')
-  )?.children?.[0] as string | undefined
+  )?.children?.[0]
+  return typeof label === 'string' ? label : undefined
+}
 
 async function openSession(events: ClaudeStructuredSessionEvent[]) {
   const providerSessionId = randomUUID()

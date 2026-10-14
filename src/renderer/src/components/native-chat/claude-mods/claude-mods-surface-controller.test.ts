@@ -28,7 +28,7 @@ const ROSTER = {
 
 type Call = { subtype: ClaudeModsRequestSubtype; fields: Record<string, unknown> }
 
-function harness(answer: (call: Call) => unknown | Promise<unknown>) {
+function harness(answer: (call: Call) => unknown) {
   const calls: Call[] = []
   let emit: (event: ClaudeModsSurfaceEvent) => void = () => {}
   const controller = new ClaudeModsSurfaceController(
