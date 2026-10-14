@@ -36,7 +36,8 @@ export function AzureDevOpsReviewFileComments({
   detail: AzureDevOpsReviewDetail
   path: string
 }): React.JSX.Element | null {
-  const [open, setOpen] = useState(true)
+  // Why collapsed: the diff already shows new-side threads and drafts under their lines.
+  const [open, setOpen] = useState(false)
   const comments: FileComment[] = [
     ...detail.threads
       .filter((thread) => thread.filePath === path)

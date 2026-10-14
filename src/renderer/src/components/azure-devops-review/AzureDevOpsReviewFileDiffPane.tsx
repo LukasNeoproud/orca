@@ -14,6 +14,7 @@ import type {
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 import { AzureDevOpsReviewFileComments } from './AzureDevOpsReviewFileComments'
 import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-diff'
+import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 
 function IconButton({
   label,
@@ -56,6 +57,7 @@ export function AzureDevOpsReviewFileDiffPane({
     iterationId,
     change
   )
+  const inline = useAzureDevOpsReviewInlineComments(detail, onChanged)
   const [sideBySide, setSideBySide] = useState(true)
   const [fileComposer, setFileComposer] = useState(false)
   const unavailable =
@@ -178,6 +180,9 @@ export function AzureDevOpsReviewFileDiffPane({
               filePath={change.path}
               relativePath={change.path}
               sideBySide={sideBySide}
+              worktreeId={inline.scope}
+              inlineComments={inline.comments}
+              inlineCommentActions={inline.actions}
               onAddLineComment={addLineComment}
               addLineCommentLabel={translate('azureDevOpsReview.addDraft', 'Add draft comment')}
               addLineCommentPlaceholder={translate(

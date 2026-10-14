@@ -47,6 +47,8 @@ export default function DiffViewer({
   commentableLineNumbers,
   addLineCommentLabel,
   addLineCommentPlaceholder,
+  inlineComments,
+  inlineCommentActions,
   onContentChange,
   onSave,
   largeDiffRenderLimit,
@@ -142,7 +144,7 @@ export default function DiffViewer({
     monacoModelIdentity: modifiedModelKey ?? modelKey,
     filePath: relativePath,
     worktreeId: worktreeId ?? '',
-    comments: worktreeId ? diffComments : [],
+    comments: inlineComments ?? (worktreeId ? diffComments : []),
     commentableLineNumbers,
     addButtonLabel: addLineCommentLabel,
     addNoteShortcutEnabled: hasLineCommentAction,
@@ -151,11 +153,18 @@ export default function DiffViewer({
     draftSubmitLabel: addLineCommentLabel,
     canOpenDraft: !renderLimit.limited,
     onDeleteComment: (id) => {
-      if (worktreeId) {
+      if (inlineComments) {
+        inlineCommentActions?.onDelete?.(id)
+      } else if (worktreeId) {
         void deleteDiffComment(worktreeId, id)
       }
     },
-    onUpdateComment: worktreeId ? (id, body) => updateDiffComment(worktreeId, id, body) : undefined,
+    onUpdateComment: inlineComments
+      ? inlineCommentActions?.onUpdate
+      : worktreeId
+        ? (id, body) => updateDiffComment(worktreeId, id, body)
+        : undefined,
+    renderCommentHeaderActions: inlineCommentActions?.renderHeaderActions,
     pendingScrollCommentId: pendingScrollForThisViewer,
     onPendingScrollConsumed: () => setScrollToDiffCommentId(null)
   })

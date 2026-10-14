@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { editor as monacoEditor } from 'monaco-editor'
 import { createRoot, type Root } from 'react-dom/client'
 import { getCommentBodyLayoutLineCount } from '@/lib/comment-body-line-count'
@@ -49,6 +49,8 @@ type DecoratorArgs = {
   // Present only on surfaces that allow editing (local diffs); PR review notes are remote and can't be edited here.
   onUpdateComment?: (commentId: string, body: string) => Promise<boolean>
   formatCommentPrompt?: (comment: DecoratedDiffComment) => string
+  // Extra card actions for surfaces whose comments are not local notes (e.g. Azure DevOps drafts).
+  renderCommentHeaderActions?: (comment: DecoratedDiffComment) => ReactNode
   // Pending scroll-to-note id from the sidebar; decorator reveals the line and acks so the same id can be re-requested later.
   pendingScrollCommentId?: string | null
   onPendingScrollConsumed?: () => void
@@ -72,6 +74,7 @@ export function useDiffCommentDecorator({
   onDeleteComment,
   onUpdateComment,
   formatCommentPrompt,
+  renderCommentHeaderActions,
   pendingScrollCommentId,
   onPendingScrollConsumed
 }: DecoratorArgs): void {
@@ -98,8 +101,10 @@ export function useDiffCommentDecorator({
   const onDeleteCommentRef = useRef(onDeleteComment)
   const onUpdateCommentRef = useRef(onUpdateComment)
   const onPendingScrollConsumedRef = useRef(onPendingScrollConsumed)
+  const renderCommentHeaderActionsRef = useRef(renderCommentHeaderActions)
   onDeleteCommentRef.current = onDeleteComment
   onUpdateCommentRef.current = onUpdateComment
+  renderCommentHeaderActionsRef.current = renderCommentHeaderActions
   onPendingScrollConsumedRef.current = onPendingScrollConsumed
 
   const { onAddCommentClickRef, isDraftOpen } = useDiffCommentDraftZone({
@@ -304,6 +309,7 @@ export function useDiffCommentDecorator({
         resizeZone,
         onDeleteCommentRef,
         onUpdateCommentRef,
+        renderCommentHeaderActionsRef,
         clearDeliveredDiffComments
       })
     }

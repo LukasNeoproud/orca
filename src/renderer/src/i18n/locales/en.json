@@ -20329,7 +20329,9 @@
     "surfaceChat": "Structured chat",
     "optionsPermissions": "Permissions",
     "permissionsAuto": "Auto (agent approves)",
-    "permissionsSettings": "Agent Permissions setting"
+    "permissionsSettings": "Agent Permissions setting",
+    "inlineDraftAuthor": "{{value0}} · draft",
+    "inlineDraftReply": "reply to #{{value0}}"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

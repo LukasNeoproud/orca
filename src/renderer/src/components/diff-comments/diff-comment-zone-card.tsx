@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import type { Root } from 'react-dom/client'
 import { getDiffCommentLineLabel } from '@/lib/diff-comment-compat'
 import { formatDiffComments } from '@/lib/diff-comments-format'
@@ -54,6 +54,9 @@ export type DiffCommentZoneCardContext = {
   resizeZone: (commentId: string) => void
   onDeleteCommentRef: RefObject<(commentId: string) => void>
   onUpdateCommentRef: RefObject<((commentId: string, body: string) => Promise<boolean>) | undefined>
+  renderCommentHeaderActionsRef?: RefObject<
+    ((comment: DecoratedDiffComment) => ReactNode) | undefined
+  >
   clearDeliveredDiffComments: (
     worktreeId: string,
     comments: readonly DiffCommentDeliverySnapshot[]
@@ -71,6 +74,7 @@ export function renderDiffCommentZoneCard(
     resizeZone,
     onDeleteCommentRef,
     onUpdateCommentRef,
+    renderCommentHeaderActionsRef,
     clearDeliveredDiffComments
   }: DiffCommentZoneCardContext
 ): void {
@@ -114,7 +118,9 @@ export function renderDiffCommentZoneCard(
               disabledTooltip="Note already sent"
               onDelivered={(notes) => void clearDeliveredDiffComments(worktreeId, notes)}
             />
-          ) : null
+          ) : (
+            (renderCommentHeaderActionsRef?.current?.(comment) ?? null)
+          )
         }
       />
     </TooltipProvider>

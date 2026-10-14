@@ -40,6 +40,7 @@ export function DiffSectionItem({
   addLineCommentLabel,
   addLineCommentPlaceholder,
   inlineComments,
+  inlineCommentActions,
   getCommentableLineNumbers,
   setSectionHeights,
   setSections,
@@ -137,11 +138,18 @@ export function DiffSectionItem({
     draftSubmitLabel: addLineCommentLabel,
     canOpenDraft: !isLargeDiffLimited,
     onDeleteComment: (id) => {
-      if (worktreeId) {
+      if (inlineComments) {
+        inlineCommentActions?.onDelete?.(id)
+      } else if (worktreeId) {
         void deleteDiffComment(worktreeId, id)
       }
     },
-    onUpdateComment: worktreeId ? (id, body) => updateDiffComment(worktreeId, id, body) : undefined,
+    onUpdateComment: inlineComments
+      ? inlineCommentActions?.onUpdate
+      : worktreeId
+        ? (id, body) => updateDiffComment(worktreeId, id, body)
+        : undefined,
+    renderCommentHeaderActions: inlineCommentActions?.renderHeaderActions,
     pendingScrollCommentId: pendingScrollForThisSection,
     onPendingScrollConsumed: () => setScrollToDiffCommentId(null)
   })
