@@ -9,6 +9,7 @@ import { collectClaudeModsHotkeys } from './claude-mods-tree'
 import { useClaudeModsSurface, type ClaudeModsSurface } from './use-claude-mods-surface'
 import { useClaudeModsViewport } from './use-claude-mods-viewport'
 import { publishClaudeModsController } from './claude-mods-pane-surfaces'
+import { ClaudeModsControllerContext } from './claude-mods-controller-context'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
 
@@ -58,7 +59,11 @@ export function ClaudeModsPaneDock({
   const shown = roster.panes.find((pane) => pane.id === roster.shown_id) ?? null
   return (
     <div ref={rootRef} className={cn('flex min-h-0 flex-1', docked ? 'flex-row' : 'flex-col')}>
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <ClaudeModsControllerContext.Provider value={snapshot.available ? controller : null}>
+          {children}
+        </ClaudeModsControllerContext.Provider>
+      </div>
       {controller && snapshot.available && shown ? (
         <ClaudeModsPane
           key={shown.id}
@@ -113,7 +118,7 @@ function ClaudeModsPane({
     controller.focusPane(paneId)
   }, [focusRequested, drawing, controller, paneId, bodyRef])
   const scope = useMemo(
-    () => ({ controller, instanceId: paneId, focusRequested }),
+    () => ({ controller, component: 'Pane', instanceId: paneId, focusRequested }),
     [controller, paneId, focusRequested]
   )
   const close = (): void => controller.closePane(paneId)

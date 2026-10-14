@@ -31,7 +31,7 @@ export type ClaudeModsNode =
       plugin?: string
     }
   /** Core's own drawing: meaningful only at transcript sites, so panes and the band skip it. */
-  | { kind: 'engine' }
+  | { kind: 'engine'; ref: number }
   | { kind: 'unsupported'; type: string }
 
 const ELEMENT_TYPES: ReadonlySet<string> = new Set<ClaudeModsElementType>([
@@ -92,7 +92,10 @@ function readNode(value: unknown, depth: number, budget: { nodes: number }): Cla
     return { kind: 'unsupported', type: 'malformed node' }
   }
   if (value.type === 'engine') {
-    return { kind: 'engine' }
+    return {
+      kind: 'engine',
+      ref: typeof value.ref === 'number' && Number.isInteger(value.ref) ? value.ref : 0
+    }
   }
   if (!isElementType(value.type)) {
     return { kind: 'unsupported', type: value.type }

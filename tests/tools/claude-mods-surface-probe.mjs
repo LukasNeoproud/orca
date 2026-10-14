@@ -142,6 +142,68 @@ async function render(component, instanceId) {
   })
 }
 
+async function scrollLog() {
+  const panes = waitFor(isSystem('ui_panes')).catch(() => null)
+  sendUser('/scroll-log')
+  await panes
+  const answer = await request({
+    subtype: 'ui_render',
+    component: 'Pane',
+    instance_id: 'scroll-log',
+    props: {},
+    viewport,
+    content_rows: 31,
+    keyed: Array.from({ length: 30 }, (_, i) => ({
+      plugin: 'scroll-log',
+      key: `row-${i + 1}`,
+      top: i + 1,
+      bottom: i + 2
+    })),
+    ...SURFACE
+  })
+  const tree = answer?.tree
+  const layout = {
+    component: 'Pane',
+    instance_id: 'scroll-log',
+    body_rows: 10,
+    content_rows: 31,
+    keyed: Array.from({ length: 30 }, (_, i) => ({
+      plugin: 'scroll-log',
+      key: `row-${i + 1}`,
+      top: i + 1,
+      bottom: i + 2
+    })),
+    surface: 'desktop'
+  }
+  await request({ subtype: 'ui_scroll', ...layout, offset: 0, by: 0 })
+  await request({
+    subtype: 'ui_focus',
+    component: 'Pane',
+    instance_id: 'scroll-log',
+    is_held: true,
+    surface: 'desktop'
+  })
+  for (const key of ['end', 'top', 'reveal', 'focus-end', 'follow']) {
+    const press = findPress(tree, key)
+    if (press) {
+      await request({ subtype: 'ui_press', ...press, key, surface: 'desktop' })
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+  await request({ subtype: 'ui_scroll', ...layout, content_rows: 34, offset: 24, by: -3 })
+  await request({
+    subtype: 'ui_focus',
+    component: 'Pane',
+    instance_id: 'scroll-log',
+    is_held: true,
+    element: { plugin: 'scroll-log', key: 'top' },
+    by: 'person',
+    surface: 'desktop'
+  })
+  await render('AbovePrompt', 'above-prompt')
+}
+
 async function helloTabs() {
   await request({ subtype: 'ui_panes', client_id: SURFACE.client_id })
   await render('AbovePrompt', 'above-prompt')
@@ -188,7 +250,9 @@ async function main() {
   const init = await q.initializationResult().catch((error) => String(error))
   log('init', { commands: init?.commands?.map?.((c) => c.name) })
   await request({ subtype: 'ui_attach', ...SURFACE, viewport })
-  if (scenario === 'hello-tabs') {
+  if (scenario === 'scroll-log') {
+    await scrollLog()
+  } else if (scenario === 'hello-tabs') {
     await helloTabs()
   } else {
     for (const command of scenario.split('+')) {

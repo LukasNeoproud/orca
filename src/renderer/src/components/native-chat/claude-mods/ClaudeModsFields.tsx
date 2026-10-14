@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { propString, propTrue, readSelectOptions, type ClaudeModsNode } from './claude-mods-tree'
-import { useClaudeModsDrawScope } from './claude-mods-draw-scope'
+import { claudeModsDispatch, useClaudeModsDrawScope } from './claude-mods-draw-scope'
 
 type ElementNode = Extract<ClaudeModsNode, { kind: 'element' }>
 
@@ -42,7 +42,7 @@ export function ClaudeModsInput({ node }: { node: ElementNode }): React.JSX.Elem
   )
   const send = (kind: 'change' | 'submit', value: string): void => {
     if (node.press && scope) {
-      void scope.controller.input(scope.instanceId, node.press, key, kind, value)
+      void claudeModsDispatch(scope).input(node.press, key, kind, value)
     }
   }
   return (
@@ -99,7 +99,7 @@ export function ClaudeModsSelect({ node }: { node: ElementNode }): React.JSX.Ele
         disabled={!node.press || !scope}
         onValueChange={(value) => {
           if (node.press && scope) {
-            scope.controller.select(scope.instanceId, node.press, key, value)
+            claudeModsDispatch(scope).select(node.press, key, value)
           }
         }}
       >

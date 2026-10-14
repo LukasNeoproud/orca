@@ -48,7 +48,8 @@ describe('readClaudeModsTree', () => {
   })
 
   it('keeps engine nodes and turns unknown or malformed ones into placeholders', () => {
-    expect(readClaudeModsTree({ type: 'engine', ref: 0 })).toEqual({ kind: 'engine' })
+    expect(readClaudeModsTree({ type: 'engine', ref: 0 })).toEqual({ kind: 'engine', ref: 0 })
+    expect(readClaudeModsTree({ type: 'engine', ref: 3 })).toEqual({ kind: 'engine', ref: 3 })
     expect(readClaudeModsTree({ type: 'Raster', props: {} })).toEqual({
       kind: 'unsupported',
       type: 'Raster'

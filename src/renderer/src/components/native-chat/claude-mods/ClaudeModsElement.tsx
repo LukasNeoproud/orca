@@ -18,7 +18,7 @@ import {
   propTrue,
   type ClaudeModsNode
 } from './claude-mods-tree'
-import { useClaudeModsDrawScope } from './claude-mods-draw-scope'
+import { claudeModsDispatch, useClaudeModsDrawScope } from './claude-mods-draw-scope'
 import { ClaudeModsInput, ClaudeModsSelect } from './ClaudeModsFields'
 
 /** Links a mod draws open outside the app, and only these: the engine already bounded them. */
@@ -41,11 +41,12 @@ function openClaudeModsUrl(href: string | undefined): void {
 }
 
 export function ClaudeModsNodeView({ node }: { node: ClaudeModsNode }): React.JSX.Element | null {
+  const scope = useClaudeModsDrawScope()
   if (node.kind === 'text') {
     return <>{node.text}</>
   }
   if (node.kind === 'engine') {
-    return null
+    return scope?.renderEngine ? <>{scope.renderEngine(node.ref)}</> : null
   }
   if (node.kind === 'unsupported') {
     return (
@@ -159,7 +160,7 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
       disabled={!node.press || !scope}
       onClick={() => {
         if (node.press && scope) {
-          scope.controller.press(scope.instanceId, node.press, propString(props, 'key'))
+          claudeModsDispatch(scope).press(node.press, propString(props, 'key'))
         }
       }}
     >
@@ -246,12 +247,7 @@ function ClaudeModsMarkdown({ node }: { node: ElementNode }): React.JSX.Element 
           event.preventDefault()
           // A Markdown with `press` answers its own links; the surface does not open them.
           if (node.press && scope && href && (!pressable || pressable.includes(href))) {
-            scope.controller.press(
-              scope.instanceId,
-              node.press,
-              propString(node.props, 'key'),
-              href
-            )
+            claudeModsDispatch(scope).press(node.press, propString(node.props, 'key'), href)
             return
           }
           openClaudeModsUrl(href)

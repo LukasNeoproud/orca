@@ -1,0 +1,6 @@
+{
+  "name": "scroll-log",
+  "version": "0.1.0",
+  "description": "Pane with a growing log: plugin-driven scroll, follow end and focus moves",
+  "author": { "name": "Orca fixtures" }
+}

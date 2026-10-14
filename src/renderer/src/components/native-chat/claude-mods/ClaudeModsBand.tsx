@@ -31,7 +31,12 @@ function ClaudeModsBandBody({
   const drawsBand = band !== undefined && band.hooked && band.tree.kind !== 'engine'
   const ref = useClaudeModsViewport(controller, 'AbovePrompt')
   const scope = useMemo(
-    () => ({ controller, instanceId: CLAUDE_MODS_BAND_ID, focusRequested: false }),
+    () => ({
+      controller,
+      component: 'AbovePrompt',
+      instanceId: CLAUDE_MODS_BAND_ID,
+      focusRequested: false
+    }),
     [controller]
   )
   const statuses = Object.entries(snapshot.statuses)

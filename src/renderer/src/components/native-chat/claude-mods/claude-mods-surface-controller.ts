@@ -46,6 +46,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export class ClaudeModsSurfaceController {
   private snapshot: ClaudeModsSnapshot = INITIAL
   private readonly listeners = new Set<() => void>()
+  private readonly pushListeners = new Set<(event: ClaudeModsSurfaceEvent) => void>()
   private closeStream: (() => void) | null = null
   private generation = 0
   private logId = 0
@@ -77,6 +78,7 @@ export class ClaudeModsSurfaceController {
   stop(): void {
     this.closeStream?.()
     this.listeners.clear()
+    this.pushListeners.clear()
   }
 
   setViewport(component: ClaudeModsComponent, viewport: ClaudeModsViewport): void {
@@ -108,24 +110,31 @@ export class ClaudeModsSurfaceController {
     press: ClaudeModsPress,
     key: string | undefined,
     kind: 'change' | 'submit',
-    value: string
+    value: string,
+    component: string = this.componentOf(instanceId)
   ): Promise<void> {
     return this.act(instanceId, 'ui_input', {
       ...press,
       kind,
       value,
       ...(key ? { key } : {}),
-      component: this.componentOf(instanceId),
+      component,
       instance_id: instanceId
     })
   }
 
-  select(instanceId: string, press: ClaudeModsPress, key: string | undefined, value: string): void {
+  select(
+    instanceId: string,
+    press: ClaudeModsPress,
+    key: string | undefined,
+    value: string,
+    component: string = this.componentOf(instanceId)
+  ): void {
     void this.act(instanceId, 'ui_select', {
       ...press,
       value,
       ...(key ? { key } : {}),
-      component: this.componentOf(instanceId),
+      component,
       instance_id: instanceId
     })
   }
@@ -167,6 +176,17 @@ export class ClaudeModsSurfaceController {
     }
   }
 
+  /** One raw `ui_*` request through this chat's transport; null when it failed (already logged). */
+  request(subtype: ClaudeModsRequestSubtype, fields: Record<string, unknown>): Promise<unknown> {
+    return this.send(subtype, fields)
+  }
+
+  /** Every push this controller receives, after it applied it; for sites it does not own. */
+  onPush(listener: (event: ClaudeModsSurfaceEvent) => void): () => void {
+    this.pushListeners.add(listener)
+    return () => this.pushListeners.delete(listener)
+  }
+
   private async send(
     subtype: ClaudeModsRequestSubtype,
     fields: Record<string, unknown>
@@ -180,6 +200,13 @@ export class ClaudeModsSurfaceController {
   }
 
   private onEvent(event: ClaudeModsSurfaceEvent): void {
+    this.applyEvent(event)
+    for (const listener of this.pushListeners) {
+      listener(event)
+    }
+  }
+
+  private applyEvent(event: ClaudeModsSurfaceEvent): void {
     switch (event.type) {
       case 'scroll':
       case 'focus':
