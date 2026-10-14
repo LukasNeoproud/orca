@@ -7,11 +7,13 @@ import { reviewStyles as styles } from './azure-devops-review-styles'
 export function AzureDevOpsReviewComposer({
   initialBody = '',
   saveLabel,
+  placeholder = 'Write a comment (Markdown)',
   onSave,
   onCancel
 }: {
   initialBody?: string
   saveLabel: string
+  placeholder?: string
   onSave: (body: string) => Promise<void>
   onCancel: () => void
 }) {
@@ -27,7 +29,7 @@ export function AzureDevOpsReviewComposer({
         multiline
         value={body}
         onChangeText={setBody}
-        placeholder="Write a comment (Markdown)"
+        placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
         accessibilityLabel="Draft comment"

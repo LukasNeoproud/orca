@@ -22,7 +22,10 @@ import {
 import { AzureDevOpsReviewThreadsSection } from '../../../src/azure-devops-review/azure-devops-review-threads-section'
 import { AzureDevOpsReviewDraftsSection } from '../../../src/azure-devops-review/azure-devops-review-drafts-section'
 import { colors, radii, spacing, typography } from '../../../src/theme/mobile-theme'
-import { AzureDevOpsReviewOptionsSheet } from '../../../src/azure-devops-review/AzureDevOpsReviewOptionsSheet'
+import {
+  AzureDevOpsReviewOptionsSheet,
+  readAzureDevOpsReviewOptions
+} from '../../../src/azure-devops-review/AzureDevOpsReviewOptionsSheet'
 import { useAzureDevOpsReviewAgentLauncher } from '../../../src/azure-devops-review/use-azure-devops-review-agent-launcher'
 
 type Section = 'overview' | 'threads' | 'drafts'
@@ -173,7 +176,17 @@ export default function PullRequestScreen() {
           <AzureDevOpsReviewThreadsSection client={client} detail={detail} onChanged={reload} />
         ) : null}
         {detail && active === 'drafts' ? (
-          <AzureDevOpsReviewDraftsSection client={client} detail={detail} onChanged={reload} />
+          <AzureDevOpsReviewDraftsSection
+            client={client}
+            detail={detail}
+            onChanged={reload}
+            onSendToAi={
+              agent.supported
+                ? async (buildPrompt) =>
+                    agent.launch(await readAzureDevOpsReviewOptions(), buildPrompt)
+                : undefined
+            }
+          />
         ) : null}
       </ScrollView>
       <AzureDevOpsReviewOptionsSheet

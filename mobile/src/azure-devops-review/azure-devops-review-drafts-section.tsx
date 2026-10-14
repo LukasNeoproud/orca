@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Bot, CheckSquare, Square, User } from 'lucide-react-native'
 import { MobileMarkdown } from '../components/MobileMarkdown'
@@ -13,6 +13,8 @@ import type {
 import { azureDevOpsReviewRequest } from './use-azure-devops-review'
 import { AzureDevOpsReviewComposer } from './azure-devops-review-composer'
 import { reviewStyles as styles } from './azure-devops-review-styles'
+import { useAzureDevOpsReviewDraftPrompts } from './azure-devops-review-draft-prompts'
+import { AzureDevOpsDraftsAiSheet, type SendDraftsToAi } from './AzureDevOpsDraftsAiSheet'
 
 function location(draft: AzureDevOpsReviewDraftView): string {
   if (draft.kind === 'inline' && draft.anchor) {
@@ -29,16 +31,21 @@ function DraftCard({
   client,
   draft,
   selected,
+  aiEnabled,
   onToggle,
   onChanged
 }: {
   client: RpcClient | null
   draft: AzureDevOpsReviewDraftView
   selected: boolean
+  aiEnabled: boolean
   onToggle: () => void
   onChanged: () => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
+  const [editingPrompt, setEditingPrompt] = useState(false)
+  const aiPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.prompts[draft.id] ?? '')
+  const setAiPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.setPrompt)
   const [error, setError] = useState<string | null>(null)
   const selectable = !draft.outdated
   const run = async (method: string, params: unknown): Promise<void> => {
@@ -90,6 +97,20 @@ function DraftCard({
       ) : (
         <MobileMarkdown content={draft.body} />
       )}
+      {editingPrompt ? (
+        <AzureDevOpsReviewComposer
+          initialBody={aiPrompt}
+          saveLabel="Save prompt"
+          placeholder="What should the AI check or change in this draft?"
+          onCancel={() => setEditingPrompt(false)}
+          onSave={async (text) => {
+            setAiPrompt(draft.id, text)
+            setEditingPrompt(false)
+          }}
+        />
+      ) : aiPrompt ? (
+        <Text style={styles.meta}>AI prompt: {aiPrompt}</Text>
+      ) : null}
       {draft.outdated ? (
         <Text style={styles.muted}>
           Outdated: written against an older iteration, the lines may have moved.
@@ -115,6 +136,24 @@ function DraftCard({
               <Text style={styles.buttonText}>Keep for latest</Text>
             </Pressable>
           ) : null}
+          {aiEnabled && !editingPrompt ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => setEditingPrompt(true)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.buttonText}>{aiPrompt ? 'Edit AI prompt' : 'AI prompt'}</Text>
+            </Pressable>
+          ) : null}
+          {aiPrompt && !editingPrompt ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => setAiPrompt(draft.id, '')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.buttonText}>Remove prompt</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             style={styles.button}
             onPress={() => setEditing(true)}
@@ -138,13 +177,21 @@ function DraftCard({
 export function AzureDevOpsReviewDraftsSection({
   client,
   detail,
-  onChanged
+  onChanged,
+  onSendToAi
 }: {
   client: RpcClient | null
   detail: AzureDevOpsReviewDetail
   onChanged: () => Promise<void>
+  /** Absent when the host cannot start review agents for this phone. */
+  onSendToAi?: SendDraftsToAi
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [askingAi, setAskingAi] = useState(false)
+  const hydratePrompts = useAzureDevOpsReviewDraftPrompts((s) => s.hydrate)
+  useEffect(() => {
+    void hydratePrompts()
+  }, [hydratePrompts])
   const [confirming, setConfirming] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const pending = detail.drafts.filter((draft) => draft.state !== 'published')
@@ -197,6 +244,15 @@ export function AzureDevOpsReviewDraftsSection({
   return (
     <View style={{ gap: 12 }}>
       <View style={styles.actions}>
+        {onSendToAi ? (
+          <Pressable
+            style={styles.button}
+            onPress={() => setAskingAi(true)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.buttonText}>Send to AI</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           style={[styles.button, styles.buttonPrimary, selectedIds.length === 0 && styles.disabled]}
           disabled={selectedIds.length === 0}
@@ -213,10 +269,18 @@ export function AzureDevOpsReviewDraftsSection({
           client={client}
           draft={draft}
           selected={selected.has(draft.id) && !draft.outdated}
+          aiEnabled={onSendToAi !== undefined}
           onToggle={() => toggle(draft.id)}
           onChanged={onChanged}
         />
       ))}
+      {onSendToAi && askingAi ? (
+        <AzureDevOpsDraftsAiSheet
+          detail={detail}
+          onClose={() => setAskingAi(false)}
+          onSend={onSendToAi}
+        />
+      ) : null}
       <ConfirmModal
         visible={confirming}
         title={`Publish ${selectedIds.length} comments?`}
