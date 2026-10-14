@@ -189,7 +189,7 @@ export function AzureDevOpsReviewDraftsSection({
       <Text style={styles.meta}>
         {publishedCount > 0
           ? `All ${publishedCount} drafts are published.`
-          : 'No drafts yet. Reply to threads here, or let an agent review the pull request on the desktop.'}
+          : 'No drafts yet. Reply to threads, comment on lines under Files, or start an AI review from the header.'}
       </Text>
     )
   }

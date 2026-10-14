@@ -86,9 +86,12 @@ export function agentLaunchExistingParams(args: {
   paneKey?: string
   sessionId?: string
   placement?: AgentLaunchPlacement
+  /** Replaces the saved launch arguments of a terminal launch; absent keeps them. */
+  agentArgs?: string | null
 }): RpcSendParams<'agent.launchReplay'> {
   return {
     agent: args.agent,
+    ...(args.agentArgs !== undefined ? { agentArgs: args.agentArgs } : {}),
     operationId: args.operationId,
     target: { kind: 'existing', worktree: `id:${args.worktreeId}` },
     ...(args.prompt ? { prompt: args.prompt } : {}),

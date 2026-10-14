@@ -101,6 +101,7 @@ export async function launchAgentInExistingWorkspace(args: {
   launchSource?: string
   reservation?: MobileAgentLaunchReservation
   placement?: AgentLaunchPlacement
+  agentArgs?: string | null
   // Injected in tests; each call is one new operation, so a later tap never replays this one.
   mintOperationId?: () => string
 }): Promise<MobileExistingAgentLaunch> {
@@ -114,6 +115,7 @@ export async function launchAgentInExistingWorkspace(args: {
     ...(args.prompt ? { prompt: args.prompt } : {}),
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.placement ? { placement: args.placement } : {}),
+    ...(args.agentArgs !== undefined ? { agentArgs: args.agentArgs } : {}),
     ...(args.reservation
       ? {
           paneKey: makePaneKey(args.reservation.pane.tabId, args.reservation.pane.leafId),

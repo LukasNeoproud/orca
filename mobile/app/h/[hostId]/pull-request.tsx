@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ChevronLeft, ExternalLink } from 'lucide-react-native'
+import { Bot, ChevronLeft, ExternalLink } from 'lucide-react-native'
 import { useHostClient } from '../../../src/transport/client-context'
 import { useHostProtocolGates } from '../../../src/components/HostProtocolGate'
 import { AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY } from '../../../../src/shared/host-feature-runtime-capabilities'
@@ -22,6 +22,8 @@ import {
 import { AzureDevOpsReviewThreadsSection } from '../../../src/azure-devops-review/azure-devops-review-threads-section'
 import { AzureDevOpsReviewDraftsSection } from '../../../src/azure-devops-review/azure-devops-review-drafts-section'
 import { colors, radii, spacing, typography } from '../../../src/theme/mobile-theme'
+import { AzureDevOpsReviewOptionsSheet } from '../../../src/azure-devops-review/AzureDevOpsReviewOptionsSheet'
+import { useAzureDevOpsReviewAgentLauncher } from '../../../src/azure-devops-review/use-azure-devops-review-agent-launcher'
 
 type Section = 'overview' | 'threads' | 'drafts'
 
@@ -40,6 +42,9 @@ export default function PullRequestScreen() {
   const [section, setSection] = useState<Section | null>(null)
   const active: Section = section ?? (pending > 0 ? 'drafts' : 'overview')
   const pr = detail?.pullRequest
+  const agent = useAzureDevOpsReviewAgentLauncher({ hostId, client, pullRequest: pr ?? null })
+  const [choosingOptions, setChoosingOptions] = useState(false)
+  const noticeWorktreeId = agent.notice?.worktreeId ?? null
   const { hostCapabilities } = useHostProtocolGates()
   const filesSupported =
     hostCapabilities?.includes(AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY) === true
@@ -69,6 +74,17 @@ export default function PullRequestScreen() {
         <Text style={styles.title} numberOfLines={1}>
           {pr ? `!${pr.pullRequestId} ${pr.title}` : 'Pull request'}
         </Text>
+        {pr && agent.supported && !pr.isFork ? (
+          <Pressable
+            onPress={() => setChoosingOptions(true)}
+            disabled={agent.busy}
+            accessibilityRole="button"
+            accessibilityLabel="Review with AI"
+            hitSlop={12}
+          >
+            <Bot size={20} color={agent.busy ? colors.textMuted : colors.textSecondary} />
+          </Pressable>
+        ) : null}
         {pr ? (
           <Pressable
             onPress={() => void Linking.openURL(pr.webUrl)}
@@ -85,6 +101,19 @@ export default function PullRequestScreen() {
           {pr.project}/{pr.repository} · {pr.author.displayName} · {pr.sourceBranch} →{' '}
           {pr.targetBranch}
         </Text>
+      ) : null}
+      {agent.busy ? <Text style={styles.meta}>Starting the review agent…</Text> : null}
+      {agent.notice ? (
+        <View style={styles.notice}>
+          <Text style={agent.notice.tone === 'error' ? styles.error : styles.success}>
+            {agent.notice.text}
+          </Text>
+          {noticeWorktreeId ? (
+            <Pressable onPress={() => agent.openAgent(noticeWorktreeId)} accessibilityRole="button">
+              <Text style={styles.link}>Open agent</Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
       <View style={styles.tabs}>
         {tabs.map((tab) => (
@@ -147,6 +176,16 @@ export default function PullRequestScreen() {
           <AzureDevOpsReviewDraftsSection client={client} detail={detail} onChanged={reload} />
         ) : null}
       </ScrollView>
+      <AzureDevOpsReviewOptionsSheet
+        visible={choosingOptions}
+        subject={pr ? `!${pr.pullRequestId} ${pr.title}` : ''}
+        onCancel={() => setChoosingOptions(false)}
+        onStart={(options) => {
+          setChoosingOptions(false)
+          void agent.launch(options)
+        }}
+      />
+      {agent.confirmElement}
     </SafeAreaView>
   )
 }
@@ -182,5 +221,14 @@ const styles = StyleSheet.create({
     fontFamily: typography.monoFamily
   },
   fileLink: { color: colors.accentBlue },
-  error: { color: colors.statusRed, fontSize: typography.metaSize }
+  error: { color: colors.statusRed, fontSize: typography.metaSize },
+  success: { color: colors.statusGreen, fontSize: typography.metaSize },
+  link: { color: colors.accentBlue, fontSize: typography.metaSize, fontWeight: '600' },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm
+  }
 })
