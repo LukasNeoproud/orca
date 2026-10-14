@@ -6,13 +6,30 @@ import {
 import { tokenizeStartupCommand } from './tui-agent-startup-shell'
 import type { AzureDevOpsReviewPullRequest } from './azure-devops-review-types'
 
-const pullRequest = {
+const pullRequest: AzureDevOpsReviewPullRequest = {
   key: 'dev.azure.com/contoso+repo+7',
   pullRequestId: 7,
   title: 'Fix',
+  description: 'Adds retries',
+  status: 'active',
+  isDraft: false,
+  isFork: false,
+  organizationKey: 'dev.azure.com/contoso',
+  organizationLabel: 'contoso',
+  project: 'proj',
   repository: 'app',
-  targetBranch: 'main'
-} as AzureDevOpsReviewPullRequest
+  repositoryId: 'repo',
+  repoKey: 'dev.azure.com/contoso+repo',
+  author: { displayName: 'Author', uniqueName: null },
+  myVote: 'none',
+  createdAt: '2026-01-01T00:00:00Z',
+  closedAt: null,
+  sourceBranch: 'feature',
+  targetBranch: 'main',
+  sourceCommit: null,
+  targetCommit: null,
+  webUrl: 'https://dev.azure.com/contoso/proj/_git/app/pullrequest/7'
+}
 
 describe('azureDevOpsReviewMcpAgentArgs', () => {
   it('registers orca ado mcp inline for Claude', () => {
@@ -65,5 +82,15 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
     expect(prompt).toContain('`.result.drafts`')
     expect(prompt).not.toMatch(/`orca ado/)
     expect(prompt).not.toContain('ado_create_draft')
+  })
+
+  it('asks the agent to review the change against the PR description', () => {
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca', mcp: true })
+    expect(prompt).toContain('Read the PR description before the code')
+    const bare = buildAzureDevOpsReviewAgentPrompt(
+      { ...pullRequest, description: ' ' },
+      { cli: 'orca', mcp: true }
+    )
+    expect(bare).toContain('The PR has no description')
   })
 })
