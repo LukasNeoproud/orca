@@ -20353,7 +20353,21 @@
     "aiGeneralPromptPlaceholder": "For example: check each finding for thread safety and drop the ones that do not hold.",
     "aiDraftsSend": "Send {{value0}} drafts to AI",
     "aiDraftsSent": "Sent to the AI chat.",
-    "aiPromptTitle": "AI prompt for this draft"
+    "aiPromptTitle": "AI prompt for this draft",
+    "autoReviewStarted": "Reviewing !{{value0}} in the background",
+    "autoReviewFinished": "AI review of !{{value0}} finished",
+    "autoReviewOpen": "Open review",
+    "autoReviewNeedsInput": "AI review of !{{value0}} needs you",
+    "autoReviewNeedsInputDescription": "The agent is waiting for an answer or a permission.",
+    "autoReviewShowAgent": "Show agent",
+    "autoReviewOffer": "New pull request !{{value0}}",
+    "autoReviewAccept": "Review",
+    "autoReviewDismiss": "Dismiss",
+    "autoReviewSubject": "!{{value0}} {{value1}}",
+    "autoReviewSetting": "Offer AI reviews of new pull requests",
+    "autoReviewSettingHint": "Orca checks for pull requests you have not authored, voted on or reviewed, and offers a review that runs in the background.",
+    "autoReviewInterval": "Check every",
+    "autoReviewMinutes": "minutes"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

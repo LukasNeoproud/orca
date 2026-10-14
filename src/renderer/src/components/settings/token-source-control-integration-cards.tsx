@@ -8,6 +8,7 @@ import {
   AzureDevOpsConnectionsSection,
   useAzureDevOpsConnections
 } from './AzureDevOpsConnectionsSection'
+import { AzureDevOpsAutoReviewSettings } from './AzureDevOpsAutoReviewSettings'
 
 export function AzureDevOpsIntegrationCard(): React.JSX.Element {
   const { statuses, unavailable, refresh } = usePreflightCardStatuses('azureDevOps')
@@ -54,6 +55,7 @@ export function AzureDevOpsIntegrationCard(): React.JSX.Element {
       {connections.status ? (
         <AzureDevOpsConnectionsSection status={connections.status} reload={connections.reload} />
       ) : null}
+      {configured ? <AzureDevOpsAutoReviewSettings /> : null}
       {status !== 'checking' && !configured ? (
         <IntegrationCardDetails>
           <p className="text-xs text-muted-foreground">

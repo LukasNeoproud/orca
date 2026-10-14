@@ -7,6 +7,7 @@ import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
 import {
   azureDevOpsReviewMcpAgentArgs,
   buildAzureDevOpsReviewAgentPrompt
@@ -35,6 +36,29 @@ export async function startAzureDevOpsReviewAgent(
   options?: AzureDevOpsReviewOptions,
   prompt?: string
 ): Promise<boolean> {
+  return (await launchReviewAgent(pullRequest, worktree, options, prompt, false)) !== null
+}
+
+/** Like startAzureDevOpsReviewAgent, but leaves the user where they are; resolves to the agent's tab. */
+export function startAzureDevOpsReviewAgentInBackground(
+  pullRequest: AzureDevOpsReviewPullRequest,
+  worktree: { worktreeId: string; repoId: string },
+  options: AzureDevOpsReviewOptions
+): Promise<ReviewAgentLaunch | null> {
+  return launchReviewAgent(pullRequest, worktree, options, undefined, true)
+}
+
+/** `tabId` is null for a tab the host opens itself (a structured chat). */
+export type ReviewAgentLaunch = { tabId: string | null; launchedAt: number }
+
+async function launchReviewAgent(
+  pullRequest: AzureDevOpsReviewPullRequest,
+  worktree: { worktreeId: string; repoId: string },
+  options: AzureDevOpsReviewOptions | undefined,
+  prompt: string | undefined,
+  background: boolean
+): Promise<ReviewAgentLaunch | null> {
+  const launchedAt = Date.now()
   const worktreeId = worktree.worktreeId
   await useAppStore.getState().fetchWorktrees(worktree.repoId)
   const store = useAppStore.getState()
@@ -46,14 +70,14 @@ export async function startAzureDevOpsReviewAgent(
   })
   if (!agent) {
     toast.error(translate('azureDevOpsReview.noAgent', 'No agent is available to run the review.'))
-    return false
+    return null
   }
   // Why: launchAgentInNewTab creates the surface; seeding here would add a stray shell.
-  if (!activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })) {
+  if (!background && !activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })) {
     toast.error(
       translate('azureDevOpsReview.openWorkspaceFailed', 'Could not open the review workspace.')
     )
-    return false
+    return null
   }
   // Why local shell: review worktrees are never on SSH hosts.
   const shell = resolveStartupShell(
@@ -108,16 +132,22 @@ export async function startAzureDevOpsReviewAgent(
     toast.error(
       translate('azureDevOpsReview.launchFailed', 'Could not build the agent launch command.')
     )
-    return false
+    return null
   }
   pruneAzureDevOpsReviewChatLinks()
-  if (result.surface.kind === 'local-terminal') {
-    linkReviewTab(result.surface.tabId, pullRequest.key, true)
-    focusTerminalTabSurface(result.surface.tabId)
-  } else {
+  if (result.surface.kind !== 'local-terminal') {
     linkNextReviewTab(worktreeId, tabsBeforeLaunch, pullRequest.key)
+    return { tabId: null, launchedAt }
   }
-  return true
+  const tabId = result.surface.tabId
+  linkReviewTab(tabId, pullRequest.key, true)
+  if (background) {
+    // Why: an unopened workspace never mounts its panes, so a renderer-spawned agent would wait.
+    requestBackgroundTerminalWorktreeMount({ worktreeId, tabIds: [tabId] })
+  } else {
+    focusTerminalTabSurface(tabId)
+  }
+  return { tabId, launchedAt }
 }
 
 /** Makes a host-created review worktree known to the renderer, then shows it. */

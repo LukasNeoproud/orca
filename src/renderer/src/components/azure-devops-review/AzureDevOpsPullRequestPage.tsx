@@ -8,7 +8,7 @@ import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
 import { CommentMarkdownAsync } from '@/components/sidebar/comment-markdown-lazy'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import { openAzureDevOpsReviewWorktree } from '@/lib/azure-devops-review-client'
+import { switchAzureDevOpsReviewWorktree } from '@/lib/azure-devops-review-worktree-switch'
 import {
   revealAzureDevOpsReviewWorktree,
   startAzureDevOpsReviewAgent
@@ -20,7 +20,6 @@ import { AzureDevOpsReviewFiles } from './AzureDevOpsReviewFiles'
 import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
 import { AzureDevOpsReviewDrafts } from './AzureDevOpsReviewDrafts'
 import { AzureDevOpsReviewAiButton } from './AzureDevOpsReviewAiButton'
-import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import {
   readAzureDevOpsReviewOptions,
   storeAzureDevOpsReviewOptions
@@ -88,36 +87,14 @@ export function AzureDevOpsPullRequestPage({
     }
     setBusy(mode)
     try {
-      let result = await openAzureDevOpsReviewWorktree(pullRequestKey)
-      if (!result.ok && result.reason === 'dirty') {
-        const discard = await confirm({
-          title: translate(
-            'azureDevOpsReview.dirtyTitle',
-            'Discard changes in the review workspace?'
-          ),
-          description: translate(
-            'azureDevOpsReview.dirtyDescription',
-            'The shared review workspace has uncommitted changes. Switching to this pull request discards them; ignored files such as dependencies stay.'
-          ),
-          confirmLabel: translate('azureDevOpsReview.dirtyConfirm', 'Discard and switch'),
-          confirmVariant: 'destructive'
-        })
-        if (!discard) {
-          return false
-        }
-        result = await openAzureDevOpsReviewWorktree(pullRequestKey, true)
-      }
-      if (!result.ok) {
-        toast.error(result.message)
+      const worktree = await switchAzureDevOpsReviewWorktree(pullRequestKey, confirm)
+      if (!worktree) {
         return false
       }
-      useAzureDevOpsReviewChatLinks
-        .getState()
-        .setWorktreePullRequest(result.worktree.worktreeId, result.worktree.pullRequestKey)
       const opened =
         mode === 'agent'
-          ? await startAzureDevOpsReviewAgent(pr, result.worktree, options, prompt)
-          : await revealAzureDevOpsReviewWorktree(result.worktree)
+          ? await startAzureDevOpsReviewAgent(pr, worktree, options, prompt)
+          : await revealAzureDevOpsReviewWorktree(worktree)
       if (opened) {
         closeAzureDevOpsPullRequestPage()
       }

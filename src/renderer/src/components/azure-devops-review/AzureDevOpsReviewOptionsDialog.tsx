@@ -70,10 +70,13 @@ function checkLabel(check: AzureDevOpsReviewCheck): { title: string; hint: strin
 
 /** Collects language, depth and extra checks before an AI review starts. */
 export function AzureDevOpsReviewOptionsDialog({
+  subject,
   initialOptions,
   onStart,
   onCancel
 }: {
+  /** The pull request, when the dialog opens away from its page. */
+  subject?: string
   initialOptions: AzureDevOpsReviewOptions
   onStart: (options: AzureDevOpsReviewOptions) => void
   onCancel: () => void
@@ -94,6 +97,7 @@ export function AzureDevOpsReviewOptionsDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{translate('azureDevOpsReview.optionsTitle', 'AI review')}</DialogTitle>
+          {subject ? <p className="truncate text-sm font-medium">{subject}</p> : null}
           <DialogDescription>
             {translate(
               'azureDevOpsReview.optionsDescription',
