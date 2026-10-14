@@ -3,6 +3,7 @@ import type {
   StructuredAgentSessionAcquireInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { openClaudeStreamJsonConnection } from './claude-stream-json-connection'
+import { claudeModsSessionChannel } from './claude-mods-surface-channel'
 import { buildClaudePermissionCallbacks } from './claude-structured-inbound-control'
 import { resolveClaudeReplayTurn } from './claude-replay-turn-resolution'
 import { claudeSessionStateEndsTurn } from './claude-session-state-turn-over'
@@ -62,6 +63,9 @@ export async function acquireClaudeSession({
   const prompts = new ClaudePromptRegistry()
   const { previous, attempt } = acquisitions.start(sessionId, prompts)
   let unbindReadingControl: (() => void) | undefined
+  // Mods' `ui_*` pushes go to their own channel, never the transcript.
+  const mods = claudeModsSessionChannel(sessionId)
+  let unbindMods: (() => void) | undefined
   let liveSession: ClaudeSession | null = null
   let observedLeafUuid: string | null = null,
     expectedProviderSessionId: string | null = null
@@ -85,6 +89,9 @@ export async function acquireClaudeSession({
       if (init || (message.type === 'system' && message.subtype === 'init')) {
         initProof.refuse()
       }
+      return
+    }
+    if (mods.routePush(message)) {
       return
     }
     if (init) {
@@ -185,10 +192,12 @@ export async function acquireClaudeSession({
           onUserDialog,
           ...(input.onOutput ? { onOutput: input.onOutput } : {}),
           onFault: (error) => {
+            unbindMods?.()
             childEnded ??= error
             initProof.reject(error)
           },
           onExit: (error, exit) => {
+            unbindMods?.()
             if (exit?.expected) {
               // The end of a close Orca began; that close settles it, or finishes it now.
               callbacks.finishClose(sessionId, attempt)
@@ -204,6 +213,7 @@ export async function acquireClaudeSession({
       )
     )
     attempt.connection = connection
+    unbindMods = mods.bind(connection)
     unbindReadingControl = bindClaudeConnectionJournalControls(
       input.events,
       connection,
@@ -299,6 +309,7 @@ export async function acquireClaudeSession({
     return { ...publication.acquisition, providerChildPhase: 'starting' }
   } catch (error) {
     unbindReadingControl?.()
+    unbindMods?.()
     const acquisitionError = await resolveClaudeAcquisitionError({
       error,
       sessionId,

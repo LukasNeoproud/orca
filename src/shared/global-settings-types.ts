@@ -225,6 +225,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   /** Chat-wide: hold a mid-turn send as an editable queued draft that goes when the turn ends
    *  (capable hosts only). Absent = on; off keeps mid-turn sends immediate. */
   nativeChatQueueFollowUps?: boolean
+  /** Draw Claude Code mods' panes and band in structured Claude chats; absent means on. */
+  nativeChatClaudeMods?: boolean
   /** Teach newly started native chats to create inline visuals; absent means on. */
   nativeChatInlineVisuals?: boolean
   /** Structured chat only: Codex/Claude children inherit the whole login-shell environment.

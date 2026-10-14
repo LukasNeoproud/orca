@@ -152,6 +152,7 @@ import {
 } from './browser-params'
 import { ScreencastUnsubscribe } from './browser-screencast-params'
 import { BrowserOpenUrlParams, BrowserTabCreateParams } from './browser-tab-create-params'
+import { ClaudeModsRequestParams, ClaudeModsSubscribeParams } from './claude-mods-surface-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
   NativeChatSessionOptionsMutation,
@@ -673,6 +674,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.acknowledgeAttention': AcknowledgeAttentionParams,
   'agentSession.agents': AgentsParams,
   'agentSession.cancel': CancelParams,
+  'agentSession.claudeModsRequest': ClaudeModsRequestParams,
+  'agentSession.claudeModsSubscribe': ClaudeModsSubscribeParams,
   'agentSession.close': OptionsParams,
   'agentSession.commands': OptionsParams,
   'agentSession.continueInterrupted': ContinueInterruptedParams,

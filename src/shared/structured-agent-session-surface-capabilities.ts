@@ -31,6 +31,9 @@ export const STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY =
 // this way only from a host advertising this, and otherwise only agents with a saved pick.
 export const AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY =
   'agent-session.model-catalog.saved-only.v1' as const
+// Why: `agentSession.claudeModsRequest`/`claudeModsSubscribe` forward Claude Code mods' `ui_*`
+// surface; a client probes this so an older host draws no mod panes instead of method_not_found.
+export const AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY = 'agent-session.claude-mods.v1' as const
 
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
@@ -38,5 +41,6 @@ export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
-  AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY
+  AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY,
+  AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY
 ] as const
