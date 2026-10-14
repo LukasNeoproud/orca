@@ -83,6 +83,8 @@ export type AzureDevOpsReviewPullRequest = {
   repoKey: string
   author: AzureDevOpsReviewIdentity
   myVote: AzureDevOpsReviewVote
+  /** Absent when the author is someone else or the signed-in identity is unknown. */
+  createdByMe?: true
   createdAt: string
   closedAt: string | null
   sourceBranch: string

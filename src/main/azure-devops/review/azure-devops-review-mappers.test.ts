@@ -55,6 +55,20 @@ describe('mapAzureDevOpsReviewPullRequest', () => {
     })
   })
 
+  it('marks pull requests the signed-in identity created', () => {
+    const context = { repo, repositoryId: 'r', repositoryWebUrl: '', meId: 'me' }
+    const mine = mapAzureDevOpsReviewPullRequest(
+      { pullRequestId: 1, createdBy: { id: 'ME' } },
+      context
+    )
+    const theirs = mapAzureDevOpsReviewPullRequest(
+      { pullRequestId: 2, createdBy: { id: 'other' } },
+      context
+    )
+    expect(mine?.createdByMe).toBe(true)
+    expect(theirs).not.toHaveProperty('createdByMe')
+  })
+
   it('drops payloads without an id', () => {
     expect(
       mapAzureDevOpsReviewPullRequest(
