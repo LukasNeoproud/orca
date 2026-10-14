@@ -3070,6 +3070,10 @@ html.native-shell .app-layout {
   max-width: 420px;
 }
 
+.orca-diff-comment-inline > .orca-diff-comment-card.orca-diff-comment-card-wide {
+  max-width: 880px;
+}
+
 /* Why: embedded card in the diff flow, not a floating popup — use the
    documented "subtle lift" tier (shadow-xs) rather than a hand-rolled shadow.
    Restated under `.dark` (same value) so this still outranks the base
@@ -3263,6 +3267,11 @@ html.native-shell .app-layout {
   white-space: pre-wrap;
   word-break: break-word;
   margin-top: 2px;
+}
+
+/* Why: Markdown supplies its own paragraphs and line breaks; pre-wrap would double them. */
+.orca-diff-comment-body.orca-diff-comment-body-markdown {
+  white-space: normal;
 }
 
 /* Popover for adding new comment */

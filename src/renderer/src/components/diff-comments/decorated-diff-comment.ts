@@ -8,6 +8,10 @@ export type DecoratedDiffComment = DiffComment & {
   url?: string
   canDelete?: boolean
   canEdit?: boolean
+  /** Render the body as Markdown; editing stays plain text. */
+  markdown?: boolean
+  /** Let the card use the code column's width instead of the note width. */
+  wide?: boolean
 }
 
 /** Edit/delete/extra card actions for inline comments a surface owns instead of local notes. */

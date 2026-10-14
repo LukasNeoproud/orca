@@ -23,6 +23,8 @@ export function getRenderSignature(
     url: comment.url ?? null,
     canDelete: comment.canDelete ?? null,
     canEdit: comment.canEdit ?? null,
+    markdown: comment.markdown ?? null,
+    wide: comment.wide ?? null,
     sendPrompt: formatCommentPrompt ? formatCommentPrompt(comment) : null
   })
 }
@@ -90,6 +92,8 @@ export function renderDiffCommentZoneCard(
         author={comment.author}
         createdAtLabel={comment.createdAtLabel}
         url={comment.url}
+        markdown={comment.markdown}
+        wide={comment.wide}
         onDelete={
           comment.canDelete === false ? undefined : () => onDeleteCommentRef.current(comment.id)
         }

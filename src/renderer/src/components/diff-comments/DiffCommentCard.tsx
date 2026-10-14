@@ -4,6 +4,8 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { getDiffCommentLineLabel } from '@/lib/diff-comment-compat'
 import { useMountedRef } from '@/hooks/useMountedRef'
+import { CommentMarkdownAsync } from '@/components/sidebar/comment-markdown-lazy'
+import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 
 // Why: the saved-note card lives inside a Monaco view zone's DOM node.
@@ -26,6 +28,8 @@ type Props = {
   author?: string
   createdAtLabel?: string
   url?: string
+  markdown?: boolean
+  wide?: boolean
   onDelete?: () => void
   // Why: Monaco view zones have a fixed `heightInPx` set at insertion time
   // and aren't auto-measured. The parent decorator re-syncs that height when
@@ -53,6 +57,8 @@ export function DiffCommentCard({
   author,
   createdAtLabel,
   url,
+  markdown,
+  wide,
   onDelete,
   onContentResize,
   observeRenderedSize,
@@ -181,7 +187,10 @@ export function DiffCommentCard({
   }
 
   return (
-    <div ref={cardRef} className="orca-diff-comment-card">
+    <div
+      ref={cardRef}
+      className={cn('orca-diff-comment-card', wide && 'orca-diff-comment-card-wide')}
+    >
       <div className="orca-diff-comment-content-col">
         {/* Header Row */}
         <div className="orca-diff-comment-header">
@@ -331,6 +340,11 @@ export function DiffCommentCard({
               </Button>
             </div>
           </div>
+        ) : markdown ? (
+          <CommentMarkdownAsync
+            content={body}
+            className="orca-diff-comment-body orca-diff-comment-body-markdown"
+          />
         ) : (
           <div className="orca-diff-comment-body">{body}</div>
         )}

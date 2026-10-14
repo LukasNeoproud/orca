@@ -68,6 +68,8 @@ export function buildAzureDevOpsInlineComments(
       side: 'modified',
       author: first.author.displayName,
       createdAtLabel: threadStatusLabel(thread.status),
+      markdown: true,
+      wide: true,
       url: `${detail.pullRequest.webUrl}?_a=files&path=${encodeURIComponent(`/${thread.filePath}`)}&discussionId=${thread.id}`,
       canDelete: false,
       canEdit: false
@@ -107,6 +109,8 @@ export function buildAzureDevOpsInlineComments(
               value0: draft.threadId ?? '?'
             })
           : undefined,
+      markdown: true,
+      wide: true,
       canDelete: true,
       canEdit: true
     })
