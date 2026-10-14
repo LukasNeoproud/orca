@@ -20331,7 +20331,12 @@
     "permissionsAuto": "Auto (agent approves)",
     "permissionsSettings": "Agent Permissions setting",
     "inlineDraftAuthor": "{{value0}} · draft",
-    "inlineDraftReply": "reply to #{{value0}}"
+    "inlineDraftReply": "reply to #{{value0}}",
+    "allChangesCount": "{{value0}} changed files",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "singleFileView": "Show one file at a time",
+    "allChangesView": "Show all changes in one scroll"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Columns2, ExternalLink, FileText, MessageSquarePlus, PanelLeft, Rows2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import DiffViewer from '@/components/editor/DiffViewer'
 import { translate } from '@/i18n/i18n'
 import { detectLanguage } from '@/lib/language-detect'
@@ -15,39 +14,21 @@ import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 import { AzureDevOpsReviewFileComments } from './AzureDevOpsReviewFileComments'
 import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-diff'
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
-
-function IconButton({
-  label,
-  onClick,
-  children
-}: {
-  label: string
-  onClick: () => void
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-xs" aria-label={label} onClick={onClick}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
-}
+import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 
 export function AzureDevOpsReviewFileDiffPane({
   detail,
   change,
   treeCollapsed,
   onShowTree,
+  viewModeToggle,
   onChanged
 }: {
   detail: AzureDevOpsReviewDetail
   change: AzureDevOpsReviewChange
   treeCollapsed: boolean
   onShowTree: () => void
+  viewModeToggle: React.ReactNode
   onChanged: () => Promise<void>
 }): React.JSX.Element {
   const pullRequestKey = detail.pullRequest.key
@@ -99,12 +80,12 @@ export function AzureDevOpsReviewFileDiffPane({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-1.5 border-b border-border px-3 py-1.5">
         {treeCollapsed ? (
-          <IconButton
+          <AzureDevOpsReviewIconButton
             label={translate('azureDevOpsReview.showFiles', 'Show files')}
             onClick={onShowTree}
           >
             <PanelLeft className="size-3.5" />
-          </IconButton>
+          </AzureDevOpsReviewIconButton>
         ) : null}
         <FileText className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate font-mono text-xs" title={change.path}>
@@ -116,7 +97,8 @@ export function AzureDevOpsReviewFileDiffPane({
           <MessageSquarePlus className="size-3" />
           {translate('azureDevOpsReview.commentFile', 'Comment file')}
         </Button>
-        <IconButton
+        {viewModeToggle}
+        <AzureDevOpsReviewIconButton
           label={
             sideBySide
               ? translate('azureDevOpsReview.inlineView', 'Inline view')
@@ -125,8 +107,8 @@ export function AzureDevOpsReviewFileDiffPane({
           onClick={() => setSideBySide((value) => !value)}
         >
           {sideBySide ? <Rows2 className="size-3.5" /> : <Columns2 className="size-3.5" />}
-        </IconButton>
-        <IconButton
+        </AzureDevOpsReviewIconButton>
+        <AzureDevOpsReviewIconButton
           label={translate('azureDevOpsReview.openInBrowser', 'Open in Azure DevOps')}
           onClick={() =>
             void window.api.shell.openUrl(
@@ -135,7 +117,7 @@ export function AzureDevOpsReviewFileDiffPane({
           }
         >
           <ExternalLink className="size-3.5" />
-        </IconButton>
+        </AzureDevOpsReviewIconButton>
       </div>
       {fileComposer ? (
         <div className="shrink-0 border-b border-border p-3">

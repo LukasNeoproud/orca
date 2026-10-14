@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { FileText, ScrollText } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { CombinedDiffFileTree } from '../editor/combined-diff/browse-files/combined-diff-file-tree'
@@ -7,32 +8,34 @@ import {
   getCombinedDiffFileTreeSectionKey,
   type CombinedDiffFileTreeEntry
 } from '../editor/combined-diff/resolve-changes/combined-diff-section-identity'
-import type { GitBranchChangeEntry } from '../../../../shared/git-diff-compare-types'
-import type {
-  AzureDevOpsReviewChange,
-  AzureDevOpsReviewDetail
-} from '../../../../shared/azure-devops-review-types'
+import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { AzureDevOpsReviewFileDiffPane } from './AzureDevOpsReviewFileDiffPane'
+import { AzureDevOpsReviewAllChanges } from './AzureDevOpsReviewAllChanges'
+import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
+import { azureDevOpsChangeToBranchEntry } from './azure-devops-review-diff-sections'
 
 const NO_VIEWED = new Set<string>()
+const VIEW_MODE_KEY = 'orca.azureDevOpsReview.filesViewMode'
 
-function toBranchEntry(change: AzureDevOpsReviewChange): GitBranchChangeEntry {
-  const status =
-    change.changeType === 'add'
-      ? 'added'
-      : change.changeType === 'delete'
-        ? 'deleted'
-        : change.changeType === 'rename'
-          ? 'renamed'
-          : 'modified'
-  return {
-    path: change.path,
-    status,
-    ...(change.originalPath ? { oldPath: change.originalPath } : {})
+type FilesViewMode = 'all' | 'file'
+
+function readViewMode(): FilesViewMode {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === 'file' ? 'file' : 'all'
+  } catch {
+    return 'all'
   }
 }
 
-/** Azure DevOps-style Files view: file tree on the left, one file's diff on the right. */
+function storeViewMode(mode: FilesViewMode): void {
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  } catch {
+    // Only a remembered preference; the default view still works.
+  }
+}
+
+/** Azure DevOps-style Files view: all changes in one scroll, or the tree with one file's diff. */
 export function AzureDevOpsReviewFiles({
   detail,
   onChanged
@@ -45,7 +48,11 @@ export function AzureDevOpsReviewFiles({
     return (repoId ? s.repos.find((repo) => repo.id === repoId)?.path : undefined) ?? ''
   })
   const entries = useMemo(
-    () => getCombinedDiffBranchEntriesInTreeOrder('commit', detail.changes.map(toBranchEntry)),
+    () =>
+      getCombinedDiffBranchEntriesInTreeOrder(
+        'commit',
+        detail.changes.map(azureDevOpsChangeToBranchEntry)
+      ),
     [detail.changes]
   )
   const sectionIndexByKey = useMemo(
@@ -59,6 +66,7 @@ export function AzureDevOpsReviewFiles({
     () => new Map(detail.changes.map((change) => [change.path, change])),
     [detail.changes]
   )
+  const [viewMode, setViewMode] = useState<FilesViewMode>(readViewMode)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
   // Why: open the first file in tree order, as Azure DevOps does, instead of an empty pane.
@@ -75,6 +83,40 @@ export function AzureDevOpsReviewFiles({
     )
   }
 
+  const switchMode = (mode: FilesViewMode): void => {
+    setViewMode(mode)
+    storeViewMode(mode)
+  }
+  const viewModeToggle =
+    viewMode === 'all' ? (
+      <AzureDevOpsReviewIconButton
+        label={translate('azureDevOpsReview.singleFileView', 'Show one file at a time')}
+        onClick={() => switchMode('file')}
+      >
+        <FileText className="size-3.5" />
+      </AzureDevOpsReviewIconButton>
+    ) : (
+      <AzureDevOpsReviewIconButton
+        label={translate('azureDevOpsReview.allChangesView', 'Show all changes in one scroll')}
+        onClick={() => switchMode('all')}
+      >
+        <ScrollText className="size-3.5" />
+      </AzureDevOpsReviewIconButton>
+    )
+
+  if (viewMode === 'all') {
+    return (
+      <AzureDevOpsReviewAllChanges
+        detail={detail}
+        entries={entries}
+        changeByPath={changeByPath}
+        repoPath={repoPath}
+        viewModeToggle={viewModeToggle}
+        onChanged={onChanged}
+      />
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0">
       <CombinedDiffFileTree
@@ -83,7 +125,9 @@ export function AzureDevOpsReviewFiles({
         entries={entries}
         sectionIndexByKey={sectionIndexByKey}
         activeSectionKey={
-          selected ? getCombinedDiffFileTreeSectionKey('commit', toBranchEntry(selected)) : null
+          selected
+            ? getCombinedDiffFileTreeSectionKey('commit', azureDevOpsChangeToBranchEntry(selected))
+            : null
         }
         viewedSectionKeys={NO_VIEWED}
         collapsed={treeCollapsed}
@@ -96,6 +140,7 @@ export function AzureDevOpsReviewFiles({
           change={selected}
           treeCollapsed={treeCollapsed}
           onShowTree={() => setTreeCollapsed(false)}
+          viewModeToggle={viewModeToggle}
           onChanged={onChanged}
         />
       ) : null}
