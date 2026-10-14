@@ -2,29 +2,30 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { useHostProtocolGates } from '../components/HostProtocolGate'
-import { promptedLaunchNotice } from '../session/pr-ai-triage-launch'
 import type { RpcClient } from '../transport/rpc-client'
 import { AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY } from '../../../src/shared/host-feature-runtime-capabilities'
-import type { AzureDevOpsReviewOptions } from '../../../src/shared/azure-devops-review-options'
-import type { AzureDevOpsReviewPullRequest } from '../../../src/shared/azure-devops-review-types'
-import { launchAzureDevOpsReviewAgent } from './azure-devops-review-agent-launch'
+import {
+  runAzureDevOpsReviewAgent,
+  type AzureDevOpsReviewAgentAsk,
+  type DistributiveOmit
+} from './azure-devops-review-agent-launch'
 
 export type ReviewAgentNotice = {
   tone: 'success' | 'error'
   text: string
-  /** The review workspace to open once the agent started. */
+  /** The workspace the agent runs in, to open from the notice. */
   worktreeId: string | null
 }
 
-/** Starts review agents for one pull request and reports how each launch went. */
+/** Has the desktop start review agents for one pull request and reports how each request went. */
 export function useAzureDevOpsReviewAgentLauncher({
   hostId,
   client,
-  pullRequest
+  pullRequestKey
 }: {
   hostId: string
   client: RpcClient | null
-  pullRequest: AzureDevOpsReviewPullRequest | null
+  pullRequestKey: string
 }) {
   const router = useRouter()
   const { hostCapabilities } = useHostProtocolGates()
@@ -42,34 +43,36 @@ export function useAzureDevOpsReviewAgentLauncher({
   }
 
   const launch = async (
-    options: AzureDevOpsReviewOptions,
-    buildPrompt?: (tools: { cli: string; mcp: boolean }) => string
+    ask: DistributiveOmit<AzureDevOpsReviewAgentAsk, 'pullRequestKey'>
   ): Promise<boolean> => {
-    if (!client || !pullRequest || busy) {
+    if (!client || !pullRequestKey || busy) {
       return false
     }
     setBusy(true)
     setNotice(null)
     try {
-      const result = await launchAzureDevOpsReviewAgent({
+      const outcome = await runAzureDevOpsReviewAgent({
         client,
-        hostCapabilities,
-        pullRequest,
-        options,
-        buildPrompt,
+        ask: { ...ask, pullRequestKey },
         confirmDiscard: () =>
           new Promise<boolean>((resolve) => {
             answerRef.current = resolve
             setConfirming(true)
           })
       })
-      const shown = promptedLaunchNotice(result, 'the review workspace')
-      setNotice({
-        tone: shown.succeeded ? 'success' : 'error',
-        text: shown.success ?? shown.error ?? shown.warning ?? '',
-        worktreeId: shown.succeeded ? (result.worktreeId ?? null) : null
-      })
-      return shown.succeeded
+      setNotice(
+        outcome.kind === 'not-started'
+          ? { tone: 'error', text: outcome.message, worktreeId: null }
+          : {
+              tone: 'success',
+              text:
+                outcome.kind === 'sent-to-chat'
+                  ? "Sent to the pull request's AI chat"
+                  : 'Agent started in the review workspace',
+              worktreeId: outcome.worktreeId
+            }
+      )
+      return outcome.kind !== 'not-started'
     } finally {
       setBusy(false)
     }

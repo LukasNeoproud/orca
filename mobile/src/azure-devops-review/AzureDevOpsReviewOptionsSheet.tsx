@@ -38,11 +38,13 @@ function Choice<T extends string>({
   label,
   value,
   choices,
+  disabled = false,
   onChange
 }: {
   label: string
   value: T
   choices: { value: T; label: string }[]
+  disabled?: boolean
   onChange: (value: T) => void
 }) {
   return (
@@ -52,10 +54,15 @@ function Choice<T extends string>({
         {choices.map((choice) => (
           <Pressable
             key={choice.value}
-            style={[styles.choice, value === choice.value && styles.choiceSelected]}
+            style={[
+              styles.choice,
+              value === choice.value && styles.choiceSelected,
+              disabled && reviewStyles.disabled
+            ]}
+            disabled={disabled}
             onPress={() => onChange(choice.value)}
             accessibilityRole="radio"
-            accessibilityState={{ selected: value === choice.value }}
+            accessibilityState={{ selected: value === choice.value, disabled }}
           >
             <Text style={styles.choiceText}>{choice.label}</Text>
           </Pressable>
@@ -114,7 +121,18 @@ export function AzureDevOpsReviewOptionsSheet({
           onChange={(depth) => update({ depth })}
         />
         <Choice
+          label="Open in"
+          value={options.surface}
+          choices={[
+            { value: 'terminal', label: 'Terminal' },
+            { value: 'chat', label: 'Structured chat' }
+          ]}
+          onChange={(surface) => update({ surface })}
+        />
+        <Choice
           label="Permissions"
+          // A structured chat takes its permissions from its own picker.
+          disabled={options.surface === 'chat'}
           value={options.permissions}
           choices={[
             { value: 'auto', label: 'Auto' },

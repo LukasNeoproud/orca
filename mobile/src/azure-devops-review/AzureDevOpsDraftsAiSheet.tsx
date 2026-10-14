@@ -3,12 +3,14 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { CheckSquare, Square } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { colors, spacing } from '../theme/mobile-theme'
-import { buildAzureDevOpsDraftReworkPrompt } from '../../../src/shared/azure-devops-draft-rework-prompt'
 import type { AzureDevOpsReviewDetail } from '../../../src/shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDraftPrompts } from './azure-devops-review-draft-prompts'
 import { reviewStyles } from './azure-devops-review-styles'
 
-export type SendDraftsToAi = (buildPrompt: (tools: { cli: string }) => string) => Promise<boolean>
+export type SendDraftsToAi = (
+  items: { draftId: string; instruction: string }[],
+  generalInstruction: string
+) => Promise<boolean>
 
 function draftLabel(draft: AzureDevOpsReviewDetail['drafts'][number]): string {
   if (draft.kind === 'inline' && draft.anchor) {
@@ -61,13 +63,9 @@ export function AzureDevOpsDraftsAiSheet({
   const send = async (): Promise<void> => {
     setSending(true)
     try {
-      const sent = await onSend(({ cli }) =>
-        buildAzureDevOpsDraftReworkPrompt({
-          pullRequest: detail.pullRequest,
-          items: chosen.map((draft) => ({ draft, instruction: prompts[draft.id] ?? '' })),
-          generalInstruction: general,
-          cli
-        })
+      const sent = await onSend(
+        chosen.map((draft) => ({ draftId: draft.id, instruction: prompts[draft.id] ?? '' })),
+        general
       )
       if (sent) {
         clearPrompts(chosen.map((draft) => draft.id))
@@ -83,7 +81,8 @@ export function AzureDevOpsDraftsAiSheet({
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Send drafts to AI</Text>
         <Text style={reviewStyles.meta}>
-          A new agent in the review workspace checks or rewrites the chosen drafts.
+          The pull request's AI chat checks or rewrites the chosen drafts; without one, a new agent
+          starts in the review workspace.
         </Text>
         {pending.map((draft) => {
           const Icon = included.has(draft.id) ? CheckSquare : Square

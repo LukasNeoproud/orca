@@ -45,7 +45,7 @@ export default function PullRequestScreen() {
   const [section, setSection] = useState<Section | null>(null)
   const active: Section = section ?? (pending > 0 ? 'drafts' : 'overview')
   const pr = detail?.pullRequest
-  const agent = useAzureDevOpsReviewAgentLauncher({ hostId, client, pullRequest: pr ?? null })
+  const agent = useAzureDevOpsReviewAgentLauncher({ hostId, client, pullRequestKey: key ?? '' })
   const [choosingOptions, setChoosingOptions] = useState(false)
   const noticeWorktreeId = agent.notice?.worktreeId ?? null
   const { hostCapabilities } = useHostProtocolGates()
@@ -182,8 +182,13 @@ export default function PullRequestScreen() {
             onChanged={reload}
             onSendToAi={
               agent.supported
-                ? async (buildPrompt) =>
-                    agent.launch(await readAzureDevOpsReviewOptions(), buildPrompt)
+                ? async (items, generalInstruction) =>
+                    agent.launch({
+                      kind: 'rework',
+                      items,
+                      generalInstruction,
+                      options: await readAzureDevOpsReviewOptions()
+                    })
                 : undefined
             }
           />
@@ -195,7 +200,7 @@ export default function PullRequestScreen() {
         onCancel={() => setChoosingOptions(false)}
         onStart={(options) => {
           setChoosingOptions(false)
-          void agent.launch(options)
+          void agent.launch({ kind: 'review', options })
         }}
       />
       {agent.confirmElement}
