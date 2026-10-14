@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SimplifiedBranchField } from './SimplifiedBranchField'
 
 afterEach(cleanup)
+// Slash-named locals come back fully qualified so they cannot collide with remote refs.
 const branches = [
-  { refName: 'feature/local', localBranchName: 'feature/local' },
+  { refName: 'refs/heads/feature/local', localBranchName: 'feature/local' },
   { refName: 'origin/remote', localBranchName: 'remote' }
 ]
 
@@ -70,5 +71,25 @@ describe('simplified branch combobox keyboard', () => {
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(input.getAttribute('aria-expanded')).toBe('false')
+  })
+})
+
+describe('simplified branch labels', () => {
+  it('shows locals and remotes without the refs/ namespace', () => {
+    render(
+      <SimplifiedBranchField
+        value="feature"
+        branches={[
+          { refName: 'refs/heads/feature/local', localBranchName: 'feature/local' },
+          { refName: 'refs/remotes/origin/feature/remote', localBranchName: 'feature/remote' }
+        ]}
+        onChange={vi.fn()}
+        onSelect={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    )
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'feature/local' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'origin/feature/remote' })).toBeTruthy()
   })
 })

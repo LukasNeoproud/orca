@@ -59,8 +59,13 @@ export function getComposerRepoWorktreeBranches(
     : []
 }
 
-function isLocalBranchSelection(refName: string, localBranchName: string): boolean {
+export function isLocalBranchSelection(refName: string, localBranchName: string): boolean {
   return refName === localBranchName || refName === `refs/heads/${localBranchName}`
+}
+
+/** Readable label for a branch ref: `feature/x` for locals, `origin/feature/x` for remotes. */
+export function formatBranchRefLabel(refName: string): string {
+  return refName.replace(/^refs\/(?:heads|remotes)\//, '')
 }
 
 /**

@@ -13,6 +13,10 @@ import {
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { openRegisteredWorktree } from '@/lib/open-registered-worktree'
+import {
+  formatBranchRefLabel,
+  isLocalBranchSelection
+} from '../../../../shared/composer-branch-selection'
 import { SimplifiedBaseBranchField } from './SimplifiedBaseBranchField'
 import { SimplifiedBranchField } from './SimplifiedBranchField'
 import { NewWorkspaceComposerNameSection } from './NewWorkspaceComposerNameSection'
@@ -110,9 +114,11 @@ export function SimplifiedWorktreeFields({
           if (row) {
             setBranch(row.localBranchName)
             if (
-              row.refName !== row.localBranchName &&
+              !isLocalBranchSelection(row.refName, row.localBranchName) &&
               !form.branches.some(
-                (b) => b.refName === row.localBranchName && b.refName === b.localBranchName
+                (b) =>
+                  b.localBranchName === row.localBranchName &&
+                  isLocalBranchSelection(b.refName, b.localBranchName)
               )
             ) {
               form.setRemote(row)
@@ -125,7 +131,7 @@ export function SimplifiedWorktreeFields({
           {translate(
             'simplifiedWorktree.tracking',
             'Create local tracking branch “{{branch}}” from {{ref}}.',
-            { branch: form.remote.localBranchName, ref: form.remote.refName }
+            { branch: form.remote.localBranchName, ref: formatBranchRefLabel(form.remote.refName) }
           )}
         </p>
       ) : null}

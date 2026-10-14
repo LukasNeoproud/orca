@@ -5,6 +5,10 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { translate } from '@/i18n/i18n'
+import {
+  formatBranchRefLabel,
+  isLocalBranchSelection
+} from '../../../../shared/composer-branch-selection'
 import type { BaseRefSearchResult } from '../../../../shared/repo-types'
 
 export function SimplifiedBranchField({
@@ -29,9 +33,9 @@ export function SimplifiedBranchField({
   const optionsId = isBase ? 'simplified-base' : 'simplified-branch'
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const local = branches.filter((b) => b.refName === b.localBranchName)
-  const remote = branches.filter((b) => b.refName !== b.localBranchName)
-  const canCreate = !isBase && value.trim() && !local.some((b) => b.refName === value)
+  const local = branches.filter((b) => isLocalBranchSelection(b.refName, b.localBranchName))
+  const remote = branches.filter((b) => !isLocalBranchSelection(b.refName, b.localBranchName))
+  const canCreate = !isBase && value.trim() && !local.some((b) => b.localBranchName === value)
   const rows: (BaseRefSearchResult | null)[] = [...(canCreate ? [null] : []), ...local, ...remote]
   const pick = (row: BaseRefSearchResult | null) => {
     onSelect(row)
@@ -140,7 +144,7 @@ export function SimplifiedBranchField({
                       key={b.refName}
                       onSelect={() => pick(b)}
                     >
-                      {b.refName}
+                      {b.localBranchName}
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -157,7 +161,7 @@ export function SimplifiedBranchField({
                       key={b.refName}
                       onSelect={() => pick(b)}
                     >
-                      {b.refName}
+                      {formatBranchRefLabel(b.refName)}
                     </CommandItem>
                   ))}
                 </CommandGroup>
