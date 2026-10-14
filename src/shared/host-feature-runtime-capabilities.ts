@@ -11,10 +11,14 @@ export const TERMINAL_INTERACTION_RUNTIME_CAPABILITY = 'terminal-interaction.v1'
 export const HOST_SYSTEM_RUNTIME_CAPABILITY = 'host-system.v1' as const
 // azureDevOpsReview.* for the Azure DevOps pull request review surfaces.
 export const AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY = 'azure-devops-review.v1' as const
+// Paired phones may read file diffs and plan an AI review agent's launch arguments.
+export const AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY =
+  'azure-devops-review.mobile-agent.v1' as const
 
 export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY,
   EMULATOR_MOBILE_STREAM_RUNTIME_CAPABILITY,
   'backlog.v1',
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,

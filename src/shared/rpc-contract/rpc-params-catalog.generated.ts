@@ -78,6 +78,7 @@ import {
   AutomationUpdate
 } from './automation-params'
 import {
+  AzureDevOpsReviewAgentLaunchArgsParams,
   AzureDevOpsReviewCreateDraftParams,
   AzureDevOpsReviewDeleteDraftParams,
   AzureDevOpsReviewFileDiffParams,
@@ -735,6 +736,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.runs': AutomationRuns,
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
+  'azureDevOpsReview.agentLaunchArgs': AzureDevOpsReviewAgentLaunchArgsParams,
   'azureDevOpsReview.createDraft': AzureDevOpsReviewCreateDraftParams,
   'azureDevOpsReview.deleteDraft': AzureDevOpsReviewDeleteDraftParams,
   'azureDevOpsReview.drafts': AzureDevOpsReviewKeyParams,

@@ -6,7 +6,8 @@ import {
   AzureDevOpsReviewFileDiffParams,
   AzureDevOpsReviewDeleteDraftParams,
   AzureDevOpsReviewPublishParams,
-  AzureDevOpsReviewOpenWorktreeParams
+  AzureDevOpsReviewOpenWorktreeParams,
+  AzureDevOpsReviewAgentLaunchArgsParams
 } from '../../../../shared/rpc-contract/azure-devops-review-params'
 import { defineMethod } from '../core'
 import type { OrcaRuntimeService } from '../../orca-runtime'
@@ -32,6 +33,9 @@ import {
 import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure-devops-review-file-diff'
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
 import { mapAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-mappers'
+import { azureDevOpsReviewAgentLaunchArgs } from '../../../../shared/azure-devops-review-agent-args'
+import { orcaLaunchCliCommand } from '../../../../shared/terminal-interaction-launch'
+import { isTuiAgent } from '../../../../shared/tui-agent-config'
 
 const WORKTREE_PS_SCAN_LIMIT = 5_000
 
@@ -179,6 +183,29 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
         pullRequest,
         discardChanges: params.discardChanges === true
       })
+    }
+  }),
+  defineMethod({
+    // Why the host: the CLI name and shell quoting are the host's, which a phone cannot know.
+    name: 'azureDevOpsReview.agentLaunchArgs',
+    permission: 'workspace',
+    params: AzureDevOpsReviewAgentLaunchArgsParams,
+    handler: async (params, { runtime }) => {
+      if (!isTuiAgent(params.agent)) {
+        throw new Error(`Unknown agent: ${params.agent}`)
+      }
+      const cli = orcaLaunchCliCommand(process.platform, false)
+      const launch = azureDevOpsReviewAgentLaunchArgs({
+        agent: params.agent,
+        platform: process.platform,
+        cli,
+        settings: runtime.getAgentStartupSettings(),
+        options: {
+          permissions: params.permissions ?? 'auto',
+          surface: params.surface ?? 'terminal'
+        }
+      })
+      return { agentArgs: launch.agentArgs ?? null, mcp: launch.mcp, cli }
     }
   })
 ]

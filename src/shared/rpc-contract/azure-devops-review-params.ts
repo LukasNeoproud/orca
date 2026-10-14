@@ -71,3 +71,9 @@ export const AzureDevOpsReviewOpenWorktreeParams = z.object({
   pullRequestKey: PullRequestKey,
   discardChanges: z.boolean().optional()
 })
+
+export const AzureDevOpsReviewAgentLaunchArgsParams = z.object({
+  agent: z.string().min(1).max(64),
+  permissions: z.enum(['auto', 'settings']).optional(),
+  surface: z.enum(['terminal', 'chat']).optional()
+})

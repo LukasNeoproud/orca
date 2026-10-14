@@ -22,6 +22,7 @@ import type { TerminalQuickCommand } from '../../shared/terminal-quick-command-t
 import type { TerminalQuickCommandMutation } from '../../shared/terminal-quick-commands'
 import type { NativeChatSessionOptionSettingsMutation } from '../../shared/native-chat-session-options'
 import type { Automation } from '../../shared/automations-types'
+import type { GlobalSettings } from '../../shared/global-settings-types'
 
 export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithStateFields {
   get ptyForegroundProcessReads() {
@@ -207,6 +208,15 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
 
   getClientTerminalQuickCommands(): TerminalQuickCommand[] {
     return this.clientSettings.getTerminalQuickCommands()
+  }
+
+  /** Host settings that shape an agent's startup command line. */
+  getAgentStartupSettings(): Pick<GlobalSettings, 'agentDefaultArgs' | 'terminalWindowsShell'> {
+    const settings = this.store?.getSettings()
+    return {
+      agentDefaultArgs: settings?.agentDefaultArgs,
+      terminalWindowsShell: settings?.terminalWindowsShell
+    }
   }
 
   getClientAgentLaunchSettings() {

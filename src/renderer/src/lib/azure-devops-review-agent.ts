@@ -8,23 +8,14 @@ import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
-import {
-  azureDevOpsReviewMcpAgentArgs,
-  buildAzureDevOpsReviewAgentPrompt
-} from '../../../shared/azure-devops-review-prompt'
+import { buildAzureDevOpsReviewAgentPrompt } from '../../../shared/azure-devops-review-prompt'
+import { azureDevOpsReviewAgentLaunchArgs } from '../../../shared/azure-devops-review-agent-args'
 import { orcaLaunchCliCommand } from '../../../shared/terminal-interaction-launch'
-import {
-  resolvedTuiAgentArgsBypassPermissions,
-  resolveTuiAgentLaunchArgs
-} from '../../../shared/tui-agent-launch-defaults'
-import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
-import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { pruneAzureDevOpsReviewChatLinks } from '@/lib/azure-devops-review-chat'
 import { linkNextReviewTab, linkReviewTab, reviewTabIds } from '@/lib/azure-devops-review-tab-link'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 import {
-  azureDevOpsReviewPermissionArg,
   normalizeAzureDevOpsReviewOptions,
   type AzureDevOpsReviewOptions
 } from '../../../shared/azure-devops-review-options'
@@ -79,29 +70,15 @@ async function launchReviewAgent(
     )
     return null
   }
-  // Why local shell: review worktrees are never on SSH hosts.
-  const shell = resolveStartupShell(
-    CLIENT_PLATFORM,
-    resolveLocalWindowsAgentStartupShell({
-      platform: CLIENT_PLATFORM,
-      isRemote: false,
-      terminalWindowsShell: store.settings?.terminalWindowsShell
-    })
-  )
   const cli = orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
-  const mcpArgs = azureDevOpsReviewMcpAgentArgs(agent, shell, cli)
-  const defaultArgs = resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
   const reviewOptions = normalizeAzureDevOpsReviewOptions(options)
-  // A structured chat takes its permissions from its own picker, not from TUI flags.
-  const permissionArg =
-    reviewOptions.surface === 'terminal'
-      ? azureDevOpsReviewPermissionArg(
-          agent,
-          reviewOptions,
-          resolvedTuiAgentArgsBypassPermissions(agent, store.settings, CLIENT_PLATFORM)
-        )
-      : null
-  const launchArgs = [mcpArgs, permissionArg].filter(Boolean)
+  const { agentArgs, mcp } = azureDevOpsReviewAgentLaunchArgs({
+    agent,
+    platform: CLIENT_PLATFORM,
+    cli,
+    settings: store.settings ?? null,
+    options: reviewOptions
+  })
   const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
     // Why terminal by default: the agent's TUI keeps its auto mode and the chat/terminal toggle.
@@ -118,13 +95,8 @@ async function launchReviewAgent(
     agent,
     worktreeId,
     groupId: worktreeId,
-    // Why first: user defaults may end with `--`, after which flags are literal.
-    agentArgs: launchArgs.length
-      ? [...launchArgs, defaultArgs].filter(Boolean).join(' ')
-      : undefined,
-    prompt:
-      prompt ??
-      buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }, reviewOptions),
+    agentArgs,
+    prompt: prompt ?? buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp }, reviewOptions),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })
