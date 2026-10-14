@@ -1,0 +1,277 @@
+import { useMemo } from 'react'
+import { translate } from '@/i18n/i18n'
+import { Button } from '../../ui/button'
+import { ShortcutKeyCombo } from '../../ShortcutKeyCombo'
+import { NativeChatMarkdown } from '../NativeChatMarkdown'
+import { NativeChatHighlightedCode } from '../NativeChatHighlightedCode'
+import { NativeChatDiffView } from '../NativeChatDiffView'
+import { diffFromText } from '../native-chat-diff'
+import {
+  claudeModsBoxStyle,
+  claudeModsDeclarationStyle,
+  claudeModsTextStyle
+} from './claude-mods-style'
+import {
+  keyedClaudeModsChildren,
+  propNumber,
+  propString,
+  propTrue,
+  type ClaudeModsNode
+} from './claude-mods-tree'
+import { useClaudeModsDrawScope } from './claude-mods-draw-scope'
+import { ClaudeModsInput, ClaudeModsSelect } from './ClaudeModsFields'
+
+/** Links a mod draws open outside the app, and only these: the engine already bounded them. */
+export function isClaudeModsOpenableUrl(href: string | undefined): href is string {
+  if (!href) {
+    return false
+  }
+  try {
+    const url = new URL(href)
+    return url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'localhost')
+  } catch {
+    return false
+  }
+}
+
+function openClaudeModsUrl(href: string | undefined): void {
+  if (isClaudeModsOpenableUrl(href)) {
+    void window.api.shell.openUrl(href)
+  }
+}
+
+export function ClaudeModsNodeView({ node }: { node: ClaudeModsNode }): React.JSX.Element | null {
+  if (node.kind === 'text') {
+    return <>{node.text}</>
+  }
+  if (node.kind === 'engine') {
+    return null
+  }
+  if (node.kind === 'unsupported') {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {translate(
+          'components.native-chat.claudeMods.unsupportedElement',
+          '[unsupported: {{type}}]',
+          {
+            type: node.type
+          }
+        )}
+      </span>
+    )
+  }
+  return <ClaudeModsElementView node={node} />
+}
+
+function ClaudeModsChildren({ nodes }: { nodes: ClaudeModsNode[] }): React.JSX.Element {
+  return (
+    <>
+      {keyedClaudeModsChildren(nodes).map(([key, child]) => (
+        <ClaudeModsNodeView key={key} node={child} />
+      ))}
+    </>
+  )
+}
+
+type ElementNode = Extract<ClaudeModsNode, { kind: 'element' }>
+
+function ClaudeModsElementView({ node }: { node: ElementNode }): React.JSX.Element | null {
+  const { props } = node
+  switch (node.type) {
+    case 'Box':
+      return (
+        <div data-claude-mods-plugin={node.plugin} style={claudeModsBoxStyle(props)}>
+          {keyedClaudeModsChildren(node.children).map(([key, child]) =>
+            child.kind === 'text' ? (
+              <span key={key} style={claudeModsTextStyle({})}>
+                {child.text}
+              </span>
+            ) : (
+              <ClaudeModsNodeView key={key} node={child} />
+            )
+          )}
+        </div>
+      )
+    case 'Text':
+      return (
+        <span data-claude-mods-plugin={node.plugin} style={claudeModsTextStyle(props)}>
+          <ClaudeModsChildren nodes={node.children} />
+        </span>
+      )
+    case 'div':
+      return (
+        <div style={claudeModsDeclarationStyle(props.style)}>
+          <ClaudeModsChildren nodes={node.children} />
+        </div>
+      )
+    case 'span':
+      return (
+        <span style={claudeModsDeclarationStyle(props.style)}>
+          <ClaudeModsChildren nodes={node.children} />
+        </span>
+      )
+    case 'b':
+      return (
+        <b style={claudeModsDeclarationStyle(props.style)}>
+          <ClaudeModsChildren nodes={node.children} />
+        </b>
+      )
+    case 'Button':
+      return <ClaudeModsButton node={node} />
+    case 'Input':
+      return <ClaudeModsInput node={node} />
+    case 'Select':
+      return <ClaudeModsSelect node={node} />
+    case 'Link':
+      return <ClaudeModsLink node={node} />
+    case 'Code':
+      return <ClaudeModsCode props={props} />
+    case 'Markdown':
+      return <ClaudeModsMarkdown node={node} />
+    case 'Svg':
+      return <ClaudeModsSvg props={props} />
+    case 'Client':
+      return (
+        <span className="text-xs text-muted-foreground">
+          {translate(
+            'components.native-chat.claudeMods.clientUnsupported',
+            'This part of the mod runs its own code, which Orca does not draw yet.'
+          )}
+        </span>
+      )
+  }
+}
+
+function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
+  const scope = useClaudeModsDrawScope()
+  const { props } = node
+  const label = propString(props, 'label') ?? ''
+  const hotkey = propString(props, 'hotkey')
+  const plain = propTrue(props, 'plain')
+  const variant = plain ? 'ghost' : props.variant === 'primary' ? 'default' : 'outline'
+  return (
+    <Button
+      type="button"
+      size="xs"
+      variant={variant}
+      data-claude-mods-key={propString(props, 'key')}
+      autoFocus={propTrue(props, 'autoFocus') && scope?.focusRequested === true}
+      disabled={!node.press || !scope}
+      onClick={() => {
+        if (node.press && scope) {
+          scope.controller.press(scope.instanceId, node.press, propString(props, 'key'))
+        }
+      }}
+    >
+      <span style={propTrue(props, 'dimColor') ? { opacity: 0.6 } : undefined}>{label}</span>
+      {hotkey ? <ShortcutKeyCombo keys={[hotkey.toUpperCase()]} /> : null}
+    </Button>
+  )
+}
+
+function ClaudeModsLink({ node }: { node: ElementNode }): React.JSX.Element {
+  const href = propString(node.props, 'href')
+  const label = node.children.length > 0 ? null : (propString(node.props, 'label') ?? href)
+  if (!isClaudeModsOpenableUrl(href)) {
+    return (
+      <span>
+        {label}
+        <ClaudeModsChildren nodes={node.children} />
+      </span>
+    )
+  }
+  return (
+    <a
+      href={href}
+      className="underline underline-offset-2 hover:text-chat-foreground-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={(event) => {
+        event.preventDefault()
+        openClaudeModsUrl(href)
+      }}
+    >
+      {label}
+      <ClaudeModsChildren nodes={node.children} />
+    </a>
+  )
+}
+
+function ClaudeModsCode({ props }: { props: Record<string, unknown> }): React.JSX.Element {
+  const source = propString(props, 'source') ?? ''
+  const language = propString(props, 'language')
+  const startLine = propNumber(props, 'startLine')
+  const diff = useMemo(
+    () => (props.format === 'diff' ? diffFromText(source) : null),
+    [props.format, source]
+  )
+  if (diff) {
+    return <NativeChatDiffView lines={diff} />
+  }
+  const truncates = props.wrap === 'truncate-end'
+  return (
+    <pre
+      data-native-chat-code-content
+      className="m-0 min-w-0 max-w-full overflow-x-auto rounded-lg border border-chat-code-border bg-chat-code-surface p-2 font-mono text-chat-code text-chat-code-foreground"
+      style={{ whiteSpace: truncates ? 'pre' : 'pre-wrap', overflowWrap: 'anywhere' }}
+    >
+      {startLine === undefined ? null : (
+        <span
+          aria-hidden
+          className="float-left mr-3 select-none text-right text-chat-foreground-faint"
+        >
+          {source.split('\n').map((_line, index) => (
+            <span key={index} className="block">
+              {startLine + index}
+            </span>
+          ))}
+        </span>
+      )}
+      <code>
+        {language ? <NativeChatHighlightedCode code={source} language={language} /> : source}
+      </code>
+    </pre>
+  )
+}
+
+function ClaudeModsMarkdown({ node }: { node: ElementNode }): React.JSX.Element {
+  const scope = useClaudeModsDrawScope()
+  const text = propString(node.props, 'text') ?? ''
+  const pressable = Array.isArray(node.props.pressableLinks)
+    ? node.props.pressableLinks.filter((href): href is string => typeof href === 'string')
+    : null
+  return (
+    <div style={propTrue(node.props, 'dimColor') ? { opacity: 0.6 } : undefined}>
+      <NativeChatMarkdown
+        content={text}
+        onLinkClick={(event, href) => {
+          event.preventDefault()
+          // A Markdown with `press` answers its own links; the surface does not open them.
+          if (node.press && scope && href && (!pressable || pressable.includes(href))) {
+            scope.controller.press(
+              scope.instanceId,
+              node.press,
+              propString(node.props, 'key'),
+              href
+            )
+            return
+          }
+          openClaudeModsUrl(href)
+        }}
+      />
+    </div>
+  )
+}
+
+/** Drawn as an image, never inline: an SVG in an `<img>` runs no script and fetches nothing. */
+function ClaudeModsSvg({ props }: { props: Record<string, unknown> }): React.JSX.Element | null {
+  const source = propString(props, 'source')
+  const src = useMemo(
+    () =>
+      source
+        ? `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(source)))}`
+        : null,
+    [source]
+  )
+  return src ? (
+    <img src={src} alt={propString(props, 'alt') ?? ''} className="max-w-full" draggable={false} />
+  ) : null
+}
