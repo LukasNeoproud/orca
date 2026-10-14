@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { MessageSquarePlus, Send } from 'lucide-react'
+import { MessageSquarePlus, Send, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
@@ -11,10 +11,13 @@ import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 
 export function AzureDevOpsReviewDrafts({
   detail,
-  onChanged
+  onChanged,
+  onAskAi
 }: {
   detail: AzureDevOpsReviewDetail
   onChanged: () => Promise<void>
+  /** Opens the send-to-AI dialog with these drafts picked. */
+  onAskAi: (draftIds: string[]) => void
 }): React.JSX.Element {
   const confirm = useConfirmationDialog()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -142,6 +145,17 @@ export function AzureDevOpsReviewDrafts({
         </Button>
         {generalButton}
         <span className="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending.length === 0}
+          onClick={() =>
+            onAskAi(pending.filter((draft) => selected.has(draft.id)).map((draft) => draft.id))
+          }
+        >
+          <Sparkles className="size-3.5" />
+          {translate('azureDevOpsReview.askAi', 'Ask AI')}
+        </Button>
         <Button
           size="sm"
           disabled={publishing || selectedIds.length === 0}

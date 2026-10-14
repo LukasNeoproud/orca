@@ -28,11 +28,12 @@ import {
   type AzureDevOpsReviewOptions
 } from '../../../shared/azure-devops-review-options'
 
-/** Launches the default agent in the review worktree with the review prompt. */
+/** Launches the default agent in the review worktree with the review prompt, or `prompt` instead. */
 export async function startAzureDevOpsReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
   worktree: { worktreeId: string; repoId: string },
-  options?: AzureDevOpsReviewOptions
+  options?: AzureDevOpsReviewOptions,
+  prompt?: string
 ): Promise<boolean> {
   const worktreeId = worktree.worktreeId
   await useAppStore.getState().fetchWorktrees(worktree.repoId)
@@ -97,11 +98,9 @@ export async function startAzureDevOpsReviewAgent(
     agentArgs: launchArgs.length
       ? [...launchArgs, defaultArgs].filter(Boolean).join(' ')
       : undefined,
-    prompt: buildAzureDevOpsReviewAgentPrompt(
-      pullRequest,
-      { cli, mcp: mcpArgs !== null },
-      reviewOptions
-    ),
+    prompt:
+      prompt ??
+      buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp: mcpArgs !== null }, reviewOptions),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })

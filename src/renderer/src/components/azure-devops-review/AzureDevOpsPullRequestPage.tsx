@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ExternalLink, FolderGit2, RefreshCw, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ExternalLink, FolderGit2, RefreshCw, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -27,6 +27,8 @@ import {
 } from '@/store/azure-devops-review-options'
 import type { AzureDevOpsReviewOptions } from '../../../../shared/azure-devops-review-options'
 import { AzureDevOpsReviewOptionsDialog } from './AzureDevOpsReviewOptionsDialog'
+import { AzureDevOpsDraftsAiDialog } from './AzureDevOpsDraftsAiDialog'
+import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
 
 type ReviewMode = 'workspace' | 'agent'
 
@@ -58,12 +60,31 @@ export function AzureDevOpsPullRequestPage({
   const confirm = useConfirmationDialog()
   const [busy, setBusy] = useState<ReviewMode | null>(null)
   const [choosingOptions, setChoosingOptions] = useState(false)
+  const [aiDraftIds, setAiDraftIds] = useState<string[] | null>(null)
   const pr = detail?.pullRequest ?? null
   const unpublished = detail?.drafts.filter((draft) => draft.state !== 'published').length ?? 0
+  const pendingAiPrompts = useAzureDevOpsReviewDraftPrompts(
+    (s) =>
+      Object.values(s.prompts).filter((prompt) => prompt.pullRequestKey === pullRequestKey).length
+  )
+  useEffect(() => {
+    if (detail) {
+      useAzureDevOpsReviewDraftPrompts
+        .getState()
+        .prunePrompts(
+          detail.pullRequest.key,
+          new Set(detail.drafts.filter((d) => d.state !== 'published').map((d) => d.id))
+        )
+    }
+  }, [detail])
 
-  const review = async (mode: ReviewMode, options?: AzureDevOpsReviewOptions): Promise<void> => {
+  const review = async (
+    mode: ReviewMode,
+    options?: AzureDevOpsReviewOptions,
+    prompt?: string
+  ): Promise<boolean> => {
     if (!pr) {
-      return
+      return false
     }
     setBusy(mode)
     try {
@@ -82,26 +103,28 @@ export function AzureDevOpsPullRequestPage({
           confirmVariant: 'destructive'
         })
         if (!discard) {
-          return
+          return false
         }
         result = await openAzureDevOpsReviewWorktree(pullRequestKey, true)
       }
       if (!result.ok) {
         toast.error(result.message)
-        return
+        return false
       }
       useAzureDevOpsReviewChatLinks
         .getState()
         .setWorktreePullRequest(result.worktree.worktreeId, result.worktree.pullRequestKey)
       const opened =
         mode === 'agent'
-          ? await startAzureDevOpsReviewAgent(pr, result.worktree, options)
+          ? await startAzureDevOpsReviewAgent(pr, result.worktree, options, prompt)
           : await revealAzureDevOpsReviewWorktree(result.worktree)
       if (opened) {
         closeAzureDevOpsPullRequestPage()
       }
+      return opened
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setBusy(null)
     }
@@ -165,6 +188,19 @@ export function AzureDevOpsPullRequestPage({
                   )}
             </TooltipContent>
           </Tooltip>
+          {pendingAiPrompts > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!detail || busy !== null}
+              onClick={() => setAiDraftIds([])}
+            >
+              <Sparkles className="size-3.5" />
+              {translate('azureDevOpsReview.sendAiPrompts', 'Send AI prompts ({{value0}})', {
+                value0: pendingAiPrompts
+              })}
+            </Button>
+          ) : null}
           <AzureDevOpsReviewAiButton
             pullRequestKey={pullRequestKey}
             disabled={!pr || busy !== null || forkBlocked}
@@ -279,7 +315,7 @@ export function AzureDevOpsPullRequestPage({
           </TabsContent>
           <TabsContent value="drafts" className={SCROLLING_TAB_CLASS}>
             <div className="mx-auto w-full max-w-4xl px-4 py-4">
-              <AzureDevOpsReviewDrafts detail={detail} onChanged={reload} />
+              <AzureDevOpsReviewDrafts detail={detail} onChanged={reload} onAskAi={setAiDraftIds} />
             </div>
           </TabsContent>
         </Tabs>
@@ -293,6 +329,14 @@ export function AzureDevOpsPullRequestPage({
             storeAzureDevOpsReviewOptions(options)
             void review('agent', options)
           }}
+        />
+      ) : null}
+      {aiDraftIds && detail ? (
+        <AzureDevOpsDraftsAiDialog
+          detail={detail}
+          initialDraftIds={aiDraftIds}
+          onClose={() => setAiDraftIds(null)}
+          onStartNewChat={(prompt) => review('agent', readAzureDevOpsReviewOptions(), prompt)}
         />
       ) : null}
     </div>

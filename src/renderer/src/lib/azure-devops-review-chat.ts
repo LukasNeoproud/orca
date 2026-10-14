@@ -4,6 +4,7 @@ import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-
 import { activateWorkspaceTabPaletteResult } from '@/lib/workspace-tab-palette-activation'
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
+import type { AgentMessageTarget } from '@/lib/agent-message-target'
 import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import type { Tab } from '../../../shared/tab-types'
 
@@ -92,6 +93,19 @@ export function openAzureDevOpsReviewChat(tab: TerminalTab): boolean {
   // Why: the page overlays the workbench; staying in the same workspace would leave it covering the chat.
   closeAzureDevOpsPullRequestPage()
   return true
+}
+
+/** Where a message for the pull request's agent tab goes: its structured chat or terminal pane. */
+export function azureDevOpsReviewChatMessageTarget(tab: TerminalTab): AgentMessageTarget | null {
+  const state = useAppStore.getState()
+  const chat = (state.unifiedTabsByWorktree[tab.worktreeId] ?? []).find(
+    (candidate) => candidate.contentType === 'agent-session' && candidate.id === tab.id
+  )
+  if (chat) {
+    return { kind: 'structured-session', sessionId: chat.entityId }
+  }
+  const leafId = state.terminalLayoutsByTabId[tab.id]?.activeLeafId
+  return leafId ? { kind: 'terminal', tabId: tab.id, leafId } : null
 }
 
 /** Drops links to tabs that no longer exist so the store does not grow forever. */

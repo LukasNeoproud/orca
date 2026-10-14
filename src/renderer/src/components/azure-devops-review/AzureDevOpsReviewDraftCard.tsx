@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, Pencil, Trash2, User } from 'lucide-react'
+import { Bot, Pencil, Sparkles, Trash2, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,7 +12,9 @@ import {
   updateAzureDevOpsReviewDraft
 } from '@/lib/azure-devops-review-client'
 import type { AzureDevOpsReviewDraftView } from '../../../../shared/azure-devops-review-types'
+import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
 import { draftLocationLabel, threadStatusLabel } from './azure-devops-review-labels'
+import { AzureDevOpsDraftAiPrompt } from './AzureDevOpsDraftAiPrompt'
 
 export function AzureDevOpsReviewDraftCard({
   draft,
@@ -28,6 +30,7 @@ export function AzureDevOpsReviewDraftCard({
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(draft.body)
   const [busy, setBusy] = useState(false)
+  const aiPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.prompts[draft.id]?.text ?? '')
   const published = draft.state === 'published'
   const selectable = !published && !draft.outdated
 
@@ -84,6 +87,11 @@ export function AzureDevOpsReviewDraftCard({
         ) : null}
         {!published && !editing ? (
           <>
+            <AzureDevOpsDraftAiPrompt
+              draftId={draft.id}
+              pullRequestKey={draft.pullRequestKey}
+              variant="button"
+            />
             <Button
               variant="ghost"
               size="icon-xs"
@@ -139,6 +147,12 @@ export function AzureDevOpsReviewDraftCard({
         ) : (
           <CommentMarkdownAsync content={draft.body} className="text-sm" />
         )}
+        {aiPrompt && !published ? (
+          <p className="flex items-start gap-1.5 rounded-sm bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+            <Sparkles className="mt-0.5 size-3 shrink-0" />
+            <span className="min-w-0 whitespace-pre-wrap">{aiPrompt}</span>
+          </p>
+        ) : null}
         {draft.outdated && !published ? (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="flex-1">

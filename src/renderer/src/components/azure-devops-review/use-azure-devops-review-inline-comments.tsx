@@ -14,8 +14,9 @@ import {
   azureDevOpsInlineCommentScope,
   buildAzureDevOpsInlineComments
 } from './azure-devops-review-inline-comments'
+import { AzureDevOpsDraftAiPrompt } from './AzureDevOpsDraftAiPrompt'
 
-/** Threads and drafts for the diff decorator, with edit/delete wired to the draft store. */
+/** Threads and drafts for the diff decorator, with edit/delete/AI prompt wired to the drafts. */
 export function useAzureDevOpsReviewInlineComments(
   detail: AzureDevOpsReviewDetail,
   onChanged: () => Promise<void>
@@ -24,6 +25,7 @@ export function useAzureDevOpsReviewInlineComments(
   comments: DecoratedDiffComment[]
   actions: InlineDiffCommentActions
 } {
+  const pullRequestKey = detail.pullRequest.key
   const comments = useMemo(() => buildAzureDevOpsInlineComments(detail), [detail])
   // Why: a stable actions object keeps every mounted diff from re-running its decorator on reload.
   const onChangedRef = useRef(onChanged)
@@ -54,9 +56,19 @@ export function useAzureDevOpsReviewInlineComments(
           toast.error(error instanceof Error ? error.message : String(error))
           return false
         }
+      },
+      renderHeaderActions: (comment) => {
+        const draftId = azureDevOpsDraftIdFromInlineComment(comment.id)
+        return draftId ? (
+          <AzureDevOpsDraftAiPrompt
+            draftId={draftId}
+            pullRequestKey={pullRequestKey}
+            variant="pill"
+          />
+        ) : null
       }
     }),
-    []
+    [pullRequestKey]
   )
-  return { scope: azureDevOpsInlineCommentScope(detail.pullRequest.key), comments, actions }
+  return { scope: azureDevOpsInlineCommentScope(pullRequestKey), comments, actions }
 }
