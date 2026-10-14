@@ -5,6 +5,7 @@ import {
   claudeModsCellMetrics,
   claudeModsColumnsFitting,
   claudeModsRowAt,
+  claudeModsRowContaining,
   claudeModsRowsCovering,
   claudeModsRowsFitting
 } from './claude-mods-layout-metrics'
@@ -61,21 +62,25 @@ export function measureClaudeModsSite(
     ) {
       continue
     }
-    const top = claudeModsRowAt(rect.top - origin, metrics)
+    const top = claudeModsRowContaining(rect.top - origin, metrics)
     const bottom = Math.max(top + 1, claudeModsRowsCovering(rect.bottom - origin, metrics))
     keyed.push({ plugin, key, top, bottom })
     if (keyed.length >= MAX_CLAUDE_MODS_KEYED) {
       break
     }
   }
+  const bodyRows = claudeModsRowsFitting(container.clientHeight, metrics)
+  // The engine's last offset is contentRows - bodyRows, so it must be the row the DOM's real
+  // maximum scrollTop lands on; counting the two sides with different roundings overshoots it.
+  const maxOffset = claudeModsRowAt(container.scrollHeight - container.clientHeight, metrics)
   return {
     offset: claudeModsRowAt(container.scrollTop, metrics),
-    bodyRows: claudeModsRowsFitting(container.clientHeight, metrics),
+    bodyRows,
     bodyColumns: claudeModsColumnsFitting(
       container.clientWidth - paddingPx(style, 'Left') - paddingPx(style, 'Right'),
       metrics
     ),
-    contentRows: claudeModsRowsCovering(container.scrollHeight, metrics),
+    contentRows: bodyRows + maxOffset,
     keyed
   }
 }

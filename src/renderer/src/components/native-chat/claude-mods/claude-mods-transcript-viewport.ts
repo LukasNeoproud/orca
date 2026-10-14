@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { claudeModsTranscriptSites } from './claude-mods-transcript-sites'
+import { useLayoutEffect, useRef } from 'react'
+import { claudeModsTranscriptSites } from './claude-mods-transcript-sites-registry'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
 import type { ClaudeModsViewport } from './claude-mods-surface-types'
 
@@ -19,7 +19,8 @@ export function useClaudeModsTranscriptViewport(
   controller: ClaudeModsSurfaceController | null
 ): React.RefObject<HTMLDivElement | null> {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  // A layout effect runs before the rows' passive ones, so their first asks carry the column.
+  useLayoutEffect(() => {
     const element = ref.current
     if (!controller || !element) {
       return

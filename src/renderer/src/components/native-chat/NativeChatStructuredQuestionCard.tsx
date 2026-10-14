@@ -2,6 +2,10 @@ import type { RefObject } from 'react'
 import type { AgentJournalQuestion } from '../../../../shared/agent-session-journal-types'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
+import {
+  ClaudeModsControllerContext,
+  useClaudeModsAttachedController
+} from './claude-mods/claude-mods-controller-context'
 import { ClaudeModsQuestionSite } from './claude-mods/ClaudeModsSiteRows'
 
 export function NativeChatStructuredQuestionCard({
@@ -11,7 +15,8 @@ export function NativeChatStructuredQuestionCard({
   isSubmitting,
   shouldFocus,
   answerInputRef,
-  toolUseId
+  toolUseId,
+  paneKey
 }: {
   questions: readonly AgentJournalQuestion[]
   onAnswer: (response: AgentSessionPromptResponse) => void
@@ -21,7 +26,10 @@ export function NativeChatStructuredQuestionCard({
   answerInputRef?: RefObject<HTMLInputElement | null>
   /** The AskUserQuestion call's `tool_use_id`, which a Claude Code mod knows the dialog by. */
   toolUseId?: string
+  /** The chat pane: the card sits outside the transcript's mods provider, so it finds it by this. */
+  paneKey?: string
 }): React.JSX.Element {
+  const modsController = useClaudeModsAttachedController(paneKey)
   // `display` carries any words a mod relabelled; answers still name the questions Orca offered.
   const drawCard = (display: readonly AgentJournalQuestion[]): React.JSX.Element => (
     <NativeChatQuestionCard
@@ -64,6 +72,12 @@ export function NativeChatStructuredQuestionCard({
     />
   )
   return (
-    <ClaudeModsQuestionSite toolUseId={toolUseId} questions={questions} renderDrawing={drawCard} />
+    <ClaudeModsControllerContext.Provider value={modsController}>
+      <ClaudeModsQuestionSite
+        toolUseId={toolUseId}
+        questions={questions}
+        renderDrawing={drawCard}
+      />
+    </ClaudeModsControllerContext.Provider>
   )
 }

@@ -38,7 +38,16 @@ export type ClaudeModsClientSignal =
 
 export type ClaudeModsClientWorkerMessage =
   | ({ type: 'answer' } & ClaudeModsClientAnswer)
+  /** The worker started running call `seq`; its budget counts from here. */
+  | { type: 'begin'; seq: number }
   | ClaudeModsClientSignal
+
+/** A reason is the module's own text: one thrown at any size is cut before anything holds it. */
+const MAX_REASON_CHARS = 1000
+
+function readReason(value: unknown): string {
+  return typeof value === 'string' ? value.slice(0, MAX_REASON_CHARS) : ''
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -54,6 +63,9 @@ export function readClaudeModsClientWorkerMessage(
 ): ClaudeModsClientWorkerMessage | null {
   if (!isRecord(value)) {
     return null
+  }
+  if (value.type === 'begin') {
+    return typeof value.seq === 'number' ? { type: 'begin', seq: value.seq } : null
   }
   if (value.type === 'answer') {
     if (typeof value.seq !== 'number') {
@@ -73,7 +85,7 @@ export function readClaudeModsClientWorkerMessage(
       type: 'answer',
       seq: value.seq,
       ok: false,
-      reason: typeof value.reason === 'string' ? value.reason : ''
+      reason: readReason(value.reason)
     }
   }
   if (typeof value.id !== 'string') {
@@ -94,7 +106,7 @@ export function readClaudeModsClientWorkerMessage(
       return {
         type: 'fault',
         id: value.id,
-        reason: typeof value.reason === 'string' ? value.reason : ''
+        reason: readReason(value.reason)
       }
     default:
       return null

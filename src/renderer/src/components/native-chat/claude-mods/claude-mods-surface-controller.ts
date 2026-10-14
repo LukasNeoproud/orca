@@ -4,11 +4,8 @@ import {
   type ClaudeModsRequestSubtype,
   type ClaudeModsSurfaceEvent
 } from '../../../../../shared/claude-mods-surface'
-import {
-  readClaudeModsTree,
-  type ClaudeModsPress,
-  readClaudeModsClientModules
-} from './claude-mods-tree'
+import type { ClaudeModsPress } from './claude-mods-tree'
+import { readClaudeModsDrawing } from './claude-mods-drawing-answer'
 import { ClaudeModsHoverStore } from './claude-mods-hover-store'
 import { ClaudeModsLayoutRegistry } from './claude-mods-layout-registry'
 import { openClaudeModsResubscribingStream } from './claude-mods-resubscribing-stream'
@@ -186,6 +183,14 @@ export class ClaudeModsSurfaceController {
     return this.send(subtype, fields)
   }
 
+  /** Like `request`, but a failure rejects, for callers that tell a refusal from a hiccup. */
+  requestStrict(
+    subtype: ClaudeModsRequestSubtype,
+    fields: Record<string, unknown>
+  ): Promise<unknown> {
+    return this.transport.request(subtype, fields)
+  }
+
   /** Every push this controller receives, after it applied it; for sites it does not own. */
   onPush(listener: (event: ClaudeModsSurfaceEvent) => void): () => void {
     this.pushListeners.add(listener)
@@ -322,17 +327,9 @@ export class ClaudeModsSurfaceController {
     if (isPane && !this.snapshot.roster.panes.some((pane) => pane.id === instanceId)) {
       return
     }
-    const drawnBy = Array.isArray(answer.drawn_by)
-      ? answer.drawn_by.filter((name): name is string => typeof name === 'string')
-      : []
-    const clientModules = readClaudeModsClientModules(answer.client_modules)
-    const drawing = { tree: readClaudeModsTree(answer.tree), hooked, drawnBy }
     this.update({
       ...this.snapshot,
-      drawings: {
-        ...this.snapshot.drawings,
-        [instanceId]: clientModules ? { ...drawing, clientModules } : drawing
-      }
+      drawings: { ...this.snapshot.drawings, [instanceId]: readClaudeModsDrawing(answer, hooked) }
     })
   }
 

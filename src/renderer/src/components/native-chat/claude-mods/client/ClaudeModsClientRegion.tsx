@@ -232,6 +232,8 @@ function ClaudeModsClientMounted({
       }}
       onPointerMove={pointer.onPointerMove}
       onPointerUp={pointer.onPointerUp}
+      onPointerCancel={pointer.onPointerCancel}
+      onLostPointerCapture={pointer.onLostPointerCapture}
       onPointerEnter={pointer.onPointerEnter}
       onPointerLeave={pointer.onPointerLeave}
       onBlur={(event) => {

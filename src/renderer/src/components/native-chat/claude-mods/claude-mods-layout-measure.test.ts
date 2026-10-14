@@ -83,6 +83,28 @@ describe('measureClaudeModsSite', () => {
     ])
   })
 
+  it('floors a keyed top so a start scroll shows the element whole', () => {
+    const { container, add } = site()
+    add(
+      { 'data-claude-mods-key': 'card', 'data-claude-mods-owner': 'notes' },
+      rect(atRow(3) + 0.6 * ROW, ROW)
+    )
+    expect(measureClaudeModsSite(container).keyed).toEqual([
+      { plugin: 'notes', key: 'card', top: 3, bottom: 5 }
+    ])
+  })
+
+  it('ends the engine window on the row the DOM can really scroll to', () => {
+    const { container } = site()
+    // 25.5 rows of window, 51 rows of content: the DOM bottom is scrollTop 25.5 rows, row 26.
+    measurable(container, { clientHeight: 25.5 * ROW, scrollHeight: 51 * ROW })
+    const layout = measureClaudeModsSite(container)
+    expect(layout.bodyRows).toBe(25)
+    expect(layout.contentRows - layout.bodyRows).toBe(26)
+    measurable(container, { scrollTop: 25.5 * ROW })
+    expect(measureClaudeModsSite(container).offset).toBe(layout.contentRows - layout.bodyRows)
+  })
+
   it('leaves out hidden elements and names the wire would refuse', () => {
     const { container, add } = site()
     add({ 'data-claude-mods-key': 'gone', 'data-claude-mods-owner': 'notes' }, rect(0, 0, 0))

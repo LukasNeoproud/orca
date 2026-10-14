@@ -144,7 +144,7 @@ function ClaudeModsBox({ node }: { node: ElementNode }): React.JSX.Element {
         ? { [CLAUDE_MODS_KEY_ATTRIBUTE]: key, [CLAUDE_MODS_OWNER_ATTRIBUTE]: node.owner }
         : {})}
       style={claudeModsHoveredBoxStyle(props, node.hover, hover.lit)}
-      {...hover.pointerHandlers}
+      ref={hover.hoverRef}
     >
       {keyedClaudeModsChildren(node.children).map(([childKey, child]) =>
         child.kind === 'text' ? (
@@ -172,7 +172,7 @@ function ClaudeModsText({ node }: { node: ElementNode }): React.JSX.Element {
     <span
       data-claude-mods-plugin={node.plugin}
       style={claudeModsHoveredTextStyle(node.props, node.hover, hover.lit)}
-      {...hover.pointerHandlers}
+      ref={hover.hoverRef}
     >
       <ClaudeModsChildren nodes={node.children} />
     </span>
@@ -202,7 +202,7 @@ function ClaudeModsButton({ node }: { node: ElementNode }): React.JSX.Element {
       aria-label={node.children.length > 0 && label ? label : undefined}
       {...claudeModsControlAttributes(key, node.press?.plugin, propTrue(props, 'autoFocus'))}
       disabled={!node.press || !scope}
-      {...hover.pointerHandlers}
+      ref={hover.hoverRef}
       onClick={() => {
         if (node.press && scope) {
           claudeModsDispatch(scope).press(node.press, key)

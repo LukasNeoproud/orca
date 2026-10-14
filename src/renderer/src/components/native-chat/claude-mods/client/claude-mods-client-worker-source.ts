@@ -3,6 +3,9 @@
 // blob: URLs for the served files itself, keeps what the host needs, and withholds the network,
 // storage, timers and code-from-text before any of the plugin's code runs. Kept as plain text so
 // no bundler or coverage transform reaches into it; it must stay free of backticks.
+// A computed import(expr) is syntax and cannot be withheld: it relies on the CLI rewriting it to
+// surface-unlinked:///computed#..., which resolves nowhere because this bootstrap provides no
+// import map and its data: base URL resolves no relative specifier.
 
 const WORKER_SOURCE = String.raw`'use strict';
 const g = globalThis;
@@ -14,14 +17,16 @@ const BlobOf = Blob;
 const realConsole = g.console;
 const stringify = JSON.stringify;
 const MIN_INTERVAL_MS = 16;
+const MAX_REASON_CHARS = 1000;
 const WITHHELD = [
   'fetch', 'XMLHttpRequest', 'WebSocket', 'WebSocketStream', 'WebTransport', 'EventSource',
   'importScripts', 'indexedDB', 'caches', 'cookieStore', 'BroadcastChannel', 'Worker',
-  'SharedWorker', 'Notification', 'FontFace', 'fonts', 'WebAssembly', 'setTimeout', 'setInterval',
+  'SharedWorker', 'fetchLater', 'Notification', 'FontFace', 'fonts', 'WebAssembly', 'setTimeout', 'setInterval',
   'clearTimeout', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'postMessage',
   'close', 'eval', 'RTCPeerConnection', 'RTCDataChannel', 'RTCRtpScriptTransformer',
   'webkitRequestFileSystem', 'webkitRequestFileSystemSync', 'webkitResolveLocalFileSystemURL'
 ];
+const WITHHELD_FROM_NAVIGATOR = ['sendBeacon', 'serviceWorker', 'storage', 'locks'];
 let api = null;
 const urls = new Map();
 const namespaces = new Map();
@@ -31,18 +36,18 @@ let nextTimer = 0;
 const reasonOf = (error) => {
   try {
     const message = typeof error === 'object' && error !== null ? error.message : error;
-    return typeof message === 'string' ? message : String(message);
+    return (typeof message === 'string' ? message : String(message)).slice(0, MAX_REASON_CHARS);
   } catch {
     return 'a failure that could not be read';
   }
 };
 
-const withhold = (name) => {
-  for (let owner = g; owner && owner !== Object.prototype; owner = Object.getPrototypeOf(owner)) {
+const withhold = (name, target = g) => {
+  for (let owner = target; owner && owner !== Object.prototype; owner = Object.getPrototypeOf(owner)) {
     try { delete owner[name]; } catch {}
   }
   try {
-    Object.defineProperty(g, name, { value: undefined, writable: false, configurable: false });
+    Object.defineProperty(target, name, { value: undefined, writable: false, configurable: false });
   } catch {}
 };
 
@@ -68,6 +73,8 @@ const sandbox = (plugin) => {
   const console = Object.freeze({
     log: say('log'), info: say('info'), warn: say('warn'), error: say('error'), debug: say('debug')
   });
+  const nav = g.navigator;
+  if (nav) for (const name of WITHHELD_FROM_NAVIGATOR) withhold(name, nav);
   for (const name of WITHHELD) withhold(name);
   try { delete URL.createObjectURL; } catch {}
   try { delete URL.revokeObjectURL; } catch {}
@@ -100,7 +107,7 @@ const host = Object.freeze({
     stopInterval(interval);
     own.delete(handle);
   },
-  fault: (id, reason) => send({ type: 'fault', id, reason: String(reason) })
+  fault: (id, reason) => send({ type: 'fault', id, reason: String(reason).slice(0, MAX_REASON_CHARS) })
 });
 
 const load = async (call) => {
@@ -108,7 +115,7 @@ const load = async (call) => {
     const text = file.parts
       .map((part) => typeof part === 'string'
         ? part
-        : stringify(urls.get(part.link) ?? 'surface-unlinked:///' + encodeURIComponent(part.link)))
+        : stringify(urls.get(part.link) ?? 'orca-unlinked:' + encodeURIComponent(part.link)))
       .join('');
     urls.set(file.key, makeUrl(new BlobOf([text], { type: 'text/javascript' })));
   }
@@ -172,6 +179,8 @@ g.addEventListener('message', async (event) => {
   try {
     if (!op) throw new Error('unknown surface call ' + call.op);
     if (call.op !== 'load' && !api) throw new Error('the surface runtime is not loaded');
+    // The renderer times a call from here, not from when it waited behind another instance's.
+    send({ type: 'begin', seq: call.seq });
     const value = await op(call);
     const listeners = api && typeof call.id === 'string' && call.op !== 'unmount'
       ? { key: api.hasListener(call.id, 'key'), pointer: api.hasListener(call.id, 'pointer') }

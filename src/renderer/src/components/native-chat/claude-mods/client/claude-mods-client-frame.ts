@@ -12,6 +12,10 @@ import { claudeModsClientWorkerUrl } from './claude-mods-client-worker-source'
 export const CLAUDE_MODS_CLIENT_CALL_BUDGET_MS = 1000
 /** Loading and a mount also evaluate the modules' top level, which the budget does not cover. */
 export const CLAUDE_MODS_CLIENT_LOAD_BUDGET_MS = 5000
+/** Calls wait and the worker began none nor said anything this long: it is stuck between calls. */
+export const CLAUDE_MODS_CLIENT_STALL_MS = 5000
+/** A renderer stall fires a budget late, maybe ahead of an answer already queued: wait once more. */
+const LATE_GRACE_MS = 250
 
 /** The part of a Worker the frame uses, so tests can drive a fake one. */
 export type ClaudeModsClientWorkerLike = {
@@ -44,21 +48,32 @@ export type ClaudeModsClientFrameDeath = { id?: string; op: string; reason: stri
 
 type Pending = {
   resolve: (result: ClaudeModsClientCallResult) => void
-  timer: ReturnType<typeof setTimeout>
+  budget: number
+  /** Armed when the worker begins the call, so time spent queued behind others never counts. */
+  timer: ReturnType<typeof setTimeout> | null
+  postedAt: number
+  begunAt: number | null
+  graced: boolean
   id?: string
   op: string
 }
 
 /**
- * One plugin's surface modules at one hash, in a dedicated worker. Calls answer within their
- * budget or the worker is terminated, every pending call fails and every instance hears so.
+ * One plugin's surface modules at one hash, in a dedicated worker. A call answers within its
+ * budget of running time or the worker is terminated, every pending call fails and every instance
+ * hears so, the one whose call overran first.
  */
 export class ClaudeModsClientFrame {
   private worker: ClaudeModsClientWorkerLike | null
   private seq = 0
   private readonly pending = new Map<number, Pending>()
   private readonly signals = new Map<string, (signal: ClaudeModsClientSignal) => void>()
-  private readonly deathListeners = new Set<(death: ClaudeModsClientFrameDeath) => void>()
+  private readonly deathListeners = new Map<
+    (death: ClaudeModsClientFrameDeath) => void,
+    string | undefined
+  >()
+  private stall: ReturnType<typeof setTimeout> | null = null
+  private lastHeard = 0
   private deathCause: ClaudeModsClientFrameDeath | null = null
   readonly ready: Promise<ClaudeModsClientCallResult>
 
@@ -96,17 +111,18 @@ export class ClaudeModsClientFrame {
         ? CLAUDE_MODS_CLIENT_LOAD_BUDGET_MS
         : CLAUDE_MODS_CLIENT_CALL_BUDGET_MS
     return new Promise((resolve) => {
-      const timer = setTimeout(
-        () =>
-          this.die({
-            ...(id ? { id } : {}),
-            op: call.op,
-            reason: `ran longer than its ${budget}ms budget`
-          }),
-        budget
-      )
-      this.pending.set(seq, { resolve, timer, op: call.op, ...(id ? { id } : {}) })
+      this.pending.set(seq, {
+        resolve,
+        budget,
+        timer: null,
+        postedAt: Date.now(),
+        begunAt: null,
+        graced: false,
+        op: call.op,
+        ...(id ? { id } : {})
+      })
       worker.postMessage({ ...call, seq })
+      this.stall ??= setTimeout(() => this.stalled(), CLAUDE_MODS_CLIENT_STALL_MS)
     })
   }
 
@@ -126,8 +142,9 @@ export class ClaudeModsClientFrame {
     }
   }
 
-  onDeath(listener: (death: ClaudeModsClientFrameDeath) => void): () => void {
-    this.deathListeners.add(listener)
+  /** `id`: the instance listening, told first when its own call is the one that overran. */
+  onDeath(listener: (death: ClaudeModsClientFrameDeath) => void, id?: string): () => void {
+    this.deathListeners.set(listener, id)
     return () => this.deathListeners.delete(listener)
   }
 
@@ -142,13 +159,20 @@ export class ClaudeModsClientFrame {
     if (!message) {
       return
     }
+    this.lastHeard = Date.now()
+    if (message.type === 'begin') {
+      this.begin(message.seq)
+      return
+    }
     if (message.type === 'answer') {
       const pending = this.pending.get(message.seq)
       if (!pending) {
         return
       }
       this.pending.delete(message.seq)
-      clearTimeout(pending.timer)
+      if (pending.timer) {
+        clearTimeout(pending.timer)
+      }
       pending.resolve(
         message.ok
           ? {
@@ -163,13 +187,67 @@ export class ClaudeModsClientFrame {
     this.signals.get(message.id)?.(message)
   }
 
+  private begin(seq: number): void {
+    const pending = this.pending.get(seq)
+    if (!pending || pending.begunAt !== null) {
+      return
+    }
+    pending.begunAt = Date.now()
+    pending.timer = setTimeout(() => this.overran(seq), pending.budget)
+  }
+
+  private overran(seq: number): void {
+    const pending = this.pending.get(seq)
+    if (!pending) {
+      return
+    }
+    const late = Date.now() - (pending.begunAt ?? 0) - pending.budget
+    if (late > LATE_GRACE_MS && !pending.graced) {
+      pending.graced = true
+      pending.timer = setTimeout(() => this.overran(seq), LATE_GRACE_MS)
+      return
+    }
+    this.die({
+      ...(pending.id ? { id: pending.id } : {}),
+      op: pending.op,
+      reason: `ran longer than its ${pending.budget}ms budget`
+    })
+  }
+
+  /** Calls wait, none begun, and the worker said nothing since the oldest was posted. */
+  private stalled(): void {
+    this.stall = null
+    const waiting = [...this.pending.values()]
+    if (waiting.length === 0 || this.deathCause) {
+      return
+    }
+    // A call it began is bounded by its own budget.
+    const begun = waiting.some((pending) => pending.begunAt !== null)
+    const oldest = Math.min(...waiting.map((pending) => pending.postedAt))
+    const quiet = Date.now() - Math.max(this.lastHeard, oldest)
+    if (!begun && quiet >= CLAUDE_MODS_CLIENT_STALL_MS) {
+      this.die({ op: 'run', reason: 'its frame stopped answering' })
+      return
+    }
+    const wait = begun ? CLAUDE_MODS_CLIENT_STALL_MS : CLAUDE_MODS_CLIENT_STALL_MS - quiet
+    this.stall = setTimeout(() => this.stalled(), wait)
+  }
+
   private die(death: ClaudeModsClientFrameDeath): void {
     if (this.deathCause) {
       return
     }
     this.stop(death)
-    for (const listener of this.deathListeners) {
-      listener(death)
+    const listeners = [...this.deathListeners]
+    const culprit = listeners.filter(([, id]) => id !== undefined && id === death.id)
+    for (const [listener] of [
+      ...culprit,
+      ...listeners.filter((entry) => !culprit.includes(entry))
+    ]) {
+      // One told earlier may have remounted and left this frame meanwhile.
+      if (this.deathListeners.has(listener)) {
+        listener(death)
+      }
     }
   }
 
@@ -177,8 +255,14 @@ export class ClaudeModsClientFrame {
     this.deathCause ??= death
     this.worker?.terminate()
     this.worker = null
+    if (this.stall) {
+      clearTimeout(this.stall)
+      this.stall = null
+    }
     for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer)
+      if (pending.timer) {
+        clearTimeout(pending.timer)
+      }
       pending.resolve({ ok: false, reason: death.reason })
     }
     this.pending.clear()

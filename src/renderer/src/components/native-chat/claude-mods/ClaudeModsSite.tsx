@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ClaudeModsDrawContext, type ClaudeModsDrawScope } from './claude-mods-draw-scope'
 import { useClaudeModsController } from './claude-mods-controller-context'
 import { ClaudeModsNodeView } from './ClaudeModsElement'
-import type { ClaudeModsSiteAnswer } from './claude-mods-transcript-answer'
 import {
-  claudeModsTranscriptSites,
-  type ClaudeModsTranscriptSites
-} from './claude-mods-transcript-sites'
+  markClaudeModsPrimaryEngine,
+  type ClaudeModsSiteAnswer
+} from './claude-mods-transcript-answer'
+import { claudeModsPropsEqual } from './claude-mods-transcript-props-equal'
+import type { ClaudeModsTranscriptSites } from './claude-mods-transcript-sites'
+import { claudeModsTranscriptSites } from './claude-mods-transcript-sites-registry'
 import { measureClaudeModsTranscriptViewport } from './claude-mods-transcript-viewport'
 import type { ClaudeModsNode } from './claude-mods-tree'
 import type { ClaudeModsSurfaceController } from './claude-mods-surface-controller'
@@ -16,22 +19,14 @@ const ASK_DEBOUNCE_MS = 150
 
 type SiteProps = Record<string, unknown>
 
-function propsEqual(a: SiteProps, b: SiteProps): boolean {
-  const keys = Object.keys(a)
-  if (keys.length === Object.keys(b).length && keys.every((key) => Object.is(a[key], b[key]))) {
-    return true
-  }
-  try {
-    return JSON.stringify(a) === JSON.stringify(b)
-  } catch {
-    return false
-  }
-}
+const CORE_ONLY: ClaudeModsNode = { kind: 'engine', ref: 0 }
+const SLOT_VISIBLE = { display: 'contents' } as const
+const SLOT_HIDDEN = { display: 'none' } as const
 
 /** The same object while its contents hold, so a row redrawing for other reasons asks nothing. */
 function useStableProps(props: SiteProps): SiteProps {
   const ref = useRef(props)
-  if (ref.current !== props && !propsEqual(ref.current, props)) {
+  if (ref.current !== props && !claudeModsPropsEqual(ref.current, props)) {
     ref.current = props
   }
   return ref.current
@@ -92,74 +87,122 @@ export function ClaudeModsSite({
   }, [sites, component, instanceId, stable, settled])
 
   const answer = sites && instanceId && settled ? sites.getAnswer(component, instanceId) : null
-  if (!controller || !sites || !instanceId || !answer?.hooked) {
-    return <>{children(props)}</>
+  // Once a mod may draw this row, core's drawing keeps one place in the tree for good: a
+  // different shape around it would remount it and lose its state (an open line, a half answer).
+  const framed = useRef(false)
+  if (sites && (answer?.hooked || sites.isHooked(component))) {
+    framed.current = true
   }
-  const { tree } = answer
-  if (tree.kind === 'engine') {
-    return <>{children(tree.ref === 0 ? props : answer.props)}</>
-  }
-  if (validate && !validate(tree)) {
+  if (!framed.current) {
     return <>{children(props)}</>
   }
   return (
-    <ClaudeModsDrawnSite
+    <ClaudeModsSiteFrame
       controller={controller}
       sites={sites}
       component={component}
-      instanceId={instanceId}
-      tree={tree}
-      answer={answer}
+      instanceId={instanceId ?? null}
+      answer={answer?.hooked ? answer : null}
       props={props}
+      validate={validate}
       draw={children}
     />
   )
 }
 
-function ClaudeModsDrawnSite({
+/**
+ * Core's drawing lives in a portal whose host element never changes, so React keeps its state
+ * while the host moves to wherever the tree puts the first engine node (or hides, with none).
+ */
+function ClaudeModsSiteFrame({
   controller,
   sites,
   component,
   instanceId,
-  tree,
   answer,
   props,
+  validate,
   draw
 }: {
-  controller: ClaudeModsSurfaceController
-  sites: ClaudeModsTranscriptSites
+  controller: ClaudeModsSurfaceController | null
+  sites: ClaudeModsTranscriptSites | null
   component: string
-  instanceId: string
-  tree: ClaudeModsNode
-  answer: ClaudeModsSiteAnswer
+  instanceId: string | null
+  answer: ClaudeModsSiteAnswer | null
   props: SiteProps
+  validate: ((tree: ClaudeModsNode) => boolean) | undefined
   draw: (props: SiteProps) => ReactNode
 }): React.JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLElement | null>(null)
+  if (!hostRef.current) {
+    hostRef.current = document.createElement('div')
+    hostRef.current.style.display = 'contents'
+  }
+  const host = hostRef.current
+  // A tree this site refuses draws core's own alone.
+  const tree =
+    answer && (answer.tree.kind === 'engine' || !validate || validate(answer.tree))
+      ? answer.tree
+      : CORE_ONLY
+  const placed = useMemo(() => markClaudeModsPrimaryEngine(tree), [tree])
+  const answerProps = answer?.props ?? props
+  const primaryProps = placed.ref === null || placed.ref === 0 ? props : answerProps
   // A transcript drawn only by mods has no other element to read its column from.
   useEffect(() => {
-    if (rootRef.current) {
+    if (sites && rootRef.current && !sites.hasViewport()) {
       sites.setViewport(measureClaudeModsTranscriptViewport(rootRef.current))
     }
   }, [sites])
-  const scope = useMemo<ClaudeModsDrawScope>(
-    () => ({
-      controller,
-      component,
-      instanceId,
-      focusRequested: false,
-      dispatch: sites.dispatch(component, instanceId),
-      renderEngine: (ref) => draw(ref === 0 ? props : answer.props),
-      ...(answer.clientModules ? { clientModules: answer.clientModules } : {}),
-      redrawSite: () => sites.ask(component, instanceId, props)
-    }),
-    [controller, sites, component, instanceId, draw, props, answer]
+  const scope = useMemo<ClaudeModsDrawScope | null>(
+    () =>
+      controller && sites && instanceId
+        ? {
+            controller,
+            component,
+            instanceId,
+            focusRequested: false,
+            dispatch: sites.dispatch(component, instanceId),
+            // Negative refs mark the engine node that holds core's drawing itself.
+            renderEngine: (ref) =>
+              ref < 0 ? (
+                <ClaudeModsEngineSlot host={host} />
+              ) : (
+                draw(ref === 0 ? props : answerProps)
+              ),
+            ...(answer?.clientModules ? { clientModules: answer.clientModules } : {}),
+            redrawSite: () => sites.redraw(component, instanceId, props)
+          }
+        : null,
+    [controller, sites, component, instanceId, host, draw, props, answer, answerProps]
   )
   return (
-    <ClaudeModsDrawContext.Provider value={scope}>
-      <div ref={rootRef} data-claude-mods-site={component} className="min-w-0 max-w-full">
-        <ClaudeModsNodeView node={tree} />
-      </div>
-    </ClaudeModsDrawContext.Provider>
+    <>
+      <ClaudeModsDrawContext.Provider value={scope}>
+        <div ref={rootRef} data-claude-mods-site={component} className="min-w-0 max-w-full">
+          {scope ? <ClaudeModsNodeView node={placed.tree} /> : null}
+          {!scope ? <ClaudeModsEngineSlot host={host} /> : null}
+          {scope && placed.ref === null ? <ClaudeModsEngineSlot host={host} hidden /> : null}
+        </div>
+      </ClaudeModsDrawContext.Provider>
+      {createPortal(draw(primaryProps), host)}
+    </>
   )
+}
+
+/** Where the host of core's drawing sits now; hidden, it still keeps the drawing's elements. */
+function ClaudeModsEngineSlot({
+  host,
+  hidden = false
+}: {
+  host: HTMLElement
+  hidden?: boolean
+}): React.JSX.Element {
+  const attach = useCallback(
+    (slot: HTMLDivElement | null) => {
+      slot?.appendChild(host)
+    },
+    [host]
+  )
+  return <div ref={attach} style={hidden ? SLOT_HIDDEN : SLOT_VISIBLE} />
 }

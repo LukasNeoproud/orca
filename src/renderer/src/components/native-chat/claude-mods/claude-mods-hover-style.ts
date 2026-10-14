@@ -82,6 +82,22 @@ export function claudeModsHoveredBoxProps(
   return { props: merged, revealed }
 }
 
+const BORDER_SIDES = ['borderTop', 'borderBottom', 'borderLeft', 'borderRight'] as const
+
+/** A lit border changes style and colour only: a wider one (double, bold) would shift siblings. */
+function withRestingBorderWidth(lit: CSSProperties, resting: CSSProperties): CSSProperties {
+  const result = { ...lit }
+  for (const side of BORDER_SIDES) {
+    const litBorder = lit[side]
+    const restingBorder = resting[side]
+    const width = typeof restingBorder === 'string' ? restingBorder.split(' ')[0] : undefined
+    if (typeof litBorder === 'string' && width) {
+      result[side] = `${width} ${litBorder.split(' ').slice(1).join(' ')}`
+    }
+  }
+  return result
+}
+
 /** A Box's style while lit; a reveal is taken out of the flow so no sibling moves for it. */
 export function claudeModsHoveredBoxStyle(
   props: Record<string, unknown>,
@@ -92,7 +108,7 @@ export function claudeModsHoveredBoxStyle(
     return claudeModsBoxStyle(props)
   }
   const hovered = claudeModsHoveredBoxProps(props, hover)
-  const style = claudeModsBoxStyle(hovered.props)
+  const style = withRestingBorderWidth(claudeModsBoxStyle(hovered.props), claudeModsBoxStyle(props))
   return hovered.revealed && props.position !== 'absolute'
     ? { ...style, position: 'absolute' }
     : style

@@ -1,7 +1,7 @@
 // Pointer tracking for a node that takes part in hover: a keyed Box (a context for what is
 // beneath it), a member of a hover group, or an element a hover override is drawn on.
 
-import { createContext, useContext, useEffect, useId, useRef, useSyncExternalStore } from 'react'
+import { createContext, useCallback, useContext, useId, useRef, useSyncExternalStore } from 'react'
 import { useClaudeModsDrawScope } from './claude-mods-draw-scope'
 import {
   claudeModsBoxHoverId,
@@ -19,7 +19,11 @@ export type ClaudeModsHoverNode = {
   lit: boolean
   /** The hover id of the context this node's children sit in. */
   contextId: string | null
-  pointerHandlers: { onPointerEnter: () => void; onPointerLeave: () => void } | undefined
+  /**
+   * Ref for the node's element: native enter/leave follow the DOM subtree, so core's drawing
+   * (portaled in, not a React child) still counts as inside. React's own would fire leave.
+   */
+  hoverRef: ((element: HTMLElement | null) => (() => void) | void) | undefined
 }
 
 export function useClaudeModsHoverNode(input: {
@@ -40,31 +44,45 @@ export function useClaudeModsHoverNode(input: {
     store && hasHover ? store.isLit(contextId, groupId) : false
   )
   const entered = useRef<string[]>([])
-  useEffect(
-    () => () => {
-      store?.leave(entered.current)
-      entered.current = []
-    },
-    [store]
-  )
   const own = [contextId !== parent ? contextId : null, groupId].filter(
     (id): id is string => id !== null
   )
-  return {
-    lit,
-    contextId,
-    pointerHandlers:
-      store && own.length > 0
-        ? {
-            onPointerEnter: () => {
-              entered.current = own
-              store.enter(own)
-            },
-            onPointerLeave: () => {
-              store.leave(entered.current)
-              entered.current = []
-            }
-          }
-        : undefined
+  const ownRef = useRef(own)
+  ownRef.current = own
+  const attach = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element || !store) {
+        return
+      }
+      const onEnter = (): void => {
+        entered.current = ownRef.current
+        store.enter(entered.current)
+      }
+      const onLeave = (): void => {
+        store.leave(entered.current)
+        entered.current = []
+      }
+      const stop = listenClaudeModsPointerBounds(element, onEnter, onLeave)
+      return () => {
+        stop()
+        onLeave()
+      }
+    },
+    [store]
+  )
+  return { lit, contextId, hoverRef: store && own.length > 0 ? attach : undefined }
+}
+
+/** Native enter/leave, so content portaled into the element counts as inside it. */
+function listenClaudeModsPointerBounds(
+  element: HTMLElement,
+  onEnter: () => void,
+  onLeave: () => void
+): () => void {
+  element.addEventListener('pointerenter', onEnter)
+  element.addEventListener('pointerleave', onLeave)
+  return () => {
+    element.removeEventListener('pointerenter', onEnter)
+    element.removeEventListener('pointerleave', onLeave)
   }
 }

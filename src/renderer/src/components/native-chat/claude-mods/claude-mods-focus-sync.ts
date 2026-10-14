@@ -35,6 +35,17 @@ export type ClaudeModsFocusDeps = {
 /** Select popups render outside the container; focus moving into one is still the site's. */
 const OUTSIDE_PART_OF_SITE = '[role="listbox"], [data-radix-popper-content-wrapper]'
 
+/** Whether `other` (focus's previous or next element) is the site's own, popups it opened included. */
+export function isClaudeModsFocusWithinSite(
+  container: HTMLElement,
+  other: EventTarget | null
+): boolean {
+  return (
+    other instanceof Element &&
+    (container.contains(other) || other.closest(OUTSIDE_PART_OF_SITE) !== null)
+  )
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -107,21 +118,32 @@ export class ClaudeModsFocusSync {
     return true
   }
 
-  /** A plugin's `ui_focus` push. A control not drawn yet is tried again after the next drawing. */
+  /**
+   * A plugin's `ui_focus` push. The engine pushes only to a site that holds the keyboard, so one
+   * that crosses the hold's release is stale. A control not drawn yet is tried once more after the
+   * next drawing, never later.
+   */
   applyPush(element: ClaudeModsFocusElement): void {
+    this.unfulfilled = null
+    if (!this.held) {
+      return
+    }
     const control = this.findControl(element)
     if (!control) {
       this.unfulfilled = element
       return
     }
-    this.unfulfilled = null
     this.holder = element
     this.focusSilently(control)
   }
 
   afterLayout(): void {
-    if (this.unfulfilled) {
-      this.applyPush(this.unfulfilled)
+    const pending = this.unfulfilled
+    this.unfulfilled = null
+    if (pending) {
+      this.applyPush(pending)
+      // Still not drawn after the redraw it was waiting for: give up.
+      this.unfulfilled = null
     }
   }
 
@@ -139,6 +161,8 @@ export class ClaudeModsFocusSync {
       this.held = true
       return
     }
+    // The person moved the ring: a push that was waiting for a redraw is stale.
+    this.unfulfilled = null
     const target = event.target instanceof Element ? event.target : null
     const control = target?.closest(`[${CLAUDE_MODS_CONTROL_ATTRIBUTE}]`) ?? null
     const element = control ? elementOf(control) : null
@@ -158,10 +182,10 @@ export class ClaudeModsFocusSync {
   }
 
   private focusLeft(event: FocusEvent): void {
-    const next = event.relatedTarget instanceof Element ? event.relatedTarget : null
-    if (next && (this.container.contains(next) || next.closest(OUTSIDE_PART_OF_SITE))) {
+    if (isClaudeModsFocusWithinSite(this.container, event.relatedTarget)) {
       return
     }
+    this.unfulfilled = null
     if (this.held) {
       this.held = false
       this.holder = null

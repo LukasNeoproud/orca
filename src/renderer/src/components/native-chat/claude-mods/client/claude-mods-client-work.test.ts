@@ -70,6 +70,30 @@ describe('ClaudeModsClientWork', () => {
     ])
     expect(rendered).toHaveBeenCalledTimes(2)
   })
+
+  it('never lets a merged move overtake a down or up waiting before it', async () => {
+    const { frame, posted, release } = heldFrame()
+    await release()
+    const work = new ClaudeModsClientWork(frame, 'i', { failed: vi.fn(), rendered: vi.fn() })
+    work.render()
+    work.act('pointer', { type: 'move', x: 1, y: 1 })
+    work.act('pointer', { type: 'up', x: 2, y: 2 })
+    work.act('pointer', { type: 'move', x: 3, y: 3 })
+    work.act('pointer', { type: 'move', x: 4, y: 4 })
+    work.act('pointer', { type: 'down', x: 5, y: 5 })
+    work.act('pointer', { type: 'move', x: 6, y: 6 })
+    for (let round = 0; round < 8; round += 1) {
+      await release()
+    }
+    const pointer = posted.filter((message) => message.kind === 'pointer')
+    expect(pointer.map((message) => message.payload)).toEqual([
+      { type: 'move', x: 1, y: 1 },
+      { type: 'up', x: 2, y: 2 },
+      { type: 'move', x: 4, y: 4 },
+      { type: 'down', x: 5, y: 5 },
+      { type: 'move', x: 6, y: 6 }
+    ])
+  })
 })
 
 describe('ClaudeModsClientGuard', () => {

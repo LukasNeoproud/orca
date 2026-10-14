@@ -36,3 +36,8 @@ export function claudeModsRowsCovering(px: number, metrics: ClaudeModsCellMetric
 export function claudeModsRowAt(px: number, metrics: ClaudeModsCellMetrics): number {
   return Math.max(0, Math.round(px / metrics.rowHeight))
 }
+
+/** The row an element starting at `px` begins in; floored so a block:'start' scroll never clips it. */
+export function claudeModsRowContaining(px: number, metrics: ClaudeModsCellMetrics): number {
+  return Math.max(0, Math.floor(px / metrics.rowHeight + EPSILON))
+}

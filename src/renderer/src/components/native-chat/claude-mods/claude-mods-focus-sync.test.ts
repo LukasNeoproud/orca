@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { claudeModsControlAttributes, ClaudeModsFocusSync } from './claude-mods-focus-sync'
+import {
+  claudeModsControlAttributes,
+  ClaudeModsFocusSync,
+  isClaudeModsFocusWithinSite
+} from './claude-mods-focus-sync'
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -104,7 +108,10 @@ describe('ClaudeModsFocusSync', () => {
   })
 
   it('focuses the control a push names, without telling the engine back', async () => {
-    const { sync, requests, note } = harness()
+    const { sync, requests, note, no } = harness()
+    no.focus()
+    await flush()
+    requests.length = 0
     sync.applyPush({ plugin: 'ask', key: 'note' })
     await flush()
     expect(document.activeElement).toBe(note)
@@ -112,12 +119,49 @@ describe('ClaudeModsFocusSync', () => {
   })
 
   it('tries a pushed control again after the next drawing when it is not drawn yet', () => {
-    const { sync, container } = harness()
+    const { sync, container, yes } = harness()
+    yes.focus()
     sync.applyPush({ plugin: 'ask', key: 'later' })
     const later = control('button', 'later', 'ask')
     container.append(later)
     sync.afterLayout()
     expect(document.activeElement).toBe(later)
+  })
+
+  it('tries a control that is not drawn only once, on the next drawing', () => {
+    const { sync, container, yes } = harness()
+    yes.focus()
+    sync.applyPush({ plugin: 'ask', key: 'later' })
+    sync.afterLayout()
+    container.append(control('button', 'later', 'ask'))
+    sync.afterLayout()
+    expect(document.activeElement).toBe(yes)
+  })
+
+  it('drops a waiting push once the person moves the ring or the keyboard leaves', () => {
+    const first = harness()
+    first.yes.focus()
+    first.sync.applyPush({ plugin: 'ask', key: 'later' })
+    first.no.focus()
+    first.container.append(control('button', 'later', 'ask'))
+    first.sync.afterLayout()
+    expect(document.activeElement).toBe(first.no)
+    document.body.innerHTML = ''
+    const second = harness()
+    second.yes.focus()
+    second.sync.applyPush({ plugin: 'ask', key: 'later' })
+    second.outside.focus()
+    second.container.append(control('button', 'later', 'ask'))
+    second.sync.afterLayout()
+    expect(document.activeElement).toBe(second.outside)
+  })
+
+  it('ignores a push while the site does not hold the keyboard', () => {
+    const { sync, outside } = harness()
+    outside.focus()
+    sync.applyPush({ plugin: 'ask', key: 'note' })
+    sync.afterLayout()
+    expect(document.activeElement).toBe(outside)
   })
 
   it('does not take a control of another plugin for the key', () => {
@@ -135,5 +179,16 @@ describe('ClaudeModsFocusSync', () => {
     await flush()
     expect(requests).toHaveLength(1)
     expect(document.activeElement).toBe(note)
+  })
+
+  it('tells a move within the site, popups included, from one arriving from outside', () => {
+    const { container, yes, outside } = harness()
+    const popup = document.createElement('div')
+    popup.setAttribute('role', 'listbox')
+    document.body.append(popup)
+    expect(isClaudeModsFocusWithinSite(container, yes)).toBe(true)
+    expect(isClaudeModsFocusWithinSite(container, popup)).toBe(true)
+    expect(isClaudeModsFocusWithinSite(container, outside)).toBe(false)
+    expect(isClaudeModsFocusWithinSite(container, null)).toBe(false)
   })
 })

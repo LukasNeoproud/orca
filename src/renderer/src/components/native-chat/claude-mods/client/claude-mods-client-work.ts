@@ -26,8 +26,8 @@ function phaseOf(item: Item): ClaudeModsClientPhase {
 
 /**
  * One instance's calls into its frame, one at a time and in order. A render already waiting
- * absorbs another, a tick waiting for the same timer absorbs the next, and a pointer move
- * waiting absorbs a later move, so a slow module is never flooded.
+ * absorbs another, a tick waiting for the same timer absorbs the next, and a pointer move last
+ * in line absorbs a later move, so a slow module is never flooded.
  */
 export class ClaudeModsClientWork {
   private readonly queue: Item[] = []
@@ -70,10 +70,14 @@ export class ClaudeModsClientWork {
   }
 
   private coalesced(act: ClaudeModsClientActKind, payload: unknown, coalesce?: string): void {
-    const waiting = coalesce
-      ? this.queue.find((item) => item.kind === 'act' && item.coalesce === coalesce)
-      : undefined
-    if (waiting?.kind === 'act') {
+    // A move merges only into the tail: one waiting before a down or up would jump ahead of it.
+    const waiting =
+      coalesce === 'move'
+        ? this.queue.at(-1)
+        : coalesce
+          ? this.queue.find((item) => item.kind === 'act' && item.coalesce === coalesce)
+          : undefined
+    if (waiting?.kind === 'act' && waiting.coalesce === coalesce) {
       waiting.payload = payload
       return
     }

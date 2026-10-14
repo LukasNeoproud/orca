@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, useSyncExternalStore, type ReactNode } from 'react'
 import type { AgentJournalQuestion } from '../../../../../shared/agent-session-journal-types'
 import { pairNativeChatToolResults } from '../../../../../shared/native-chat-tool-pairing'
 import {
@@ -20,12 +20,35 @@ import {
   relabelClaudeModsQuestions,
   type ClaudeModsSpinnerMode
 } from './claude-mods-transcript-props'
-import { useClaudeModsUserMessageId } from './claude-mods-transcript-user-ids'
+import { claudeModsTranscriptSites } from './claude-mods-transcript-sites-registry'
 import { ClaudeModsSite } from './ClaudeModsSite'
 
-/** Props are built only while mods exist, so a chat without them pays nothing per row. */
-function useSiteProps<T>(build: () => T): T | null {
-  return useClaudeModsController() ? build() : null
+const noopSubscribe = (): (() => void) => () => {}
+
+/**
+ * The props a row's site asks with, built only while a mod may hook `component`: once the CLI
+ * said none does, a chat without mods pays nothing per row. They are rebuilt only when `deps`
+ * change, since a built tool call copies and caps its whole input and output.
+ */
+function useSiteProps<T>(component: string, build: () => T, deps: readonly unknown[]): T | null {
+  const controller = useClaudeModsController()
+  const sites = controller ? claudeModsTranscriptSites(controller) : null
+  const unhooked = useSyncExternalStore(
+    sites ? sites.subscribeHooked : noopSubscribe,
+    () => sites?.isUnhooked(component) ?? false
+  )
+  const skip = !controller || unhooked
+  const memo = useRef<{ skip: boolean; deps: readonly unknown[]; value: T | null } | null>(null)
+  const last = memo.current
+  if (
+    !last ||
+    last.skip !== skip ||
+    last.deps.length !== deps.length ||
+    last.deps.some((dep, index) => !Object.is(dep, deps[index]))
+  ) {
+    memo.current = { skip, deps, value: skip ? null : build() }
+  }
+  return memo.current?.value ?? null
 }
 
 /** A tool line, asked as `ToolUse` under its call's `tool_use_id`. */
@@ -40,8 +63,11 @@ export function ClaudeModsToolUseSite({
   activeTurnIsWorking: boolean | undefined
   children: ReactNode
 }): React.JSX.Element {
-  const props = useSiteProps(() =>
-    isToolCallBlock(block) ? claudeModsToolUseProps(block, result, activeTurnIsWorking) : null
+  const props = useSiteProps(
+    'ToolUse',
+    () =>
+      isToolCallBlock(block) ? claudeModsToolUseProps(block, result, activeTurnIsWorking) : null,
+    [block, result, activeTurnIsWorking]
   )
   return (
     <ClaudeModsSite
@@ -64,8 +90,10 @@ export function ClaudeModsToolResultSite({
   result: NativeChatToolResultBlock | undefined
   children: ReactNode
 }): React.JSX.Element {
-  const props = useSiteProps(() =>
-    isToolCallBlock(block) && result ? claudeModsToolResultProps(block, result) : null
+  const props = useSiteProps(
+    'ToolResult',
+    () => (isToolCallBlock(block) && result ? claudeModsToolResultProps(block, result) : null),
+    [block, result]
   )
   return (
     <ClaudeModsSite
@@ -92,14 +120,18 @@ export function ClaudeModsToolGroupSite({
   activeTurnIsWorking: boolean | undefined
   children: ReactNode
 }): React.JSX.Element {
-  const group = useSiteProps(() => {
-    const { resultByCall } = pairNativeChatToolResults(headerBlocks)
-    return claudeModsToolGroup(headerBlocks.filter(isToolCallBlock), resultByCall, {
-      activeTurnIsWorking,
-      isActive,
-      isExpanded
-    })
-  })
+  const group = useSiteProps(
+    'ToolGroup',
+    () => {
+      const { resultByCall } = pairNativeChatToolResults(headerBlocks)
+      return claudeModsToolGroup(headerBlocks.filter(isToolCallBlock), resultByCall, {
+        activeTurnIsWorking,
+        isActive,
+        isExpanded
+      })
+    },
+    [headerBlocks, isActive, isExpanded, activeTurnIsWorking]
+  )
   return (
     <ClaudeModsSite component="ToolGroup" instanceId={group?.instanceId} props={group?.props ?? {}}>
       {() => children}
@@ -120,11 +152,13 @@ export function ClaudeModsAssistantTextSite({
   enabled: boolean
   renderDrawing: (text: string) => ReactNode
 }): React.JSX.Element {
-  const props = useSiteProps(() => claudeModsAssistantMessageProps(text))
+  const props = useSiteProps('AssistantMessage', () => claudeModsAssistantMessageProps(text), [
+    text
+  ])
   return (
     <ClaudeModsSite
       component="AssistantMessage"
-      instanceId={enabled ? messageId : null}
+      instanceId={enabled && props ? messageId : null}
       props={props ?? {}}
       settled={enabled}
     >
@@ -146,12 +180,12 @@ export function ClaudeModsUserTextSite({
   enabled: boolean
   renderDrawing: (text: string) => ReactNode
 }): React.JSX.Element {
-  const instanceId = useClaudeModsUserMessageId(rowId)
-  const props = useSiteProps(() => claudeModsUserMessageProps(text))
+  // Orca holds no Claude uuid for a prompt, so the row's own stable id names the instance.
+  const props = useSiteProps('UserMessage', () => claudeModsUserMessageProps(text), [text])
   return (
     <ClaudeModsSite
       component="UserMessage"
-      instanceId={enabled ? instanceId : null}
+      instanceId={enabled && props ? rowId : null}
       props={props ?? {}}
     >
       {(drawn) => renderDrawing(claudeModsText(drawn, 'text') ?? text)}
@@ -169,9 +203,9 @@ export function ClaudeModsSpinnerSite({
   mode: ClaudeModsSpinnerMode
   renderDrawing: (label: string) => ReactNode
 }): React.JSX.Element {
-  const props = useSiteProps(() => claudeModsSpinnerProps(label, mode))
+  const props = useSiteProps('Spinner', () => claudeModsSpinnerProps(label, mode), [label, mode])
   return (
-    <ClaudeModsSite component="Spinner" instanceId="main" props={props ?? {}}>
+    <ClaudeModsSite component="Spinner" instanceId={props ? 'main' : null} props={props ?? {}}>
       {(drawn) => {
         const word = claudeModsText(drawn, 'word')
         const suffix = claudeModsText(drawn, 'suffix') ?? ''
@@ -199,11 +233,13 @@ export function ClaudeModsQuestionSite({
   questions: readonly AgentJournalQuestion[]
   renderDrawing: (questions: readonly AgentJournalQuestion[]) => ReactNode
 }): React.JSX.Element {
-  const props = useSiteProps(() => claudeModsQuestionProps(questions))
+  const props = useSiteProps('AskUserQuestion', () => claudeModsQuestionProps(questions), [
+    questions
+  ])
   return (
     <ClaudeModsSite
       component="AskUserQuestion"
-      instanceId={toolUseId}
+      instanceId={props ? toolUseId : null}
       props={props ?? {}}
       validate={isClaudeModsQuestionTree}
     >

@@ -382,6 +382,7 @@ export function NativeChatStructuredSession(
               key={`${prompt.itemId}:${prompt.revision}`}
               questions={questions}
               toolUseId={questionBody.toolUseId}
+              paneKey={paneKey}
               onAnswer={(response) => void promptResponse.respond(prompt, response)}
               isSubmitting={promptResponse.holds(prompt)}
               onCancel={cancelPrompt}

@@ -58,3 +58,32 @@ export function isClaudeModsEngineOnly(
 ): tree is { kind: 'engine'; ref: number } {
   return tree.kind === 'engine'
 }
+
+/**
+ * `tree` with its first engine node, in document order, marked as the one Orca's own drawing
+ * sits in: its ref `r` becomes `-1 - r`. The mark lets the site keep that drawing mounted in one
+ * place while the tree around it changes. `ref` is the unmarked ref, null without an engine node.
+ */
+export function markClaudeModsPrimaryEngine(tree: ClaudeModsNode): {
+  tree: ClaudeModsNode
+  ref: number | null
+} {
+  let ref: number | null = null
+  const mark = (node: ClaudeModsNode): ClaudeModsNode | null => {
+    if (node.kind === 'engine') {
+      ref = node.ref
+      return { kind: 'engine', ref: -1 - node.ref }
+    }
+    if (node.kind !== 'element') {
+      return null
+    }
+    for (const [index, child] of node.children.entries()) {
+      const marked = mark(child)
+      if (marked) {
+        return { ...node, children: node.children.map((c, i) => (i === index ? marked : c)) }
+      }
+    }
+    return null
+  }
+  return { tree: mark(tree) ?? tree, ref }
+}

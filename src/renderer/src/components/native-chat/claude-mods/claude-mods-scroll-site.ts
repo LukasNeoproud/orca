@@ -6,15 +6,13 @@ import { measureClaudeModsSite } from './claude-mods-layout-measure'
 import { claudeModsCellMetrics, claudeModsRowAt } from './claude-mods-layout-metrics'
 import { ClaudeModsFocusSync } from './claude-mods-focus-sync'
 import { ClaudeModsScrollSync } from './claude-mods-scroll-sync'
+import { attachClaudeModsScrollInput } from './claude-mods-scroll-input'
 import type { ClaudeModsSiteReading } from './claude-mods-layout-registry'
 import type {
   ClaudeModsComponent,
   ClaudeModsSurfaceController
 } from './claude-mods-surface-controller'
 import { useClaudeModsViewport } from './use-claude-mods-viewport'
-
-/** Scrolls this soon after a wheel, key or touch are the person's; later ones are layout's. */
-const PERSON_INPUT_WINDOW_MS = 600
 
 export type ClaudeModsSiteInfo = Pick<ClaudeModsSiteReading, 'placement' | 'maxRows' | 'isWorking'>
 
@@ -37,7 +35,7 @@ export function useClaudeModsSite(input: {
 }): ClaudeModsSite {
   const { controller, component, instanceId, drawing } = input
   const [element, setElement] = useState<HTMLElement | null>(null)
-  const scrollRef = useRef<ClaudeModsScrollSync | null>(null)
+  const layoutRef = useRef<(() => void) | null>(null)
   const focusRef = useRef<ClaudeModsFocusSync | null>(null)
   const infoRef = useRef(input.info)
   infoRef.current = input.info
@@ -66,20 +64,19 @@ export function useClaudeModsSite(input: {
       { component, instanceId, request: (fields) => controller.request('ui_focus', fields) },
       element
     )
-    scrollRef.current = scroll
     focusRef.current = focus
     scroll.settled(measureClaudeModsSite(element, false).offset)
 
-    let lastInput = Number.NEGATIVE_INFINITY
-    let pointerHeld = false
+    // The DOM must keep the engine's row offset: the browser may not shift it on its own.
+    const previousAnchor = element.style.overflowAnchor
+    element.style.overflowAnchor = 'none'
+    const personInput = attachClaudeModsScrollInput(element)
     let pointer: { column: number; row: number } | undefined
-    const markInput = (): void => {
-      lastInput = performance.now()
-    }
+    let lastTop = element.scrollTop
     const onScroll = (): void => {
       const layout = measureClaudeModsSite(element, false)
-      const person = pointerHeld || performance.now() - lastInput < PERSON_INPUT_WINDOW_MS
-      if (!person) {
+      lastTop = element.scrollTop
+      if (!personInput.isPerson()) {
         scroll.settled(layout.offset)
         return
       }
@@ -87,7 +84,7 @@ export function useClaudeModsSite(input: {
       pointer = undefined
     }
     const onWheel = (event: WheelEvent): void => {
-      markInput()
+      personInput.mark()
       const metrics = claudeModsCellMetrics(element)
       const rect = element.getBoundingClientRect()
       pointer = {
@@ -102,20 +99,8 @@ export function useClaudeModsSite(input: {
         pointer = undefined
       }
     }
-    const onPointerDown = (): void => {
-      pointerHeld = true
-      markInput()
-    }
-    const onPointerUp = (): void => {
-      pointerHeld = false
-      markInput()
-    }
     element.addEventListener('scroll', onScroll, { passive: true })
     element.addEventListener('wheel', onWheel, { passive: true })
-    element.addEventListener('keydown', markInput)
-    element.addEventListener('touchstart', markInput, { passive: true })
-    element.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointerup', onPointerUp)
     const detachFocus = focus.attach()
     const unsubscribe = controller.onPush((event) => {
       if (
@@ -141,33 +126,66 @@ export function useClaudeModsSite(input: {
       ...infoRef.current
     }))
     // A resize or a growing child moves the end: stay pinned, or reach an offset now allowed.
-    const resizes = new ResizeObserver(() => scroll.afterLayout())
-    resizes.observe(element)
-    if (element.firstElementChild) {
-      resizes.observe(element.firstElementChild)
-    }
+    const layout = observeClaudeModsSiteLayout(element, () => {
+      // Content that shrank under the window clamps it: the engine clamps its own offset the
+      // same way, so that scroll is settled here, never reported as the person's.
+      const maxTop = Math.max(0, element.scrollHeight - element.clientHeight)
+      if (lastTop > maxTop + 1 && element.scrollTop >= maxTop - 1) {
+        scroll.settled(measureClaudeModsSite(element, false).offset)
+      }
+      lastTop = element.scrollTop
+      scroll.afterLayout()
+    })
+    layoutRef.current = layout.refresh
+    layout.refresh()
     return () => {
-      scrollRef.current = null
+      layoutRef.current = null
       focusRef.current = null
       scroll.dispose()
-      resizes.disconnect()
+      layout.stop()
       unregister()
       unsubscribe()
       detachFocus()
       element.removeEventListener('scroll', onScroll)
       element.removeEventListener('wheel', onWheel)
-      element.removeEventListener('keydown', markInput)
-      element.removeEventListener('touchstart', markInput)
-      element.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('pointerup', onPointerUp)
+      personInput.detach()
+      element.style.overflowAnchor = previousAnchor
     }
   }, [controller, element, component, instanceId])
 
   useLayoutEffect(() => {
-    scrollRef.current?.afterLayout()
+    layoutRef.current?.()
     focusRef.current?.afterLayout()
   }, [drawing])
 
   const takeAutoFocus = useCallback(() => focusRef.current?.takeAutoFocus() ?? false, [])
   return useMemo(() => ({ setElement, element, takeAutoFocus }), [element, takeAutoFocus])
+}
+
+/**
+ * Watches the site and its current content root, which a redraw may replace. Outside the hook's
+ * effect because react-doctor reads an `observe` in a nested function as a leak; the effect's
+ * cleanup calls `stop`.
+ */
+function observeClaudeModsSiteLayout(
+  element: HTMLElement,
+  onChange: () => void
+): { refresh: () => void; stop: () => void } {
+  let observedRoot: Element | null = null
+  const resizes = new ResizeObserver(() => refresh())
+  const refresh = (): void => {
+    const root = element.firstElementChild
+    if (root !== observedRoot) {
+      if (observedRoot) {
+        resizes.unobserve(observedRoot)
+      }
+      observedRoot = root
+      if (root) {
+        resizes.observe(root)
+      }
+    }
+    onChange()
+  }
+  resizes.observe(element)
+  return { refresh, stop: () => resizes.disconnect() }
 }

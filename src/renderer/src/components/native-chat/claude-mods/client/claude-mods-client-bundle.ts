@@ -1,7 +1,9 @@
 // A plugin's surface modules as `ui_client_module` serves them, read defensively and split at
-// the import specifiers the CLI wrote as string literals, so the worker only joins text with
-// the blob URLs it made itself. Every other specifier (`surface-unlinked:///…`, a computed
-// import, a bare name) stays as written and fails to load inside the worker.
+// their literal import specifiers. One naming a served file becomes a link the worker fills with
+// a blob URL it made itself; every other one is rewritten to an `orca-unlinked:` URL no worker
+// can load, so a literal `https:`, `data:` or `blob:` import never loads whatever the CLI wrote.
+
+import { findClaudeModsClientSpecifiers } from './claude-mods-client-specifiers'
 
 /** One piece of a module's source: verbatim text, or the import of another served file. */
 export type ClaudeModsClientPart = string | { link: string }
@@ -72,36 +74,30 @@ function readEntries(value: unknown): ClaudeModsClientEntry[] {
   )
 }
 
-/** A served file's import specifiers, each a JSON string literal after `from` or `import`. */
-const SPECIFIER = /(\bfrom\s*|\bimport\s*\(?\s*)("(?:[^"\\\n]|\\.)*")/g
-
-function readLiteral(literal: string): string | null {
-  try {
-    const value: unknown = JSON.parse(literal)
-    return typeof value === 'string' ? value : null
-  } catch {
-    return null
-  }
+/** A specifier rewritten so it cannot load: an unknown scheme fails every import of it. */
+export function unlinkedClaudeModsClientSpecifier(spelled: string): string {
+  return `orca-unlinked:${encodeURIComponent(spelled)}`
 }
 
-/** Splits `source` at every literal specifier naming one of `keys`; the rest stays text. */
+/** Splits `source` at its literal specifiers: served keys become links, the rest unloadable. */
 export function splitClaudeModsClientSource(
   source: string,
   keys: ReadonlySet<string>
 ): ClaudeModsClientPart[] {
   const parts: ClaudeModsClientPart[] = []
+  let text = ''
   let last = 0
-  for (const match of source.matchAll(SPECIFIER)) {
-    const [, lead = '', literal = ''] = match
-    const key = readLiteral(literal)
-    if (key === null || !keys.has(key)) {
-      continue
+  for (const { start, end, value } of findClaudeModsClientSpecifiers(source)) {
+    text += source.slice(last, start)
+    last = end
+    if (value !== null && keys.has(value)) {
+      parts.push(text, { link: value })
+      text = ''
+    } else {
+      text += JSON.stringify(unlinkedClaudeModsClientSpecifier(value ?? source.slice(start, end)))
     }
-    const start = (match.index ?? 0) + lead.length
-    parts.push(source.slice(last, start), { link: key })
-    last = start + literal.length
   }
-  parts.push(source.slice(last))
+  parts.push(text + source.slice(last))
   return parts.filter((part) => part !== '')
 }
 

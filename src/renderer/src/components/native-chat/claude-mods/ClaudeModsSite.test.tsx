@@ -73,12 +73,13 @@ describe('ClaudeModsSite', () => {
 
   it('draws its children alone for a tree that is only core engine node', async () => {
     await mount(controllerAnswering(answer(ENGINE(0))), site())
-    expect(container.innerHTML).toBe('<p data-testid="native">hello</p>')
+    expect(container.textContent).toBe('hello')
+    expect(container.querySelectorAll('[data-testid="native"]')).toHaveLength(1)
   })
 
   it('draws children with the rewritten props for a rewritten engine node', async () => {
     await mount(controllerAnswering(answer(ENGINE(2), { text: 'reworded' })), site())
-    expect(container.innerHTML).toBe('<p data-testid="native">reworded</p>')
+    expect(container.textContent).toBe('reworded')
   })
 
   const around = (ref: number) => ({
@@ -164,7 +165,7 @@ describe('ClaudeModsQuestionSite', () => {
       controllerAnswering(answer({ type: 'Box', props: {}, children: [ENGINE(0), text('below')] })),
       question('toolu_q')
     )
-    expect(container.innerHTML).toBe(card)
+    expect(container.querySelector('ul')?.outerHTML).toBe(card)
   })
 
   it('draws the card alone when the tree holds two engine nodes', async () => {
@@ -172,7 +173,7 @@ describe('ClaudeModsQuestionSite', () => {
       controllerAnswering(answer({ type: 'Box', props: {}, children: [ENGINE(0), ENGINE(0)] })),
       question('toolu_q')
     )
-    expect(container.innerHTML).toBe(card)
+    expect(container.querySelector('ul')?.outerHTML).toBe(card)
   })
 
   it('draws the card alone when the tree holds no engine node', async () => {
@@ -180,7 +181,7 @@ describe('ClaudeModsQuestionSite', () => {
       controllerAnswering(answer({ type: 'Box', props: {}, children: [text('only a mod')] })),
       question('toolu_q')
     )
-    expect(container.innerHTML).toBe(card)
+    expect(container.querySelector('ul')?.outerHTML).toBe(card)
   })
 
   it('relabels questions and options by position and keeps the ids Orca answers with', async () => {
@@ -193,13 +194,15 @@ describe('ClaudeModsQuestionSite', () => {
       ]
     }
     await mount(controllerAnswering(answer(ENGINE(4), rewritten)), question('toolu_q'))
-    expect(container.innerHTML).toBe('<ul><li>Choose</li><li>Eins</li><li>Zwei</li></ul>')
+    expect(container.querySelector('ul')?.outerHTML).toBe(
+      '<ul><li>Choose</li><li>Eins</li><li>Zwei</li></ul>'
+    )
   })
 
   it('keeps the original words when the rewrite does not line up', async () => {
     const rewritten = { questions: [{ question: 'One' }, { question: 'Two' }] }
     await mount(controllerAnswering(answer(ENGINE(4), rewritten)), question('toolu_q'))
-    expect(container.innerHTML).toBe(card)
+    expect(container.querySelector('ul')?.outerHTML).toBe(card)
   })
 
   it('is not asked about without the call id', async () => {
@@ -207,7 +210,7 @@ describe('ClaudeModsQuestionSite', () => {
       controllerAnswering(answer({ type: 'Box', props: {}, children: [text('above'), ENGINE(0)] })),
       question(undefined)
     )
-    expect(container.innerHTML).toBe(card)
+    expect(container.querySelector('ul')?.outerHTML).toBe(card)
   })
 })
 
@@ -227,7 +230,7 @@ describe('ClaudeModsSpinnerSite', () => {
       controllerAnswering(answer(ENGINE(1), { word: 'Thinking', suffix: '…' })),
       spinner('Thinking')
     )
-    expect(container.innerHTML).toBe('<span>Thinking</span>')
+    expect(container.querySelector('span')?.outerHTML).toBe('<span>Thinking</span>')
   })
 
   it('draws a reworded word and suffix', async () => {
@@ -235,6 +238,6 @@ describe('ClaudeModsSpinnerSite', () => {
       controllerAnswering(answer(ENGINE(1), { word: 'Sauteing', suffix: '!' })),
       spinner('Working…')
     )
-    expect(container.innerHTML).toBe('<span>Sauteing!</span>')
+    expect(container.querySelector('span')?.outerHTML).toBe('<span>Sauteing!</span>')
   })
 })

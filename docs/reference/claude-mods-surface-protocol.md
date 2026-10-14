@@ -46,7 +46,7 @@ Validation messages quoted from the binary give the exact fields.
 | `ui_scroll`     | `component`, `instance_id`, `offset`, `by`, `body_rows`, `content_rows`, `pointer?`, `keyed?`                                                                      | `{ moved, offset, deny?, follow_end? }`                         |
 | `ui_focus`      | `component`, `instance_id`, `is_held`, `element?`, `by?`                                                                                                           | `{ moved, element }`                                            |
 
-Phase 2 and 3 requests are in the sections below. Not used yet: `ui_prompt_edit`, `ui_prompt_autocomplete`, and the engine → client requests a client
+Phase 2 and 3 requests (including the four Client subtypes) are in the sections below. Not used yet: `ui_prompt_edit`, `ui_prompt_autocomplete`, and the engine → client requests a client
 opts into with `answers` (`ui_copy`, `ui_prompt_read`, `ui_prompt_fill`, `ui_prompt_suggest`,
 `ui_read_selection`).
 
@@ -228,6 +228,16 @@ omits them, checked live against 2.1.299):
 - A fault is followed by a `ui_invalidate` for that instance (see the push shape above).
 - `claude:surface-runtime` exports `h`, `Fragment` and `install(host, limits)`; call `install`
   once per frame global (a second call throws).
+- Sandbox (`client/`): one `data:` module worker per `(plugin, hash)` (a `file://` renderer refuses
+  `blob:` workers); the bootstrap makes `blob:` URLs for the served files itself. Before any plugin
+  code runs it withholds the network, storage, timers, `eval`, `postMessage`/`close` and similar
+  globals. A watchdog terminates the worker when a call exceeds its running-time budget (1 s per
+  call, 5 s to load, 5 s stall). Only the instance whose call overran gets a `ui_client_fault`
+  (every instance when the worker stalled or failed to load); its neighbours remount silently in a
+  fresh worker.
+  Specifiers the CLI did not link are rewritten to `orca-unlinked:` URLs that no worker resolves.
+  A computed dynamic `import(expr)` is syntax and cannot be withheld; it relies on the CLI rewriting
+  it to `surface-unlinked:///computed#...`, which resolves nowhere.
 - Request size: `MAX_CLAUDE_MODS_REQUEST_BYTES` is 160 KiB so a full `ui_message` fits. A host that
   predates the four subtypes rejects them through its subtype enum; the renderer degrades to
   drawing nothing for Client nodes. A CLI without them answers `Unsupported control request subtype`.
@@ -241,18 +251,25 @@ CommandOutput, Spinner, TurnDuration, InfoNotice, SessionMode, PromptHint, Above
 The binary raises all but `ToolProgress`, `TurnDuration` and `InfoNotice` on desktop (the plugin
 d.ts says narrower for Spinner, PromptHint and AbovePrompt; trust the binary).
 
-| component          | `instance_id`                | main props                                                                           |
-| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------ |
-| `UserMessage`      | message id (user frame uuid) | `text`, `origin`, `isExpanded`, `task?`, `from?`                                     |
-| `AssistantMessage` | message id (per text block)  | `text` (markdown), `isFirstOfReply`, `isSummary?`                                    |
-| `ToolUse`          | `tool_use_id`                | `tool_use_id`, `tool`, `input`, `isRunning`, `isErrored`, `isInterrupted`, `output?` |
-| `ToolResult`       | `tool_use_id`                | `tool_use_id`, `tool`, `output`, `isErrored`                                         |
-| `AskUserQuestion`  | `tool_use_id` of the call    | `tool`, `questions`, `metadataSource?`                                               |
-| `CommandOutput`    | uuid of the output row       | `command`, `args`, `text`, `isErrored`                                               |
+| component          | `instance_id`               | main props                                                                           |
+| ------------------ | --------------------------- | ------------------------------------------------------------------------------------ |
+| `UserMessage`      | Orca's stable row id        | `text`, `origin`, `isExpanded`, `task?`, `from?`                                     |
+| `AssistantMessage` | message id (per text block) | `text` (markdown), `isFirstOfReply`, `isSummary?`                                    |
+| `ToolUse`          | `tool_use_id`               | `tool_use_id`, `tool`, `input`, `isRunning`, `isErrored`, `isInterrupted`, `output?` |
+| `ToolResult`       | `tool_use_id`               | `tool_use_id`, `tool`, `output`, `isErrored`                                         |
+| `AskUserQuestion`  | `tool_use_id` of the call   | `tool`, `questions`, `metadataSource?`                                               |
+| `ToolGroup`        | first call's `tool_use_id`  | the run's header calls                                                               |
+| `Spinner`          | `main`                      | the working indicator's props                                                        |
+| `CommandOutput`    | uuid of the output row      | `command`, `args`, `text`, `isErrored` (Orca does not draw it)                       |
+
+The `UserMessage` id is Orca's own row id: Claude's user uuid is not available to the renderer
+without growing the session view.
 
 - `on_screen` (top-level request field, not a prop) `{ first, last, of }` or `null` reaches the hook
   as `props.onScreen` for UserMessage, AssistantMessage, ToolUse, ToolResult, ToolGroup,
-  CommandOutput, TurnDuration, InfoNotice. Omit it when visibility is not tracked.
+  CommandOutput, TurnDuration, InfoNotice. Orca omits it (visibility is not tracked).
+- Transcript asks are bounded to 120K characters of props (under the 160 KiB request limit); larger
+  strings are cut and restored in the answer.
 - `props.output` strings are cut at 65536 characters by the engine; cap larger objects host-side.
   `tool_use_id` is filled from `instance_id` for ToolUse and ToolResult when absent.
 - A plugin may rewrite props (`rewritten: true`) only with the same value kinds and with the
@@ -264,6 +281,10 @@ d.ts says narrower for Spinner, PromptHint and AbovePrompt; trust the binary).
 `{ type: 'engine', ref }` means core draws its own component there. `ref: 0` draws the props the
 client sent; any other ref draws `response.props`. The answer carries one props object, that of the
 first engine node with a non-zero ref (depth first, not descending into Button, Input or Select).
+A pass-through hook (one that only calls `next`, or only logs) also answers `ref 1` with
+`rewritten: true` and lists the plugin in `drawn_by`, so `ref 1` does not imply changed props;
+compare props when it matters (live probe: ToolGroup, TurnDuration, InfoNotice, PromptHint,
+SessionMode, ToolProgress, non-Bash ToolUse, Spinner; `ref 0` appears only when no hook matched).
 An engine node takes only `type` and `ref`, and never sits inside Text, Link or Button, nor under a
 Box setting `display`, `overflow`, `position`, `width`, `height`, `minWidth`, `minHeight` or an
 offset.

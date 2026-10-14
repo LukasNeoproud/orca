@@ -108,6 +108,21 @@ describe('claudeModsHoveredBoxProps', () => {
     })
   })
 
+  it('swaps a border to double or bold at the width it rested at', () => {
+    for (const borderStyle of ['double', 'bold']) {
+      const style = claudeModsHoveredBoxStyle(
+        { borderStyle: 'single', borderColor: 'success' },
+        { borderStyle, borderColor: 'error' },
+        true
+      )
+      const resting = claudeModsHoveredBoxStyle({ borderStyle: 'single' }, undefined, false)
+      for (const side of ['borderTop', 'borderBottom', 'borderLeft', 'borderRight'] as const) {
+        expect(String(style[side]).split(' ')[0]).toBe(String(resting[side]).split(' ')[0])
+      }
+      expect(String(style.borderTop)).toContain(borderStyle === 'double' ? 'double' : 'solid')
+    }
+  })
+
   it('draws a reveal out of the flow so no sibling reflows, and the rest as drawn', () => {
     const hover = { display: 'flex' }
     expect(claudeModsHoveredBoxStyle({ display: 'none' }, hover, true)).toMatchObject({

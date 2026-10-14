@@ -3,9 +3,10 @@ import type { ClaudeModsDispatch } from '../claude-mods-draw-scope'
 import type { ClaudeModsClientFrame } from './claude-mods-client-frame'
 import type { ClaudeModsClientFrames, ClaudeModsClientLease } from './claude-mods-client-frames'
 import type { ClaudeModsClientListeners } from './claude-mods-client-protocol'
-import type {
-  ClaudeModsClientKeyEvent,
-  ClaudeModsClientPointerEvent
+import {
+  scrubClaudeModsClientReason,
+  type ClaudeModsClientKeyEvent,
+  type ClaudeModsClientPointerEvent
 } from './claude-mods-client-events'
 import {
   ClaudeModsClientRelay,
@@ -209,7 +210,8 @@ export class ClaudeModsClientDriver {
           }
         },
         failed: (phase, reason) => current() && this.fault(phase, reason),
-        stale: () => current() && this.redrawSite(siteId)
+        stale: () => current() && this.redrawSite(siteId),
+        evicted: () => current() && this.mount()
       }
     )
     this.instance = instance
@@ -225,7 +227,8 @@ export class ClaudeModsClientDriver {
     const relay = this.relay
     this.unmount()
     this.thrownAt = this.retryKey()
-    const shown = reason.trim() || 'the module failed without a message'
+    // The reason is the module's own text: one line, bounded, before anything draws it.
+    const shown = scrubClaudeModsClientReason(reason) || 'the module failed without a message'
     this.setView({
       kind: 'fault',
       line: `${spec?.address.plugin ?? ''}: Client ${spec?.address.module ?? ''}: ${shown}`

@@ -227,4 +227,16 @@ describe('ClaudeModsSurfaceController', () => {
     emit({ type: 'focus', push: { component: 'Pane', instance_id: 'hello-tabs', key: 'k' } })
     expect(heard).toEqual(['scroll', 'focus'])
   })
+
+  it('rejects from requestStrict where request swallows and answers null', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { controller } = harness(() => {
+      throw new Error('boom')
+    })
+    await expect(controller.request('ui_client_module', { plugin: 'p' })).resolves.toBeNull()
+    await expect(controller.requestStrict('ui_client_module', { plugin: 'p' })).rejects.toThrow(
+      'boom'
+    )
+    warn.mockRestore()
+  })
 })

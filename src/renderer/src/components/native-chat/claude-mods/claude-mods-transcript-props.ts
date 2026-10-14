@@ -5,6 +5,7 @@ import type {
   NativeChatToolResultBlock
 } from '../../../../../shared/native-chat-types'
 import { selectActiveToolCall } from '../../../../../shared/native-chat-tool-activity'
+import { cutClaudeModsString } from './claude-mods-transcript-ask-bounds'
 
 export type ClaudeModsSiteProps = Record<string, unknown>
 
@@ -16,12 +17,7 @@ const MAX_DEPTH = 6
 /** `value` with every string cut to the cap and every list and record bounded. */
 export function capClaudeModsSiteValue(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') {
-    if (value.length <= MAX_STRING_CHARS) {
-      return value
-    }
-    const cut = value.slice(0, MAX_STRING_CHARS)
-    // A cut between a surrogate pair would send half a character.
-    return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut
+    return cutClaudeModsString(value, MAX_STRING_CHARS)
   }
   if (typeof value !== 'object' || value === null) {
     return value
@@ -197,4 +193,13 @@ export function claudeModsSpinnerProps(
 export function claudeModsText(props: ClaudeModsSiteProps, name: string): string | undefined {
   const value = props[name]
   return typeof value === 'string' ? value : undefined
+}
+
+/** The AskUserQuestion `tool_use_id` a pending question item carries, when its host sends one. */
+export function claudeModsQuestionToolUseId(item: unknown): string | undefined {
+  if (typeof item !== 'object' || item === null) {
+    return undefined
+  }
+  const id: unknown = Reflect.get(item, 'toolUseId')
+  return typeof id === 'string' && id.length > 0 ? id : undefined
 }

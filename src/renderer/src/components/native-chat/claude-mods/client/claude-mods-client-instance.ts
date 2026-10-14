@@ -27,13 +27,11 @@ export type ClaudeModsClientInstanceHandlers = {
   failed: (phase: ClaudeModsClientPhase, reason: string) => void
   /** A press answered for a drawing the site no longer holds: the site must be asked again. */
   stale: () => void
+  /** A neighbour's call overran and took the frame down: mount again in a fresh one. */
+  evicted: () => void
 }
 
-/** The phase a frame's death means for an instance: its own overrun, or a neighbour's. */
-function deathPhase(death: ClaudeModsClientFrameDeath, id: string): ClaudeModsClientPhase {
-  if (death.id !== id) {
-    return 'run'
-  }
+function deathPhase(death: ClaudeModsClientFrameDeath): ClaudeModsClientPhase {
   return death.op === 'render' ? 'render' : death.op === 'mount' ? 'load' : 'run'
 }
 
@@ -46,6 +44,7 @@ export class ClaudeModsClientInstance {
   private handles: number[] = []
   private listening: ClaudeModsClientListeners = { key: false, pointer: false }
   private closed = false
+  private faulted = false
 
   constructor(
     private readonly frame: ClaudeModsClientFrame,
@@ -56,7 +55,7 @@ export class ClaudeModsClientInstance {
   ) {
     this.propsJson = ''
     const stopSignals = frame.listen(id, (signal) => this.onSignal(signal))
-    const stopDeath = frame.onDeath((death) => this.fail(deathPhase(death, id), death.reason))
+    const stopDeath = frame.onDeath((death) => this.onDeath(death), id)
     this.stopListening = () => {
       stopSignals()
       stopDeath()
@@ -151,12 +150,31 @@ export class ClaudeModsClientInstance {
     this.stopListening()
     this.relay.cancel()
     if (!this.frame.dead) {
-      void this.frame.call({ op: 'unmount', id: this.id })
+      void this.frame.call({ op: 'unmount', id: this.id }).then((result) => this.unmounted(result))
+    }
+  }
+
+  /** No listener is left to hear an unmount that overran, so it is reported from here. */
+  private unmounted(result: { ok: boolean }): void {
+    const death = this.frame.dead
+    if (!result.ok && death?.op === 'unmount' && death.id === this.id && !this.faulted) {
+      this.relay.fault('run', `unmounting ${death.reason}`)
+    }
+  }
+
+  /** Only the instance whose call overran faults; a frame failing on its own faults them all. */
+  private onDeath(death: ClaudeModsClientFrameDeath): void {
+    if (death.id === undefined || death.id === this.id) {
+      this.fail(deathPhase(death), death.reason)
+    } else if (!this.closed) {
+      this.close()
+      this.handlers.evicted()
     }
   }
 
   private fail(phase: ClaudeModsClientPhase, reason: string): void {
     if (!this.closed) {
+      this.faulted = true
       this.close()
       this.handlers.failed(phase, reason)
     }

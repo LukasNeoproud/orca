@@ -6,6 +6,7 @@ import { ClaudeModsDrawContext } from './claude-mods-draw-scope'
 import { ClaudeModsNodeView } from './ClaudeModsElement'
 import { useClaudeModsSite } from './claude-mods-scroll-site'
 import { claudeModsHotkeyTarget } from './claude-mods-focus-keyboard'
+import { isClaudeModsFocusWithinSite } from './claude-mods-focus-sync'
 import { CLAUDE_MODS_BAND_MAX_ROWS } from './claude-mods-layout-registry'
 import { useClaudeModsPaneController } from './claude-mods-pane-surfaces'
 import {
@@ -104,7 +105,11 @@ function ClaudeModsBandBody({
           style={{ maxHeight: `calc(${CLAUDE_MODS_BAND_MAX_ROWS} * 1.4em)` }}
           onFocus={(event) => {
             // A click on the band itself takes the keyboard: the first autoFocus takes the ring.
-            if (event.target === event.currentTarget) {
+            // A click on empty space while the keyboard is already inside leaves the ring alone.
+            if (
+              event.target === event.currentTarget &&
+              !isClaudeModsFocusWithinSite(event.currentTarget, event.relatedTarget)
+            ) {
               site.takeAutoFocus()
             }
           }}

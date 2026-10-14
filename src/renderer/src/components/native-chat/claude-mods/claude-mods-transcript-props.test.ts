@@ -1,23 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentJournalSubmission } from '../../../../../shared/agent-session-journal-types'
-import {
-  agentJournalItemKey,
-  agentJournalSubmissionKey
-} from '../../../../../shared/agent-session-journal-item-key'
 import type {
   NativeChatToolCallBlock,
   NativeChatToolResultBlock
 } from '../../../../../shared/native-chat-types'
 import {
   capClaudeModsSiteValue,
+  claudeModsQuestionToolUseId,
   claudeModsSpinnerProps,
   claudeModsToolGroup,
   claudeModsToolUseProps
 } from './claude-mods-transcript-props'
-import {
-  claudeModsQuestionToolUseId,
-  claudeModsUserMessageIds
-} from './claude-mods-transcript-user-ids'
 
 const call = (callId: string | undefined, over: Partial<NativeChatToolCallBlock> = {}) =>
   ({ type: 'tool-call', name: 'Bash', input: { command: 'ls' }, callId, ...over }) as const
@@ -101,25 +93,7 @@ describe('transcript site props', () => {
   })
 })
 
-describe('user message ids', () => {
-  it('maps a prompt row to the uuid the CLI named it by', () => {
-    const submission = (providerItemId: string | null): AgentJournalSubmission => ({
-      clientMessageId: 'client-1',
-      fence: 1,
-      payloadFingerprint: 'f',
-      dispatchState: 'accepted',
-      providerItemId,
-      reason: null,
-      submittedAt: 1,
-      resolvedAt: 2
-    })
-    const key = agentJournalItemKey({ provider: 'claude', sessionId: 's1', uuid: 'uuid-9' })
-    expect(
-      claudeModsUserMessageIds([submission(key)]).get(agentJournalSubmissionKey('client-1'))
-    ).toBe('uuid-9')
-    expect(claudeModsUserMessageIds([submission(null)]).size).toBe(0)
-  })
-
+describe('question tool_use_id', () => {
   it('reads a question item tool_use_id only when it is a non-empty string', () => {
     expect(claudeModsQuestionToolUseId({ toolUseId: 'toolu_q' })).toBe('toolu_q')
     expect(claudeModsQuestionToolUseId({ toolUseId: '' })).toBeUndefined()

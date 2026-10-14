@@ -37,4 +37,31 @@ describe('claudeModsHotkeyTarget', () => {
       claudeModsHotkeyTarget(tree, { ...event, target: document.createElement('button') })
     ).toBeDefined()
   })
+
+  it('leaves the keys of a Select trigger, its open listbox and portaled content alone', () => {
+    const trigger = document.createElement('button')
+    trigger.setAttribute('role', 'combobox')
+    const option = document.createElement('div')
+    option.setAttribute('role', 'option')
+    const listbox = document.createElement('div')
+    listbox.setAttribute('role', 'listbox')
+    listbox.append(option)
+    expect(claudeModsHotkeyTarget(tree, { ...event, target: trigger })).toBeUndefined()
+    expect(claudeModsHotkeyTarget(tree, { ...event, target: option })).toBeUndefined()
+    const site = document.createElement('div')
+    const portaled = document.createElement('span')
+    document.body.append(portaled)
+    expect(
+      claudeModsHotkeyTarget(tree, { ...event, target: portaled, currentTarget: site })
+    ).toBeUndefined()
+    const inside = document.createElement('button')
+    site.append(inside)
+    expect(
+      claudeModsHotkeyTarget(tree, { ...event, target: inside, currentTarget: site })
+    ).toBeDefined()
+  })
+
+  it('skips a key something already handled', () => {
+    expect(claudeModsHotkeyTarget(tree, { ...event, defaultPrevented: true })).toBeUndefined()
+  })
 })

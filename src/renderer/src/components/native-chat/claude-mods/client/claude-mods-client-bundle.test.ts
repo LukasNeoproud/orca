@@ -3,7 +3,8 @@ import {
   CLAUDE_MODS_CLIENT_DEFAULT_LIMITS,
   orderClaudeModsClientFiles,
   readClaudeModsClientBundle,
-  splitClaudeModsClientSource
+  splitClaudeModsClientSource,
+  unlinkedClaudeModsClientSpecifier
 } from './claude-mods-client-bundle'
 
 // The board module as Claude Code 2.1.299 served it in a real ui_client_module answer.
@@ -34,8 +35,43 @@ describe('splitClaudeModsClientSource', () => {
     const text = parts.map((part) => (typeof part === 'string' ? part : '<URL>')).join('')
     expect(text).toContain('import { label } from <URL>;')
     expect(text).toContain('import(<URL>)')
-    expect(text).toContain('from "surface-unlinked:///lodash"')
-    expect(text).toContain('"surface-unlinked:///computed#"')
+    expect(text).toContain(
+      `from ${JSON.stringify(unlinkedClaudeModsClientSpecifier('surface-unlinked:///lodash'))}`
+    )
+    expect(text).toContain('import(("surface-unlinked:///computed#" + String(name)))')
+    expect(text).toContain('const text = "from nowhere";')
+  })
+
+  it('makes every literal specifier that names no served file unloadable', () => {
+    const source = [
+      `import a from 'https://example.com/a.js';`,
+      'import b from "data:text/javascript,export default 1";',
+      'const c = import(`blob:null/abc`);',
+      "export * from 'https://example.com/\\x62.js';",
+      'import "./relative.js";'
+    ].join('\n')
+    const text = splitClaudeModsClientSource(source, new Set()).join('')
+    expect(text).not.toMatch(/(from|import\(?)\s*["'`](https|data|blob|\.)/)
+    for (const spelled of [
+      'https://example.com/a.js',
+      'data:text/javascript,export default 1',
+      'blob:null/abc',
+      "'https://example.com/\\x62.js'",
+      './relative.js'
+    ]) {
+      expect(text).toContain(JSON.stringify(unlinkedClaudeModsClientSpecifier(spelled)))
+    }
+  })
+
+  it('leaves text that only reads like an import alone', () => {
+    const source = [
+      `const a = 'loaded from "https://x"';`,
+      'const b = `import "https://y"`;',
+      '// import c from "https://z"',
+      'const d = /from "x"/.test(s) ? Array.from("abc") : obj.import("q");',
+      'const e = { from: "w", import: "v" };'
+    ].join('\n')
+    expect(splitClaudeModsClientSource(source, new Set())).toEqual([source])
   })
 
   it('reads a specifier spelled with JSON escapes', () => {

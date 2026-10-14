@@ -1,5 +1,5 @@
 const PANE = 'scroll-log'
-let rows = Array.from({ length: 30 }, (_, i) => `row ${i + 1}`)
+let rows = Array.from({ length: 80 }, (_, i) => `row ${i + 1}`)
 let ticking = null
 
 export function register(on) {
