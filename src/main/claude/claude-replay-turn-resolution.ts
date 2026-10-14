@@ -47,8 +47,10 @@ export function resolveClaudeReplayTurn(
     return null
   }
   const envelope = readClaudeMessageEnvelope(message)
+  // A plugin's prompt settles no Orca send, even one with the same text.
   const isUserReplay =
     envelope?.role === 'user' &&
+    envelope.isPluginPrompt !== true &&
     message.parent_tool_use_id === null &&
     claudeHasReplayContent(envelope)
   const isCompletedCommand = message.type === 'result'

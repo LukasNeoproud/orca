@@ -31,6 +31,7 @@ import type { createClaudeStreamedTextCheckpoints } from './claude-streamed-text
 import type { ClaudeStreamedThinking } from './claude-streamed-thinking'
 import type { ClaudeProvisionalRowCorrections } from './claude-provisional-row-corrections'
 import type { ClaudeSubagentRoster } from './claude-subagent-roster'
+import { claudePluginPromptContent } from './claude-plugin-submitted-prompt'
 import { claudeTurnOpenedBySendEcho, type ClaudeTurnSource } from './claude-turn-opening'
 import type { ClaudeOpenTurn } from './claude-open-turn'
 import type { ClaudeAuthenticationFailures } from './claude-authentication-failures'
@@ -91,7 +92,9 @@ export function journalClaudeMessage(
       ? ctx.toolOrigins.childOwnerRef(envelope.parentToolUseId)
       : envelope.parentToolUseId
   const stamp = ctx.corrections.stampFor(producerRef)
-  const outputEnvelope = claudeOutputEnvelope(envelope)
+  const outputEnvelope = envelope.isPluginPrompt
+    ? { ...envelope, content: claudePluginPromptContent(envelope.content) }
+    : claudeOutputEnvelope(envelope)
   const body = ctx.authenticationFailures.assistant(message) ?? claudeMessageBody(outputEnvelope)
   const identity =
     (body && envelope.role === 'assistant'
@@ -108,8 +111,11 @@ export function journalClaudeMessage(
   if (body) {
     // Opening before the append is what brackets a turn around its own first
     // output; a reader that scans back to the turn record and stops would
-    // otherwise look straight past the row that opened it.
-    ctx.turn.ensureOpen(message, source, observedAt)
+    // otherwise look straight past the row that opened it. A plugin's prompt is
+    // a send Orca did not make: its row anchors the turn the echo opens below.
+    if (!envelope.isPluginPrompt) {
+      ctx.turn.ensureOpen(message, source, observedAt)
+    }
     ctx.sink.appendItem(identity, body, stamp(identity, body))
     changed = true
   }
@@ -168,7 +174,9 @@ export function journalClaudeMessage(
   const sendEchoTurn = claudeTurnOpenedBySendEcho({
     envelope,
     frame: message,
-    startsTurn,
+    // Like Orca's own sends, a plugin's prompt folded into a running cycle opens no new turn.
+    startsTurn:
+      startsTurn || (envelope.isPluginPrompt === true && !ctx.turn.openedInLiveProviderCycle),
     observedAt,
     ...(requestedAt === undefined ? {} : { requestedAt }),
     userItemId: agentJournalItemKey(identity)
