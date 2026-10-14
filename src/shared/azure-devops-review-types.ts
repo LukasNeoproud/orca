@@ -175,6 +175,8 @@ export type AzureDevOpsReviewFileSide = {
   missing: boolean
   binary: boolean
   tooLarge: boolean
+  /** Set on a binary image side; `content` then holds its bytes as base64. */
+  imageMimeType?: string
 }
 
 export type AzureDevOpsReviewFileDiff = {

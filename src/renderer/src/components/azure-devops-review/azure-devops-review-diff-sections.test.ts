@@ -55,6 +55,27 @@ describe('azure devops diff sections', () => {
     expect(fields.modifiedContent).toBe('')
   })
 
+  it('previews images on both sides as an image diff', () => {
+    const image = { ...side('AQID', { binary: true }), imageMimeType: 'image/png' }
+    const added = { ...side(''), missing: true }
+    const fields = azureDevOpsLoadedSectionFields(diff(added, image))
+    expect(fields.diffResult).toMatchObject({
+      kind: 'binary',
+      isImage: true,
+      mimeType: 'image/png',
+      originalContent: '',
+      modifiedContent: 'AQID',
+      modifiedIsBinary: true
+    })
+  })
+
+  it('does not preview an image the host refused as too large', () => {
+    const fields = azureDevOpsLoadedSectionFields(
+      diff(side(''), { ...side('', { binary: true, tooLarge: true }), imageMimeType: 'image/png' })
+    )
+    expect(fields.diffResult).not.toHaveProperty('isImage')
+  })
+
   it('forces the large-diff fallback when the host refused a side', () => {
     const fields = azureDevOpsLoadedSectionFields(diff(side('a'), side('', { tooLarge: true })))
     expect(fields.largeDiffRenderLimit?.limited).toBe(true)

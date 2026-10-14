@@ -1,4 +1,8 @@
-import { AzureDevOpsRequestError, sendAzureDevOpsRequest } from '../azure-devops-api-request'
+import {
+  AzureDevOpsRequestError,
+  sendAzureDevOpsBinaryRequest,
+  sendAzureDevOpsRequest
+} from '../azure-devops-api-request'
 import type { AzureDevOpsPullRequestStatusFilter } from '../../../shared/azure-devops-review-types'
 import type {
   RawIteration,
@@ -230,6 +234,8 @@ export async function getAzureDevOpsReviewItemAtCommit(
           'versionDescriptor.version': commit,
           'versionDescriptor.versionType': 'commit',
           includeContent: 'true',
+          // Why: without it `isBinary` is absent and binary files arrive as mangled text.
+          includeContentMetadata: 'true',
           $format: 'json'
         },
         timeoutMs: 20_000
@@ -238,6 +244,42 @@ export async function getAzureDevOpsReviewItemAtCommit(
   } catch (error) {
     if (error instanceof AzureDevOpsRequestError && error.status === 404) {
       return null
+    }
+    throw error
+  }
+}
+
+export type RawReviewItemBytes =
+  | { kind: 'bytes'; bytes: Buffer }
+  | { kind: 'missing' }
+  | { kind: 'too-large' }
+
+/** A file's raw bytes at a commit, for content the JSON API cannot carry (images). */
+export async function getAzureDevOpsReviewItemBytesAtCommit(
+  target: AzureDevOpsReviewTarget & { repositoryId: string },
+  path: string,
+  commit: string,
+  maxBytes: number
+): Promise<RawReviewItemBytes> {
+  try {
+    const bytes = await sendAzureDevOpsBinaryRequest(
+      projectBase(target),
+      `/_apis/git/repositories/${segment(target.repositoryId)}/items`,
+      {
+        searchParams: {
+          path,
+          'versionDescriptor.version': commit,
+          'versionDescriptor.versionType': 'commit',
+          $format: 'octetStream'
+        },
+        timeoutMs: 20_000,
+        maxBytes
+      }
+    )
+    return bytes ? { kind: 'bytes', bytes } : { kind: 'too-large' }
+  } catch (error) {
+    if (error instanceof AzureDevOpsRequestError && error.status === 404) {
+      return { kind: 'missing' }
     }
     throw error
   }

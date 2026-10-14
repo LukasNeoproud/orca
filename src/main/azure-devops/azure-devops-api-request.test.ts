@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   _resetAzureDevOpsPreviewApiVersionCache,
   requestAzureDevOpsJson,
-  requestAzureDevOpsJsonAtBase
+  requestAzureDevOpsJsonAtBase,
+  sendAzureDevOpsBinaryRequest
 } from './azure-devops-api-request'
 import type { AzureDevOpsRepoRef } from './repository-ref'
 
@@ -130,5 +131,21 @@ describe('Azure DevOps API request (STA-3494)', () => {
 
     await requestAzureDevOpsJson(serverRepoRef(), '/_apis/git/repositories/my-repo')
     expect(paths).toEqual(['/rewrite/MyProject/_apis/git/repositories/my-repo'])
+  })
+
+  it('downloads raw bytes as octet-stream and refuses bodies over the cap', async () => {
+    const accepts: (string | null)[] = []
+    globalThis.fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      accepts.push(new Headers(init?.headers).get('Accept'))
+      return new Response(new Uint8Array([1, 2, 3, 4]))
+    }) as never
+
+    await expect(
+      sendAzureDevOpsBinaryRequest(SERVER_BASE, '/_apis/git/items', { maxBytes: 4 })
+    ).resolves.toEqual(Buffer.from([1, 2, 3, 4]))
+    await expect(
+      sendAzureDevOpsBinaryRequest(SERVER_BASE, '/_apis/git/items', { maxBytes: 3 })
+    ).resolves.toBeNull()
+    expect(accepts).toEqual(['application/octet-stream', 'application/octet-stream'])
   })
 })

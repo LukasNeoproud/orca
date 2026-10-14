@@ -75,25 +75,26 @@ export function azureDevOpsLoadedSectionFields(
   'diffResult' | 'originalContent' | 'modifiedContent' | 'largeDiffRenderLimit' | 'loading'
 > {
   if (diff.original.binary || diff.modified.binary) {
+    const mimeType = diff.modified.imageMimeType ?? diff.original.imageMimeType
+    const image = mimeType !== undefined && !diff.original.tooLarge && !diff.modified.tooLarge
+    const contents = {
+      originalContent: image ? diff.original.content : '',
+      modifiedContent: image ? diff.modified.content : '',
+      ...(image ? { isImage: true, mimeType } : {}),
+      ...(diff.modified.missing ? { modifiedDeleted: true } : {})
+    }
     const diffResult: GitDiffResult = diff.original.binary
       ? {
           kind: 'binary',
-          originalContent: '',
-          modifiedContent: '',
+          ...contents,
           originalIsBinary: true,
           modifiedIsBinary: diff.modified.binary
         }
-      : {
-          kind: 'binary',
-          originalContent: '',
-          modifiedContent: '',
-          originalIsBinary: false,
-          modifiedIsBinary: true
-        }
+      : { kind: 'binary', ...contents, originalIsBinary: false, modifiedIsBinary: true }
     return {
       diffResult,
-      originalContent: '',
-      modifiedContent: '',
+      originalContent: contents.originalContent,
+      modifiedContent: contents.modifiedContent,
       largeDiffRenderLimit: null,
       loading: false
     }

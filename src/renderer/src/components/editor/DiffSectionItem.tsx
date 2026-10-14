@@ -327,7 +327,8 @@ export function DiffSectionItem({
           sectionBodyHeight={sectionBodyHeight}
           useIntrinsicImageHeight={useIntrinsicImageHeight}
           isBranchMode={isBranchMode}
-          worktreeId={worktreeId}
+          // Why: image notes go to the worktree store, which a caller-owned comment list never reads.
+          worktreeId={inlineComments ? undefined : worktreeId}
           sideBySide={sideBySide}
           isDark={isDark}
           language={language}

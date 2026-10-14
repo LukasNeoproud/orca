@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Columns2, ExternalLink, FileText, MessageSquarePlus, PanelLeft, Rows2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import DiffViewer from '@/components/editor/DiffViewer'
+import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
 import { detectLanguage } from '@/lib/language-detect'
 import { createAzureDevOpsReviewDraft } from '@/lib/azure-devops-review-client'
@@ -15,6 +16,9 @@ import { AzureDevOpsReviewFileComments } from './AzureDevOpsReviewFileComments'
 import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-diff'
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
+import { azureDevOpsLoadedSectionFields } from './azure-devops-review-diff-sections'
+
+const ImageDiffViewer = lazy(() => import('@/components/editor/ImageDiffViewer'))
 
 export function AzureDevOpsReviewFileDiffPane({
   detail,
@@ -41,15 +45,19 @@ export function AzureDevOpsReviewFileDiffPane({
   const inline = useAzureDevOpsReviewInlineComments(detail, onChanged)
   const [sideBySide, setSideBySide] = useState(true)
   const [fileComposer, setFileComposer] = useState(false)
+  const result = diff ? azureDevOpsLoadedSectionFields(diff).diffResult : null
+  const image = result?.kind === 'binary' && result.isImage ? result : null
   const unavailable =
-    diff && (diff.original.binary || diff.modified.binary)
-      ? translate(
-          'azureDevOpsReview.binaryFile',
-          'Binary file; open it in Azure DevOps to compare.'
-        )
-      : diff && (diff.original.tooLarge || diff.modified.tooLarge)
-        ? translate('azureDevOpsReview.largeFile', 'This file is too large to diff here.')
-        : null
+    image !== null
+      ? null
+      : diff && (diff.original.binary || diff.modified.binary)
+        ? translate(
+            'azureDevOpsReview.binaryFile',
+            'Binary file; open it in Azure DevOps to compare.'
+          )
+        : diff && (diff.original.tooLarge || diff.modified.tooLarge)
+          ? translate('azureDevOpsReview.largeFile', 'This file is too large to diff here.')
+          : null
 
   const addLineComment = async ({
     lineNumber,
@@ -150,6 +158,18 @@ export function AzureDevOpsReviewFileDiffPane({
           </p>
         ) : unavailable ? (
           <p className="p-4 text-sm text-muted-foreground">{unavailable}</p>
+        ) : image ? (
+          <div className="absolute inset-0 flex flex-col">
+            <Suspense fallback={null}>
+              <ImageDiffViewer
+                originalContent={image.originalContent}
+                modifiedContent={image.modifiedContent}
+                filePath={change.path}
+                mimeType={image.mimeType}
+                sideBySide={sideBySide}
+              />
+            </Suspense>
+          </div>
         ) : (
           // Why: Monaco sizes to its parent, so it needs a box with a definite height.
           <div className="absolute inset-0 flex flex-col">

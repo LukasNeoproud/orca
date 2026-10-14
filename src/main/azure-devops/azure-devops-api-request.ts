@@ -120,6 +120,7 @@ type AzureDevOpsFetchInit = {
   body?: unknown
   searchParams?: AzureDevOpsRequestOptions['searchParams']
   timeoutMs?: number
+  accept?: string
 }
 
 async function fetchAzureDevOps(
@@ -131,7 +132,7 @@ async function fetchAzureDevOps(
     fetch(url, {
       method: init.method ?? 'GET',
       headers: {
-        Accept: 'application/json',
+        Accept: init.accept ?? 'application/json',
         ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(await requestAuthHeaders(url))
       },
@@ -201,11 +202,12 @@ function describeHttpFailure(status: number, serverMessage: string | null): stri
 }
 
 /** Strict request for the review surfaces: failures throw a user-readable error. */
-export async function sendAzureDevOpsRequest<T>(
+/** Fetches and turns sign-in pages and HTTP failures into AzureDevOpsRequestError. */
+async function fetchAzureDevOpsChecked(
   baseUrl: string,
   path: string,
-  init: AzureDevOpsFetchInit = {}
-): Promise<T> {
+  init: AzureDevOpsFetchInit
+): Promise<Response> {
   let response: Response
   try {
     response = await fetchAzureDevOps(baseUrl, path, init)
@@ -230,6 +232,15 @@ export async function sendAzureDevOpsRequest<T>(
       response.status
     )
   }
+  return response
+}
+
+export async function sendAzureDevOpsRequest<T>(
+  baseUrl: string,
+  path: string,
+  init: AzureDevOpsFetchInit = {}
+): Promise<T> {
+  const response = await fetchAzureDevOpsChecked(baseUrl, path, init)
   try {
     return (await response.json()) as T
   } catch {
@@ -238,6 +249,25 @@ export async function sendAzureDevOpsRequest<T>(
       response.status
     )
   }
+}
+
+/** Raw response bytes; null when the body is larger than `maxBytes`. */
+export async function sendAzureDevOpsBinaryRequest(
+  baseUrl: string,
+  path: string,
+  init: AzureDevOpsFetchInit & { maxBytes: number }
+): Promise<Buffer | null> {
+  const response = await fetchAzureDevOpsChecked(baseUrl, path, {
+    ...init,
+    accept: 'application/octet-stream'
+  })
+  const declared = Number(response.headers.get('content-length'))
+  if (Number.isFinite(declared) && declared > init.maxBytes) {
+    await cancelUnreadResponseBody(response)
+    return null
+  }
+  const bytes = Buffer.from(await response.arrayBuffer())
+  return bytes.length > init.maxBytes ? null : bytes
 }
 
 export function requestAzureDevOpsJson<T>(
