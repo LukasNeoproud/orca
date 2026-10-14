@@ -1,0 +1,6 @@
+{
+  "name": "mods-demo",
+  "version": "0.1.0",
+  "description": "A guide pane for trying Claude Code mods in Orca's structured chat",
+  "author": { "name": "Orca fixtures" }
+}
