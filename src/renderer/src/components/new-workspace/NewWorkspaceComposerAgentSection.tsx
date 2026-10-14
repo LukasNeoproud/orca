@@ -6,11 +6,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import type { NewWorkspaceComposerCardProps } from './new-workspace-composer-card-props'
+import { useChatCapableQuickAgents } from './use-chat-capable-quick-agents'
 
 type NewWorkspaceComposerAgentSectionProps = Pick<
   NewWorkspaceComposerCardProps,
   | 'quickAgent'
   | 'onQuickAgentChange'
+  | 'quickAgentInTerminal'
+  | 'onQuickAgentInTerminalChange'
+  | 'repoId'
+  | 'selectedRepoIsGit'
+  | 'selectedRepoExecutionHostId'
   | 'onOpenAgentSettings'
   | 'createDisabled'
   | 'onCreate'
@@ -30,6 +36,11 @@ export function NewWorkspaceComposerAgentSection({
   simplified = false,
   quickAgent,
   onQuickAgentChange,
+  quickAgentInTerminal = false,
+  onQuickAgentInTerminalChange,
+  repoId,
+  selectedRepoIsGit,
+  selectedRepoExecutionHostId,
   onOpenAgentSettings,
   createDisabled,
   onCreate,
@@ -40,6 +51,11 @@ export function NewWorkspaceComposerAgentSection({
   defaultTuiAgent,
   handleSetDefaultAgent
 }: NewWorkspaceComposerAgentSectionProps): React.JSX.Element {
+  const chatCapableAgents = useChatCapableQuickAgents(visibleQuickAgents, {
+    repoId,
+    selectedRepoIsGit,
+    selectedRepoExecutionHostId
+  })
   return (
     <>
       <div className="min-w-0 space-y-1" data-contextual-tour-target="workspace-creation-agent">
@@ -80,6 +96,15 @@ export function NewWorkspaceComposerAgentSection({
           allowNarrowTrigger
           triggerClassName="h-9 w-full min-w-0 border-input text-sm focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           onTriggerEnter={createDisabled ? undefined : onCreate}
+          terminalVariant={
+            onQuickAgentInTerminalChange && chatCapableAgents.size > 0
+              ? {
+                  agents: chatCapableAgents,
+                  inTerminal: quickAgentInTerminal,
+                  onSelect: (_agent, inTerminal) => onQuickAgentInTerminalChange(inTerminal)
+                }
+              : undefined
+          }
         />
       </div>
 

@@ -88,7 +88,8 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
       workspaceNameSeed: string,
       workspaceRunContext: WorktreeCreationRequest['workspaceRunContext'],
       repoId: string,
-      explicit?: SimplifiedWorktreeSubmission
+      explicit?: SimplifiedWorktreeSubmission,
+      inTerminal?: boolean
     ): Promise<void> => {
       const prepared = await prepareQuickSubmit(
         smartGitHubResolution,
@@ -178,20 +179,21 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
 
       const promptDelivery = quickDraftPrompt ? 'draft' : 'auto-submit'
       // Why: the verdict is persisted on the request as data and re-entered once the worktree exists.
-      const agentLaunchRoute = agent
-        ? resolveAgentSessionLaunchRoute(useAppStore.getState(), {
-            agent,
-            workspace: {
-              kind: selectedRepoIsGit ? 'git-worktree' : 'folder',
-              repoId,
-              executionHostId: ephemeralVmRecipe
-                ? 'runtime:pending-ephemeral-vm'
-                : (workspaceRunContext?.hostId ?? selectedRepoExecutionHostId ?? undefined)
-            },
-            prompt: quickDraftPrompt ?? quickPrompt,
-            promptDelivery
-          })
-        : 'terminal-tui'
+      const agentLaunchRoute =
+        agent && !inTerminal
+          ? resolveAgentSessionLaunchRoute(useAppStore.getState(), {
+              agent,
+              workspace: {
+                kind: selectedRepoIsGit ? 'git-worktree' : 'folder',
+                repoId,
+                executionHostId: ephemeralVmRecipe
+                  ? 'runtime:pending-ephemeral-vm'
+                  : (workspaceRunContext?.hostId ?? selectedRepoExecutionHostId ?? undefined)
+              },
+              prompt: quickDraftPrompt ?? quickPrompt,
+              promptDelivery
+            })
+          : 'terminal-tui'
       const structuredLaunch = agentLaunchRoute === 'structured-native-chat'
 
       const request = buildQuickCreationRequest({

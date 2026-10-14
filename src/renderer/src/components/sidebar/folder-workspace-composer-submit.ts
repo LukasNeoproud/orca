@@ -51,6 +51,8 @@ type SubmitFolderWorkspaceCreateParams = {
   linkedTaskSourceContext?: TaskSourceContext | null
   note: string
   quickAgent: TuiAgent | null
+  /** Skips the native chat this agent would otherwise open as. */
+  inTerminal?: boolean
   autoRenameBranchFromWork: boolean | undefined
   agentCmdOverrides: Record<string, string> | undefined
   agentArgs?: string | null
@@ -71,6 +73,7 @@ export async function submitFolderWorkspaceCreate({
   linkedTaskSourceContext,
   note,
   quickAgent,
+  inTerminal = false,
   autoRenameBranchFromWork,
   agentCmdOverrides,
   agentArgs,
@@ -130,19 +133,20 @@ export async function submitFolderWorkspaceCreate({
   // `startupPlan.draftPrompt` alone can't tell whether this launch has one.
   const launchDraftPrompt =
     quickAgent && linkedWorkItem ? resolveFolderWorkspaceLaunchDraft(linkedWorkItem, note) : null
-  const plan = quickAgent
-    ? planAgentSessionLaunch(useAppStore.getState(), {
-        requestId: newAgentLaunchRequestId(),
-        agent: quickAgent,
-        workspace: {
-          kind: 'folder',
-          runtimeEnvironmentId,
-          executionHostId: getNewWorkspaceProjectGroupHostId(projectGroup)
-        },
-        prompt: launchDraftPrompt ?? note,
-        promptDelivery: launchDraftPrompt ? 'draft' : 'auto-submit'
-      })
-    : null
+  const plan =
+    quickAgent && !inTerminal
+      ? planAgentSessionLaunch(useAppStore.getState(), {
+          requestId: newAgentLaunchRequestId(),
+          agent: quickAgent,
+          workspace: {
+            kind: 'folder',
+            runtimeEnvironmentId,
+            executionHostId: getNewWorkspaceProjectGroupHostId(projectGroup)
+          },
+          prompt: launchDraftPrompt ?? note,
+          promptDelivery: launchDraftPrompt ? 'draft' : 'auto-submit'
+        })
+      : null
   const structuredLaunch = plan?.route === 'structured-native-chat'
   // Why: the pending badge should only appear when the submitted prompt can
   // actually produce the first agent message that names the workspace.

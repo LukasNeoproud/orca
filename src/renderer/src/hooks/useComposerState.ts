@@ -73,7 +73,11 @@ export type UseComposerStateResult = {
   onComposerNodeChange: (node: HTMLDivElement | null) => void
   promptTextareaRef: RefObject<HTMLTextAreaElement | null>
   nameInputRef: RefObject<HTMLInputElement | null>
-  submitQuick: (agent: TuiAgent | null, explicit?: SimplifiedWorktreeSubmission) => Promise<void>
+  submitQuick: (
+    agent: TuiAgent | null,
+    explicit?: SimplifiedWorktreeSubmission,
+    inTerminal?: boolean
+  ) => Promise<void>
   createDisabled: boolean
   suggestedBranchName?: string
   selectedBaseBranch?: string

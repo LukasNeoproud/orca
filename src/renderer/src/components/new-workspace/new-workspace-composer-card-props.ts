@@ -46,6 +46,9 @@ export type NewWorkspaceComposerCardProps = {
   nameInputRef?: React.RefObject<HTMLInputElement | null>
   quickAgent: TuiAgent | null
   onQuickAgentChange: (agent: TuiAgent | null) => void
+  /** Opens an agent that would start as a native chat in its terminal instead. */
+  quickAgentInTerminal?: boolean
+  onQuickAgentInTerminalChange?: (inTerminal: boolean) => void
   eligibleRepos: readonly RepoOption[]
   repoId: string
   projectOptions?: NewWorkspaceProjectOption[]

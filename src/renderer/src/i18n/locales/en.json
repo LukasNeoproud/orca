@@ -20328,5 +20328,9 @@
     "optionsPermissions": "Permissions",
     "permissionsAuto": "Auto (agent approves)",
     "permissionsSettings": "Agent Permissions setting"
+  },
+  "agentPicker": {
+    "chatVariant": "{{agent}} (Chat)",
+    "terminalVariant": "{{agent}} (Terminal)"
   }
 }

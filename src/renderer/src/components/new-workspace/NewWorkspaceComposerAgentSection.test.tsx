@@ -24,6 +24,8 @@ describe('NewWorkspaceComposerAgentSection agent picker', () => {
           visibleQuickAgents={AGENT_CATALOG}
           defaultTuiAgent="blank"
           handleSetDefaultAgent={vi.fn()}
+          repoId="repo-1"
+          selectedRepoIsGit
         />
       </TooltipProvider>
     )

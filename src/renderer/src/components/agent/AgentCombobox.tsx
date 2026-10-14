@@ -1,21 +1,20 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { ArrowRight, Check, ChevronsUpDown, Star, Terminal } from 'lucide-react'
+import { ArrowRight, ChevronsUpDown, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command'
 import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from '@/components/ui/command'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger
-} from '@/components/ui/context-menu'
+  AgentDefaultContextMenu,
+  AgentIconLabel,
+  renderAgentComboboxItem
+} from './AgentComboboxItem'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import {
+  agentPickerCommandValue,
+  agentPickerRowLabel,
+  buildAgentPickerRows,
+  type AgentPickerTerminalVariant
+} from '@/lib/agent-picker-launch-surface'
 import {
   agentPickerBlankTerminalMatches,
   getAgentPickerCommandValue,
@@ -55,99 +54,11 @@ type AgentComboboxProps = AgentComboboxSelectionProps & {
    *  field as the last keyboard-submit step. */
   onTriggerEnter?: () => void
   allowNarrowTrigger?: boolean
+  terminalVariant?: AgentPickerTerminalVariant
 }
 
 const BLANK_VALUE = '__none__'
 const TRIGGER_MIN_WIDTH_CLASS = '!min-w-[260px]'
-
-type ItemRenderArgs = {
-  key: string
-  itemValue: string
-  isChecked: boolean
-  isDefault: boolean
-  onSelect: () => void
-  onSetDefault?: () => void
-  icon: React.ReactNode
-  label: string
-}
-
-type AgentDefaultContextMenuProps = {
-  children: React.ReactNode
-  isDefault: boolean
-  onSetDefault?: () => void
-}
-
-function AgentIconLabel({
-  icon,
-  label
-}: {
-  icon: React.ReactNode
-  label: string
-}): React.JSX.Element {
-  return (
-    <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
-      <span className="inline-flex size-3.5 shrink-0 items-center justify-center [&_img]:size-3.5 [&_svg]:size-3.5!">
-        {icon}
-      </span>
-      <span className="truncate leading-none">{label}</span>
-    </span>
-  )
-}
-
-function AgentDefaultContextMenu({
-  children,
-  isDefault,
-  onSetDefault
-}: AgentDefaultContextMenuProps): React.ReactNode {
-  if (!onSetDefault) {
-    return children
-  }
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="z-[70]">
-        <ContextMenuItem onSelect={onSetDefault} disabled={isDefault}>
-          <Star className="size-3.5" />
-          {isDefault
-            ? translate('auto.components.agent.AgentCombobox.1b0d6965fa', 'Current default')
-            : translate('auto.components.agent.AgentCombobox.9c6b59fe58', 'Set as default')}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-}
-
-function renderItem({
-  key,
-  itemValue,
-  isChecked,
-  isDefault,
-  onSelect,
-  onSetDefault,
-  icon,
-  label
-}: ItemRenderArgs): React.ReactNode {
-  const row = (
-    <CommandItem
-      key={key}
-      value={itemValue}
-      onSelect={onSelect}
-      className="items-center gap-2 px-3 py-1.5"
-    >
-      <Check
-        className={cn('size-4 shrink-0 text-foreground', isChecked ? 'opacity-100' : 'opacity-0')}
-      />
-      <AgentIconLabel icon={icon} label={label} />
-    </CommandItem>
-  )
-  return (
-    // Why: z-[70] sits above PopoverContent's z-[60] so the right-click menu
-    // renders in front of the still-open combobox popover instead of behind it.
-    <AgentDefaultContextMenu key={key} isDefault={isDefault} onSetDefault={onSetDefault}>
-      {row}
-    </AgentDefaultContextMenu>
-  )
-}
 
 export default function AgentCombobox({
   agents,
@@ -158,6 +69,7 @@ export default function AgentCombobox({
   triggerClassName,
   onTriggerEnter,
   allowNarrowTrigger = false,
+  terminalVariant,
   ...selection
 }: AgentComboboxProps): React.JSX.Element {
   const allowBlankTerminal = selection.allowBlankTerminal === true
@@ -181,13 +93,16 @@ export default function AgentCombobox({
     () => allowBlankTerminal && agentPickerBlankTerminalMatches(query),
     [allowBlankTerminal, query]
   )
-  const activeCommandValue = getAgentPickerCommandValue({
+  const selectedCommandValue = agentPickerCommandValue(value, terminalVariant) ?? BLANK_VALUE
+  const pickedCommandValue = getAgentPickerCommandValue({
     blankValue: BLANK_VALUE,
     blankMatchesQuery,
     currentValue: value,
     filteredAgents,
     rawQuery: query
   })
+  const activeCommandValue =
+    value && pickedCommandValue === value ? selectedCommandValue : pickedCommandValue
   const resolvedCommandState = resolveAgentComboboxCommandState(
     commandState,
     open,
@@ -242,13 +157,13 @@ export default function AgentCombobox({
     (nextOpen: boolean) => {
       setOpen(nextOpen)
       if (nextOpen) {
-        setCommandState(createAgentComboboxCommandState(value ?? BLANK_VALUE))
+        setCommandState(createAgentComboboxCommandState(selectedCommandValue))
         return
       }
       cancelFocusFrame()
       setQuery('')
     },
-    [cancelFocusFrame, value]
+    [cancelFocusFrame, selectedCommandValue]
   )
 
   const closePicker = useCallback(() => {
@@ -292,7 +207,7 @@ export default function AgentCombobox({
       }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
-        setCommandState(createAgentComboboxCommandState(value ?? BLANK_VALUE))
+        setCommandState(createAgentComboboxCommandState(selectedCommandValue))
         setOpen(true)
         return
       }
@@ -301,12 +216,12 @@ export default function AgentCombobox({
       }
       if (event.key.length === 1 && /\S/.test(event.key)) {
         event.preventDefault()
-        setCommandState(createAgentComboboxCommandState(value ?? BLANK_VALUE))
+        setCommandState(createAgentComboboxCommandState(selectedCommandValue))
         setQuery(event.key)
         setOpen(true)
       }
     },
-    [open, onTriggerEnter, value]
+    [open, onTriggerEnter, selectedCommandValue]
   )
 
   return (
@@ -345,7 +260,12 @@ export default function AgentCombobox({
               {selectedAgent ? (
                 <AgentIconLabel
                   icon={<AgentIcon agent={selectedAgent.id} size={14} />}
-                  label={selectedAgent.label}
+                  label={agentPickerRowLabel(
+                    selectedAgent.label,
+                    terminalVariant?.agents.has(selectedAgent.id)
+                      ? terminalVariant.inTerminal
+                      : null
+                  )}
                 />
               ) : (
                 <AgentIconLabel
@@ -397,7 +317,7 @@ export default function AgentCombobox({
                 )}
               </CommandEmpty>
               {blankMatchesQuery
-                ? renderItem({
+                ? renderAgentComboboxItem({
                     key: BLANK_VALUE,
                     itemValue: BLANK_VALUE,
                     isChecked: value === null,
@@ -411,17 +331,27 @@ export default function AgentCombobox({
                     )
                   })
                 : null}
-              {filteredAgents.map((agent) =>
-                renderItem({
-                  key: agent.id,
-                  itemValue: agent.id,
-                  isChecked: value === agent.id,
-                  isDefault: defaultAgent === agent.id,
-                  onSelect: () => handleSelectAgent(agent.id),
-                  onSetDefault: onSetDefault ? () => onSetDefault(agent.id) : undefined,
-                  icon: <AgentIcon agent={agent.id} />,
-                  label: agent.label
-                })
+              {buildAgentPickerRows(filteredAgents, terminalVariant).map(
+                ({ itemValue, agent, inTerminal }) =>
+                  renderAgentComboboxItem({
+                    key: itemValue,
+                    itemValue,
+                    isChecked: itemValue === selectedCommandValue,
+                    // The default names an agent, not where it opens.
+                    isDefault: defaultAgent === agent.id && inTerminal !== true,
+                    onSelect: () => {
+                      if (inTerminal !== null) {
+                        terminalVariant?.onSelect(agent.id, inTerminal)
+                      }
+                      handleSelectAgent(agent.id)
+                    },
+                    onSetDefault:
+                      onSetDefault && inTerminal !== true
+                        ? () => onSetDefault(agent.id)
+                        : undefined,
+                    icon: <AgentIcon agent={agent.id} />,
+                    label: agentPickerRowLabel(agent.label, inTerminal)
+                  })
               )}
             </CommandList>
             {onOpenManageAgents ? (

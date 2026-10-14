@@ -69,10 +69,11 @@ export function useQuickSubmitAction(input: QuickSubmitActionInput) {
   const submitQuick = useCallback(
     async (
       requestedAgent: TuiAgent | null,
-      explicit?: SimplifiedWorktreeSubmission
+      explicit?: SimplifiedWorktreeSubmission,
+      inTerminal?: boolean
     ): Promise<void> => {
       if (isProjectGroupTarget) {
-        await submitFolderTarget(requestedAgent)
+        await submitFolderTarget(requestedAgent, inTerminal)
         return
       }
 
@@ -148,7 +149,8 @@ export function useQuickSubmitAction(input: QuickSubmitActionInput) {
           workspaceNameSeed,
           workspaceRunContext,
           repoId,
-          explicit
+          explicit,
+          inTerminal
         )
       } catch (error) {
         if (isSubmissionCancelled()) {

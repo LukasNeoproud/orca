@@ -70,7 +70,7 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
   const { canResolveFolderSmartGitHubSubmit } = decisions
 
   const submitFolderTarget = useCallback(
-    async (requestedAgent: TuiAgent | null): Promise<void> => {
+    async (requestedAgent: TuiAgent | null, inTerminal?: boolean): Promise<void> => {
       if (!selectedProjectGroup?.parentPath || folderCreateDisabled) {
         return
       }
@@ -108,6 +108,7 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
           linkedTaskSourceContext: taskSourceContext,
           note,
           quickAgent: agent,
+          ...(inTerminal ? { inTerminal } : {}),
           autoRenameBranchFromWork: settings?.autoRenameBranchFromWork,
           agentCmdOverrides: settings?.agentCmdOverrides,
           agentArgs: agent

@@ -221,6 +221,7 @@ function QuickTabBody({
   }
   const quickAgent = resolvedQuickAgentSelection.quickAgent
 
+  const [quickAgentInTerminal, setQuickAgentInTerminal] = useState(false)
   const handleQuickAgentChange = useCallback((agent: TuiAgent | null) => {
     setQuickAgentOverride(agent)
   }, [])
@@ -234,15 +235,22 @@ function QuickTabBody({
       if (simplified) {
         const explicit = await validateSimplified()
         if (explicit) {
-          await submitQuick(quickAgent, explicit)
+          await submitQuick(quickAgent, explicit, quickAgentInTerminal)
         }
       } else {
-        await submitQuick(quickAgent)
+        await submitQuick(quickAgent, undefined, quickAgentInTerminal)
       }
     } finally {
       submitInFlight.current = false
     }
-  }, [quickAgent, submitQuick, simplified, validateSimplified, reviewBasePending])
+  }, [
+    quickAgent,
+    quickAgentInTerminal,
+    submitQuick,
+    simplified,
+    validateSimplified,
+    reviewBasePending
+  ])
   // Why: Add Project layers over the composer as a nested dialog instead of
   // replacing it in the activeModal slot — closing the composer mid-flow (and
   // losing the typed name/prompt) was the old, abrupt behavior. Once opened it
@@ -356,6 +364,8 @@ function QuickTabBody({
         nameInputRef={nameInputRef}
         quickAgent={quickAgent}
         onQuickAgentChange={handleQuickAgentChange}
+        quickAgentInTerminal={quickAgentInTerminal}
+        onQuickAgentInTerminalChange={setQuickAgentInTerminal}
         {...cardProps}
         simplifiedFields={
           simplified ? (
