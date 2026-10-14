@@ -318,6 +318,20 @@ const PROVIDER_FRAME_CATALOGS: ReadonlyMap<
   ]
 ])
 
+/** Claude's init repeats every turn and lists each MCP server's connection status; a server that
+ *  failed to connect is not a failed turn. */
+function errorScanPayload(provider: string, kind: string, payload: unknown): unknown {
+  if (
+    provider !== 'claude' ||
+    kind !== 'message:system:init' ||
+    typeof payload !== 'object' ||
+    payload === null
+  ) {
+    return payload
+  }
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'mcp_servers'))
+}
+
 export function classifyProviderFrame(
   provider: string,
   kind: string,
@@ -326,7 +340,7 @@ export function classifyProviderFrame(
   // Payload failure inspection outranks the name-shape heuristic below: an
   // unknown frame that reports an error must reach the user even when its
   // method name happens to look like a stream delta.
-  if (hasProviderError(payload)) {
+  if (hasProviderError(errorScanPayload(provider, kind, payload))) {
     return 'error-surface'
   }
   if (isDeltaProviderFrameKind(kind)) {
