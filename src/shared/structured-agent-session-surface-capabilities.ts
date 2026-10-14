@@ -34,6 +34,10 @@ export const AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY =
 // Why: `agentSession.claudeModsRequest`/`claudeModsSubscribe` forward Claude Code mods' `ui_*`
 // surface; a client probes this so an older host draws no mod panes instead of method_not_found.
 export const AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY = 'agent-session.claude-mods.v1' as const
+// Why: `agentSession.claudeModsAsks`/`claudeModsAnswer` let a composer answer the CLI's copy, read,
+// fill and suggest asks; an older host has neither, so a client probes before subscribing.
+export const AGENT_SESSION_CLAUDE_MODS_PROMPT_ANSWERS_RUNTIME_CAPABILITY =
+  'agent-session.claude-mods.prompt-answers.v1' as const
 
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
@@ -42,5 +46,6 @@ export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
   AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY,
-  AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY
+  AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY,
+  AGENT_SESSION_CLAUDE_MODS_PROMPT_ANSWERS_RUNTIME_CAPABILITY
 ] as const

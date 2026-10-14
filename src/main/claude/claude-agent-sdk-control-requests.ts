@@ -3,6 +3,10 @@ import type {
   Query,
   SDKControlInterruptResponse
 } from '@anthropic-ai/claude-agent-sdk'
+import {
+  claudeQueryUiAskInterceptor,
+  type ClaudeModsAskInterceptor
+} from './claude-mods-surface-ask-intercept'
 
 export class ClaudeControlRequestError extends Error {
   constructor(
@@ -127,6 +131,8 @@ export type ClaudeControlSurface = {
   getContextUsage: (options?: ClaudeControlOptions) => Promise<unknown>
   /** One `ui_*` request of the mods surface; absent when the SDK exposes no generic sender. */
   uiRequest?: (body: Record<string, unknown>, options?: ClaudeControlOptions) => Promise<unknown>
+  /** Answers the CLI's mods asks (ui_copy, ui_prompt_*); absent when the SDK cannot be intercepted. */
+  answerUiAsks?: ClaudeModsAskInterceptor
 }
 
 type InterruptingQuery = {
@@ -144,6 +150,7 @@ export function createClaudeControlSurface(query: Query): ClaudeControlSurface {
             runClaudeControl(String(body.subtype), () => raw(body), options?.timeoutMs)
         }
       : {}),
+    ...claudeQueryUiAskInterceptor(query),
     interrupt: (options) =>
       runClaudeControl(
         'interrupt',

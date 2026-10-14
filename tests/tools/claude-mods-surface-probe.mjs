@@ -3,6 +3,7 @@
 // fixture mods and logs every frame, so the wire shapes the app relies on can be re-checked
 // after a CLI update. Not shipped. Usage:
 //   node tests/tools/claude-mods-surface-probe.mjs [--claude <path>] [--out <file.jsonl>]
+//   --scenario prompt-asks [--no-answer]: the engine's asks, answered by a fake composer
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { appendFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,7 +19,11 @@ const argValue = (name) => {
 const claudePath = argValue('--claude') ?? 'claude'
 const outFile = argValue('--out')
 const scenario = argValue('--scenario') ?? 'hello-tabs'
-const defaultPlugins = scenario === 'transcript' ? 'transcript-marks,spinner-word' : 'hello-tabs'
+const defaultPlugins =
+  {
+    transcript: 'transcript-marks,spinner-word',
+    'prompt-asks': 'prompt-asks'
+  }[scenario] ?? 'hello-tabs'
 const pluginNames = (argValue('--plugins') ?? defaultPlugins).split(',')
 if (outFile) {
   writeFileSync(outFile, '')
@@ -62,8 +67,9 @@ const q = query({
   options: {
     cwd,
     pathToClaudeCodeExecutable: claudePath,
-    plugins: pluginNames.map((name) => ({ type: 'local', path: path.join(fixtures, name) })),
+    plugins: pluginNames.map((name) => ({ type: 'local', path: path.resolve(fixtures, name) })),
     settingSources: ['user'],
+    ...(args.includes('--replay') ? { extraArgs: { 'replay-user-messages': null } } : {}),
     permissionMode: 'default',
     canUseTool: async (toolName, toolInput) => {
       log('can_use_tool', { toolName, toolInput })
@@ -395,6 +401,47 @@ async function transcript() {
   }
 }
 
+// Engine -> client asks (`ui_copy`, `ui_prompt_*`) arrive as inbound control requests the SDK
+// would refuse; answer them from a fake composer so the request and answer shapes are logged.
+const ASK_SUBTYPES = new Set(['ui_copy', 'ui_prompt_read', 'ui_prompt_fill', 'ui_prompt_suggest'])
+const fakeComposer = { text: 'draft', cursor: 2 }
+function answerAsk(request) {
+  switch (request.subtype) {
+    case 'ui_copy':
+      return { copied: true }
+    case 'ui_prompt_read':
+      return { ...fakeComposer }
+    case 'ui_prompt_fill':
+      return { filled: true }
+    case 'ui_prompt_suggest':
+      return { shown: true }
+  }
+}
+function interceptAsks() {
+  const original = q.processControlRequest
+  q.processControlRequest = function (message, signal) {
+    if (!ASK_SUBTYPES.has(message?.request?.subtype)) {
+      return original.call(this, message, signal)
+    }
+    log('ask', message)
+    return Promise.resolve(answerAsk(message.request))
+  }
+}
+
+const ASK_COMMANDS = ['ask-copy', 'ask-read', 'ask-fill', 'ask-append', 'ask-insert', 'ask-suggest']
+
+async function promptAsks() {
+  if (!args.includes('--no-answer')) {
+    interceptAsks()
+  }
+  await request({ subtype: 'ui_attach', ...SURFACE, answers: [...ASK_SUBTYPES] })
+  for (const command of ASK_COMMANDS) {
+    const logged = waitFor(isSystem('ui_log'), 12_000).catch(() => null)
+    sendUser(`/${command}`)
+    await logged
+  }
+}
+
 async function runCommand(command, settleMs = 2000) {
   sendUser(command)
   await new Promise((resolve) => setTimeout(resolve, settleMs))
@@ -404,7 +451,19 @@ async function main() {
   const init = await q.initializationResult().catch((error) => String(error))
   log('init', { commands: init?.commands?.map?.((c) => c.name) })
   await request({ subtype: 'ui_attach', ...SURFACE, viewport })
-  if (scenario === 'scroll-log') {
+  if (scenario === 'guide') {
+    const panes = waitFor(isSystem('ui_panes')).catch(() => null)
+    sendUser('/mods-demo')
+    await panes
+    const tree = (await render('Pane', 'mods-demo'))?.tree
+    for (const key of (argValue('--keys') ?? 'open-hello-tabs,try-token-weather').split(',')) {
+      const press = findPress(tree, key)
+      await request({ subtype: 'ui_press', ...press, key, surface: 'desktop' })
+      await new Promise((resolve) => setTimeout(resolve, 4000))
+    }
+  } else if (scenario === 'prompt-asks') {
+    await promptAsks()
+  } else if (scenario === 'scroll-log') {
     await scrollLog()
   } else if (scenario === 'transcript') {
     await transcript()

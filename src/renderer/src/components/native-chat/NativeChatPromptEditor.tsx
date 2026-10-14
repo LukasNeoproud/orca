@@ -142,6 +142,13 @@ export function NativeChatPromptEditor({
     editor?.setEditable(!disabled, false)
   }, [disabled, editor])
 
+  // The Placeholder extension reads the ref only when the view redraws its decorations.
+  useLayoutEffect(() => {
+    if (editor && !editor.isDestroyed && editor.isInitialized) {
+      editor.view.dispatch(editor.state.tr.setMeta('placeholder', placeholder))
+    }
+  }, [editor, placeholder])
+
   const input = useMemo<NativeChatComposerInput | null>(
     () =>
       editor

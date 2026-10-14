@@ -7,6 +7,7 @@ import {
   type ClaudeModsSurfaceEvent,
   type ClaudeModsUnavailableReason
 } from '../../shared/claude-mods-surface'
+import { CLAUDE_MODS_ASK_SUBTYPES } from '../../shared/claude-mods-prompt-answers'
 import {
   ClaudeControlRequestError,
   type ClaudeControlSurface
@@ -16,13 +17,44 @@ import {
   claudeModsPushSubtype,
   readClaudeModsPaneRoster
 } from './claude-mods-surface-push'
+import type { ClaudeModsAskInterceptor } from './claude-mods-surface-ask-intercept'
+import { ClaudeModsAskRouter, type ClaudeModsAskListener } from './claude-mods-surface-asks'
 
 /** A press or render that takes longer than this is a stuck mod, not a slow one. */
 const CLAUDE_MODS_REQUEST_TIMEOUT_MS = 10_000
 
-export type ClaudeModsConnection = Pick<ClaudeControlSurface, 'uiRequest'>
+export type ClaudeModsConnection = Pick<ClaudeControlSurface, 'uiRequest'> & {
+  /** Absent when the SDK cannot answer the CLI's asks; `answers` is then never named. */
+  answerUiAsks?: ClaudeModsAskInterceptor
+}
 
 type Listener = (event: ClaudeModsSurfaceEvent) => void
+
+function isUnsupportedSubtype(error: unknown): boolean {
+  return (
+    error instanceof ClaudeControlRequestError &&
+    /unsupported control request subtype/i.test(error.message)
+  )
+}
+
+/** Only a CLI naming the field it refused; a timeout must not cost the session its answers. */
+function refusesAnswersField(error: unknown): boolean {
+  return (
+    error instanceof ClaudeControlRequestError &&
+    !isUnsupportedSubtype(error) &&
+    /\banswers\b/i.test(error.message)
+  )
+}
+
+/** `answers` is named when non-empty, or `[]` to withdraw a list sent before (`withdraw`). */
+function attachBody(answers: readonly string[], withdraw = false): Record<string, unknown> {
+  return {
+    subtype: 'ui_attach',
+    surface: CLAUDE_MODS_SURFACE,
+    client_id: CLAUDE_MODS_CLIENT_ID,
+    ...(answers.length > 0 || withdraw ? { answers: [...answers] } : {})
+  }
+}
 
 // ui_close names the pane and the Client requests name plugin/component/instance themselves
 // (the CLI ignores surface/client_id there); every other request says whose surface asks.
@@ -46,11 +78,15 @@ export class ClaudeModsSessionChannel {
   private roster: ClaudeModsPaneRoster = EMPTY_CLAUDE_MODS_PANE_ROSTER
   private readonly statuses = new Map<string, string>()
   private readonly listeners = new Set<Listener>()
+  private readonly asks = new ClaudeModsAskRouter(() => this.syncAnswers())
+  private releaseAsks: (() => void) | null = null
+  /** The `answers` the CLI holds for this attach. */
+  private advertised: readonly string[] = []
 
   constructor(private readonly onIdle: (channel: ClaudeModsSessionChannel) => void) {}
 
   get idle(): boolean {
-    return this.connection === null && this.listeners.size === 0
+    return this.connection === null && this.listeners.size === 0 && !this.asks.listening
   }
 
   /** The session's current child; the returned unbind is a no-op once another child bound. */
@@ -58,6 +94,7 @@ export class ClaudeModsSessionChannel {
     const generation = ++this.generation
     this.connection = connection
     this.reset()
+    this.releaseAsks = connection.answerUiAsks?.(this.asks.route) ?? null
     if (this.listeners.size > 0) {
       void this.publishState()
     }
@@ -116,6 +153,20 @@ export class ClaudeModsSessionChannel {
     }
   }
 
+  /** A composer answering the CLI's asks; the latest one answers, as on Desktop. */
+  subscribeAsks(listener: ClaudeModsAskListener): () => void {
+    const unsubscribe = this.asks.subscribe(listener)
+    return () => {
+      unsubscribe()
+      this.releaseIfIdle()
+    }
+  }
+
+  /** False when the ask already settled (its deadline passed) or was never this channel's. */
+  answerAsk(id: string, answer: unknown): boolean {
+    return this.asks.answer(id, answer)
+  }
+
   async request(
     subtype: ClaudeModsRequestSubtype,
     fields: Record<string, unknown>
@@ -150,11 +201,20 @@ export class ClaudeModsSessionChannel {
     const generation = this.generation
     this.attached ??= (async () => {
       try {
-        await send({
-          subtype: 'ui_attach',
-          surface: CLAUDE_MODS_SURFACE,
-          client_id: CLAUDE_MODS_CLIENT_ID
-        })
+        let answers = this.answerList()
+        try {
+          await send(attachBody(answers))
+        } catch (error) {
+          if (answers.length === 0 || !refusesAnswersField(error)) {
+            throw error
+          }
+          // A CLI that predates `answers` refuses the field: attach without answering.
+          answers = []
+          await send(attachBody(answers))
+        }
+        if (generation === this.generation) {
+          this.advertised = answers
+        }
         // A pane opened before the attach pushes nothing; the roster read on mount covers it.
         const roster = readClaudeModsPaneRoster(
           await send({ subtype: 'ui_panes', client_id: CLAUDE_MODS_CLIENT_ID })
@@ -168,16 +228,46 @@ export class ClaudeModsSessionChannel {
         if (generation === this.generation) {
           this.attached = null
         }
-        return error instanceof ClaudeControlRequestError &&
-          /unsupported control request subtype/i.test(error.message)
-          ? 'unsupported-cli'
-          : 'attach-failed'
+        return isUnsupportedSubtype(error) ? 'unsupported-cli' : 'attach-failed'
       }
     })()
     return this.attached
   }
 
+  private answerList(): string[] {
+    return this.connection?.answerUiAsks && this.asks.listening ? [...CLAUDE_MODS_ASK_SUBTYPES] : []
+  }
+
+  /** A composer came or went while attached: a repeated ui_attach replaces the `answers`. */
+  private syncAnswers(): void {
+    const attached = this.attached
+    const send = this.connection?.uiRequest
+    if (!attached || !send) {
+      return
+    }
+    const generation = this.generation
+    void attached.then((reason) => {
+      const answers = this.answerList()
+      if (
+        reason ||
+        generation !== this.generation ||
+        this.attached !== attached ||
+        answers.join() === this.advertised.join()
+      ) {
+        return
+      }
+      this.advertised = answers
+      void send(attachBody(answers, true)).catch(() => {
+        this.advertised = []
+      })
+    })
+  }
+
   private reset(): void {
+    this.releaseAsks?.()
+    this.releaseAsks = null
+    this.asks.settleAll()
+    this.advertised = []
     this.attached = null
     this.roster = EMPTY_CLAUDE_MODS_PANE_ROSTER
     this.statuses.clear()

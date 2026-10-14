@@ -66,6 +66,8 @@ export type NativeChatComposerFieldProps = {
   onDraftChange: (value: string, element: NativeChatComposerInput) => void
   onTextareaSelect: (element: NativeChatComposerInput) => void
   onKeyDown: KeyboardEventHandler<HTMLElement>
+  /** A Claude mod's suggestion, shown in place of the placeholder until taken or typed over. */
+  placeholderOverride?: string | null
   onImeSettled: (element: NativeChatComposerInput) => void
   onPaste: ClipboardEventHandler<HTMLElement>
   pickerListboxId: string
@@ -151,6 +153,7 @@ export function NativeChatComposerField({
   onDraftChange,
   onTextareaSelect,
   onKeyDown,
+  placeholderOverride,
   onImeSettled,
   onPaste,
   pickerListboxId,
@@ -339,12 +342,13 @@ export function NativeChatComposerField({
                   : undefined
               }
               placeholder={
-                goalMode?.active
+                placeholderOverride ??
+                (goalMode?.active
                   ? translate(
                       'components.native-chat.goal.placeholder',
                       'Describe your goal, define measurable outcomes for best results'
                     )
-                  : nativeChatComposerPlaceholder(hasPty, canSend, afterStop)
+                  : nativeChatComposerPlaceholder(hasPty, canSend, afterStop))
               }
               // Why: coarse-pointer min-height follows the app's touch target convention.
               // Editable content grows naturally; the 8lh cap (plus

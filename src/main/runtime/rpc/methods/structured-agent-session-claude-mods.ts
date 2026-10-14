@@ -3,8 +3,12 @@
 //
 // Additive and negotiated: a client calls these only once the host advertises
 // `agent-session.claude-mods.v1`, and treats any failure as "no mods drawn".
+// `claudeModsAsks` / `claudeModsAnswer` (the CLI asking the composer) need
+// `agent-session.claude-mods.prompt-answers.v1`.
 
 import {
+  ClaudeModsAnswerParams,
+  ClaudeModsAsksParams,
   ClaudeModsRequestParams,
   ClaudeModsSubscribeParams
 } from '../../../../shared/rpc-contract/claude-mods-surface-params'
@@ -31,8 +35,12 @@ function requireClaudeSession(ctx: RpcContext, sessionId: string): void {
   }
 }
 
-function claudeModsSubscriptionId(ctx: RpcContext, sessionId: string): string {
-  const base = `agentSession.claude-mods:${ctx.connectionId ?? 'local'}:${sessionId}`
+function claudeModsSubscriptionId(
+  ctx: RpcContext,
+  sessionId: string,
+  stream = 'claude-mods'
+): string {
+  const base = `agentSession.${stream}:${ctx.connectionId ?? 'local'}:${sessionId}`
   return ctx.requestId ? `${base}:${ctx.requestId}` : base
 }
 
@@ -69,6 +77,37 @@ export const STRUCTURED_AGENT_SESSION_CLAUDE_MODS_METHODS = [
       if (stream.isClosed()) {
         dispose()
       }
+    }
+  }),
+  defineStreamingMethod({
+    name: 'agentSession.claudeModsAsks',
+    permission: 'workspace',
+    params: ClaudeModsAsksParams,
+    handler: async (params, ctx, emit) => {
+      requireClaudeSession(ctx, params.sessionId)
+      let dispose = (): void => {}
+      const stream = bindStructuredAgentSessionStream(
+        ctx,
+        claudeModsSubscriptionId(ctx, params.sessionId, 'claude-mods-asks'),
+        () => dispose()
+      )
+      if (stream.isClosed()) {
+        return
+      }
+      dispose = claudeModsSessionChannel(params.sessionId).subscribeAsks(emit)
+      if (stream.isClosed()) {
+        dispose()
+      }
+    }
+  }),
+  defineMethod({
+    name: 'agentSession.claudeModsAnswer',
+    permission: 'workspace',
+    params: ClaudeModsAnswerParams,
+    handler: async (params, ctx) => {
+      requireClaudeSession(ctx, params.sessionId)
+      const channel = existingClaudeModsSessionChannel(params.sessionId)
+      return { accepted: channel?.answerAsk(params.askId, params.response) === true }
     }
   })
 ]
