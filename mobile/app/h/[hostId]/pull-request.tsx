@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, ExternalLink } from 'lucide-react-native'
 import { useHostClient } from '../../../src/transport/client-context'
+import { useHostProtocolGates } from '../../../src/components/HostProtocolGate'
+import { AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY } from '../../../../src/shared/host-feature-runtime-capabilities'
 import { MobileMarkdown } from '../../../src/components/MobileMarkdown'
 import {
   useAzureDevOpsReviewDetail,
@@ -38,6 +40,14 @@ export default function PullRequestScreen() {
   const [section, setSection] = useState<Section | null>(null)
   const active: Section = section ?? (pending > 0 ? 'drafts' : 'overview')
   const pr = detail?.pullRequest
+  const { hostCapabilities } = useHostProtocolGates()
+  const filesSupported =
+    hostCapabilities?.includes(AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY) === true
+  const openFiles = (path?: string): void =>
+    router.push({
+      pathname: '/h/[hostId]/pull-request-files',
+      params: { hostId, key: key ?? '', ...(path ? { path } : {}) }
+    })
 
   const tabs: { id: Section; label: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -117,9 +127,16 @@ export default function PullRequestScreen() {
             />
             <Text style={styles.sectionTitle}>Files ({detail.changes.length})</Text>
             {detail.changes.map((change) => (
-              <Text key={change.path} style={styles.file} numberOfLines={1}>
-                {change.changeType.charAt(0).toUpperCase()} {change.path}
-              </Text>
+              <Pressable
+                key={change.path}
+                disabled={!filesSupported}
+                onPress={() => openFiles(change.path)}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.file, filesSupported && styles.fileLink]} numberOfLines={1}>
+                  {change.changeType.charAt(0).toUpperCase()} {change.path}
+                </Text>
+              </Pressable>
             ))}
           </View>
         ) : null}
@@ -164,5 +181,6 @@ const styles = StyleSheet.create({
     fontSize: typography.metaSize,
     fontFamily: typography.monoFamily
   },
+  fileLink: { color: colors.accentBlue },
   error: { color: colors.statusRed, fontSize: typography.metaSize }
 })
