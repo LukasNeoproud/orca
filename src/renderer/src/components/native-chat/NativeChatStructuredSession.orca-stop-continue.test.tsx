@@ -20,6 +20,7 @@ vi.mock('./use-native-chat-font-size', () => moduleFactories.useNativeChatFontSi
 vi.mock('./use-native-chat-file-link-context', () => moduleFactories.useNativeChatFileLinkContext())
 vi.mock('./use-native-chat-file-link-click', () => moduleFactories.useNativeChatFileLinkClick())
 vi.mock('./NativeChatComposer', () => moduleFactories.nativeChatComposer())
+vi.mock('./NativeChatResumeInCliButton', () => ({ NativeChatResumeInCliButton: () => null }))
 vi.mock('./NativeChatApprovalCard', () => moduleFactories.nativeChatApprovalCard())
 vi.mock('./NativeChatQuestionCard', () => moduleFactories.nativeChatQuestionCard())
 vi.mock('@/runtime/structured-agent-session-host-capability', async (importOriginal) => {

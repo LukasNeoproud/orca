@@ -21,6 +21,7 @@ import { useNativeChatComposerRevealFocus } from './use-native-chat-composer-rev
 import { useNativeChatFontSize } from './use-native-chat-font-size'
 import { useNativeChatFind } from './use-native-chat-find'
 import { NativeChatFindBar } from './NativeChatFindBar'
+import { NativeChatResumeInCliButton } from './NativeChatResumeInCliButton'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import { useNativeChatLinkActions } from './use-native-chat-link-actions'
 import { useNativeChatFileLinkContext } from './use-native-chat-file-link-context'
@@ -275,6 +276,7 @@ export function NativeChatStructuredSession(
     >
       <div className="relative flex min-h-0 flex-1 flex-col">
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
+        <NativeChatResumeInCliButton {...props} worktreeId={find.isOpen ? null : ownerWorktreeId} />
         {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
           loadingPane
         ) : viewState.kind === 'error' ? (

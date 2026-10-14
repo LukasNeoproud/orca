@@ -20,6 +20,7 @@ vi.mock('./use-native-chat-file-link-context', () => moduleFactories.useNativeCh
 vi.mock('./use-native-chat-file-link-click', () => moduleFactories.useNativeChatFileLinkClick())
 vi.mock('./NativeChatMessageList', () => moduleFactories.nativeChatMessageList())
 vi.mock('./NativeChatComposer', () => moduleFactories.nativeChatComposer())
+vi.mock('./NativeChatResumeInCliButton', () => ({ NativeChatResumeInCliButton: () => null }))
 vi.mock('./NativeChatApprovalCard', () => moduleFactories.nativeChatApprovalCard())
 vi.mock('./NativeChatQuestionCard', () => moduleFactories.nativeChatQuestionCard())
 vi.mock('@/components/status-bar/runtime-environment-explicit-connect', () => ({

@@ -29,6 +29,7 @@ vi.mock('./NativeChatComposer', () => moduleFactories.nativeChatComposer())
 vi.mock('./NativeChatEmptyState', () => moduleFactories.nativeChatEmptyState())
 vi.mock('./NativeChatApprovalCard', () => moduleFactories.nativeChatApprovalCard())
 vi.mock('./NativeChatQuestionCard', () => moduleFactories.nativeChatQuestionCard())
+vi.mock('./NativeChatResumeInCliButton', () => ({ NativeChatResumeInCliButton: () => null }))
 
 import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
