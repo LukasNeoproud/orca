@@ -18863,7 +18863,9 @@
         "validationText": "Enter between {{minimum}} and {{maximum}} characters.",
         "validationNumber": "Enter a number within the allowed range and step.",
         "validationForm": "The combined response is too large."
-      }
+      },
+      "continueInTerminal": "Continue in Terminal",
+      "continueInTerminalTooltip": "Closes this chat and continues the same conversation in a terminal."
     },
     "tab": {
       "bar": {

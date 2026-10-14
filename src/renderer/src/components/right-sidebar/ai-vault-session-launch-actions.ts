@@ -269,6 +269,7 @@ export function useAiVaultSessionLaunchActions({
     handleResume,
     handleResumeInNewCli,
     handleResumeInNewChat,
+    launchInTerminal,
     handleContinueInNewSession,
     continuationRequest,
     handleContinuationDialogOpenChange
