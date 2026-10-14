@@ -3,15 +3,22 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  mkdtempSync,
   readdirSync,
   renameSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { createLocalBuildVersion } from './build-mac-local.mjs'
-import { DEV_SIGNING_IDENTITY, ensureDevSigningIdentity } from './macos-dev-signing-identity.mjs'
+import { createHash } from 'node:crypto'
+import {
+  DEV_SIGNING_IDENTITY,
+  ensureDevSigningIdentity,
+  findSigningIdentityHash,
+  resolveDevSigningIdentity
+} from './macos-dev-signing-identity.mjs'
 
 // Builds Orca Dev from a commit in a private clone and installs it into ~/Applications, so the
 // running app depends on neither the working tree nor a dev server.
@@ -104,7 +111,7 @@ function prepareSource(commit) {
   run('git', ['-C', sourceDir, 'clean', '-ffd', '--quiet'])
 }
 
-function build(commit) {
+function build(commit, signingIdentity) {
   const { engines } = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'))
   const nodeBin = resolveBuildNodeBin(String(engines.node).match(/\d+/)[0])
   // Why CSC_NAME for every step: the native helpers are signed while they build, before packaging.
@@ -113,7 +120,7 @@ function build(commit) {
     PATH: `${nodeBin}:${process.env.PATH}`,
     ORCA_BACKGROUND_LAUNCH: '1',
     ORCA_SKIP_DEV_CLI_SYMLINK: '1',
-    CSC_NAME: DEV_SIGNING_IDENTITY
+    CSC_NAME: signingIdentity
   }
   run('pnpm', ['install', '--frozen-lockfile'], { cwd: sourceDir, env })
   run('pnpm', ['install', '--frozen-lockfile'], {
@@ -163,14 +170,26 @@ function build(commit) {
   )
   const builtApp = path.join(outputDir, `mac-${process.arch}`, 'Orca Dev.app')
   run('codesign', ['--verify', '--deep', '--strict', builtApp])
-  // codesign prints the signature description on stderr.
-  const signature = spawnSync('codesign', ['-dv', '--verbose=2', builtApp], {
-    encoding: 'utf8'
-  })
-  if (!signature.stderr.includes(`Authority=${DEV_SIGNING_IDENTITY}`)) {
-    throw new Error(`${builtApp} is not signed by ${DEV_SIGNING_IDENTITY}:\n${signature.stderr}`)
+  const expected = findSigningIdentityHash(signingIdentity)
+  const actual = signingCertificateHash(builtApp)
+  if (actual !== expected) {
+    throw new Error(`${builtApp} is signed by ${actual}, not ${signingIdentity} (${expected}).`)
   }
   return builtApp
+}
+
+function signingCertificateHash(app) {
+  const directory = mkdtempSync(path.join(tmpdir(), 'orca-dev-signature-'))
+  try {
+    const prefix = path.join(directory, 'certificate')
+    spawnSync('codesign', ['-d', `--extract-certificates=${prefix}`, app], { stdio: 'ignore' })
+    const leaf = path.join(directory, 'certificate0')
+    return existsSync(leaf)
+      ? createHash('sha1').update(readFileSync(leaf)).digest('hex').toUpperCase()
+      : null
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 }
 
 function waitForOrcaDevExit(timeoutMs) {
@@ -250,10 +269,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
   if (read('git', ['-C', repoRoot, 'status', '--porcelain'])) {
     console.warn('[orca-dev] Uncommitted changes are not part of this build.')
   }
-  ensureDevSigningIdentity()
+  const signingIdentity = resolveDevSigningIdentity()
+  if (signingIdentity === DEV_SIGNING_IDENTITY) {
+    ensureDevSigningIdentity()
+  } else if (!findSigningIdentityHash(signingIdentity)) {
+    throw new Error(
+      `ORCA_DEV_SIGNING_IDENTITY "${signingIdentity}" is not a valid signing identity.`
+    )
+  }
   console.log(`[orca-dev] Building ${commit.slice(0, 12)} in ${sourceDir}`)
   prepareSource(commit)
-  const builtApp = build(commit)
+  const builtApp = build(commit, signingIdentity)
   if (options.install) {
     install(builtApp)
     console.log(`[orca-dev] Installed ${installedApp} (${commit.slice(0, 12)})`)

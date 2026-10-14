@@ -9,11 +9,39 @@ import path from 'node:path'
 export const DEV_SIGNING_IDENTITY = 'Orca Dev Local Signing'
 const LOGIN_KEYCHAIN = path.join(homedir(), 'Library', 'Keychains', 'login.keychain-db')
 
-export function hasDevSigningIdentity(run = execFileSync) {
-  const identities = run('/usr/bin/security', ['find-identity', '-v', '-p', 'codesigning'], {
+/**
+ * ORCA_DEV_SIGNING_IDENTITY picks any codesigning identity by name or SHA-1. Prefer an Apple
+ * Development one: without a team ID the keychain's partition list keys on each build's cdhash,
+ * so the self-signed default re-asks for keychain access after every install.
+ */
+export function resolveDevSigningIdentity(env = process.env) {
+  return env.ORCA_DEV_SIGNING_IDENTITY?.trim() || DEV_SIGNING_IDENTITY
+}
+
+function listSigningIdentities(run) {
+  const output = run('/usr/bin/security', ['find-identity', '-v', '-p', 'codesigning'], {
     encoding: 'utf8'
   })
-  return identities.includes(`"${DEV_SIGNING_IDENTITY}"`)
+  return [...output.matchAll(/^\s*\d+\)\s+([0-9A-F]{40})\s+"(.*)"$/gim)].map((match) => ({
+    hash: match[1].toUpperCase(),
+    name: match[2]
+  }))
+}
+
+/** SHA-1 of the one valid identity matching `identity` by name or hash. */
+export function findSigningIdentityHash(identity, run = execFileSync) {
+  const matches = listSigningIdentities(run).filter(
+    (entry) => entry.hash === identity.toUpperCase() || entry.name === identity
+  )
+  const hashes = [...new Set(matches.map((entry) => entry.hash))]
+  if (hashes.length > 1) {
+    throw new Error(`Several signing identities are named "${identity}"; use its SHA-1 instead.`)
+  }
+  return hashes[0] ?? null
+}
+
+export function hasDevSigningIdentity(run = execFileSync) {
+  return findSigningIdentityHash(DEV_SIGNING_IDENTITY, run) !== null
 }
 
 export function ensureDevSigningIdentity(run = execFileSync) {
