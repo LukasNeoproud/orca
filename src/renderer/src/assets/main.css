@@ -513,8 +513,13 @@ body:has(> [data-slot='dialog-overlay'], > [data-slot='sheet-overlay']) {
   /* Why: Sonner's native action slots otherwise share the copy row and squeeze
      long notices; indent the wrapped footer to align with text after the icon. */
   margin-top: 2px;
-  margin-left: 26px;
+  margin-left: 0;
   margin-right: 0;
+}
+
+/* Why: only a toast with an icon indents its text; a plain toast's buttons stay flush. */
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-icon] ~ [data-button] {
+  margin-left: 26px;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-button] ~ [data-button] {
