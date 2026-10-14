@@ -78,6 +78,7 @@ const CANONICAL_BODIES: AgentJournalItemBody[] = [
     question: 'Deploy?',
     options: [{ id: 'a', label: 'Yes' }],
     freeTextQuestionId: 'q-free',
+    toolUseId: 'toolu_01',
     resolution: { state: 'resolved', selectedOptionId: 'a', resolvedBy: 'client', resolvedAt: 5 }
   },
   {

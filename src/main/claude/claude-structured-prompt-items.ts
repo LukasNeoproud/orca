@@ -134,6 +134,7 @@ export function claudeQuestionItems(input: {
         options: legacyCompatible ? first.options : [],
         ...(legacyCompatible ? { freeTextQuestionId: first.freeTextQuestionId } : {}),
         questions,
+        ...(input.prompt.toolUseId ? { toolUseId: input.prompt.toolUseId } : {}),
         resolution: { ...PENDING }
       })
     }

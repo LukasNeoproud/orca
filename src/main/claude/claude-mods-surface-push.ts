@@ -1,5 +1,6 @@
 import {
   CLAUDE_MODS_PUSH_SUBTYPES,
+  CLAUDE_MODS_SURFACE,
   type ClaudeModsPane,
   type ClaudeModsPaneRoster,
   type ClaudeModsPushSubtype,
@@ -65,6 +66,30 @@ export function readClaudeModsPaneRoster(value: unknown): ClaudeModsPaneRoster |
   }
 }
 
+/**
+ * The CLI names invalidated instances as `{ surface, component, instance_id }` objects (older
+ * builds: bare ids). Nothing parseable means "redraw everything", which is always correct.
+ */
+function readInvalidatedInstances(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+  const ids = new Set<string>()
+  for (const entry of value) {
+    if (typeof entry === 'string' && entry.length > 0) {
+      ids.add(entry)
+    } else if (
+      isRecord(entry) &&
+      typeof entry.instance_id === 'string' &&
+      entry.instance_id.length > 0 &&
+      (entry.surface === undefined || entry.surface === CLAUDE_MODS_SURFACE)
+    ) {
+      ids.add(entry.instance_id)
+    }
+  }
+  return ids.size > 0 ? [...ids] : undefined
+}
+
 /** One CLI push as the renderer's event, or null for a frame too malformed to forward. */
 export function claudeModsPushEvent(
   subtype: ClaudeModsPushSubtype,
@@ -73,9 +98,7 @@ export function claudeModsPushEvent(
   const plugin = typeof message.plugin === 'string' ? message.plugin : ''
   switch (subtype) {
     case 'ui_invalidate': {
-      const instances = Array.isArray(message.instances)
-        ? message.instances.filter((id): id is string => typeof id === 'string')
-        : undefined
+      const instances = readInvalidatedInstances(message.instances)
       return { type: 'invalidate', ...(instances ? { instances } : {}) }
     }
     case 'ui_panes': {

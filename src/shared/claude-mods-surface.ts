@@ -13,7 +13,12 @@ export const CLAUDE_MODS_REQUEST_SUBTYPES = [
   'ui_pane_focus',
   'ui_close',
   'ui_scroll',
-  'ui_focus'
+  'ui_focus',
+  // Client elements (2.1.299). A host that predates these rejects them; the renderer degrades.
+  'ui_client_module',
+  'ui_client_press',
+  'ui_message',
+  'ui_client_fault'
 ] as const
 
 export type ClaudeModsRequestSubtype = (typeof CLAUDE_MODS_REQUEST_SUBTYPES)[number]

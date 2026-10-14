@@ -219,6 +219,23 @@ describe('Claude structured question addressing', () => {
     )
   })
 
+  it('carries the tool_use id so a renderer can join the prompt to its transcript row', () => {
+    const prompt: ClaudePendingPrompt = {
+      requestId: 'ask-1',
+      promptKey: 'ask-1',
+      toolUseId: 'toolu_ask',
+      toolName: 'AskUserQuestion',
+      kind: 'question',
+      input: { questions: [{ question: 'Deploy?', options: [{ label: 'Yes' }] }] },
+      suggestions: [],
+      questionIds: ['Deploy?'],
+      settle: () => {}
+    }
+    expect(claudeQuestionItems({ sessionId: 'session-1', prompt })[0]?.body.toolUseId).toBe(
+      'toolu_ask'
+    )
+  })
+
   it('keeps wire IDs bounded while returning the original question and choice', () => {
     const questionId = 'Which option? '.repeat(100)
     const label = 'A detailed choice '.repeat(100)

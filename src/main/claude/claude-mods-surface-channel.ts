@@ -24,8 +24,15 @@ export type ClaudeModsConnection = Pick<ClaudeControlSurface, 'uiRequest'>
 
 type Listener = (event: ClaudeModsSurfaceEvent) => void
 
-// ui_close names nothing but the pane; every other request says whose surface asks.
-const ADDRESSLESS: ReadonlySet<ClaudeModsRequestSubtype> = new Set(['ui_close'])
+// ui_close names the pane and the Client requests name plugin/component/instance themselves
+// (the CLI ignores surface/client_id there); every other request says whose surface asks.
+const ADDRESSLESS: ReadonlySet<ClaudeModsRequestSubtype> = new Set([
+  'ui_close',
+  'ui_client_module',
+  'ui_client_press',
+  'ui_message',
+  'ui_client_fault'
+])
 
 /**
  * One structured Claude session's mods surface. Outlives the session's children: a restart

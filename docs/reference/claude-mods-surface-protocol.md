@@ -31,23 +31,22 @@ node tests/tools/claude-mods-surface-probe.mjs --plugins notes,picker,notify,svg
 
 Validation messages quoted from the binary give the exact fields.
 
-| subtype | fields Orca sends | answer |
-| --- | --- | --- |
-| `ui_attach` | `surface: 'desktop'`, `client_id: 'orca'` (optional `viewport`, `answers`) | `{ surfaces: ['desktop'] }` |
-| `ui_detach` | `client_id` | `{ detached, surfaces }` |
-| `ui_panes` | `client_id` | the roster (below) |
-| `ui_render` | `component` (`Pane` / `AbovePrompt`), `instance_id` (pane id or `above-prompt`), `props: {}`, `viewport: { columns, rows, isFullscreen? }`, `surface`, `client_id` | `{ tree, props, rewritten, hooked, drawn_by, client_modules? }` |
-| `ui_press` | `plugin`, `handle` (from the node's `press`), `key`, `href?`, `surface` | `{ handled, element? }` |
-| `ui_input` | `plugin`, `handle`, `kind: 'change' \| 'submit'`, `value` (≤ 16 KiB), `key`, `component`, `instance_id`, `surface` | `{ handled, element?, value? }` |
-| `ui_select` | `plugin`, `handle`, `value` (one of the options), `key`, `component`, `instance_id`, `surface` | `{ handled, element?, value? }` |
-| `ui_pane_show` | `id` | `{ shown_id }` |
-| `ui_pane_focus` | `id` or `null` (keyboard back to the composer) | `{ focused_id }` |
-| `ui_close` | `id` | `{ closed }` — `false` when a `ui.close` hook kept it open |
-| `ui_scroll` | `component`, `instance_id`, `offset`, `by`, `body_rows`, `content_rows`, `pointer?`, `keyed?` | `{ moved, offset, deny?, follow_end? }` |
-| `ui_focus` | `component`, `instance_id`, `is_held`, `element?`, `by?` | `{ moved, element }` |
+| subtype         | fields Orca sends                                                                                                                                                  | answer                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `ui_attach`     | `surface: 'desktop'`, `client_id: 'orca'` (optional `viewport`, `answers`)                                                                                         | `{ surfaces: ['desktop'] }`                                     |
+| `ui_detach`     | `client_id`                                                                                                                                                        | `{ detached, surfaces }`                                        |
+| `ui_panes`      | `client_id`                                                                                                                                                        | the roster (below)                                              |
+| `ui_render`     | `component` (`Pane` / `AbovePrompt`), `instance_id` (pane id or `above-prompt`), `props: {}`, `viewport: { columns, rows, isFullscreen? }`, `surface`, `client_id` | `{ tree, props, rewritten, hooked, drawn_by, client_modules? }` |
+| `ui_press`      | `plugin`, `handle` (from the node's `press`), `key`, `href?`, `surface`                                                                                            | `{ handled, element? }`                                         |
+| `ui_input`      | `plugin`, `handle`, `kind: 'change' \| 'submit'`, `value` (≤ 16 KiB), `key`, `component`, `instance_id`, `surface`                                                 | `{ handled, element?, value? }`                                 |
+| `ui_select`     | `plugin`, `handle`, `value` (one of the options), `key`, `component`, `instance_id`, `surface`                                                                     | `{ handled, element?, value? }`                                 |
+| `ui_pane_show`  | `id`                                                                                                                                                               | `{ shown_id }`                                                  |
+| `ui_pane_focus` | `id` or `null` (keyboard back to the composer)                                                                                                                     | `{ focused_id }`                                                |
+| `ui_close`      | `id`                                                                                                                                                               | `{ closed }` — `false` when a `ui.close` hook kept it open      |
+| `ui_scroll`     | `component`, `instance_id`, `offset`, `by`, `body_rows`, `content_rows`, `pointer?`, `keyed?`                                                                      | `{ moved, offset, deny?, follow_end? }`                         |
+| `ui_focus`      | `component`, `instance_id`, `is_held`, `element?`, `by?`                                                                                                           | `{ moved, element }`                                            |
 
-Not used yet: `ui_client_module`, `ui_client_press`, `ui_message`, `ui_client_fault` (`Client`
-elements), `ui_prompt_edit`, `ui_prompt_autocomplete`, and the engine → client requests a client
+Phase 2 and 3 requests are in the sections below. Not used yet: `ui_prompt_edit`, `ui_prompt_autocomplete`, and the engine → client requests a client
 opts into with `answers` (`ui_copy`, `ui_prompt_read`, `ui_prompt_fill`, `ui_prompt_suggest`,
 `ui_read_selection`).
 
@@ -66,7 +65,8 @@ Observed behaviour:
 ## Pushes
 
 ```jsonc
-{ "type": "system", "subtype": "ui_invalidate", "event": "ui.render", "instances": ["…"]? }
+{ "type": "system", "subtype": "ui_invalidate", "event": "ui.render",
+  "instances": [{ "surface": "desktop", "component": "Pane", "instance_id": "board" }]? }
 { "type": "system", "subtype": "ui_panes",
   "panes": [{ "id": "hello-tabs", "title": "Hello tabs", "plugin": "hello-tabs",
               "close_on_escape": true, "hold_toasts"?: true, "rows"?: n, "columns"?: n }],
@@ -76,18 +76,31 @@ Observed behaviour:
 { "type": "system", "subtype": "ui_log",    "plugin": "notify", "text": "…" }
 ```
 
-`ui_scroll` and `ui_focus` pushes (plugin-initiated moves) are forwarded but not drawn yet.
+`ui_scroll` and `ui_focus` pushes are plugin-initiated moves; see Phase 2.
+
+`ui_invalidate.instances` is an array of **objects** `{ surface, component, instance_id }` in
+2.1.299 (live probe, after a `ui_client_fault`). Older text and builds used bare id strings.
+The host (`readInvalidatedInstances` in `claude-mods-surface-push.ts`) accepts both, keeps entries
+whose `surface` is absent or `desktop`, and hands the renderer `instances: string[]` of instance
+ids, deduplicated. When the field is absent or nothing parseable remains it omits `instances`,
+which means redraw everything; the CLI documents that as always correct.
 
 ## Element tree
 
 ```jsonc
-{ "type": "Box", "props": { "flexDirection": "column" },
+{
+  "type": "Box",
+  "props": { "flexDirection": "column" },
   "children": [
-    { "type": "Button", "props": { "key": "tab-one", "label": "One", "hotkey": "1", "plain": true },
-      "press": { "plugin": "hello-tabs", "handle": 784744199 } },
+    {
+      "type": "Button",
+      "props": { "key": "tab-one", "label": "One", "hotkey": "1", "plain": true },
+      "press": { "plugin": "hello-tabs", "handle": 784744199 }
+    },
     { "type": "Text", "props": { "bold": true, "weight": "semibold" }, "children": ["…"] }
   ],
-  "part": { "plugin": "hello-tabs" } }
+  "part": { "plugin": "hello-tabs" }
+}
 ```
 
 - Children ride beside `props`, never inside them. Strings are text; render them as text only.
@@ -111,3 +124,158 @@ Observed behaviour:
 - `src/renderer/src/components/native-chat/claude-mods/` — the controller (redraw scheduling,
   presses), the element renderer, the pane dock and the band above the composer.
 - Setting: **Settings → Chat → Claude Code mods** (`nativeChatClaudeMods`, absent means on).
+
+## Phase 2: scroll, focus, keyed layout, hover
+
+Read from the 2.1.299 binary and confirmed by live probes (`ui_scroll` / `ui_focus` push captures).
+Each site (a Pane body or the band) is keyed `"<Component>:<instance_id>"` in the engine, which
+owns the window offset; the client reports deltas and layout.
+
+### Layout the client reports
+
+- `ui_render` for `Pane` / `AbovePrompt` may carry `content_rows` (rows the whole tree laid out
+  to, as last drawn) and `keyed: [{ plugin, key, top, bottom }]` (at most 512; `bottom` is the
+  row past the last; rows are the monospace rows `offset` counts, first match wins, send in
+  document order). Without `keyed`, a plugin's `$.ui.scroll({ to: { key } })` is denied; without
+  `content_rows`, `to: "end"` does not know the last offset.
+- The plugin-visible `props` for those sites carry `scroll: { offset, bodyRows }` (both
+  non-negative integers) and, for a Pane, `isFocused`. The engine takes the whole `scroll` on the
+  first report and afterwards only updates `bodyRows`; it keeps its own `offset`.
+- Keyed elements: every Box with a string `key`, and every Button, Input and Select (`props.key`).
+  A plugin is the element's `press.plugin`, or for a Box the nearest ancestor `part.plugin`.
+
+### `ui_scroll` request (the person scrolled)
+
+`{ component, instance_id, offset, by, body_rows, content_rows, pointer?: { column, row }, keyed? }`.
+`by` is the signed row delta (what hooks see as `e.by`); the engine moves its own window and
+ignores the request `offset` except to echo it for `no such site`. Requests in flight for one
+instance are folded by the engine (the later fields win, `by` summed), so send them throttled to
+a frame. Answer: `{ moved, offset, deny?, follow_end?: true }`; show `offset`. `follow_end` is
+present only as `true`.
+
+### `ui_scroll` push (a plugin scrolled)
+
+`{ type: 'system', subtype: 'ui_scroll', client_id, component, instance_id, offset, follow_end?: true }`.
+The engine has already resolved `to` / `key` / `block` to an absolute row; nothing but the offset
+arrives. `to: "end"` is pushed twice, once without and once with `follow_end`. The person's own
+scrolls are never pushed back. Orca forwards the frame (minus `uuid`, `session_id`, `type`) as the
+renderer events `scroll` and `focus`.
+
+`follow_end` (push or answer): keep the body pinned to its last row as it grows, until the person
+or a plugin next moves it. A push or answer without it applies `offset` and ends following. The
+client must keep sending fresh `content_rows` on every `ui_render`, because the engine derives its
+own end offset from them while following. The request has no `follow_end`.
+
+### `ui_focus` request and push
+
+- Request: `{ component, instance_id, is_held, element?: { plugin, key } | null, by?: 'person' | 'auto' }`.
+  `is_held` says whether DOM focus is inside the site; an absent `element` reports `is_held` alone.
+  `by: 'auto'` marks an `autoFocus` element taking the ring as the site mounted.
+  Answer: `{ moved, element: { plugin, key } | null, deny? }`; focus the element in the answer (a
+  hook may redirect it).
+- Push: `{ type: 'system', subtype: 'ui_focus', client_id, component, instance_id, plugin, key }`.
+  `plugin` / `key` are the `press.plugin` and `props.key` of a Button, Input or Select. Sent only
+  to a client that reported `is_held: true`, and not while the engine handles that site's own
+  `ui_focus` report.
+
+### Hover
+
+Pure data: a node-level `hover` object beside `props` (Box, Text and Button only), plus
+`group: { plugin }` when the hover names a `scope`. No request crosses to the engine; the client
+applies the style from pointer position.
+
+- Box keys: `scope`, `borderStyle`, `borderColor`, `borderDimColor`, `backgroundColor`, `display`
+  (only `"flex"`, only on a Box drawn `display: "none"`), `top`/`left`/`right`/`bottom` (only on a
+  Box with `position: "absolute"`). `borderStyle` needs an existing `borderStyle`.
+- Text and Button-label keys: `scope`, `color`, `backgroundColor`, `dimColor`, `bold`, `italic`,
+  `underline`, `strikethrough`, `inverse`.
+- Context: the nearest keyed Box above (the Box itself counts), or a `scope` of 1 to 64 characters.
+  A scope group is `(plugin, scope)`, lit while any member is hovered, in any site.
+
+### Button, Markdown, hotkeys
+
+Button props: `key`, `label`, `hotkey` (one `[0-9a-z]`, armed while the plugin's site holds focus),
+`action` (engine keybinding; Orca ignores it), `plain`, `dimColor`, `variant`
+(`primary` / `secondary`), `role: "dismiss"`, `autoFocus`. A Button may carry `children`
+(strings and Text only); `label` names it. When two Buttons share a hotkey the later in drawing
+order wins. A band taller than its window scrolls and arms no bare-digit hotkey.
+
+## Phase 3: Client elements
+
+A `Client` node runs a plugin's surface module in a sandbox on the client:
+`{ type: 'Client', props: { key, module, props?, width?, height?, flexGrow? }, client: { plugin } }`.
+`module` is the POSIX path under the plugin folder (`hooks/board.jsx`). The `ui_render` answer
+carries `client_modules: { <plugin>: <hash> }`; a plugin absent there has no surface module and
+its Clients draw a fault line. Modules load once per `(plugin, hash)`; a new hash remounts them.
+
+Requests (all sent **without** `surface` / `client_id`; the CLI ignores them and the channel
+omits them, checked live against 2.1.299):
+
+| subtype            | fields                                                                                                                                  | answer                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ui_client_module` | `plugin`                                                                                                                                | `{ plugin, hash, modules: [{ module, entry, component }], runtime, limits, files: [{ key, source }] }` |
+| `ui_client_press`  | `plugin`, `component`, `instance_id`, `client` (Client `props.key`), `module`, `element` (inner `props.key`), `event`                   | `{ handled, reached? }`                                                                                |
+| `ui_message`       | `plugin`, `component`, `instance_id`, `client`, `module`, `data` (required, plain JSON, at most 100000 chars / 20000 values / depth 32) | `{ handled, props? }`                                                                                  |
+| `ui_client_fault`  | same address, `phase: 'load' \| 'render' \| 'run'`, `reason` (required, at most 200 chars; truncate host-side)                          | `{ handled }`                                                                                          |
+
+- `event` is `{ type: 'press' }`, `{ type: 'input', kind: 'change' | 'submit', value }` (value at
+  most 16384 chars) or `{ type: 'select', value }`. The closure inside the frame runs only when
+  the answer carries `reached`; `handled: true` without it means a hook withheld the event.
+- `handled: false` from a press, message or fault means the latest `ui_render` of that instance
+  did not carry that Client.
+- `ui_message` answered with `props` is the instance's next props (state kept). The reference
+  driver coalesces posts to one per frame.
+- A fault is followed by a `ui_invalidate` for that instance (see the push shape above).
+- `claude:surface-runtime` exports `h`, `Fragment` and `install(host, limits)`; call `install`
+  once per frame global (a second call throws).
+- Request size: `MAX_CLAUDE_MODS_REQUEST_BYTES` is 160 KiB so a full `ui_message` fits. A host that
+  predates the four subtypes rejects them through its subtype enum; the renderer degrades to
+  drawing nothing for Client nodes. A CLI without them answers `Unsupported control request subtype`.
+
+## Phase 3: transcript sites
+
+`ui_render` accepts every component name on the desktop surface; with no matching hook it answers
+`{ tree: { type: 'engine', ref: 0 }, hooked: false, drawn_by: [] }`. Components:
+`AskUserQuestion, UserMessage, AssistantMessage, ToolUse, ToolResult, ToolGroup, ToolProgress,
+CommandOutput, Spinner, TurnDuration, InfoNotice, SessionMode, PromptHint, AbovePrompt, Pane`.
+The binary raises all but `ToolProgress`, `TurnDuration` and `InfoNotice` on desktop (the plugin
+d.ts says narrower for Spinner, PromptHint and AbovePrompt; trust the binary).
+
+| component          | `instance_id`                | main props                                                                           |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------------ |
+| `UserMessage`      | message id (user frame uuid) | `text`, `origin`, `isExpanded`, `task?`, `from?`                                     |
+| `AssistantMessage` | message id (per text block)  | `text` (markdown), `isFirstOfReply`, `isSummary?`                                    |
+| `ToolUse`          | `tool_use_id`                | `tool_use_id`, `tool`, `input`, `isRunning`, `isErrored`, `isInterrupted`, `output?` |
+| `ToolResult`       | `tool_use_id`                | `tool_use_id`, `tool`, `output`, `isErrored`                                         |
+| `AskUserQuestion`  | `tool_use_id` of the call    | `tool`, `questions`, `metadataSource?`                                               |
+| `CommandOutput`    | uuid of the output row       | `command`, `args`, `text`, `isErrored`                                               |
+
+- `on_screen` (top-level request field, not a prop) `{ first, last, of }` or `null` reaches the hook
+  as `props.onScreen` for UserMessage, AssistantMessage, ToolUse, ToolResult, ToolGroup,
+  CommandOutput, TurnDuration, InfoNotice. Omit it when visibility is not tracked.
+- `props.output` strings are cut at 65536 characters by the engine; cap larger objects host-side.
+  `tool_use_id` is filled from `instance_id` for ToolUse and ToolResult when absent.
+- A plugin may rewrite props (`rewritten: true`) only with the same value kinds and with the
+  pinned fields unchanged (UserMessage `origin, isExpanded, task, from`; ToolUse/ToolResult
+  `tool_use_id`; CommandOutput `command`; and others); otherwise the engine draws the original.
+
+### Engine refs
+
+`{ type: 'engine', ref }` means core draws its own component there. `ref: 0` draws the props the
+client sent; any other ref draws `response.props`. The answer carries one props object, that of the
+first engine node with a non-zero ref (depth first, not descending into Button, Input or Select).
+An engine node takes only `type` and `ref`, and never sits inside Text, Link or Button, nor under a
+Box setting `display`, `overflow`, `position`, `width`, `height`, `minWidth`, `minHeight` or an
+offset.
+
+### AskUserQuestion rule
+
+The tree must hold **exactly one** engine node and nothing may follow it in document order;
+a mod may only add content above the dialog (at most 12 rows around it). A tree that breaks this
+is refused and the native dialog is drawn. Answering never goes through `ui_render`: the choice
+returns as the normal permission answer.
+
+The pending prompt's journal question item carries `toolUseId` (optional, additive; written from
+the Claude prompt registry's `toolUseId`) so the renderer can use it as `instance_id`. A renderer
+reads it as `controller.prompts[0].body.toolUseId` when `body.kind === 'question'`; an older host
+omits it, in which case the site is not offered to mods.

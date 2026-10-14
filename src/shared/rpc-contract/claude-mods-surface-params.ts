@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { CLAUDE_MODS_REQUEST_SUBTYPES } from '../claude-mods-surface'
 import { SessionId } from './structured-agent-session-identifiers'
 
-/** Above any ui_input value (16 KiB) the CLI takes, with room for the address around it. */
-export const MAX_CLAUDE_MODS_REQUEST_BYTES = 64 * 1024
+/** Above the largest body the CLI takes (ui_message data, 100000 chars), with room for the address. */
+export const MAX_CLAUDE_MODS_REQUEST_BYTES = 160 * 1024
 
 /** `fields` are the CLI's own request body; the host adds whose surface asks and the CLI checks the rest. */
 export const ClaudeModsRequestParams = z

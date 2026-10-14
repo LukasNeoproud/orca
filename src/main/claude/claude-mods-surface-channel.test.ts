@@ -146,6 +146,39 @@ describe('ClaudeModsSessionChannel', () => {
     ])
   })
 
+  it('sends the Client requests without the host address', async () => {
+    const { connection, sent } = fakeConnection((body) =>
+      body.subtype === 'ui_panes' ? EMPTY_ROSTER : { handled: true }
+    )
+    const channel = new ClaudeModsSessionChannel(() => {})
+    channel.bind(connection)
+    const address = { plugin: 'p', component: 'Pane', instance_id: 'board', client: 'b1' }
+    await channel.request('ui_client_module', { plugin: 'p' })
+    await channel.request('ui_client_press', {
+      ...address,
+      module: 'hooks/board.jsx',
+      element: 'go',
+      event: { type: 'press' }
+    })
+    await channel.request('ui_message', { ...address, module: 'hooks/board.jsx', data: null })
+    await channel.request('ui_client_fault', {
+      ...address,
+      module: 'hooks/board.jsx',
+      phase: 'render',
+      reason: ''
+    })
+    for (const body of sent.slice(2)) {
+      expect(body).not.toHaveProperty('surface')
+      expect(body).not.toHaveProperty('client_id')
+    }
+    expect(sent.slice(2).map((body) => body.subtype)).toEqual([
+      'ui_client_module',
+      'ui_client_press',
+      'ui_message',
+      'ui_client_fault'
+    ])
+  })
+
   it('says an older CLI cannot draw mods and refuses requests', async () => {
     const { connection } = fakeConnection(
       () =>

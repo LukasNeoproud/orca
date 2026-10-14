@@ -247,6 +247,7 @@ const KnownItemBody = z.discriminatedUnion('kind', [
     interaction: z.unknown().optional(),
     freeTextQuestionId: z.string().optional(),
     freeTextInput: FreeTextInput.optional(),
+    toolUseId: z.string().optional(),
     resolution: Resolution
   }),
   z.object({
