@@ -15,6 +15,8 @@ export function MobileSessionHeaderSheets({ controller }: { controller: MobileSe
     showAgentSessionHistoryAction,
     showBacklogAction,
     showChecksAction,
+    showLoadFullTerminalHistoryAction,
+    loadActiveTerminalFullHistory,
     apkInstallRouteEligible,
     openAgentSessionHistory,
     openBacklog,
@@ -29,6 +31,8 @@ export function MobileSessionHeaderSheets({ controller }: { controller: MobileSe
         showBacklog={showBacklogAction}
         showChecks={showChecksAction}
         showApkInstall={showApkInstallAction}
+        showLoadFullTerminalHistory={showLoadFullTerminalHistoryAction}
+        onLoadFullTerminalHistory={loadActiveTerminalFullHistory}
         onOpenAgentSessionHistory={openAgentSessionHistory}
         onOpenBacklog={openBacklog}
         onOpenChecks={() => handlePanelTap('pr')}

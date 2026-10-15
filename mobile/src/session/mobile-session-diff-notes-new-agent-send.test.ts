@@ -114,6 +114,8 @@ async function mountSessionScreen(client: RpcClient): Promise<void> {
     const pendingSelectionRef = useRef<PendingSessionSelection | null>(null)
     const base = {
       worktreeId: 'workspace-1',
+      activeHandle: null,
+      slowLinkHistory: { trimmedHistoryHandles: new Set() },
       isFloatingWorkspaceRoute: false,
       client,
       hostCapabilities: LAUNCH_CAPABILITIES,

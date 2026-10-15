@@ -1,4 +1,4 @@
-import { FileDown, ListChecks, ListTodo } from 'lucide-react-native'
+import { FileDown, History, ListChecks, ListTodo } from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { ActionSheetModal } from '../components/ActionSheetModal'
 import { colors } from '../theme/mobile-theme'
@@ -9,10 +9,12 @@ type Props = {
   showChecks: boolean
   showBacklog: boolean
   showApkInstall: boolean
+  showLoadFullTerminalHistory: boolean
   onOpenAgentSessionHistory: () => void
   onOpenChecks: () => void
   onOpenBacklog: () => void
   onOpenApkInstall: () => void
+  onLoadFullTerminalHistory: () => void
   onClose: () => void
 }
 
@@ -22,16 +24,29 @@ export function MobileSessionHeaderMoreActionsSheet({
   showChecks,
   showBacklog,
   showApkInstall,
+  showLoadFullTerminalHistory,
   onOpenAgentSessionHistory,
   onOpenChecks,
   onOpenBacklog,
   onOpenApkInstall,
+  onLoadFullTerminalHistory,
   onClose
 }: Props) {
   return (
     <ActionSheetModal
       visible={visible}
       actions={[
+        ...(showLoadFullTerminalHistory
+          ? [
+              {
+                label: 'Load Full History',
+                hint: 'Older terminal output was skipped on this slow connection',
+                icon: History,
+                closeBeforePress: true,
+                onPress: onLoadFullTerminalHistory
+              }
+            ]
+          : []),
         ...(showBacklog
           ? [
               {

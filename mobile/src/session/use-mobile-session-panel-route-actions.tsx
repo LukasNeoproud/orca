@@ -36,7 +36,11 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     backlogSupported,
     clearDeliveredDiffComments,
     sendDiffNotesToNewAgent,
-    handleCreateTerminal
+    handleCreateTerminal,
+    activeHandle,
+    slowLinkHistory,
+    subscribeToTerminal,
+    unsubscribeTerminal
   } = scope
   const otherRuntimeAgentRow = {
     label: 'Agents on Another Server',
@@ -187,8 +191,22 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
   })
   // The Android check lives in the header, which already loads react-native.
   const apkInstallRouteEligible = !isFloatingWorkspaceRoute
+  const showLoadFullTerminalHistoryAction =
+    activeHandle !== null && slowLinkHistory.trimmedHistoryHandles.has(activeHandle)
+  // Why resubscribe: the host serializes history only into a fresh subscription's snapshot.
+  const loadActiveTerminalFullHistory = useCallback(() => {
+    if (activeHandle === null) {
+      return
+    }
+    slowLinkHistory.markFullHistory(activeHandle)
+    unsubscribeTerminal(activeHandle)
+    subscribeToTerminal(activeHandle)
+  }, [activeHandle, slowLinkHistory, subscribeToTerminal, unsubscribeTerminal])
   const showHeaderMoreButton =
-    showAgentSessionHistoryAction || showChecksAction || showBacklogAction
+    showAgentSessionHistoryAction ||
+    showChecksAction ||
+    showBacklogAction ||
+    showLoadFullTerminalHistoryAction
   const createTabBusy = creating || creatingBrowser || creatingMarkdown
   return {
     createTabAgentActions,
@@ -200,6 +218,8 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     showBacklogAction,
     showAgentSessionHistoryAction,
     showChecksAction,
+    showLoadFullTerminalHistoryAction,
+    loadActiveTerminalFullHistory,
     apkInstallRouteEligible,
     showHeaderMoreButton,
     createTabBusy

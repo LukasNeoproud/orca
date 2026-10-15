@@ -2,7 +2,6 @@ import { useCallback } from 'react'
 import { isTerminalOscLinkRanges } from '../../../src/shared/terminal-osc-link-ranges'
 import * as nativeChatTerminalStream from './mobile-native-chat-terminal-stream'
 import { subscribeMobileTerminalSafely } from './mobile-terminal-stream-subscribe'
-import { mobileTerminalSnapshotByteBudget } from './terminal-snapshot-byte-budget'
 import {
   readTerminalViewportDims,
   runTerminalViewportFitPass
@@ -10,9 +9,6 @@ import {
 import { updateTerminalCwdFromStreamEvent } from './mobile-session-route-helpers'
 import type { MobileDisplayMode } from './mobile-session-route-types'
 import type { MobileSessionTerminalSubscriptionFoundationModel } from './use-mobile-session-terminal-subscription-foundation'
-
-/** Derived from constants, so it is read once rather than on every subscribe. */
-const snapshotByteBudget = mobileTerminalSnapshotByteBudget()
 
 export function useMobileSessionTerminalSubscription(
   scope: MobileSessionTerminalSubscriptionFoundationModel
@@ -42,7 +38,8 @@ export function useMobileSessionTerminalSubscription(
     getTerminalRef,
     unsubscribeTerminal,
     unsubscribeTerminalRef,
-    signalTerminalInventoryRecovery
+    signalTerminalInventoryRecovery,
+    slowLinkHistory: { snapshotByteBudgetFor, noteScrollback }
   } = scope
   const subscribeToTerminal = useCallback(
     (handle: string) => {
@@ -112,6 +109,7 @@ export function useMobileSessionTerminalSubscription(
         viewportRef.current
       )
 
+      const snapshotByteBudget = snapshotByteBudgetFor(handle)
       // Why: viewport is embedded in the subscribe params so the server auto-fits before serializing scrollback (no focus→safeFit race).
       const unsub = subscribeMobileTerminalSafely(
         client,
@@ -120,8 +118,8 @@ export function useMobileSessionTerminalSubscription(
           client: { id: clientId, type: 'mobile' as const },
           viewport: sentViewport,
           capabilities: nativeChatTerminalStream.mobileNativeChatTerminalCapabilities(covered),
-          // Undefined on a phone, where no per-message cap exists; omitted rather than sent as
-          // undefined so an older host sees the params it has always seen.
+          // Undefined on a fast link, where a phone has no per-message cap; omitted rather than
+          // sent as undefined so an older host sees the params it has always seen.
           ...(snapshotByteBudget === undefined ? {} : { snapshotByteBudget })
         },
         (result) => {
@@ -197,6 +195,7 @@ export function useMobileSessionTerminalSubscription(
             }
             ref.init({ cols, rows, initialData, oscLinks, frame: terminalFrameRef.current })
             initializedHandlesRef.current.add(handle)
+            noteScrollback(handle, data)
             if (data.displayMode) {
               const displayMode = data.displayMode as MobileDisplayMode
               // Why: same-mode frames must keep the Map identity, or every stream pass re-renders the whole route.
@@ -303,7 +302,9 @@ export function useMobileSessionTerminalSubscription(
       markNativeChatInputLeaseReady,
       scheduleDelayedAction,
       showToast,
-      signalTerminalInventoryRecovery
+      signalTerminalInventoryRecovery,
+      snapshotByteBudgetFor,
+      noteScrollback
     ]
   )
   return {

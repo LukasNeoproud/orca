@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react'
 import type { MobileSessionNativeChatDictationModel } from './use-mobile-session-native-chat-dictation'
+import { useMobileTerminalSlowLinkHistory } from './use-mobile-terminal-slow-link-history'
 
 export function useMobileSessionTerminalSubscriptionFoundation(
   scope: MobileSessionNativeChatDictationModel
@@ -21,8 +22,11 @@ export function useMobileSessionTerminalSubscriptionFoundation(
     layoutSeqRef,
     nativeChatInputLeaseReadyRef,
     clearNativeChatInputLease,
-    showNativeChatRef
+    showNativeChatRef,
+    client,
+    showToast
   } = scope
+  const slowLinkHistory = useMobileTerminalSlowLinkHistory({ client, showToast })
   const getTerminalRef = useCallback((handle: string | null) => {
     return handle ? terminalRefs.current.get(handle) : undefined
   }, [])
@@ -83,6 +87,7 @@ export function useMobileSessionTerminalSubscriptionFoundation(
     }
   }, [clearNativeChatInputLease])
   return {
+    slowLinkHistory,
     getTerminalRef,
     unsubscribeTerminal,
     unsubscribeTerminalRef,

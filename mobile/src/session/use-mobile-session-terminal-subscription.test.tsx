@@ -88,6 +88,11 @@ function subscriptionHarness(opts: {
     },
     unsubscribeTerminalRef: { current: vi.fn() },
     signalTerminalInventoryRecovery: vi.fn(),
+    slowLinkHistory: {
+      trimmedHistoryHandles: new Set(),
+      snapshotByteBudgetFor: () => undefined,
+      noteScrollback: vi.fn()
+    },
     terminalRefs: { current: new Map([[HANDLE, terminal]]) },
     pendingSelectionRef: { current: null },
     nativeChatStream: { notifyWebReady: vi.fn() },
