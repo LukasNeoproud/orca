@@ -484,7 +484,7 @@ describe('the Phase C budget', () => {
       join(projectDir, 'config', 'scripts', 'verify-mobile-web-app-bundle.mjs'),
       'utf8'
     )
-    // The bound reads like a per-route escape hatch and is not one: of the nineteen routes in the
+    // The bound reads like a per-route escape hatch and is not one: of the twenty routes in the
     // tree, session breaks it outright at 3.32 MiB and five more spend most of it, so the hatch is
     // one route away from unusable rather than free. What keeps it survivable is that expo-router
     // wants a synchronous export off layout nodes only, so the note has to name the layout and the
@@ -618,9 +618,9 @@ describe('the Phase C budget', () => {
     // in from 50 with the envelope: it grants the worst swept route to each one past the sweep,
     // where `4r + 16` granted four, so re-measuring a tree whose routes share more moves it out.
     expect(await readMobileWebBundleMaxAssets()).toBe(MOBILE_WEB_BUNDLE_MAX_ASSETS)
-    expect(assertAssetCeilingFitsShell(30, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toBe(253)
+    expect(assertAssetCeilingFitsShell(30, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toBe(248)
     expect(() => assertAssetCeilingFitsShell(31, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toThrow(
-      /264 .*256/
+      /259 .*256/
     )
   })
 })
