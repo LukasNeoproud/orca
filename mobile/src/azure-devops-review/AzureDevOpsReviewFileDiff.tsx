@@ -145,6 +145,8 @@ export function AzureDevOpsReviewFileDiff({
         return (
           <AzureDevOpsReviewDiffLineRow
             key={row.key}
+            client={client}
+            onChanged={onChanged}
             line={line}
             items={
               items.get(`right:${right ?? ''}`) ?? items.get(`left:${line.oldLineNumber ?? ''}`)

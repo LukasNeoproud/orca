@@ -194,6 +194,34 @@ export function AzureDevOpsReviewDraftsSection({
   }, [hydratePrompts])
   const [confirming, setConfirming] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const [composingGeneral, setComposingGeneral] = useState(false)
+  const generalComposer = composingGeneral ? (
+    <AzureDevOpsReviewComposer
+      saveLabel="Save draft"
+      placeholder="A comment on the whole pull request (Markdown)"
+      onCancel={() => setComposingGeneral(false)}
+      onSave={async (body) => {
+        await azureDevOpsReviewRequest(client, 'azureDevOpsReview.createDraft', {
+          pullRequestKey: detail.pullRequest.key,
+          kind: 'general',
+          body,
+          author: { kind: 'user' }
+        })
+        setComposingGeneral(false)
+        await onChanged()
+      }}
+    />
+  ) : null
+  const generalButton = (
+    <Pressable
+      style={[styles.button, composingGeneral && styles.disabled]}
+      disabled={composingGeneral}
+      onPress={() => setComposingGeneral(true)}
+      accessibilityRole="button"
+    >
+      <Text style={styles.buttonText}>General comment</Text>
+    </Pressable>
+  )
   const pending = detail.drafts.filter((draft) => draft.state !== 'published')
   const publishedCount = detail.drafts.length - pending.length
   const selectedIds = pending
@@ -233,17 +261,22 @@ export function AzureDevOpsReviewDraftsSection({
 
   if (pending.length === 0) {
     return (
-      <Text style={styles.meta}>
-        {publishedCount > 0
-          ? `All ${publishedCount} drafts are published.`
-          : 'No drafts yet. Reply to threads, comment on lines under Files, or start an AI review from the header.'}
-      </Text>
+      <View style={{ gap: 12 }}>
+        <Text style={styles.meta}>
+          {publishedCount > 0
+            ? `All ${publishedCount} drafts are published.`
+            : 'No drafts yet. Reply to threads, comment on lines or files under Files, write a general comment, or start an AI review from the header.'}
+        </Text>
+        <View style={styles.actions}>{generalButton}</View>
+        {generalComposer}
+      </View>
     )
   }
 
   return (
     <View style={{ gap: 12 }}>
       <View style={styles.actions}>
+        {generalButton}
         {onSendToAi ? (
           <Pressable
             style={styles.button}
@@ -263,6 +296,7 @@ export function AzureDevOpsReviewDraftsSection({
         </Pressable>
       </View>
       {status ? <Text style={styles.meta}>{status}</Text> : null}
+      {generalComposer}
       {pending.map((draft) => (
         <DraftCard
           key={draft.id}

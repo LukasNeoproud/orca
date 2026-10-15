@@ -10,6 +10,7 @@ import { AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY } from '../../../sr
 import type { AzureDevOpsReviewChange } from '../../../src/shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDetail } from './use-azure-devops-review'
 import { AzureDevOpsReviewFileDiff } from './AzureDevOpsReviewFileDiff'
+import { AzureDevOpsReviewFileComments } from './AzureDevOpsReviewFileComments'
 
 const CHANGE_LABEL: Record<AzureDevOpsReviewChange['changeType'], string> = {
   add: 'Added',
@@ -99,6 +100,14 @@ export function AzureDevOpsReviewFilesScreen({
                 : change.path}
             </Text>
             <Text style={styles.note}>{CHANGE_LABEL[change.changeType]}</Text>
+            {detail ? (
+              <AzureDevOpsReviewFileComments
+                client={client}
+                detail={detail}
+                path={change.path}
+                onChanged={reload}
+              />
+            ) : null}
             {detail ? (
               <AzureDevOpsReviewFileDiff
                 client={client}

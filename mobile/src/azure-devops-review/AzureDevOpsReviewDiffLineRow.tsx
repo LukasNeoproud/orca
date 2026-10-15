@@ -8,14 +8,20 @@ import type { MobileDiffLine } from '../session/mobile-diff-lines'
 import { colors, radii, spacing } from '../theme/mobile-theme'
 import type { ReviewInlineItems } from './azure-devops-review-inline-items'
 import { reviewStyles } from './azure-devops-review-styles'
+import type { RpcClient } from '../transport/rpc-client'
+import { AzureDevOpsReviewDiffDraft } from './AzureDevOpsReviewDiffDraft'
 
 /** One diff line, with the threads and drafts anchored on it shown underneath. */
 export function AzureDevOpsReviewDiffLineRow({
+  client,
+  onChanged,
   line,
   items,
   onAddDraft,
   children
 }: {
+  client: RpcClient | null
+  onChanged: () => Promise<void>
   line: MobileHighlightedDiffLine<MobileDiffLine>
   items: ReviewInlineItems | undefined
   /** Absent on deleted lines: drafts anchor to the new version. */
@@ -72,15 +78,8 @@ export function AzureDevOpsReviewDiffLineRow({
         </View>
       ))}
       {items?.drafts.map((draft) => (
-        <View
-          key={`draft:${draft.id}`}
-          style={[reviewStyles.card, reviewStyles.cardDashed, styles.inline]}
-        >
-          <Text style={reviewStyles.muted}>
-            Draft{draft.author.kind === 'agent' ? ' · AI' : ''}
-            {draft.outdated ? ' · outdated' : ''}
-          </Text>
-          <MobileMarkdown content={draft.body} />
+        <View key={`draft:${draft.id}`} style={styles.inline}>
+          <AzureDevOpsReviewDiffDraft client={client} draft={draft} onChanged={onChanged} />
         </View>
       ))}
       {children ? <View style={styles.inline}>{children}</View> : null}
