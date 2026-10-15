@@ -18,6 +18,8 @@ export type ClaudeMessageEnvelope = {
   messageId: string | null
   parentToolUseId: string | null
   isInjectedUserTurn?: boolean
+  /** A plugin started this turn (`origin.kind: 'plugin'`); Orca has no submission row for it. */
+  isPluginPrompt?: boolean
 }
 
 export type ClaudeToolUse = { id: string; name: string; input: unknown }
@@ -53,6 +55,10 @@ export function readClaudeMessageEnvelope(
         role,
         content: messageContent(message?.content),
         isInjectedUserTurn,
+        isPluginPrompt:
+          frame.type === 'user' &&
+          claudeRecord(frame.origin)?.kind === 'plugin' &&
+          !isInjectedUserTurn,
         messageId: claudeText(message?.id),
         parentToolUseId: claudeText(frame.parent_tool_use_id)
       }

@@ -1,0 +1,6 @@
+{
+  "name": "band-meter",
+  "version": "0.1.0",
+  "description": "Band above the prompt showing context usage after each turn",
+  "author": { "name": "Orca fixtures" }
+}

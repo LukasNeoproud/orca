@@ -14,6 +14,7 @@ import {
 } from './NativeChatReasoningDisclosure'
 import { useNativeChatDisclosure } from './native-chat-disclosure-store'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { ClaudeModsSpinnerSite } from './claude-mods/ClaudeModsSiteRows'
 
 // Literal keys with literal fallbacks: a dynamic key registers no catalog reference.
 function statusLabel(key: Extract<NativeChatActiveTurnLabel, { source: 'status' }>['key']): string {
@@ -64,9 +65,17 @@ export function NativeChatTurnActivityLine({
         aria-atomic="true"
       >
         <LoadingSpinner className="size-4 shrink-0" />
-        <span id={labelId} className="min-w-0 truncate text-chat-foreground">
-          {label}
-        </span>
+        <ClaudeModsSpinnerSite
+          label={label}
+          mode={
+            resolved.source === 'activity' ? 'tool-use' : line.thinking ? 'thinking' : 'requesting'
+          }
+          renderDrawing={(text) => (
+            <span id={labelId} className="min-w-0 truncate text-chat-foreground">
+              {text}
+            </span>
+          )}
+        />
         {reasoning ? (
           <>
             <NativeChatReasoningChevron />

@@ -248,6 +248,8 @@ export type AgentJournalQuestionItem = {
   /** Present when the provider accepts an answer outside the offered options. */
   freeTextQuestionId?: string
   freeTextInput?: AgentJournalFreeTextInput
+  /** Claude's tool_use id of the AskUserQuestion call; joins the prompt to its transcript row. */
+  toolUseId?: string
   resolution: AgentJournalResolution
 }
 

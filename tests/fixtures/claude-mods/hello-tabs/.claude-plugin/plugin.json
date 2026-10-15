@@ -1,0 +1,6 @@
+{
+  "name": "hello-tabs",
+  "version": "0.1.0",
+  "description": "Opens a pane with two tabs and a counter",
+  "author": { "name": "Orca fixtures" }
+}

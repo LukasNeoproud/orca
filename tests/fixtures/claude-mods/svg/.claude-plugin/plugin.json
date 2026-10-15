@@ -1,0 +1,6 @@
+{
+  "name": "svg",
+  "version": "0.1.0",
+  "description": "Pane with an Svg bar chart",
+  "author": { "name": "Orca fixtures" }
+}

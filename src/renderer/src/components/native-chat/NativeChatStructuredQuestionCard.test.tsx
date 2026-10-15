@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NativeChatStructuredQuestionCard } from './NativeChatStructuredQuestionCard'
 import type { AgentJournalQuestion } from '../../../../shared/agent-session-journal-types'
+import type { ClaudeModsSurfaceEvent } from '../../../../shared/claude-mods-surface'
+import { publishClaudeModsController } from './claude-mods/claude-mods-pane-surfaces'
+import { ClaudeModsSurfaceController } from './claude-mods/claude-mods-surface-controller'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -125,5 +128,76 @@ describe('structured extension question cards', () => {
       kind: 'answers',
       answers: [{ questionId: 'q1', optionIds: ['opaque-index-0'] }]
     })
+  })
+
+  it('is asked about by a mod from outside the transcript provider, once the surface is attached', async () => {
+    const asked: Record<string, unknown>[] = []
+    let emit: (event: ClaudeModsSurfaceEvent) => void = () => {}
+    const controller = new ClaudeModsSurfaceController(
+      {
+        request: async (subtype, fields) => {
+          if (subtype === 'ui_render') {
+            asked.push(fields)
+          }
+          return {
+            tree: {
+              type: 'Box',
+              props: {},
+              children: [
+                { type: 'Text', children: ['mod note'] },
+                { type: 'engine', ref: 0 }
+              ]
+            },
+            props: {},
+            rewritten: false,
+            hooked: true
+          }
+        },
+        subscribe: async (handlers) => {
+          emit = handlers.onEvent
+          return { unsubscribe: () => {} }
+        }
+      },
+      () => {}
+    )
+    controller.start()
+    publishClaudeModsController('pane-q', controller)
+    await act(async () => {
+      root.render(
+        <NativeChatStructuredQuestionCard
+          questions={[
+            {
+              id: 'q1',
+              question: 'Pick one',
+              multiSelect: false,
+              options: [{ id: 'o1', label: 'A' }]
+            }
+          ]}
+          toolUseId="toolu_q"
+          paneKey="pane-q"
+          onAnswer={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    // Not attached yet: the card is the card alone and nothing is asked.
+    expect(asked.filter((fields) => fields.component === 'AskUserQuestion')).toHaveLength(0)
+    expect(container.textContent).not.toContain('mod note')
+    await act(async () => {
+      emit({
+        type: 'state',
+        available: true,
+        roster: { panes: [], shown_id: null, focused_id: null, focus_requested_id: null },
+        statuses: {}
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(asked.find((fields) => fields.component === 'AskUserQuestion')).toMatchObject({
+      instance_id: 'toolu_q'
+    })
+    expect(container.textContent).toContain('mod note')
+    expect(container.textContent).toContain('Pick one')
+    publishClaudeModsController('pane-q', null)
   })
 })

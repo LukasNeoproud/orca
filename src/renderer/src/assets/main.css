@@ -411,6 +411,8 @@
   /* GitHub's own hues for the two callout kinds no status token covers. */
   --callout-note: #0969da;
   --callout-important: #8250df;
+  --chat-brand-source: #c6613f;
+  --chat-merged-source: #8e6bd9;
   --git-decoration-added: #587c0c;
   --git-decoration-modified: #895503;
   --git-decoration-deleted: #ad0707;
@@ -436,6 +438,8 @@
   --status-warning-border: color-mix(in srgb, var(--status-warning) 25%, transparent);
   --callout-note: #4493f8;
   --callout-important: #ab7df8;
+  --chat-brand-source: #d97757;
+  --chat-merged-source: #b796ff;
   --git-decoration-added: #81b88b;
   --git-decoration-modified: #e2c08d;
   --git-decoration-deleted: #c74e39;
@@ -632,6 +636,11 @@ body:has(> [data-slot='dialog-overlay'], > [data-slot='sheet-overlay']) {
   /* Mixed toward the foreground so each clears text contrast on the canvas in either scheme. */
   --chat-focus-ring: color-mix(in srgb, var(--chat-source-foreground) 50%, var(--chat-canvas));
   --chat-warning: color-mix(in srgb, var(--status-warning) 70%, var(--chat-source-foreground));
+  /* Hues a mod's theme keys keep (permission blue, Claude orange, auto-accept purple, merged). */
+  --chat-accent: color-mix(in srgb, var(--callout-note) 70%, var(--chat-source-foreground));
+  --chat-brand: color-mix(in srgb, var(--chat-brand-source) 70%, var(--chat-source-foreground));
+  --chat-pro: color-mix(in srgb, var(--callout-important) 70%, var(--chat-source-foreground));
+  --chat-merged: color-mix(in srgb, var(--chat-merged-source) 70%, var(--chat-source-foreground));
   --chat-diff-added: color-mix(
     in srgb,
     var(--git-decoration-added) 70%,

@@ -2834,6 +2834,9 @@
         "task": "Background task",
         "workflow": "Background workflow"
       },
+      "claudeMods": {
+        "clientUnsupported": "This part of the mod runs its own code, which Orca does not draw yet."
+      },
       "composer": {
         "effort": "Effort",
         "imageUnsupported": "Image paste is not supported for this agent."

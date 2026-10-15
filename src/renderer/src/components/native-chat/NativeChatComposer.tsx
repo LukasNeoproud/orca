@@ -30,6 +30,7 @@ import { useNativeChatHeldQueueComposerSend } from './use-native-chat-held-queue
 import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
 import { useNativeChatComposerAppMenuSelection } from './use-native-chat-composer-app-menu-selection'
 import { useNativeChatComposerSubmit } from './use-native-chat-composer-submit'
+import { useNativeChatClaudeModsPromptAnswers } from './use-native-chat-claude-mods-prompt-answers'
 
 export type {
   NativeChatComposerHandle,
@@ -338,6 +339,20 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       setCaret
     })
 
+    const modsPrompt = useNativeChatClaudeModsPromptAnswers({
+      agent,
+      transport: structuredTransport,
+      draftScopeKey,
+      textareaRef,
+      draft,
+      isWorking,
+      attachmentCount: imageAttachments.length,
+      inputOwnedByCard,
+      isComposing: imeEnterGesture.isComposing,
+      setDraft,
+      setCaret
+    })
+
     const handleDraftChange = useCallback(
       (value: string, element: NativeChatComposerInput) => {
         setDraft(value)
@@ -378,7 +393,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
           handleDraftOrCaretChange(element.value, element.selectionStart ?? element.value.length)
           setActiveSuggestion(0)
         }}
-        onKeyDown={handleKeyDown}
+        onKeyDown={modsPrompt.keyDown(handleKeyDown)}
+        placeholderOverride={modsPrompt.ghost}
         onImeSettled={(element) => {
           if (element.value !== draft) {
             handleDraftChange(element.value, element)

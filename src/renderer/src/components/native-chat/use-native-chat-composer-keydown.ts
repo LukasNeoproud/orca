@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
 import { isMacPlatform } from './native-chat-shortcut'
+import { isClaudeModsEscapeRepeat } from './claude-mods/claude-mods-escape-latch'
 import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 import {
   isNativeChatRecallActive,
@@ -72,6 +73,11 @@ export function useNativeChatComposerKeyDown({
       }
       // An open layer that keeps focus here, like the context card, already spent this Escape closing itself.
       if (event.key === 'Escape' && event.defaultPrevented) {
+        return
+      }
+      // Holding the Escape that left a mod's pane must not interrupt the agent.
+      if (isClaudeModsEscapeRepeat(event)) {
+        event.preventDefault()
         return
       }
 

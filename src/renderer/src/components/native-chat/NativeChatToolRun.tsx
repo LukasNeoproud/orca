@@ -39,6 +39,7 @@ import { NativeChatToolRunIcon } from './NativeChatToolIcon'
 import { NativeChatToolRunCallCounts } from './NativeChatToolRunCallCounts'
 import { NativeChatToolRunMembers, revealNativeChatToolRunMember } from './NativeChatToolRunMembers'
 import { NativeChatToolRunMemberList } from './NativeChatToolRunMemberList'
+import { ClaudeModsToolGroupSite } from './claude-mods/ClaudeModsSiteRows'
 
 /** Rows drawn among an open run's lines, each keyed: before the block they are keyed by, or
  *  after the last. */
@@ -226,53 +227,60 @@ export function NativeChatToolRun({
         // and again as it ended lost its hover, its mark, and its count each time.
         // It carries the summary's type so each `h-[1lh]` slot is one summary line
         // tall: marks sit on line 1 and a wrapped line 2 starts under the text.
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="group/tool-run flex min-h-6 w-full items-start gap-1.5 rounded-md py-0.5 text-left text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-          aria-expanded={open}
-          aria-live="polite"
-          data-native-chat-tool-run-state={live ? 'live' : 'settled'}
+        <ClaudeModsToolGroupSite
+          headerBlocks={headerBlocks}
+          isActive={live}
+          isExpanded={open}
+          activeTurnIsWorking={activeTurnIsWorking}
         >
-          {settledHeaderIcon ? (
-            <span className="flex h-[1lh] shrink-0 items-center">
-              <NativeChatToolRunIcon
-                iconName={settledHeaderIcon}
-                className="text-chat-foreground-faint"
-              />
-            </span>
-          ) : null}
-          {/* Keep the collapsed header bounded; the tool detail carries the full command. */}
-          <span
-            className={cn(
-              'min-w-0 line-clamp-2 whitespace-normal break-words text-sm leading-relaxed transition-colors',
-              live
-                ? 'max-w-[72%] shrink-0 animate-pulse text-chat-foreground motion-reduce:animate-none'
-                : 'min-w-0 text-chat-foreground-faint group-hover/tool-run:text-chat-foreground'
-            )}
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="group/tool-run flex min-h-6 w-full items-start gap-1.5 rounded-md py-0.5 text-left text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            aria-expanded={open}
+            aria-live="polite"
+            data-native-chat-tool-run-state={live ? 'live' : 'settled'}
           >
-            {runSentence ?? fallbackLabel}
-          </span>
-          <NativeChatToolRunCallCounts
-            failed={failedCallCount}
-            interrupted={interruptedCallCount}
-          />
-          {/* Only a stated success is marked done — see nativeChatToolRunOutcome —
-              and never while live: between two calls nothing is running, and a
-              mark that appeared then would flash on every call. */}
-          {!live && runSucceeded ? (
-            <span className="flex h-[1lh] shrink-0 items-center">
-              <Check aria-hidden className="size-3 shrink-0 text-chat-foreground-faint" />
-            </span>
-          ) : null}
-          {latestCallLabel ? (
-            <span className="flex h-[1lh] min-w-0 items-center">
-              <span className="min-w-0 truncate font-sans text-xs text-chat-foreground-faint">
-                {latestCallLabel}
+            {settledHeaderIcon ? (
+              <span className="flex h-[1lh] shrink-0 items-center">
+                <NativeChatToolRunIcon
+                  iconName={settledHeaderIcon}
+                  className="text-chat-foreground-faint"
+                />
               </span>
+            ) : null}
+            {/* Keep the collapsed header bounded; the tool detail carries the full command. */}
+            <span
+              className={cn(
+                'min-w-0 line-clamp-2 whitespace-normal break-words text-sm leading-relaxed transition-colors',
+                live
+                  ? 'max-w-[72%] shrink-0 animate-pulse text-chat-foreground motion-reduce:animate-none'
+                  : 'min-w-0 text-chat-foreground-faint group-hover/tool-run:text-chat-foreground'
+              )}
+            >
+              {runSentence ?? fallbackLabel}
             </span>
-          ) : null}
-        </button>
+            <NativeChatToolRunCallCounts
+              failed={failedCallCount}
+              interrupted={interruptedCallCount}
+            />
+            {/* Only a stated success is marked done — see nativeChatToolRunOutcome —
+                and never while live: between two calls nothing is running, and a
+                mark that appeared then would flash on every call. */}
+            {!live && runSucceeded ? (
+              <span className="flex h-[1lh] shrink-0 items-center">
+                <Check aria-hidden className="size-3 shrink-0 text-chat-foreground-faint" />
+              </span>
+            ) : null}
+            {latestCallLabel ? (
+              <span className="flex h-[1lh] min-w-0 items-center">
+                <span className="min-w-0 truncate font-sans text-xs text-chat-foreground-faint">
+                  {latestCallLabel}
+                </span>
+              </span>
+            ) : null}
+          </button>
+        </ClaudeModsToolGroupSite>
       )}
       <NativeChatExpandable open={open && showsHeader}>
         <NativeChatToolRunMembers
@@ -290,6 +298,7 @@ export function NativeChatToolRun({
             onRevealDiff={revealDiff}
             disclosureId={disclosureId}
             onLinkClick={onLinkClick}
+            activeTurnIsWorking={activeTurnIsWorking}
           />
         </NativeChatToolRunMembers>
       </NativeChatExpandable>

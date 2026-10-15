@@ -9,6 +9,7 @@ import { NativeChatCodeBlock, NativeChatPlainCodeBlock } from './NativeChatCodeB
 import { NativeChatAgentControls, NativeChatImageAttachments } from './NativeChatTranscriptChrome'
 import type { useNativeChatWorkRun } from './use-native-chat-work-run'
 import { useNativeChatRichMarkdownOptions } from './link-preview/NativeChatRichMarkdown'
+import { ClaudeModsAssistantTextSite } from './claude-mods/ClaudeModsSiteRows'
 
 function messageIsStreaming(
   message: NativeChatMessage,
@@ -56,6 +57,7 @@ export function NativeChatAssistantMessageRow({
   })
   // A thought heading a run reads inside it, so the row has no words of its own.
   const words = message.role === 'reasoning' ? '' : markdown
+  const streaming = messageIsStreaming(message, activeTurnIsWorking, trailingRun)
   // Assistant controls reveal on hover and keyboard focus; system asides stay chrome-free.
   // A working turn's last row is only its frontier: more can still land under it.
   const showControls =
@@ -76,21 +78,28 @@ export function NativeChatAssistantMessageRow({
         enablePreview={runtimeContext !== undefined}
       />
       {words ? (
-        <NativeChatPacedMarkdown
-          rowKey={message.id}
-          content={words}
-          variant="document"
-          className="text-sm"
-          renderCodeBlock={isSystem ? NativeChatPlainCodeBlock : NativeChatCodeBlock}
-          onLinkClick={onLinkClick}
-          allowFileUriLinks={allowFileUriLinks}
-          linkifyFilePaths={onLinkClick !== undefined}
-          {...linkPreviews}
-          {...(isSystem ? {} : NATIVE_CHAT_QUOTE_SOURCE_PROPS)}
-          visualMessageId={message.role === 'assistant' ? message.id : undefined}
-          // Structured text streams in place with no per-row state: only the live turn's frontier
-          // row, still ending in prose, can be mid-sentence.
-          streaming={messageIsStreaming(message, activeTurnIsWorking, trailingRun)}
+        <ClaudeModsAssistantTextSite
+          messageId={message.id}
+          text={words}
+          enabled={message.role === 'assistant' && !streaming}
+          renderDrawing={(text) => (
+            <NativeChatPacedMarkdown
+              rowKey={message.id}
+              content={text}
+              variant="document"
+              className="text-sm"
+              renderCodeBlock={isSystem ? NativeChatPlainCodeBlock : NativeChatCodeBlock}
+              onLinkClick={onLinkClick}
+              allowFileUriLinks={allowFileUriLinks}
+              linkifyFilePaths={onLinkClick !== undefined}
+              {...linkPreviews}
+              {...(isSystem ? {} : NATIVE_CHAT_QUOTE_SOURCE_PROPS)}
+              visualMessageId={message.role === 'assistant' ? message.id : undefined}
+              // Structured text streams in place with no per-row state: only the live turn's
+              // frontier row, still ending in prose, can be mid-sentence.
+              streaming={streaming}
+            />
+          )}
         />
       ) : null}
       {toolRun ? <NativeChatToolRun {...toolRun} /> : null}

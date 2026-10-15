@@ -3,6 +3,10 @@ import type {
   Query,
   SDKControlInterruptResponse
 } from '@anthropic-ai/claude-agent-sdk'
+import {
+  claudeQueryUiAskInterceptor,
+  type ClaudeModsAskInterceptor
+} from './claude-mods-surface-ask-intercept'
 
 export class ClaudeControlRequestError extends Error {
   constructor(
@@ -48,6 +52,22 @@ export function claudeQueryAsyncCanceller(
 ): ((uuid: string) => Promise<unknown>) | null {
   const cancel = (query as unknown as ClaudeQueryAsyncCanceller).cancelAsyncMessage
   return typeof cancel === 'function' ? cancel.bind(query) : null
+}
+
+/** The SDK's generic control sender, which every public Query method wraps; `ui_*` (mods' remote
+ *  surface) has no public method, so the typeof guard is its degradation path. */
+type ClaudeQueryRawRequester = {
+  request?: (body: Record<string, unknown>) => Promise<{ response?: unknown } | undefined>
+}
+
+export function claudeQueryRawRequester(
+  query: Query
+): ((body: Record<string, unknown>) => Promise<unknown>) | null {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: read as optional and typeof-checked before use; Query declares no `request`.
+  const request = (query as unknown as ClaudeQueryRawRequester).request
+  return typeof request === 'function'
+    ? (body) => request.call(query, body).then((answer) => answer?.response)
+    : null
 }
 
 export type ClaudeControlOptions = { timeoutMs?: number }
@@ -109,6 +129,10 @@ export type ClaudeControlSurface = {
   getSettings: (options?: ClaudeControlOptions) => Promise<unknown>
   /** The `/context` breakdown; older CLIs reject the request and the caller shows nothing. */
   getContextUsage: (options?: ClaudeControlOptions) => Promise<unknown>
+  /** One `ui_*` request of the mods surface; absent when the SDK exposes no generic sender. */
+  uiRequest?: (body: Record<string, unknown>, options?: ClaudeControlOptions) => Promise<unknown>
+  /** Answers the CLI's mods asks (ui_copy, ui_prompt_*); absent when the SDK cannot be intercepted. */
+  answerUiAsks?: ClaudeModsAskInterceptor
 }
 
 type InterruptingQuery = {
@@ -118,7 +142,15 @@ type InterruptingQuery = {
 }
 
 export function createClaudeControlSurface(query: Query): ClaudeControlSurface {
+  const raw = claudeQueryRawRequester(query)
   return {
+    ...(raw
+      ? {
+          uiRequest: (body, options) =>
+            runClaudeControl(String(body.subtype), () => raw(body), options?.timeoutMs)
+        }
+      : {}),
+    ...claudeQueryUiAskInterceptor(query),
     interrupt: (options) =>
       runClaudeControl(
         'interrupt',

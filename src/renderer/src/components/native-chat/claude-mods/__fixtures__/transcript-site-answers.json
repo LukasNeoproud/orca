@@ -1,0 +1,1373 @@
+{
+  "note": "Real ui_render answers from claude 2.1.299 (desktop surface) with plugins transcript-marks + spinner-word. Regenerate: node tests/tools/claude-mods-surface-probe.mjs --scenario transcript --out <file>",
+  "answers": [
+    {
+      "component": "UserMessage",
+      "instanceId": "user-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "text": "hello",
+        "origin": {
+          "kind": "sdk"
+        },
+        "isExpanded": true
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "» hello",
+          "origin": {
+            "kind": "sdk"
+          },
+          "isExpanded": true
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "UserMessage",
+      "instanceId": "user-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "text": "hello",
+        "origin": {
+          "kind": "sdk"
+        },
+        "isExpanded": true
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "» hello",
+          "origin": {
+            "kind": "sdk"
+          },
+          "isExpanded": true,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "UserMessage",
+      "instanceId": "user-1",
+      "onScreen": null,
+      "requestProps": {
+        "text": "hello",
+        "origin": {
+          "kind": "sdk"
+        },
+        "isExpanded": true
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "» hello",
+          "origin": {
+            "kind": "sdk"
+          },
+          "isExpanded": true,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "AssistantMessage",
+      "instanceId": "msg-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "text": "Hi **there**",
+        "isFirstOfReply": true,
+        "isSummary": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "text": "Hi **there**",
+          "isFirstOfReply": true,
+          "isSummary": false
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "AssistantMessage",
+      "instanceId": "msg-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "text": "Hi **there**",
+        "isFirstOfReply": true,
+        "isSummary": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "text": "Hi **there**",
+          "isFirstOfReply": true,
+          "isSummary": false,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "AssistantMessage",
+      "instanceId": "msg-1",
+      "onScreen": null,
+      "requestProps": {
+        "text": "Hi **there**",
+        "isFirstOfReply": true,
+        "isSummary": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "text": "Hi **there**",
+          "isFirstOfReply": true,
+          "isSummary": false,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-bash",
+      "onScreen": "omitted",
+      "requestProps": {
+        "tool": "Bash",
+        "input": {
+          "command": "ls"
+        },
+        "isRunning": false,
+        "isErrored": false,
+        "isInterrupted": false,
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        }
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["$ ls"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "input": {
+            "command": "ls"
+          },
+          "isRunning": false,
+          "isErrored": false,
+          "isInterrupted": false,
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "tool_use_id": "toolu-bash"
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-bash",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "tool": "Bash",
+        "input": {
+          "command": "ls"
+        },
+        "isRunning": false,
+        "isErrored": false,
+        "isInterrupted": false,
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        }
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["$ ls"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "input": {
+            "command": "ls"
+          },
+          "isRunning": false,
+          "isErrored": false,
+          "isInterrupted": false,
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "tool_use_id": "toolu-bash",
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-bash",
+      "onScreen": null,
+      "requestProps": {
+        "tool": "Bash",
+        "input": {
+          "command": "ls"
+        },
+        "isRunning": false,
+        "isErrored": false,
+        "isInterrupted": false,
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        }
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["$ ls"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "input": {
+            "command": "ls"
+          },
+          "isRunning": false,
+          "isErrored": false,
+          "isInterrupted": false,
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "tool_use_id": "toolu-bash",
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-read",
+      "onScreen": "omitted",
+      "requestProps": {
+        "tool": "Read",
+        "input": {
+          "file_path": "/x"
+        },
+        "isRunning": true,
+        "isErrored": false,
+        "isInterrupted": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "tool": "Read",
+          "input": {
+            "file_path": "/x"
+          },
+          "isRunning": true,
+          "isErrored": false,
+          "isInterrupted": false,
+          "tool_use_id": "toolu-read"
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-read",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "tool": "Read",
+        "input": {
+          "file_path": "/x"
+        },
+        "isRunning": true,
+        "isErrored": false,
+        "isInterrupted": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "tool": "Read",
+          "input": {
+            "file_path": "/x"
+          },
+          "isRunning": true,
+          "isErrored": false,
+          "isInterrupted": false,
+          "tool_use_id": "toolu-read",
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolUse",
+      "instanceId": "toolu-read",
+      "onScreen": null,
+      "requestProps": {
+        "tool": "Read",
+        "input": {
+          "file_path": "/x"
+        },
+        "isRunning": true,
+        "isErrored": false,
+        "isInterrupted": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "tool": "Read",
+          "input": {
+            "file_path": "/x"
+          },
+          "isRunning": true,
+          "isErrored": false,
+          "isInterrupted": false,
+          "tool_use_id": "toolu-read",
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolResult",
+      "instanceId": "toolu-bash",
+      "onScreen": "omitted",
+      "requestProps": {
+        "tool": "Bash",
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        },
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "engine",
+              "ref": 1
+            },
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["result marked by mod"]
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "isErrored": false,
+          "tool_use_id": "toolu-bash"
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolResult",
+      "instanceId": "toolu-bash",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "tool": "Bash",
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        },
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "engine",
+              "ref": 1
+            },
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["result marked by mod"]
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "isErrored": false,
+          "tool_use_id": "toolu-bash",
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolResult",
+      "instanceId": "toolu-bash",
+      "onScreen": null,
+      "requestProps": {
+        "tool": "Bash",
+        "output": {
+          "stdout": "a",
+          "stderr": "",
+          "interrupted": false,
+          "isImage": false
+        },
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "engine",
+              "ref": 1
+            },
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["result marked by mod"]
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "Bash",
+          "output": {
+            "stdout": "a",
+            "stderr": "",
+            "interrupted": false,
+            "isImage": false
+          },
+          "isErrored": false,
+          "tool_use_id": "toolu-bash",
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolGroup",
+      "instanceId": "group-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "calls": [
+          {
+            "tool_use_id": "g-1",
+            "tool": "Read",
+            "input": {
+              "file_path": "/a"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          },
+          {
+            "tool_use_id": "g-2",
+            "tool": "Grep",
+            "input": {
+              "pattern": "x"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          }
+        ],
+        "isActive": false,
+        "isExpanded": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "calls": [
+            {
+              "tool_use_id": "g-1",
+              "tool": "Read",
+              "input": {
+                "file_path": "/a"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            },
+            {
+              "tool_use_id": "g-2",
+              "tool": "Grep",
+              "input": {
+                "pattern": "x"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            }
+          ],
+          "isActive": false,
+          "isExpanded": false
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolGroup",
+      "instanceId": "group-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "calls": [
+          {
+            "tool_use_id": "g-1",
+            "tool": "Read",
+            "input": {
+              "file_path": "/a"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          },
+          {
+            "tool_use_id": "g-2",
+            "tool": "Grep",
+            "input": {
+              "pattern": "x"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          }
+        ],
+        "isActive": false,
+        "isExpanded": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "calls": [
+            {
+              "tool_use_id": "g-1",
+              "tool": "Read",
+              "input": {
+                "file_path": "/a"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            },
+            {
+              "tool_use_id": "g-2",
+              "tool": "Grep",
+              "input": {
+                "pattern": "x"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            }
+          ],
+          "isActive": false,
+          "isExpanded": false,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "ToolGroup",
+      "instanceId": "group-1",
+      "onScreen": null,
+      "requestProps": {
+        "calls": [
+          {
+            "tool_use_id": "g-1",
+            "tool": "Read",
+            "input": {
+              "file_path": "/a"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          },
+          {
+            "tool_use_id": "g-2",
+            "tool": "Grep",
+            "input": {
+              "pattern": "x"
+            },
+            "isRunning": false,
+            "isErrored": false,
+            "isInterrupted": false
+          }
+        ],
+        "isActive": false,
+        "isExpanded": false
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "calls": [
+            {
+              "tool_use_id": "g-1",
+              "tool": "Read",
+              "input": {
+                "file_path": "/a"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            },
+            {
+              "tool_use_id": "g-2",
+              "tool": "Grep",
+              "input": {
+                "pattern": "x"
+              },
+              "isRunning": false,
+              "isErrored": false,
+              "isInterrupted": false
+            }
+          ],
+          "isActive": false,
+          "isExpanded": false,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "AskUserQuestion",
+      "instanceId": "toolu-ask",
+      "onScreen": "omitted",
+      "requestProps": {
+        "tool": "AskUserQuestion",
+        "questions": [
+          {
+            "question": "Pick one?",
+            "header": "Pick",
+            "multiSelect": false,
+            "options": [
+              {
+                "label": "A",
+                "description": "first"
+              },
+              {
+                "label": "B",
+                "description": "second"
+              }
+            ]
+          }
+        ]
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "children": ["asked via mod"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "tool": "AskUserQuestion",
+          "questions": [
+            {
+              "question": "Pick one?",
+              "header": "Pick",
+              "multiSelect": false,
+              "options": [
+                {
+                  "label": "A",
+                  "description": "first"
+                },
+                {
+                  "label": "B",
+                  "description": "second"
+                }
+              ]
+            }
+          ]
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "CommandOutput",
+      "instanceId": "cmd-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "command": "hello-tabs",
+        "args": "",
+        "text": "done",
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod output"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "command": "hello-tabs",
+          "args": "",
+          "text": "done",
+          "isErrored": false
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "CommandOutput",
+      "instanceId": "cmd-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "command": "hello-tabs",
+        "args": "",
+        "text": "done",
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod output"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "command": "hello-tabs",
+          "args": "",
+          "text": "done",
+          "isErrored": false,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "CommandOutput",
+      "instanceId": "cmd-1",
+      "onScreen": null,
+      "requestProps": {
+        "command": "hello-tabs",
+        "args": "",
+        "text": "done",
+        "isErrored": false
+      },
+      "answer": {
+        "tree": {
+          "type": "Box",
+          "props": {
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "type": "Text",
+              "props": {
+                "dimColor": true
+              },
+              "children": ["mod output"]
+            },
+            {
+              "type": "engine",
+              "ref": 1
+            }
+          ],
+          "part": {
+            "plugin": "transcript-marks"
+          }
+        },
+        "props": {
+          "command": "hello-tabs",
+          "args": "",
+          "text": "done",
+          "isErrored": false,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "Spinner",
+      "instanceId": "main",
+      "onScreen": "omitted",
+      "requestProps": {
+        "word": "Thinking",
+        "message": null,
+        "suffix": "…",
+        "mode": "thinking"
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "word": "Modding",
+          "message": null,
+          "suffix": " · mod…",
+          "mode": "thinking"
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["spinner-word"]
+      }
+    },
+    {
+      "component": "SessionMode",
+      "instanceId": "session-mode",
+      "onScreen": "omitted",
+      "requestProps": {
+        "modes": ["focus"]
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "modes": ["focus"]
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "TurnDuration",
+      "instanceId": "turn-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "word": "Baked",
+        "durationMs": 1234
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "word": "Baked",
+          "durationMs": 1234
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "TurnDuration",
+      "instanceId": "turn-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "word": "Baked",
+        "durationMs": 1234
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "word": "Baked",
+          "durationMs": 1234,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "TurnDuration",
+      "instanceId": "turn-1",
+      "onScreen": null,
+      "requestProps": {
+        "word": "Baked",
+        "durationMs": 1234
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "word": "Baked",
+          "durationMs": 1234,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "InfoNotice",
+      "instanceId": "notice-1",
+      "onScreen": "omitted",
+      "requestProps": {
+        "text": "notice",
+        "command": null
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "notice",
+          "command": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "InfoNotice",
+      "instanceId": "notice-1",
+      "onScreen": {
+        "first": 0,
+        "last": 2,
+        "of": 3
+      },
+      "requestProps": {
+        "text": "notice",
+        "command": null
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "notice",
+          "command": null,
+          "onScreen": {
+            "first": 0,
+            "last": 2,
+            "of": 3
+          }
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "InfoNotice",
+      "instanceId": "notice-1",
+      "onScreen": null,
+      "requestProps": {
+        "text": "notice",
+        "command": null
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "text": "notice",
+          "command": null,
+          "onScreen": null
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    },
+    {
+      "component": "PromptHint",
+      "instanceId": "prompt-hint",
+      "onScreen": "omitted",
+      "requestProps": {
+        "isDraft": false,
+        "isWorking": false,
+        "hint": "hint",
+        "tail": "tail"
+      },
+      "answer": {
+        "tree": {
+          "type": "engine",
+          "ref": 1
+        },
+        "props": {
+          "isDraft": false,
+          "isWorking": false,
+          "hint": "hint",
+          "tail": "tail"
+        },
+        "rewritten": true,
+        "hooked": true,
+        "drawn_by": ["transcript-marks"]
+      }
+    }
+  ],
+  "unhookedAnswer": {
+    "component": "AbovePrompt",
+    "answer": {
+      "tree": {
+        "type": "engine",
+        "ref": 0
+      },
+      "props": {},
+      "rewritten": false,
+      "hooked": false,
+      "drawn_by": []
+    }
+  },
+  "invalidatePush": {
+    "type": "system",
+    "subtype": "ui_invalidate",
+    "event": "ui.render"
+  }
+}

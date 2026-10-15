@@ -6,6 +6,7 @@ import { nativeChatToolLineIdentity } from '../../../../shared/native-chat-tool-
 import { NativeChatDiffCard } from './NativeChatDiffCard'
 import { NativeChatTaskList } from './NativeChatTaskList'
 import { NativeChatToolLine } from './NativeChatToolLine'
+import { ClaudeModsToolUseSite } from './claude-mods/ClaudeModsSiteRows'
 import { buildEditCards } from './native-chat-edit-cards'
 import { buildNativeChatTaskListRows } from './native-chat-task-list-history'
 import type { NativeChatDiffReveal } from './native-chat-turn-diffs'
@@ -22,7 +23,8 @@ export function NativeChatToolRunMemberList({
   onRevealDiff,
   disclosureId,
   onLinkClick,
-  asides
+  asides,
+  activeTurnIsWorking
 }: {
   /** Every tool block of the run; `headerBlocks` is those minus its asks. */
   blocks: NativeChatBlock[]
@@ -35,6 +37,8 @@ export function NativeChatToolRunMemberList({
   onRevealDiff?: (element: HTMLElement) => void
   disclosureId?: string
   onLinkClick?: CommentMarkdownLinkClickHandler
+  /** Lets a mod's `ToolUse` site tell a running call from an orphaned one. */
+  activeTurnIsWorking?: boolean
 }): React.JSX.Element {
   const taskLists = useMemo(
     () =>
@@ -89,16 +93,23 @@ export function NativeChatToolRunMemberList({
       return null
     }
     const lineIdentity = nativeChatToolLineIdentity(block, seen)
+    const result = block.type === 'tool-call' ? resultByCall.get(block) : undefined
     return (
-      <NativeChatToolLine
+      <ClaudeModsToolUseSite
         key={lineIdentity}
         block={block}
-        result={block.type === 'tool-call' ? resultByCall.get(block) : undefined}
-        onLinkClick={onLinkClick}
-        disclosureKey={
-          disclosureId === undefined ? undefined : `line:${disclosureId}:${lineIdentity}`
-        }
-      />
+        result={result}
+        activeTurnIsWorking={activeTurnIsWorking}
+      >
+        <NativeChatToolLine
+          block={block}
+          result={result}
+          onLinkClick={onLinkClick}
+          disclosureKey={
+            disclosureId === undefined ? undefined : `line:${disclosureId}:${lineIdentity}`
+          }
+        />
+      </ClaudeModsToolUseSite>
     )
   }
 

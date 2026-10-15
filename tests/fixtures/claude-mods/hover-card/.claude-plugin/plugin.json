@@ -1,0 +1,6 @@
+{
+  "name": "hover-card",
+  "version": "0.1.0",
+  "description": "Band with hover styles, hover groups and a hidden card revealed on hover",
+  "author": { "name": "Orca fixtures" }
+}

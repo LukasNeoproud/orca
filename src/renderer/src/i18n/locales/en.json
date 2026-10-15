@@ -18865,7 +18865,18 @@
         "validationForm": "The combined response is too large."
       },
       "continueInTerminal": "Continue in Terminal",
-      "continueInTerminalTooltip": "Closes this chat and continues the same conversation in a terminal."
+      "continueInTerminalTooltip": "Closes this chat and continues the same conversation in a terminal.",
+      "claudeMods": {
+        "clientUnsupported": "This part of the mod runs its own code, which Orca does not draw yet.",
+        "closePane": "Close pane",
+        "closeNamedPane": "Close {{title}}",
+        "paneTabs": "Mod panes",
+        "paneWaiting": "Waiting for you",
+        "resizePane": "Resize pane",
+        "paneEmptyTitle": "Nothing to show yet",
+        "paneEmptyBody": "{{plugin}} has not drawn in this pane",
+        "statusLines": "Plugin status lines"
+      }
     },
     "tab": {
       "bar": {
@@ -19217,7 +19228,10 @@
         "inlineVisualsCopy": "Let the agent show charts, diagrams and mockups inside its replies. Applies to newly started chats.",
         "inlineVisualsToggleLabel": "Toggle inline visuals",
         "queueFollowUpsCopy": "Messages you send while the agent is working wait as cards you can steer, edit, or delete. Messages with images send right away.",
-        "queueFollowUpsToggleLabel": "Toggle queue follow-ups"
+        "queueFollowUpsToggleLabel": "Toggle queue follow-ups",
+        "claudeModsToggleLabel": "Toggle Claude Code mods",
+        "claudeModsTitle": "Claude Code mods",
+        "claudeModsCopy": "Experimental: draw the panes, band and notifications that Claude Code mods add, in Claude chats. Needs Claude Code 2.1.287 or newer."
       }
     },
     "agentChildRow": {

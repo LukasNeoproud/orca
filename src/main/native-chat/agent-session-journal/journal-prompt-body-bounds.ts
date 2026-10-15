@@ -99,7 +99,8 @@ export function boundJournalPromptBody(
     ...(body.freeTextQuestionId
       ? { freeTextQuestionId: boundPromptIdentifier(body.freeTextQuestionId) }
       : {}),
-    ...(body.freeTextInput ? { freeTextInput: boundFreeTextInput(body.freeTextInput) } : {})
+    ...(body.freeTextInput ? { freeTextInput: boundFreeTextInput(body.freeTextInput) } : {}),
+    ...(body.toolUseId ? { toolUseId: boundPromptIdentifier(body.toolUseId) } : {})
   }
 }
 

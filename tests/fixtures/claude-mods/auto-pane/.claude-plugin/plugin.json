@@ -1,0 +1,6 @@
+{
+  "name": "auto-pane",
+  "version": "0.1.0",
+  "description": "Opens a pane from a timer without the person asking",
+  "author": { "name": "Orca fixtures" }
+}

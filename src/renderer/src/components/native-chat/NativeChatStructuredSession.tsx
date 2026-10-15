@@ -57,6 +57,7 @@ import { useNativeChatHostOutageNotice } from './use-native-chat-host-outage-not
 import { useNativeChatAvailabilityNotice } from './use-native-chat-availability-notice'
 import { useStructuredAgentSessionStartFailureFacts } from './use-structured-agent-session-start-failure-facts'
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
+import { ClaudeModsAbovePromptBand, ClaudeModsPaneDock } from './claude-mods/ClaudeModsPaneDock'
 import {
   isClaudeSignInFailureKind,
   NativeChatClaudeSignInContext,
@@ -82,6 +83,7 @@ export function NativeChatStructuredSession(
   // Paste target while a question card replaces the composer.
   const questionAnswerInputRef = useRef<HTMLInputElement>(null)
   const { rewindHost, focusComposer } = useNativeChatRewindHost(props, composerRef)
+  const modsSite = { paneKey, focusComposer }
   const controller = useStructuredAgentSession({
     ...props,
     // Why: Stop and a queued card's Edit give text back to the conversation's draft, as the composer keeps it.
@@ -274,7 +276,7 @@ export function NativeChatStructuredSession(
       style={appearanceStyle}
       data-native-chat-scheme={appearanceStyle.colorScheme}
     >
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <ClaudeModsPaneDock session={props} {...modsSite}>
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
         <NativeChatResumeInCliButton {...props} worktreeId={find.isOpen ? null : ownerWorktreeId} />
         {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
@@ -318,7 +320,7 @@ export function NativeChatStructuredSession(
             </NativeChatOrcaStopContext.Provider>
           </NativeChatRewindContext.Provider>
         )}
-      </div>
+      </ClaudeModsPaneDock>
       {readFailedFinally ? null : (
         <>
           {/* Host-held drafts, never transcript rows. Above the status area, so running shells and agents sit next to the composer. */}
@@ -380,6 +382,8 @@ export function NativeChatStructuredSession(
             <NativeChatStructuredQuestionCard
               key={`${prompt.itemId}:${prompt.revision}`}
               questions={questions}
+              toolUseId={questionBody.toolUseId}
+              paneKey={paneKey}
               onAnswer={(response) => void promptResponse.respond(prompt, response)}
               isSubmitting={promptResponse.holds(prompt)}
               onCancel={cancelPrompt}
@@ -387,6 +391,7 @@ export function NativeChatStructuredSession(
               answerInputRef={questionAnswerInputRef}
             />
           ) : null}
+          <ClaudeModsAbovePromptBand {...modsSite} isWorking={controller.isWorking} />
           {composerShown ? (
             <NativeChatComposer
               ref={composerRef}

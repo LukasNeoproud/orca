@@ -33,6 +33,7 @@ import { claudeSessionStateEndsTurn } from './claude-session-state-turn-over'
 import { ClaudeJournalPrompts } from './claude-structured-journal-prompts'
 import { claudeChildToolQueries } from './claude-child-tool-queries'
 import { journalClaudeMessage, type ClaudeMessageJournalContext } from './claude-message-journaling'
+import { orderClaudeLocalCommandOutput } from './claude-local-command-output-order'
 import { journalClaudeResult, type ClaudeResultJournalContext } from './claude-result-journaling'
 import { ClaudeAuthenticationFailures } from './claude-authentication-failures'
 import type { AgentSessionAccountKind } from '../../shared/agent-session-availability'
@@ -183,7 +184,7 @@ export function createClaudeJournalTranslator(
     requestedAt?: number
   ): boolean => journalClaudeMessage(messageContext, message, startsTurn, observedAt, requestedAt)
 
-  return {
+  const translator: ClaudeJournalTranslator = {
     handle: (event) => {
       if (event.type === 'ended') {
         prompts.retryPendingCancellations()
@@ -322,4 +323,6 @@ export function createClaudeJournalTranslator(
       toolOrigins.clear()
     }
   }
+  translator.handle = orderClaudeLocalCommandOutput(translator.handle, () => turn.id === null)
+  return translator
 }

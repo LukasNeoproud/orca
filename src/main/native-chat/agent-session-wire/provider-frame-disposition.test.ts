@@ -57,6 +57,21 @@ describe('provider frame classification catalog', () => {
     ).toBe('error-surface')
   })
 
+  it("keeps Claude's init in status chrome when an MCP server failed to connect", () => {
+    const init = {
+      type: 'system',
+      subtype: 'init',
+      mcp_servers: [
+        { name: 'figma-desktop', status: 'failed' },
+        { name: 'docs', status: 'connected' }
+      ]
+    }
+    expect(classifyProviderFrame('claude', 'message:system:init', init)).toBe('status-chrome')
+    expect(classifyProviderFrame('claude', 'message:system:init', { ...init, error: 'boom' })).toBe(
+      'error-surface'
+    )
+  })
+
   it('keeps command queue bookkeeping off the transcript without hiding a failed one', () => {
     expect(
       classifyProviderFrame('claude', 'message:command_lifecycle', {
