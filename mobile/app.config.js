@@ -82,12 +82,15 @@ function resolvePrivateAndroidConfig(config, env = process.env) {
     throw new Error('ORCA_PRIVATE_APP_SCHEME must be a valid lowercase URL scheme')
   }
 
+  // The bundled google-services.json registers only the official package, in a Firebase project
+  // whose push gateway would refuse a private build's tokens anyway: a private build has no push.
+  const { googleServicesFile: _officialFirebase, ...android } = config.android ?? {}
   return {
     ...config,
     name,
     scheme,
     android: {
-      ...config.android,
+      ...android,
       package: packageName,
       versionCode
     }

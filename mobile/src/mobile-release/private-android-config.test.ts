@@ -50,6 +50,21 @@ describe('private Android Expo config', () => {
     expect(base.android.package).toBe('com.stably.orca.mobile')
   })
 
+  it("drops the official app's Firebase config, which names no private package", () => {
+    const official = {
+      ...base,
+      android: { ...base.android, googleServicesFile: './google-services.json' }
+    }
+    expect(
+      resolvePrivateAndroidConfig(official, {
+        ORCA_PRIVATE_ANDROID_RELEASE: '1',
+        ORCA_PRIVATE_ANDROID_PACKAGE: 'dev.example.orca.privateapp',
+        ORCA_PRIVATE_ANDROID_VERSION_CODE: '1001203'
+      }).android
+    ).toEqual({ package: 'dev.example.orca.privateapp', versionCode: 1001203 })
+    expect(resolvePrivateAndroidConfig(official, {})).toBe(official)
+  })
+
   it('rejects the official package and invalid version codes', () => {
     expect(() =>
       resolvePrivateAndroidConfig(base, {
