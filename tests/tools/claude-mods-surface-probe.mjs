@@ -150,7 +150,7 @@ async function render(component, instanceId) {
 }
 
 async function scrollLog() {
-  const panes = waitFor(isSystem('ui_panes')).catch(() => null)
+  const panes = waitFor((m) => isSystem('ui_panes')(m) && m.panes?.length > 0).catch(() => null)
   sendUser('/scroll-log')
   await panes
   const answer = await request({
@@ -182,7 +182,9 @@ async function scrollLog() {
     })),
     surface: 'desktop'
   }
-  await request({ subtype: 'ui_scroll', ...layout, offset: 0, by: 0 })
+  if (!args.includes('--no-layout')) {
+    await request({ subtype: 'ui_scroll', ...layout, offset: 0, by: 0 })
+  }
   await request({
     subtype: 'ui_focus',
     component: 'Pane',
@@ -190,7 +192,10 @@ async function scrollLog() {
     is_held: true,
     surface: 'desktop'
   })
-  for (const key of ['end', 'top', 'reveal', 'focus-end', 'follow']) {
+  if (args.includes('--pane-focus')) {
+    await request({ subtype: 'ui_pane_focus', id: 'scroll-log', ...SURFACE })
+  }
+  for (const key of (argValue('--keys') ?? 'end,top,reveal,focus-end,follow').split(',')) {
     const press = findPress(tree, key)
     if (press) {
       await request({ subtype: 'ui_press', ...press, key, surface: 'desktop' })
@@ -450,7 +455,14 @@ async function runCommand(command, settleMs = 2000) {
 async function main() {
   const init = await q.initializationResult().catch((error) => String(error))
   log('init', { commands: init?.commands?.map?.((c) => c.name) })
-  await request({ subtype: 'ui_attach', ...SURFACE, viewport })
+  await request({
+    subtype: 'ui_attach',
+    ...SURFACE,
+    viewport,
+    ...(args.includes('--answers')
+      ? { answers: ['ui_copy', 'ui_prompt_read', 'ui_prompt_fill', 'ui_prompt_suggest'] }
+      : {})
+  })
   if (scenario === 'guide') {
     const panes = waitFor(isSystem('ui_panes')).catch(() => null)
     sendUser('/mods-demo')
