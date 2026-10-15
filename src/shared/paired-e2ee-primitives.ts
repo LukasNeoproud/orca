@@ -23,6 +23,9 @@ export type PairedE2EEPrimitives = {
   openLegacyText: (frame: string, sharedKey: Uint8Array) => string | null
   sealLegacyBinary: (plaintext: Uint8Array, sharedKey: Uint8Array) => Uint8Array<ArrayBuffer>
   openLegacyBinary: (frame: Uint8Array, sharedKey: Uint8Array) => Uint8Array | null
+  // Throws on a corrupt stream. Absent where no synchronous inflater exists; such a client never
+  // advertises E2EE_GZIP_PAYLOADS_CLIENT_CAPABILITY, so a host never compresses toward it.
+  inflateGzip?: (gzip: Uint8Array) => Uint8Array
   // Why injected: Node uses node:crypto, so the CLI's unbundled runtime needs no extra package.
   deriveV2KeySchedule: (args: {
     sharedSecret: Uint8Array

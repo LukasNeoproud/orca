@@ -5,6 +5,7 @@ import {
   type MobileE2EEV2Hello
 } from './mobile-e2ee-v2-contract'
 import { openMobileE2EEV2Frame, sealMobileE2EEV2Frame } from './mobile-e2ee-v2-framing'
+import { inflateE2EEPayload } from './e2ee-payload-compression'
 import type {
   PairedE2EEKeyPair,
   PairedE2EEPrimitives,
@@ -98,12 +99,17 @@ export class PairedE2EEV2ClientSession {
     if (!frame) {
       return null
     }
-    const plaintext = this.open(frame, 'text')
+    const plaintext = this.openPayload(frame, 'text')
     return plaintext ? new TextDecoder().decode(plaintext) : null
   }
 
   openBinary(frame: Uint8Array): Uint8Array | null {
-    return this.open(frame, 'binary')
+    return this.openPayload(frame, 'binary')
+  }
+
+  private openPayload(frame: Uint8Array, payloadKind: 'text' | 'binary'): Uint8Array | null {
+    const plaintext = this.open(frame, payloadKind)
+    return plaintext ? inflateE2EEPayload(plaintext, this.primitives.inflateGzip) : null
   }
 
   sealText(plaintext: string): string {

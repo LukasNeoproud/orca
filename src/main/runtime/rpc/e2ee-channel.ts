@@ -18,6 +18,7 @@ import { isMobileE2EEOutboundItemWithinLimit } from './mobile-e2ee-outbound-admi
 import { parseRemoteRuntimeJsonText } from '../../../shared/remote-runtime-request-frames'
 import type { MobileE2EEOutboundMemoryBudget } from './mobile-e2ee-outbound-memory-budget'
 import { MobileE2EEDesktopOutboundOwner } from './mobile-e2ee-desktop-outbound-owner'
+import { E2EE_GZIP_PAYLOADS_CLIENT_CAPABILITY } from '../../../shared/e2ee-payload-compression'
 import { createLegacyReplySenders } from './mobile-e2ee-legacy-reply-senders'
 import { parseRuntimeClientCapabilities } from './runtime-client-capabilities'
 import type {
@@ -100,7 +101,8 @@ export class E2EEChannel {
       ws,
       () => Boolean(this.sharedKey),
       () => this.closeForOutboundBudget('queue'),
-      options.outboundMemoryBudget
+      options.outboundMemoryBudget,
+      () => this.clientCapabilities.includes(E2EE_GZIP_PAYLOADS_CLIENT_CAPABILITY)
     )
 
     this.handshakeTimer = setTimeout(() => {

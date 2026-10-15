@@ -26,7 +26,8 @@ export class MobileE2EEDesktopOutboundOwner {
     private readonly ws: WebSocket,
     private readonly isLegacyKeyed: () => boolean,
     private readonly onOverflow: () => void,
-    memoryBudget: MobileE2EEOutboundMemoryBudget = createMobileE2EEOutboundMemoryBudget()
+    memoryBudget: MobileE2EEOutboundMemoryBudget = createMobileE2EEOutboundMemoryBudget(),
+    private readonly compressPayloads: () => boolean = () => false
   ) {
     this.memoryBudget = memoryBudget
     this.socketMemory = memoryBudget.registerBufferedAmount(() => ws.bufferedAmount)
@@ -75,7 +76,8 @@ export class MobileE2EEDesktopOutboundOwner {
       session,
       memoryBudget: this.memoryBudget,
       socketMemory: this.socketMemory,
-      onOverflow: this.onOverflow
+      onOverflow: this.onOverflow,
+      compressPayloads: this.compressPayloads
     })
     if (
       options?.dropWhenBacklogged &&

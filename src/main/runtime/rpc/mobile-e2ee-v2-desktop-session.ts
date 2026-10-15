@@ -90,7 +90,12 @@ export class DesktopMobileE2EEV2Session {
   }
 
   sealText(plaintext: string): string {
-    return Buffer.from(this.seal(new TextEncoder().encode(plaintext), 'text')).toString('base64')
+    return this.sealTextPayload(new TextEncoder().encode(plaintext))
+  }
+
+  /** A text-kind frame whose payload is already bytes, such as a gzip-framed JSON reply. */
+  sealTextPayload(payload: Uint8Array): string {
+    return Buffer.from(this.seal(payload, 'text')).toString('base64')
   }
 
   sealBinary(plaintext: Uint8Array): Uint8Array {

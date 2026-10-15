@@ -12,6 +12,7 @@ import type {
   MobileE2EEOutboundMemoryBudget,
   MobileE2EEOutboundSocketMemory
 } from './mobile-e2ee-outbound-memory-budget'
+import { compressMobileE2EEPayload } from './mobile-e2ee-payload-compression'
 
 export type DesktopMobileE2EEV2OutboundItem =
   | { kind: 'text'; plaintext: string }
@@ -33,15 +34,27 @@ export function createDesktopMobileE2EEV2OutboundQueue(args: {
   onOverflow: () => void
   memoryBudget: MobileE2EEOutboundMemoryBudget
   socketMemory: MobileE2EEOutboundSocketMemory
+  // Read per frame: the client advertises the capability after it authenticates.
+  compressPayloads: () => boolean
 }): WsOutboundBackpressureQueue<DesktopMobileE2EEV2OutboundItem> {
   return createWsOutboundBackpressureQueue<DesktopMobileE2EEV2OutboundItem>({
     // Why: sealing happens only after queue admission, so counters cannot be
     // consumed by an item rejected at the bounded queue boundary.
     send: (item) => {
+      const compress = args.compressPayloads()
       if (item.kind === 'text') {
-        args.ws.send(args.session.sealText(item.plaintext))
+        args.ws.send(
+          compress
+            ? args.session.sealTextPayload(
+                compressMobileE2EEPayload(new TextEncoder().encode(item.plaintext), 'text')
+              )
+            : args.session.sealText(item.plaintext)
+        )
       } else {
-        args.ws.send(Buffer.from(args.session.sealBinary(item.plaintext)), { binary: true })
+        const payload = compress
+          ? compressMobileE2EEPayload(item.plaintext, 'binary')
+          : item.plaintext
+        args.ws.send(Buffer.from(args.session.sealBinary(payload)), { binary: true })
       }
     },
     byteLengthOf: desktopMobileE2EEV2OutboundItemBytes,

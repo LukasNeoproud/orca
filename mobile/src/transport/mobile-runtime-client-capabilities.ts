@@ -16,6 +16,7 @@ import {
 import { AGENT_SESSION_OPTIONAL_MODEL_CLIENT_CAPABILITY } from '../../../src/shared/agent-session-optional-model-capability'
 import { remoteRuntimeClientCapabilities } from '../../../src/shared/remote-runtime-client-capabilities'
 import { AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY } from '../../../src/shared/agent-session-attention-capabilities'
+import { E2EE_GZIP_PAYLOADS_CLIENT_CAPABILITY } from '../../../src/shared/e2ee-payload-compression'
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilities([
   STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY,
@@ -39,7 +40,9 @@ export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilitie
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY,
   // Reads `agent_launch_tab_closed` (a user closed its tab, which stopped it) as a definite answer.
   AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY,
-  AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY
+  AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY,
+  // Inflates the host's gzip-framed payloads, which cut bytes ~4x on Tailscale and relay links.
+  E2EE_GZIP_PAYLOADS_CLIENT_CAPABILITY
 ])
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITY_UPDATE_METHOD =
