@@ -25,6 +25,8 @@ if (process.platform !== 'win32' && !alternateBashPath) {
   )
 }
 const READ_STARTED_FILE = '.orca-read-started'
+// SQLite 3.54 (macOS 27's /usr/bin/sqlite3) prompts `SQLite-3.54 in-memory-> `, older ones `sqlite> `.
+const SQLITE_PROMPT = /sqlite> |SQLite-\d[\d.]* [^\r\n]*-> /
 
 type ShellFixture = {
   name: string
@@ -374,7 +376,7 @@ zle -N zle-line-init
     async () => {
       const running = await startFixture(zshFixture, 'exec /usr/bin/sqlite3\n')
       try {
-        await waitForOutput(running.subscribe, () => running.output().includes('sqlite> '))
+        await waitForOutput(running.subscribe, () => SQLITE_PROMPT.test(running.output()))
         await new Promise((resolve) => setTimeout(resolve, 300))
         expect(running.session.shellState).toBe('pending')
         expect(running.output()).not.toContain(COMMAND_OUTPUT)
@@ -393,7 +395,7 @@ zle -N zle-line-init
         'ln -s /usr/bin/sqlite3 "$HOME/zsh" && exec "$HOME/zsh"\n'
       )
       try {
-        await waitForOutput(running.subscribe, () => running.output().includes('sqlite> '))
+        await waitForOutput(running.subscribe, () => SQLITE_PROMPT.test(running.output()))
         await new Promise((resolve) => setTimeout(resolve, 300))
         expect(running.session.shellState).toBe('pending')
         expect(running.output()).not.toContain(COMMAND_OUTPUT)
