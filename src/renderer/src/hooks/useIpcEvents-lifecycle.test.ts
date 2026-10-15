@@ -39,6 +39,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'ssh.onStateChanged',
   'ui.onActivateWorktree',
   'ui.onAgentLaunchPaneVerdict',
+  'ui.onAzureDevOpsReviewAgentRequest',
   'ui.onCloseActiveTab',
   'ui.onCloseFloatingItem',
   'ui.onCloseSessionTab',
@@ -107,6 +108,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
 
 const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'ui.onMobileMarkdownRequest',
+  'ui.onAzureDevOpsReviewAgentRequest',
   'automations.onChanged',
   'runtimeEnvironments.onStatusChanged',
   'repos.onChanged',
@@ -385,10 +387,11 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
       )
     ).toEqual([
       'ui.onMobileMarkdownRequest',
+      'ui.onAzureDevOpsReviewAgentRequest',
       'automations.onChanged',
       'runtimeEnvironments.onStatusChanged',
       'runtimeEnvironments.subscribe',
-      ...EXPECTED_CALLBACK_REGISTRATION_SEQUENCE.slice(3)
+      ...EXPECTED_CALLBACK_REGISTRATION_SEQUENCE.slice(4)
     ])
     const groupOrder = (names: readonly string[]): string[] =>
       registrationOrder.filter((entry) => names.includes(entry))
