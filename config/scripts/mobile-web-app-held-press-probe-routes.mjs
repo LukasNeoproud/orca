@@ -113,6 +113,10 @@ export default function CommandDockProbeRoute() {
     setShowCustomKeyModal: noop,
     setDeleteKeyTarget: noop,
     visibleBuiltInAccessoryKeys: KEYS,
+    accessoryLayout: { rows: [KEYS.map((key) => key.id)], visibleBuiltInIds: KEYS.map((key) => key.id) },
+    pendingModifiers: [],
+    togglePendingModifier: noop,
+    consumePendingAccessoryKey: (_id, bytes) => bytes,
     terminalModes: new Map(),
     canPaste: false,
     dictationMode: 'toggle',
@@ -144,6 +148,7 @@ export default function CommandDockProbeRoute() {
     activeMarkdownTab: null,
     activeFileTab: null,
     activeBrowserTab: null,
+    activeEmulatorTab: null,
     keyboardLift: 0
   }
   return <MobileSessionCommandDock controller={controller} />
