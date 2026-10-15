@@ -204,3 +204,19 @@ export const STRUCTURED_CALLS: {
     result: { agents: expect.arrayContaining([expect.objectContaining({ agent: 'codex' })]) }
   }
 ]
+
+/** Claude Code mods' remote surface: its own capabilities on top of the structured one, and a
+ *  request only a live Claude CLI can answer, so only the gate is declared. Each call has to clear
+ *  the structured gate and reach the host's session lookup that admits a Claude chat. */
+export const CLAUDE_MODS_CALLS: { method: string; params: Record<string, unknown> }[] = [
+  { method: 'agentSession.claudeModsSubscribe', params: { sessionId: SESSION } },
+  { method: 'agentSession.claudeModsAsks', params: { sessionId: SESSION } },
+  {
+    method: 'agentSession.claudeModsRequest',
+    params: { sessionId: SESSION, subtype: 'ui_panes', fields: {} }
+  },
+  {
+    method: 'agentSession.claudeModsAnswer',
+    params: { sessionId: SESSION, askId: 'ask-1', response: {} }
+  }
+]

@@ -57,6 +57,7 @@ import {
   sendParams,
   SESSION,
   STRUCTURED_CALLS,
+  CLAUDE_MODS_CALLS,
   THREAD,
   WORKSPACE
 } from './structured-agent-session-surface-manifest'
@@ -142,8 +143,12 @@ describe('cross-version structured agent sessions', () => {
       // Anti-vacuous: the old client still advertises a real list, so the refusal
       // below is the capability gate answering, not an empty negotiation.
       expect(legacyClientCapabilities().length).toBeGreaterThan(0)
-      for (const { method } of STRUCTURED_CALLS) {
-        const replies = await callBuild(current, method, paramsFor(method), {
+      const calls = [
+        ...STRUCTURED_CALLS.map(({ method }) => ({ method, params: paramsFor(method) })),
+        ...CLAUDE_MODS_CALLS
+      ]
+      for (const { method, params } of calls) {
+        const replies = await callBuild(current, method, params, {
           clientKind: 'runtime',
           clientCapabilities: legacyClientCapabilities()
         })
@@ -163,6 +168,20 @@ describe('cross-version structured agent sessions', () => {
         ...legacyClientCapabilities(),
         STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY
       ])
+    })
+
+    it("opens the Claude mods gate for it, as far as the host's session lookup", async () => {
+      for (const { method, params } of CLAUDE_MODS_CALLS) {
+        const before = hostCalls.sessionAgent.mock.calls.length
+        await callBuild(current, method, params, {
+          clientKind: 'runtime',
+          clientCapabilities: [
+            ...legacyClientCapabilities(),
+            STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY
+          ]
+        })
+        expect(hostCalls.sessionAgent.mock.calls.length - before, method).toBe(1)
+      }
     })
   })
 
@@ -255,7 +274,7 @@ describe('cross-version structured agent sessions', () => {
       // The host admits by client capability, so a client may pick each launch mode itself.
       expect(current.capabilities).toContain(STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY)
       expect(current.methodNames.filter((name) => name.startsWith('agentSession.'))).toHaveLength(
-        STRUCTURED_CALLS.length
+        STRUCTURED_CALLS.length + CLAUDE_MODS_CALLS.length
       )
     })
 
@@ -324,8 +343,12 @@ describe('cross-version structured agent sessions', () => {
 
     it('gets a clean answer from the old dispatcher rather than silence', async () => {
       const registered = new Set(baselineStructuredMethods())
-      for (const { method } of STRUCTURED_CALLS) {
-        const replies = await callBuild(baseline, method, paramsFor(method), {
+      const calls = [
+        ...STRUCTURED_CALLS.map(({ method }) => ({ method, params: paramsFor(method) })),
+        ...CLAUDE_MODS_CALLS
+      ]
+      for (const { method, params } of calls) {
+        const replies = await callBuild(baseline, method, params, {
           clientKind: 'runtime',
           clientCapabilities: current.capabilities
         })
@@ -394,7 +417,7 @@ describe('cross-version structured agent sessions', () => {
         expect(releasedCurrent.capabilities).toContain(STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY)
         expect(
           releasedCurrent.methodNames.filter((name) => name.startsWith('agentSession.'))
-        ).toHaveLength(STRUCTURED_CALLS.length)
+        ).toHaveLength(STRUCTURED_CALLS.length + CLAUDE_MODS_CALLS.length)
         // Each build owns its own host slot, so the one the suite installed in
         // current source is not this dispatcher's. Installing here is also the
         // anti-vacuous guard: without it every host-backed method answers

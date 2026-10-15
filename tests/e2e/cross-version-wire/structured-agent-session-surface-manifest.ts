@@ -35,7 +35,8 @@ export {
   CONVERSATION_OUTLINE_METHOD,
   STATUS_FEED_METHOD,
   TURN_COMPLETION_FEED_METHOD,
-  STRUCTURED_CALLS
+  STRUCTURED_CALLS,
+  CLAUDE_MODS_CALLS
 } from './structured-agent-session-surface-calls'
 
 let operations = 0
