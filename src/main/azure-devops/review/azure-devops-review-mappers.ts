@@ -157,6 +157,7 @@ export function mapAzureDevOpsReviewPullRequest(
     repoKey: context.repo.key,
     author: mapIdentity(raw.createdBy),
     myVote: mapAzureDevOpsReviewVote(myReview?.vote),
+    ...(myReview ? { reviewRequested: true as const } : {}),
     ...(me && raw.createdBy?.id?.toLowerCase() === me ? { createdByMe: true as const } : {}),
     createdAt: raw.creationDate ?? '',
     closedAt: raw.closedDate ?? null,

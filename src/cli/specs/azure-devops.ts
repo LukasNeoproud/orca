@@ -11,7 +11,7 @@ const JSON_ENVELOPE_NOTE = '`--json` wraps the answer as `{ "ok": true, "result"
 export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['ado', 'prs'],
-    summary: 'List Azure DevOps pull requests where you are a reviewer',
+    summary: 'List Azure DevOps pull requests in the repositories added to Orca',
     usage: 'orca ado prs [--status active|completed|abandoned|all] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'status'],
     examples: ['orca ado prs --json', 'orca ado prs --status all --json'],

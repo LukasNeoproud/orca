@@ -101,8 +101,9 @@ export function peekAzureDevOpsReviewRepositoryId(repoKey: string): string | nul
   return repositoryCache.get(repoKey)?.id ?? null
 }
 
-export async function listAzureDevOpsReviewerPullRequests(
-  target: AzureDevOpsReviewTarget & { repositoryId: string; reviewerId: string },
+/** Every pull request of the repository in `status`, whoever authors or reviews it. */
+export async function listAzureDevOpsRepositoryPullRequests(
+  target: AzureDevOpsReviewTarget & { repositoryId: string },
   status: AzureDevOpsPullRequestStatusFilter
 ): Promise<RawReviewPullRequest[]> {
   const data = await sendAzureDevOpsRequest<{ value?: RawReviewPullRequest[] }>(
@@ -110,7 +111,6 @@ export async function listAzureDevOpsReviewerPullRequests(
     `/_apis/git/repositories/${segment(target.repositoryId)}/pullrequests`,
     {
       searchParams: {
-        'searchCriteria.reviewerId': target.reviewerId,
         'searchCriteria.status': status,
         $top: LIST_TOP
       },

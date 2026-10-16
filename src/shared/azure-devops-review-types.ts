@@ -83,6 +83,8 @@ export type AzureDevOpsReviewPullRequest = {
   repoKey: string
   author: AzureDevOpsReviewIdentity
   myVote: AzureDevOpsReviewVote
+  /** The signed-in identity is a reviewer by name, not only through a group. Absent from older hosts. */
+  reviewRequested?: true
   /** Absent when the author is someone else or the signed-in identity is unknown. */
   createdByMe?: true
   createdAt: string

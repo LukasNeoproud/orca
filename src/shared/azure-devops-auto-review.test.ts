@@ -25,6 +25,7 @@ function pullRequest(
     repoKey: 'dev.azure.com/contoso+repo',
     author: { displayName: 'Author', uniqueName: null },
     myVote: 'none',
+    reviewRequested: true,
     createdAt: '',
     closedAt: null,
     sourceBranch: 'feature',
@@ -37,11 +38,12 @@ function pullRequest(
 }
 
 describe('azureDevOpsAutoReviewCandidates', () => {
-  it('offers only open, unseen pull requests the user has not authored, voted on or drafted', () => {
+  it('offers only open, unseen review requests the user has not authored, voted on or drafted', () => {
     const candidates = azureDevOpsAutoReviewCandidates(
       {
         pullRequests: [
           pullRequest('new'),
+          pullRequest('not-asked', { reviewRequested: undefined }),
           pullRequest('seen'),
           pullRequest('mine', { createdByMe: true }),
           pullRequest('voted', { myVote: 'approved' }),

@@ -50,6 +50,7 @@ describe('mapAzureDevOpsReviewPullRequest', () => {
       isDraft: true,
       isFork: true,
       myVote: 'approved-with-suggestions',
+      reviewRequested: true,
       sourceCommit: 'abc',
       webUrl: 'https://dev.azure.com/contoso/Web/_git/app/pullrequest/42'
     })
@@ -67,6 +68,7 @@ describe('mapAzureDevOpsReviewPullRequest', () => {
     )
     expect(mine?.createdByMe).toBe(true)
     expect(theirs).not.toHaveProperty('createdByMe')
+    expect(theirs).not.toHaveProperty('reviewRequested')
   })
 
   it('drops payloads without an id', () => {

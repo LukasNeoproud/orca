@@ -34,8 +34,8 @@ export function normalizeAzureDevOpsAutoReviewSettings(
 }
 
 /**
- * Pull requests worth offering a review for: open, not the user's own, not yet voted on or
- * drafted, and not already handled (`seenKeys`).
+ * Pull requests worth offering a review for: open, naming the user as a reviewer, not the user's
+ * own, not yet voted on or drafted, and not already handled (`seenKeys`).
  */
 export function azureDevOpsAutoReviewCandidates(
   list: Pick<AzureDevOpsReviewListResult, 'pullRequests' | 'draftCounts'>,
@@ -44,6 +44,7 @@ export function azureDevOpsAutoReviewCandidates(
   return list.pullRequests.filter(
     (pr) =>
       pr.status === 'active' &&
+      pr.reviewRequested === true &&
       !pr.isDraft &&
       !pr.isFork &&
       pr.createdByMe !== true &&

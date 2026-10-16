@@ -19,7 +19,7 @@ import {
 import {
   getAzureDevOpsReviewIdentity,
   getAzureDevOpsReviewPullRequest,
-  listAzureDevOpsReviewerPullRequests,
+  listAzureDevOpsRepositoryPullRequests,
   listAzureDevOpsReviewIterationChanges,
   listAzureDevOpsReviewIterations,
   listAzureDevOpsReviewThreads,
@@ -120,17 +120,18 @@ export async function listAzureDevOpsReviewPullRequests(
   }
 
   const perRepo = await mapWithConcurrency(sources, LIST_CONCURRENCY, async (source) => {
-    const reviewerId = identities.get(source.organizationKey)
-    if (!reviewerId) {
+    // Without credentials nothing lists; without an identity the role fields stay unknown.
+    if (!azureDevOpsOrganizationCredentialSource(source.organizationKey)) {
       return []
     }
+    const meId = identities.get(source.organizationKey) ?? null
     try {
       const repository = await resolveAzureDevOpsReviewRepository({
         ...source,
         repoKey: source.key
       })
-      const raw = await listAzureDevOpsReviewerPullRequests(
-        { ...source, repositoryId: repository.id, reviewerId },
+      const raw = await listAzureDevOpsRepositoryPullRequests(
+        { ...source, repositoryId: repository.id },
         status
       )
       return raw
@@ -139,7 +140,7 @@ export async function listAzureDevOpsReviewPullRequests(
             repo: source,
             repositoryId: repository.id,
             repositoryWebUrl: repository.webUrl,
-            meId: reviewerId
+            meId
           })
         )
         .filter((pr): pr is AzureDevOpsReviewPullRequest => pr !== null)
