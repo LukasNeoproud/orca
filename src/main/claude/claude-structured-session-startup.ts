@@ -25,6 +25,10 @@ import {
 } from './claude-structured-session-acquisition-options'
 import { claudeRetiredOptions } from './claude-structured-retired-model'
 import {
+  observeClaudeInitializePermissionMode,
+  observeClaudeSettingsPermissionModes
+} from './claude-structured-permissions'
+import {
   claudeResolvedCatalogListing,
   claudeStructuredSessionOptionsFrom,
   observeClaudeSettingsApplied,
@@ -127,6 +131,7 @@ function applyClaudeInitializeFacts(session: ClaudeSession, facts: ClaudeInitial
   const fastModeFacts = readClaudeFastModeFacts(initialization)
   session.fastModeState ??= fastModeFacts.state
   session.fastModeDisabledReason ??= fastModeFacts.disabledReason
+  observeClaudeInitializePermissionMode(session, initialization)
   session.capabilities = readClaudeCapabilities(session.capabilities, initialization, init?.message)
   // A catalog frame that streamed in after publish is newer than the initialize answer.
   if (session.commands.commands === undefined) {
@@ -145,6 +150,7 @@ function applyClaudeSettingsFacts(
   const effort = readClaudeSettingsEffort(settings)
   const published = claudeStructuredSessionPublicationOptions(prepared)
   observeClaudeSettingsApplied(session, settings)
+  observeClaudeSettingsPermissionModes(session, settings)
   if (published.fastModePerSessionOptIn !== null) {
     session.fastModePerSessionOptIn = published.fastModePerSessionOptIn
   }

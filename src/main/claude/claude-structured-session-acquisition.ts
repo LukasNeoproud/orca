@@ -19,6 +19,7 @@ import { claudeProcessIdentity } from './claude-structured-owner-identity'
 import { ClaudePromptRegistry } from './claude-structured-prompt-replies'
 import { adoptClaudeStructuredSpawnOptions } from './claude-structured-spawn-options'
 import { observeClaudeFastModeFacts } from './claude-structured-session-options'
+import { observeClaudePermissionModeFrame } from './claude-structured-permissions'
 import {
   readClaudeStartupFacts,
   settleClaudeSessionStartup
@@ -111,6 +112,7 @@ export async function acquireClaudeSession({
     if (liveSession) {
       liveSession.leafUuid = observedLeafUuid
       observeClaudeFastModeFacts(liveSession, message)
+      observeClaudePermissionModeFrame(liveSession, message)
       // Recording a turn end is an owner action; a result that trails the child's exit has no owner.
       if (message.type === 'result' && sessions.get(sessionId) === liveSession) {
         persistClaudeTurnResumePoint(sessionId, liveSession, deps)

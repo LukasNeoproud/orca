@@ -1,4 +1,4 @@
-import type { EffortLevel, PermissionMode } from '@anthropic-ai/claude-agent-sdk'
+import type { EffortLevel } from '@anthropic-ai/claude-agent-sdk'
 import { ClaudeControlRequestError } from './claude-stream-json-connection'
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
 import {
@@ -11,6 +11,10 @@ import {
   readClaudeSettingsFastMode
 } from './claude-structured-session-options'
 import type { ClaudeSession } from './claude-structured-session-state'
+import {
+  isClaudePermissionMode,
+  observeClaudePermissionModeRefusal
+} from './claude-structured-permissions'
 import { decodeStructuredAgentSessionOptionValue } from '../../shared/structured-agent-session-option-codec'
 
 const OPTION_ORDER = ['model', 'effort', 'fastMode', 'permissionMode'] as const
@@ -71,11 +75,13 @@ export async function setClaudeStructuredOption(
     input.key === 'fastMode'
       ? decodeStructuredAgentSessionOptionValue('fastMode', input.value)
       : null
+  const permissionMode =
+    input.key === 'permissionMode' && isClaudePermissionMode(input.value) ? input.value : null
   const apply =
     input.key === 'model'
       ? () => session.connection.setModel(input.value, { timeoutMs })
-      : input.key === 'permissionMode'
-        ? () => session.connection.setPermissionMode(input.value as PermissionMode, { timeoutMs })
+      : permissionMode
+        ? () => session.connection.setPermissionMode(permissionMode, { timeoutMs })
         : input.key === 'effort'
           ? () =>
               session.connection.applyFlagSettings(
@@ -157,6 +163,9 @@ export async function setClaudeStructuredOption(
   }
   try {
     await apply()
+    if (permissionMode) {
+      session.reportedPermissionMode = permissionMode
+    }
     // Ahead of the fence checks: the child applied this write even if a newer one supersedes its bookkeeping.
     if (CONTEXT_WINDOW_KEYS.has(input.key) && input.value !== held) {
       session.translator?.modelMayHaveChanged()
@@ -184,6 +193,9 @@ export async function setClaudeStructuredOption(
     }
   } catch (error) {
     if (error instanceof ClaudeControlRequestError) {
+      if (permissionMode) {
+        observeClaudePermissionModeRefusal(session, permissionMode, error.message)
+      }
       throw new AgentSessionOptionRejectedError(error)
     }
     throw error

@@ -190,6 +190,10 @@ export type ClaudeSession = {
   fastModeAtStart: boolean
   /** The posture the child launched in; absent before a launch adopts its options. */
   launchedPermissions?: ClaudeLaunchedPermissions
+  /** The mode the CLI last reported running: initialize, init and status frames, or a write it took. */
+  reportedPermissionMode?: PermissionMode
+  /** Modes Claude's settings disable or the CLI refused for this child. */
+  unavailablePermissionModes?: Set<PermissionMode>
   /** CLI-advertised protocol capabilities from init; gates interrupt-receipt handling. */
   capabilities: readonly string[]
   backgroundTasks: ClaudeBackgroundTaskTracker

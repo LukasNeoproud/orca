@@ -10,6 +10,7 @@ import type {
 } from './claude-structured-launch-resolution'
 import type { ClaudeLaunchedPermissions, ClaudeSession } from './claude-structured-session-state'
 import { restoredClaudeStructuredSessionOptions } from './claude-structured-options'
+import { isClaudePermissionMode } from './claude-structured-permissions'
 
 const EFFORT_LEVELS: ReadonlySet<string> = new Set<EffortLevel>([
   'low',
@@ -17,14 +18,6 @@ const EFFORT_LEVELS: ReadonlySet<string> = new Set<EffortLevel>([
   'high',
   'xhigh',
   'max'
-])
-const PERMISSION_MODES: ReadonlySet<string> = new Set<PermissionMode>([
-  'default',
-  'acceptEdits',
-  'bypassPermissions',
-  'plan',
-  'dontAsk',
-  'auto'
 ])
 
 /** Whether `options` launch with the Agent Permissions bypass. */
@@ -60,10 +53,6 @@ function withoutConfiguredFlag(
 
 function isEffortLevel(value: string): value is EffortLevel {
   return EFFORT_LEVELS.has(value)
-}
-
-function isPermissionMode(value: string): value is PermissionMode {
-  return PERMISSION_MODES.has(value)
 }
 
 export type ClaudeStructuredSpawnOptions = {
@@ -130,7 +119,7 @@ export function claudeStructuredSpawnOptions(input: {
   if (permissionMode !== undefined) {
     // Bypass is the Agent Permissions setting's to grant; a saved pick never widens it.
     if (
-      isPermissionMode(permissionMode) &&
+      isClaudePermissionMode(permissionMode) &&
       (permissionMode !== 'bypassPermissions' ||
         claudeStructuredOptionsBypassPermissions(input.launch.options))
     ) {
@@ -145,7 +134,7 @@ export function claudeStructuredSpawnOptions(input: {
   const permissions = {
     mode: claudeStructuredOptionsBypassPermissions(sdkOptions)
       ? 'bypassPermissions'
-      : launchedMode && isPermissionMode(launchedMode)
+      : launchedMode && isClaudePermissionMode(launchedMode)
         ? launchedMode
         : 'default',
     allowsBypass
