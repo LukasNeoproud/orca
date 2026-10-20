@@ -45,7 +45,13 @@ export function closeTerminalLinkActionRequest(
 
 export type TerminalLinkActionDetails = Pick<
   TerminalLinkActionRequest,
-  'destination' | 'kind' | 'primary' | 'alternate' | 'secondaryActions' | 'preview'
+  | 'destination'
+  | 'kind'
+  | 'primary'
+  | 'alternate'
+  | 'secondaryActions'
+  | 'preview'
+  | 'directoryActions'
 >
 
 function buildTerminalLinkActionRequest(

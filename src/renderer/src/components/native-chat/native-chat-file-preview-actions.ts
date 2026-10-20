@@ -32,6 +32,30 @@ export function nativeChatFilePreviewActions(
   const changed = state.gitStatusByWorktree?.[context.worktreeId]?.find(
     (entry) => entry.path === relative && !entry.conflictStatus && !entry.submoduleRoot
   )
+  const sharedRows = [
+    ...(insertReference
+      ? [
+          {
+            label: translate(
+              'auto.components.nativeChat.preview.addReference',
+              'Add reference to prompt'
+            ),
+            run: () =>
+              insertReference(
+                `${formatNativeChatFileReference(`${target.absolutePath}${target.line ? `:${target.line}` : ''}`)} `
+              )
+          }
+        ]
+      : []),
+    ...(includeCopyPath
+      ? [
+          {
+            label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
+            run: () => window.api.ui.writeClipboardText(target.absolutePath)
+          }
+        ]
+      : [])
+  ]
   return {
     anchorX: bounds.left,
     anchorY: bounds.bottom,
@@ -40,6 +64,17 @@ export function nativeChatFilePreviewActions(
     kind: openActions.kind,
     primary: openActions.primary,
     alternate: openActions.alternate,
+    ...(openActions.directoryActions
+      ? {
+          directoryActions: {
+            ...openActions.directoryActions,
+            secondaryActions: [
+              ...(openActions.directoryActions.secondaryActions ?? []),
+              ...sharedRows
+            ]
+          }
+        }
+      : {}),
     secondaryActions: [
       ...(openActions.secondaryActions ?? []),
       ...(changed
@@ -60,28 +95,7 @@ export function nativeChatFilePreviewActions(
             }
           ]
         : []),
-      ...(insertReference
-        ? [
-            {
-              label: translate(
-                'auto.components.nativeChat.preview.addReference',
-                'Add reference to prompt'
-              ),
-              run: () =>
-                insertReference(
-                  `${formatNativeChatFileReference(`${target.absolutePath}${target.line ? `:${target.line}` : ''}`)} `
-                )
-            }
-          ]
-        : []),
-      ...(includeCopyPath
-        ? [
-            {
-              label: translate('auto.components.nativeChat.preview.copyPath', 'Copy path'),
-              run: () => window.api.ui.writeClipboardText(target.absolutePath)
-            }
-          ]
-        : [])
+      ...sharedRows
     ],
     restoreFocus: () => {
       if (anchor.isConnected) {

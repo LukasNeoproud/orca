@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, Copy, Ellipsis, FileCode2, Globe, Maximize2, Minimize2, Pin, X } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Ellipsis,
+  FileCode2,
+  Folder,
+  Globe,
+  Maximize2,
+  Minimize2,
+  Pin,
+  X
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
@@ -77,6 +88,9 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
   const pinned = !request.transient || (!onPin && locallyPinned)
   const preview = request.preview!
   const target = preview.target
+  const [isDirectory, setIsDirectory] = useState(() => /[/\\]$/.test(target.path))
+  // Why rows only: closing still hands back `request` itself, which the owner matches by identity.
+  const rows = (isDirectory && request.directoryActions) || request
   const pin = (value: boolean): void => {
     if (onPin) {
       onPin(value)
@@ -129,7 +143,11 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
       copyInFlight.current = false
     }
   }
-  let title = target.path.split(/[/\\]/).pop() ?? target.path
+  let title =
+    target.path
+      .replace(/[/\\]+$/, '')
+      .split(/[/\\]/)
+      .pop() || target.path
   if (target.kind === 'web') {
     try {
       title = new URL(target.path).hostname
@@ -206,7 +224,9 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
       >
         <div className="absolute inset-x-0 -top-2 h-2" aria-hidden="true" />
         <div className="flex shrink-0 items-center gap-2 border-b border-border p-3">
-          {target.kind === 'file' ? (
+          {target.kind === 'file' && isDirectory ? (
+            <Folder className="size-4 shrink-0 text-muted-foreground" />
+          ) : target.kind === 'file' ? (
             <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
           ) : (
             <Globe className="size-4 shrink-0 text-muted-foreground" />
@@ -253,19 +273,16 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
             runtimeContext={preview.runtimeContext}
             embedded
             expanded={expanded}
+            onDirectoryResolved={setIsDirectory}
           />
         </div>
         <div className="shrink-0 border-t border-border p-1" data-link-primary>
-          <LinkActionRow
-            action={request.primary}
-            shortcut="primary"
-            onRun={() => run(request.primary)}
-          />
-          {request.alternate && (
+          <LinkActionRow action={rows.primary} shortcut="primary" onRun={() => run(rows.primary)} />
+          {rows.alternate && (
             <LinkActionRow
-              action={request.alternate}
+              action={rows.alternate}
               shortcut="alternate"
-              onRun={() => run(request.alternate!)}
+              onRun={() => run(rows.alternate!)}
             />
           )}
         </div>
@@ -312,12 +329,12 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {request.secondaryActions?.map((action) => (
+              {rows.secondaryActions?.map((action) => (
                 <DropdownMenuItem key={action.label} onSelect={() => run(action)}>
                   {action.label}
                 </DropdownMenuItem>
               ))}
-              {!!request.secondaryActions?.length && <DropdownMenuSeparator />}
+              {!!rows.secondaryActions?.length && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 onSelect={() => {
                   close()

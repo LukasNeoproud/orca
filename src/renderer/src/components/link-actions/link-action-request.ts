@@ -16,7 +16,16 @@ export type LinkActionRequest = {
   alternate?: LinkAction
   /** Rows after primary/alternate that have no click shortcut. */
   secondaryActions?: readonly LinkAction[]
-  preview?: { target: ChatPreviewTarget; runtimeContext?: RuntimeFileOperationArgs | null }
+  preview?: {
+    target: ChatPreviewTarget
+    runtimeContext?: RuntimeFileOperationArgs | null
+  }
+  /** Rows that replace the file rows once the preview finds the path is a folder. */
+  directoryActions?: {
+    primary: LinkAction
+    alternate?: LinkAction
+    secondaryActions?: readonly LinkAction[]
+  }
   transient?: boolean
   anchorElement?: HTMLElement
   pinOnClick?: boolean

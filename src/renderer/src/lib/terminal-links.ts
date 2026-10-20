@@ -176,7 +176,9 @@ function buildLineEndingSpacedPathPrefixRanges(
   for (const match of range.text.matchAll(/\s+/g)) {
     const endIndex = match.index ?? 0
     const text = range.text.slice(0, endIndex).trimEnd()
-    if (text.includes(' ')) {
+    // Why the space-free path too: this range hides it from the plain path pass, and a folder has
+    // no extension to trim the prose at (`see src/components/ for more`).
+    if (text.includes(' ') || /[\\/]/.test(text)) {
       ranges.push({
         text,
         startIndex: range.startIndex,

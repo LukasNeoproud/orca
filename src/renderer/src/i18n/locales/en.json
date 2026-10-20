@@ -3441,7 +3441,10 @@
             "copiedLink": "Copied link",
             "copyLinkFailed": "Failed to copy link",
             "downloadOpenWithDefaultApp": "Download & open with default app",
-            "downloadOpenFailed": "Failed to download '{{value0}}'."
+            "downloadOpenFailed": "Failed to download '{{value0}}'.",
+            "folderOutsideWorkspace": "This folder is outside the workspace, so the file explorer cannot show it.",
+            "showInFileExplorer": "Show in file explorer",
+            "openTerminalHere": "Open terminal here"
           },
           "TerminalSessionStateSaveFailureDialog": {
             "6bee0c8f17": "Open Disk Space Analyzer",
@@ -17671,7 +17674,10 @@
           "failed": "failed",
           "skipped": "skipped",
           "reviewChanges": "Review changes in Source Control",
-          "addReference": "Add reference to prompt"
+          "addReference": "Add reference to prompt",
+          "emptyFolder": "This folder is empty.",
+          "folderContents": "Folder contents",
+          "moreFolderEntries": "…and {{value0}} more"
         }
       },
       "orca": {

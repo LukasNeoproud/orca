@@ -32,7 +32,13 @@ export type TerminalFileLinkActionDeps = {
 
 export type FileLinkActions = Pick<
   LinkActionRequest,
-  'destination' | 'kind' | 'primary' | 'alternate' | 'secondaryActions' | 'preview'
+  | 'destination'
+  | 'kind'
+  | 'primary'
+  | 'alternate'
+  | 'secondaryActions'
+  | 'preview'
+  | 'directoryActions'
 >
 
 export function handleTerminalFileLink(
@@ -59,7 +65,7 @@ export function handleTerminalFileLink(
   })
 }
 
-/** Hover preview of a file link; only files get one, never a workspace root or directory. */
+/** Hover preview of a file link; a workspace root gets none, a folder previews its listing. */
 export function previewTerminalFileLink(
   filePath: string,
   line: number | null,
@@ -101,6 +107,12 @@ export function buildFileLinkActions(
   )
   const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(fileContext)
   const isMac = navigator.userAgent.includes('Mac')
+  const openFolderLabel = isMac
+    ? translate(
+        'auto.components.terminal.pane.TerminalLinkActionPopover.openInFinder',
+        'Open in Finder'
+      )
+    : translate('auto.components.terminal.pane.TerminalLinkActionPopover.openFolder', 'Open folder')
 
   // Why: the OS can only launch a local file, so remote links keep the same row by
   // downloading first — local and remote workspaces offer the same actions.
@@ -109,17 +121,12 @@ export function buildFileLinkActions(
     : worktreeRoot
       ? canOpenWithSystemDefault
         ? {
-            label: isMac
-              ? translate(
-                  'auto.components.terminal.pane.TerminalLinkActionPopover.openInFinder',
-                  'Open in Finder'
-                )
-              : translate(
-                  'auto.components.terminal.pane.TerminalLinkActionPopover.openFolder',
-                  'Open folder'
-                ),
+            label: openFolderLabel,
             run: () =>
-              openDetectedFilePath(filePath, line, column, { ...deps, openWithSystemDefault: true })
+              openDetectedFilePath(filePath, line, column, {
+                ...deps,
+                openWithSystemDefault: true
+              })
           }
         : null
       : canOpenWithSystemDefault
@@ -129,7 +136,10 @@ export function buildFileLinkActions(
               'Open with default app'
             ),
             run: () =>
-              openDetectedFilePath(filePath, line, column, { ...deps, openWithSystemDefault: true })
+              openDetectedFilePath(filePath, line, column, {
+                ...deps,
+                openWithSystemDefault: true
+              })
           }
         : // Why the path shape and not a stat: the popover is built synchronously on hover, and a
           // remote stat per link would put a round-trip in front of every terminal path. A directory
@@ -166,11 +176,47 @@ export function buildFileLinkActions(
         run: () => revealInFileManager(mappedPath, revealOwner)
       }
     : null
+  // Why both sets: the popover is built before the path is stat'ed; its preview tells which applies.
+  const directoryActions: NonNullable<FileLinkActions['directoryActions']> = {
+    primary: {
+      label: translate(
+        'auto.components.terminal.pane.TerminalLinkActionPopover.showInFileExplorer',
+        'Show in file explorer'
+      ),
+      run: () => openDetectedFilePath(filePath, line, column, deps)
+    },
+    ...(canOpenWithSystemDefault
+      ? {
+          alternate: {
+            label: openFolderLabel,
+            run: () =>
+              openDetectedFilePath(filePath, line, column, {
+                ...deps,
+                openWithSystemDefault: true
+              })
+          }
+        }
+      : {}),
+    secondaryActions: [
+      {
+        label: translate(
+          'auto.components.terminal.pane.TerminalLinkActionPopover.openTerminalHere',
+          'Open terminal here'
+        ),
+        run: () =>
+          openDetectedFilePath(filePath, line, column, {
+            ...deps,
+            directoryAction: 'terminal'
+          })
+      }
+    ]
+  }
   return {
     destination: mappedPath,
     kind: worktreeRoot ? 'workspace' : 'file',
-    ...(!worktreeRoot && !/[/\\]$/.test(mappedPath)
+    ...(!worktreeRoot
       ? {
+          directoryActions,
           preview: {
             target: {
               href: mappedPath,

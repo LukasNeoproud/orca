@@ -71,9 +71,6 @@ export function resolveFileLinkTarget(
   const isKnownWorktreeRoot = Boolean(
     resolveKnownWorktreeRootPathLink(absolutePath, useAppStore.getState(), fileContext)
   )
-  if (/[\\/]$/.test(parsed.pathText) && !isKnownWorktreeRoot) {
-    return null
-  }
   const isRemoteRuntimePath = isRemoteRuntimeFileOperation(fileContext, absolutePath)
   return {
     absolutePath,

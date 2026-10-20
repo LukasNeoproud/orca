@@ -5,6 +5,7 @@ import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-typ
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { Button } from '@/components/ui/button'
 import NativeChatFilePreviewContent from './NativeChatFilePreviewContent'
+import { NativeChatDirectoryPreview } from './NativeChatDirectoryPreview'
 import { useNativeChatFilePreview } from './useNativeChatFilePreview'
 import type { ChatPreviewTarget } from './native-chat-preview-groups'
 import { cn } from '@/lib/utils'
@@ -15,13 +16,16 @@ export function NativeChatLinkPreviewCard({
   runtimeContext,
   onLinkClick,
   embedded = false,
-  expanded = false
+  expanded = false,
+  onDirectoryResolved
 }: {
   target: ChatPreviewTarget
   runtimeContext?: RuntimeFileOperationArgs | null
   onLinkClick?: CommentMarkdownLinkClickHandler
   embedded?: boolean
   expanded?: boolean
+  /** Tells the host whether the path turned out to be a folder, so it can offer folder actions. */
+  onDirectoryResolved?: (isDirectory: boolean) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
@@ -52,7 +56,20 @@ export function NativeChatLinkPreviewCard({
     runtimeContext,
     visible && target.kind === 'file' && !needsExplicitRead
   )
-  let name = target.path.split(/[/\\]/).pop()
+  const resolvedStatus = preview.status
+  useEffect(() => {
+    if (
+      resolvedStatus === 'directory' ||
+      resolvedStatus === 'ready' ||
+      resolvedStatus === 'large'
+    ) {
+      onDirectoryResolved?.(resolvedStatus === 'directory')
+    }
+  }, [onDirectoryResolved, resolvedStatus])
+  let name = target.path
+    .replace(/[/\\]+$/, '')
+    .split(/[/\\]/)
+    .pop()
   if (target.kind === 'web') {
     try {
       name = new URL(target.path).hostname
@@ -130,6 +147,11 @@ export function NativeChatLinkPreviewCard({
               {translate('auto.components.nativeChat.preview.loadFile', 'Load preview')}
             </Button>
           </div>
+        ) : preview.status === 'directory' ? (
+          <NativeChatDirectoryPreview
+            entries={preview.entries ?? []}
+            entryCount={preview.entryCount ?? preview.entries?.length ?? 0}
+          />
         ) : preview.status === 'ready' ? (
           <NativeChatFilePreviewContent
             filePath={target.path}
@@ -167,7 +189,7 @@ export function NativeChatLinkPreviewCard({
           </div>
         )}
       </div>
-      {target.kind === 'file' && (
+      {target.kind === 'file' && preview.status !== 'directory' && (
         <div className="shrink-0 border-t border-border px-3 py-1 text-xs text-muted-foreground">
           {preview.changed
             ? translate(

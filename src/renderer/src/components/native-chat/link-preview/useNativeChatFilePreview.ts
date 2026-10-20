@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FsChangedPayload } from '../../../../../shared/filesystem-entry-types'
+import type { DirEntry, FsChangedPayload } from '../../../../../shared/filesystem-entry-types'
+import { sortDirEntries } from '../../../../../shared/file-name-sort'
+import { readRuntimeDirectory } from '@/runtime/runtime-file-mutation-client'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
 import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 import { readRuntimeFilePreview } from '@/runtime/runtime-file-read-client'
@@ -10,10 +12,12 @@ import { hasRuntimeRpcErrorCode } from '../../../../../shared/runtime-rpc-error-
 
 const TEXT_PREVIEW_MAX_BYTES = 256 * 1024
 const BINARY_PREVIEW_MAX_BYTES = 8 * 1024 * 1024
+const DIRECTORY_PREVIEW_MAX_ENTRIES = 200
 
 type NativeChatFilePreviewStatus =
   | 'loading'
   | 'ready'
+  | 'directory'
   | 'missing'
   | 'unavailable'
   | 'large'
@@ -24,6 +28,9 @@ export type NativeChatFilePreview = {
   content?: string
   encoding?: 'utf8' | 'base64'
   mimeType?: string
+  /** A folder's first entries, folders first; `entryCount` is the full count. */
+  entries?: DirEntry[]
+  entryCount?: number
   changed: boolean
   error?: string
   reload: () => void
@@ -95,7 +102,17 @@ async function loadPreview(
       const maxBytes = supportsBinaryPreview(filePath)
         ? BINARY_PREVIEW_MAX_BYTES
         : TEXT_PREVIEW_MAX_BYTES
-      if (stat.isDirectory || stat.size > maxBytes) {
+      if (stat.isDirectory) {
+        const entries = sortDirEntries(await readRuntimeDirectory(context, filePath))
+        return {
+          status: 'directory',
+          entries: entries.slice(0, DIRECTORY_PREVIEW_MAX_ENTRIES),
+          entryCount: entries.length,
+          changed: false,
+          mtime: stat.mtime
+        }
+      }
+      if (stat.size > maxBytes) {
         return { status: 'large', changed: false, mtime: stat.mtime }
       }
       const preview = await readRuntimeFilePreview(context, filePath)
@@ -127,14 +144,19 @@ async function loadPreview(
   }
 }
 
+function touchesPathOrChild(path: string, expected: string): boolean {
+  const normalized = normalizeRuntimePathForComparison(path)
+  // Why the parent too: a folder preview lists its children, so their changes must refresh it.
+  return normalized === expected || normalized.replace(/[/\\][^/\\]*$/, '') === expected
+}
+
 function eventTouchesFile(payload: FsChangedPayload, filePath: string): boolean {
-  const expected = normalizeRuntimePathForComparison(filePath)
+  const expected = normalizeRuntimePathForComparison(filePath).replace(/[/\\]+$/, '')
   return payload.events.some(
     (event) =>
       event.kind === 'overflow' ||
-      normalizeRuntimePathForComparison(event.absolutePath) === expected ||
-      (event.oldAbsolutePath !== undefined &&
-        normalizeRuntimePathForComparison(event.oldAbsolutePath) === expected)
+      touchesPathOrChild(event.absolutePath, expected) ||
+      (event.oldAbsolutePath !== undefined && touchesPathOrChild(event.oldAbsolutePath, expected))
   )
 }
 
@@ -144,7 +166,10 @@ export function useNativeChatFilePreview(
   enabled: boolean
 ): NativeChatFilePreview {
   const [reloadGeneration, setReloadGeneration] = useState(0)
-  const [preview, setPreview] = useState<LoadedPreview>({ status: 'unavailable', changed: false })
+  const [preview, setPreview] = useState<LoadedPreview>({
+    status: 'unavailable',
+    changed: false
+  })
   const originalMtimeRef = useRef<number | undefined>(undefined)
   const originalMtimeKeyRef = useRef<string | null>(null)
   const requestGenerationRef = useRef(0)

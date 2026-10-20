@@ -276,7 +276,7 @@ describe('createFilePathLinkProvider range bounds', () => {
     expect(openFilePathMock).not.toHaveBeenCalled()
   })
 
-  it('does not open an unknown trailing-slash directory from direct fallback', async () => {
+  it('opens an existing trailing-slash directory from direct fallback', async () => {
     setPlatform('Macintosh')
 
     const opened = openFilePathLinkAtBufferPosition(
@@ -293,9 +293,7 @@ describe('createFilePathLinkProvider range bounds', () => {
     )
     await flushAsyncWork()
 
-    expect(opened).toBe(false)
-    expect(openFilePathMock).not.toHaveBeenCalled()
-    expect(openFileMock).not.toHaveBeenCalled()
+    expect(opened).toBe(true)
   })
 
   it('retries a wrapped file click even when xterm already marked the link active', async () => {

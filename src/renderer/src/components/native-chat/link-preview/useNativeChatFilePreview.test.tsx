@@ -6,12 +6,16 @@ import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-typ
 
 const mocks = vi.hoisted(() => ({
   readRuntimeFilePreview: vi.fn(),
+  readRuntimeDirectory: vi.fn(),
   statRuntimePath: vi.fn(),
   subscribeRuntimeFileChanges: vi.fn()
 }))
 
 vi.mock('@/runtime/runtime-file-read-client', () => ({
   readRuntimeFilePreview: (...args: unknown[]) => mocks.readRuntimeFilePreview(...args)
+}))
+vi.mock('@/runtime/runtime-file-mutation-client', () => ({
+  readRuntimeDirectory: (...args: unknown[]) => mocks.readRuntimeDirectory(...args)
 }))
 vi.mock('@/runtime/runtime-file-metadata-client', () => ({
   statRuntimePath: (...args: unknown[]) => mocks.statRuntimePath(...args)
@@ -285,5 +289,40 @@ describe('useNativeChatFilePreview', () => {
     })
 
     await waitFor(() => expect(result.current.status).toBe('unavailable'))
+  })
+
+  it('lists a folder, folders first, and refreshes when a child changes', async () => {
+    let onChanges:
+      | ((payload: {
+          worktreePath: string
+          events: { kind: 'create'; absolutePath: string }[]
+        }) => void)
+      | undefined
+    mocks.subscribeRuntimeFileChanges.mockImplementation(
+      (_context: RuntimeFileOperationArgs, listener: typeof onChanges) => {
+        onChanges = listener
+        return Promise.resolve(() => {})
+      }
+    )
+    mocks.statRuntimePath.mockResolvedValue({ size: 0, isDirectory: true, mtime: 1 })
+    mocks.readRuntimeDirectory.mockResolvedValue([
+      { name: 'b.ts', isDirectory: false, isSymlink: false },
+      { name: 'lib', isDirectory: true, isSymlink: false }
+    ])
+    const { result } = renderHook(() => useNativeChatFilePreview('/repo/src/', CONTEXT, true))
+
+    await waitFor(() => expect(result.current.status).toBe('directory'))
+    expect(mocks.readRuntimeFilePreview).not.toHaveBeenCalled()
+    expect(result.current.entries?.map((entry) => entry.name)).toEqual(['lib', 'b.ts'])
+    expect(result.current.entryCount).toBe(2)
+
+    await waitFor(() => expect(onChanges).toBeDefined())
+    act(() => {
+      onChanges?.({
+        worktreePath: '/repo',
+        events: [{ kind: 'create', absolutePath: '/repo/src/new.ts' }]
+      })
+    })
+    await waitFor(() => expect(mocks.readRuntimeDirectory).toHaveBeenCalledTimes(2))
   })
 })

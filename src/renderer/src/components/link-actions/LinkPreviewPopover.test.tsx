@@ -6,13 +6,27 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { LinkActionPopover } from './LinkActionPopover'
 import type { LinkActionRequest } from './link-action-request'
 
-const mocks = vi.hoisted(() => ({ mount: vi.fn(), unmount: vi.fn(), copy: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  mount: vi.fn(),
+  unmount: vi.fn(),
+  copy: vi.fn(),
+  previewIsDirectory: false
+}))
 vi.mock('@/components/native-chat/link-preview/NativeChatLinkPreviewCard', () => ({
-  NativeChatLinkPreviewCard: ({ expanded }: { expanded: boolean }) => {
+  NativeChatLinkPreviewCard: ({
+    expanded,
+    onDirectoryResolved
+  }: {
+    expanded: boolean
+    onDirectoryResolved?: (isDirectory: boolean) => void
+  }) => {
     useEffect(() => {
       mocks.mount()
       return mocks.unmount
     }, [])
+    useEffect(() => {
+      onDirectoryResolved?.(mocks.previewIsDirectory)
+    }, [onDirectoryResolved])
     return <div role="status">{expanded ? 'Expanded content' : 'Loading preview…'}</div>
   }
 }))
@@ -21,6 +35,7 @@ vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => f
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  mocks.previewIsDirectory = false
 })
 
 function request(): LinkActionRequest {
@@ -46,6 +61,30 @@ function request(): LinkActionRequest {
 }
 
 describe('unified link preview', () => {
+  it('offers the folder rows once the preview finds a folder, and closes with the original request', async () => {
+    mocks.previewIsDirectory = true
+    const reveal = vi.fn()
+    const current: LinkActionRequest = {
+      ...request(),
+      transient: false,
+      directoryActions: {
+        primary: { label: 'Show in file explorer', run: reveal },
+        alternate: { label: 'Open in Finder', run: vi.fn() }
+      }
+    }
+    const close = vi.fn()
+    render(
+      <TooltipProvider>
+        <LinkActionPopover request={current} onClose={close} />
+      </TooltipProvider>
+    )
+    const revealRow = await screen.findByRole('button', { name: /Show in file explorer/ })
+    expect(screen.queryByRole('button', { name: /Open file/ })).toBeNull()
+    fireEvent.click(revealRow)
+    expect(reveal).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledWith(current)
+  })
+
   it('ignores focus changes but dismisses on an outside pointer press', async () => {
     const current = { ...request(), transient: false }
     const close = vi.fn()

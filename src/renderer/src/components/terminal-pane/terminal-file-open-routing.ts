@@ -28,6 +28,8 @@ import {
   type HostWorkspaceFile
 } from './terminal-host-workspace-file'
 import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
+import { openTerminalDirectoryLink } from './terminal-directory-link-open'
+import type { TerminalDirectoryLinkAction } from './terminal-directory-link-open'
 
 export {
   getTerminalFileContext,
@@ -50,6 +52,8 @@ type TerminalFileOpenDeps = {
   runtimeEnvironmentId?: string | null
   wslDistro?: string | null
   openWithSystemDefault?: boolean
+  /** What a path that turns out to be a folder does; the file explorer when unset. */
+  directoryAction?: TerminalDirectoryLinkAction
   /** The paired-server terminal that printed the link; lets its host grant a file outside workspaces. */
   terminalHandle?: string | null
   /** Reports a path that could not be verified before opening; skipped once a later open supersedes it. */
@@ -179,13 +183,19 @@ export function openDetectedFilePath(
           target: CLIENT_LOCAL_FILE_TARGET,
           connectionId: undefined
         }
-        statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
+        statResult = {
+          isDirectory: linkOwner.isDirectory,
+          escapesWorktree: false
+        }
       } else if (linkOwner) {
         hostWorkspaceFile = linkOwner
         // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
         ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
         fileContext = { ...fileContext, worktreeId, worktreePath }
-        statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
+        statResult = {
+          isDirectory: hostWorkspaceFile.isDirectory,
+          escapesWorktree: false
+        }
       } else {
         statResult = await statUserOpenedPath(fileContext, mappedFilePath)
       }
@@ -218,9 +228,12 @@ export function openDetectedFilePath(
     }
 
     if (statResult.isDirectory) {
-      if (canOpenWithSystemDefault) {
-        await window.api.shell.openFilePath(mappedFilePath, LOCAL_EXECUTION_HOST_ID)
-      }
+      await openTerminalDirectoryLink(mappedFilePath, deps.directoryAction, {
+        worktreeId,
+        worktreePath,
+        executionHostId: hostWorkspaceFile?.executionHostId,
+        canOpenWithSystemDefault
+      })
       return
     }
 

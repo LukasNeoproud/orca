@@ -112,19 +112,14 @@ describe('createFilePathLinkProvider range bounds', () => {
     await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1))
   })
 
-  it('does not show an unknown trailing-slash directory link', async () => {
-    setPlatform('Macintosh')
-    const { provider } = createProviderSetup(
-      [makeBufferLine('/repo/unknown-dir/')],
-      new Map([['active\0/repo/unknown-dir', true]])
+  it('links an existing trailing-slash directory', async () => {
+    vi.mocked(window.api.shell.pathExists).mockImplementation(async (pathValue) =>
+      /^\/repo\/src\/components\/?$/.test(pathValue)
     )
 
-    const links = await new Promise<ILink[]>((resolve) => {
-      provider.provideLinks(1, (provided) => resolve(provided ?? []))
-    })
+    const links = await collectLinks('see /repo/src/components/ for more')
 
-    expect(links).toEqual([])
-    expect(window.api.shell.pathExists).not.toHaveBeenCalled()
+    expect(links.map((link) => link.text)).toEqual(['/repo/src/components/'])
   })
 
   it('shows the Orca hint for SSH file link hover', async () => {
