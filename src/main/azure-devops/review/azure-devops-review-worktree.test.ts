@@ -183,4 +183,48 @@ describe('openAzureDevOpsReviewWorktree', () => {
     })
     expect(result).toMatchObject({ ok: true, worktree: { commit: 'tip' } })
   })
+
+  it('reviews a completed PR at its last merge commits when its branch is gone', async () => {
+    const { host, calls } = makeHost()
+    const fetchedCommits = new Set<string>()
+    host.git = vi.fn(async (args: string[], cwd: string) => {
+      calls.push([cwd, ...args])
+      if (args[0] === 'cat-file' && !fetchedCommits.has(args[2].replace('^{commit}', ''))) {
+        throw new Error('missing')
+      }
+      if (args[0] === 'fetch') {
+        args.slice(3).forEach((commit) => fetchedCommits.add(commit))
+      }
+      return ''
+    })
+    const result = await openAzureDevOpsReviewWorktree({
+      host,
+      source,
+      pullRequest: pullRequest(4, { status: 'completed', targetCommit: 'target4' }),
+      discardChanges: false
+    })
+
+    expect(result).toMatchObject({ ok: true, worktree: { commit: 'sha4' } })
+    expect(calls).toContainEqual(['/repos/app', 'fetch', '--no-tags', 'origin', 'sha4', 'target4'])
+    expect(calls.some((call) => call.some((arg) => arg.includes('refs/heads/feature/4')))).toBe(
+      false
+    )
+    expect(calls).toContainEqual(['/wt/app-review', 'checkout', '--detach', 'sha4'])
+    expect(host.updateWorktree).toHaveBeenCalledWith('wt-1', {
+      baseRef: 'target4',
+      linkedAzureDevOpsPR: 4,
+      displayName: 'Review !4 PR 4'
+    })
+  })
+
+  it("skips the fetch when a closed PR's commits are already local", async () => {
+    const { host, calls } = makeHost()
+    await openAzureDevOpsReviewWorktree({
+      host,
+      source,
+      pullRequest: pullRequest(5, { status: 'abandoned', targetCommit: 'target5' }),
+      discardChanges: false
+    })
+    expect(calls.some(([, command]) => command === 'fetch')).toBe(false)
+  })
 })

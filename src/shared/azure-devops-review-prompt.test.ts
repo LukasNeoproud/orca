@@ -62,6 +62,22 @@ describe('azureDevOpsReviewMcpAgentArgs', () => {
 })
 
 describe('buildAzureDevOpsReviewAgentPrompt', () => {
+  it('diffs an active PR against its target branch and a completed one against its last target commit', () => {
+    const tools = { cli: 'orca', mcp: true }
+    expect(buildAzureDevOpsReviewAgentPrompt(pullRequest, tools)).toContain(
+      '`git diff origin/main...HEAD`'
+    )
+    const completed = {
+      ...pullRequest,
+      status: 'completed' as const,
+      sourceCommit: 'abc123',
+      targetCommit: 'def456'
+    }
+    expect(buildAzureDevOpsReviewAgentPrompt(completed, tools)).toContain(
+      '`git diff def456...HEAD`'
+    )
+  })
+
   it('points MCP-enabled agents at the ado tools with a CLI fallback', () => {
     const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', mcp: true })
     expect(prompt).toContain('`ado_get_pull_request`')

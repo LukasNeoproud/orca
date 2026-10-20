@@ -8,10 +8,14 @@ import type {
   AzureDevOpsReviewWorktreeInfo,
   AzureDevOpsReviewWorktreeResult
 } from '../../../shared/azure-devops-review-types'
+import {
+  AZURE_DEVOPS_REVIEW_REMOTE as REVIEW_REMOTE,
+  azureDevOpsReviewBaseRef,
+  closedAzureDevOpsReviewCommits
+} from '../../../shared/azure-devops-review-base-ref'
 import type { AzureDevOpsReviewRepoSource } from './azure-devops-review-repos'
 
 const FETCH_TIMEOUT_MS = 120_000
-const REVIEW_REMOTE = 'origin'
 
 type RegistryEntry = AzureDevOpsReviewWorktreeInfo & { repoKey: string }
 type Registry = { version: 1; worktrees: RegistryEntry[] }
@@ -140,12 +144,26 @@ async function commitExists(
   }
 }
 
-/** Fetches the PR branches and returns the commit to check out (the PR's, or the branch tip). */
+/** Fetches the PR and returns the commit to check out (the PR's, or the branch tip). */
 async function fetchPullRequestCommit(
   git: NonNullable<AzureDevOpsReviewWorktreeHost['git']>,
   repoPath: string,
   pullRequest: AzureDevOpsReviewPullRequest
 ): Promise<string> {
+  const closed = closedAzureDevOpsReviewCommits(pullRequest)
+  if (closed) {
+    const missing: string[] = []
+    for (const commit of [closed.source, closed.target]) {
+      if (!(await commitExists(git, repoPath, commit))) {
+        missing.push(commit)
+      }
+    }
+    if (missing.length > 0) {
+      // Why by commit: the branch is usually deleted, and a squash merge leaves its commits on no branch.
+      await git(['fetch', '--no-tags', REVIEW_REMOTE, ...missing], repoPath, FETCH_TIMEOUT_MS)
+    }
+    return closed.source
+  }
   const sourceRef = `refs/remotes/${REVIEW_REMOTE}/${pullRequest.sourceBranch}`
   await git(
     [
@@ -193,7 +211,12 @@ export async function openAzureDevOpsReviewWorktree(args: {
   try {
     commit = await fetchPullRequestCommit(git, repoPath, pullRequest)
   } catch (error) {
-    return failure('git-failed', `Could not fetch the pull request branches: ${String(error)}`)
+    return failure(
+      'git-failed',
+      closedAzureDevOpsReviewCommits(pullRequest)
+        ? `Could not fetch the pull request commits: ${String(error)}`
+        : `Could not fetch the pull request branches: ${String(error)}`
+    )
   }
 
   const registered = findAzureDevOpsReviewWorktree(source.key)
@@ -253,7 +276,7 @@ export async function openAzureDevOpsReviewWorktree(args: {
       await git(['checkout', '--detach', commit], worktree.path)
     }
     await host.updateWorktree(worktree.id, {
-      baseRef: `${REVIEW_REMOTE}/${pullRequest.targetBranch}`,
+      baseRef: azureDevOpsReviewBaseRef(pullRequest),
       linkedAzureDevOpsPR: pullRequest.pullRequestId,
       displayName: `Review !${pullRequest.pullRequestId} ${pullRequest.title}`.slice(0, 120)
     })

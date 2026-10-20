@@ -1,4 +1,5 @@
 import type { AzureDevOpsReviewPullRequest } from './azure-devops-review-types'
+import { azureDevOpsReviewBaseRef } from './azure-devops-review-base-ref'
 import {
   azureDevOpsReviewOptionLines,
   DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS,
@@ -55,7 +56,7 @@ export function buildAzureDevOpsReviewAgentPrompt(
       ]
   return [
     `Review Azure DevOps pull request !${pullRequest.pullRequestId} "${pullRequest.title}" (${pullRequest.repository}).`,
-    `This workspace is checked out at the PR commit; the change is \`git diff origin/${pullRequest.targetBranch}...HEAD\`.`,
+    `This workspace is checked out at the PR commit; the change is \`git diff ${azureDevOpsReviewBaseRef(pullRequest)}...HEAD\`.`,
     ...access,
     pullRequest.description.trim()
       ? 'Read the PR description before the code: it states the intent and implementation notes. Check the change against it and flag what it misses or contradicts.'
