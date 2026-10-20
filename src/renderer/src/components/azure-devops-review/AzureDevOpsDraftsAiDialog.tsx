@@ -44,6 +44,9 @@ export function AzureDevOpsDraftsAiDialog({
   const prompts = useAzureDevOpsReviewDraftPrompts((s) => s.prompts)
   const setPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.setPrompt)
   const clearPrompts = useAzureDevOpsReviewDraftPrompts((s) => s.clearPrompts)
+  // Why stored: an unsent prompt must outlive the page closing on a workspace switch.
+  const general = useAzureDevOpsReviewDraftPrompts((s) => s.generalPrompts[pullRequestKey] ?? '')
+  const setGeneralPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.setGeneralPrompt)
   const tabLinks = useAzureDevOpsReviewChatLinks((s) => s.tabs)
   const chatTab = useAppStore((s) => findAzureDevOpsReviewChatTab(s, tabLinks, pullRequestKey))
   const [offered] = useState(() => {
@@ -53,7 +56,6 @@ export function AzureDevOpsDraftsAiDialog({
     )
   })
   const [included, setIncluded] = useState(() => new Set(offered.map((draft) => draft.id)))
-  const [general, setGeneral] = useState('')
   const [sending, setSending] = useState(false)
   const chosen = useMemo(
     () => offered.filter((draft) => included.has(draft.id)),
@@ -65,7 +67,10 @@ export function AzureDevOpsDraftsAiDialog({
   const send = async (): Promise<void> => {
     const prompt = buildAzureDevOpsDraftReworkPrompt({
       pullRequest: detail.pullRequest,
-      items: chosen.map((draft) => ({ draft, instruction: prompts[draft.id]?.text ?? '' })),
+      items: chosen.map((draft) => ({
+        draft,
+        instruction: prompts[draft.id]?.text ?? ''
+      })),
       generalInstruction: general,
       cli: orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
     })
@@ -76,6 +81,7 @@ export function AzureDevOpsDraftsAiDialog({
         : await onStartNewChat(prompt)
       if (sent) {
         clearPrompts(chosen.map((draft) => draft.id))
+        setGeneralPrompt(pullRequestKey, '')
         onClose()
       }
     } catch (error) {
@@ -149,7 +155,10 @@ export function AzureDevOpsDraftsAiDialog({
                     )}
                     aria-label={translate('azureDevOpsReview.aiPrompt', 'AI prompt')}
                     onChange={(event) =>
-                      setPrompt(draft.id, { pullRequestKey, text: event.target.value })
+                      setPrompt(draft.id, {
+                        pullRequestKey,
+                        text: event.target.value
+                      })
                     }
                   />
                 </div>
@@ -168,7 +177,7 @@ export function AzureDevOpsDraftsAiDialog({
               'azureDevOpsReview.aiGeneralPromptPlaceholder',
               'For example: check each finding for thread safety and drop the ones that do not hold.'
             )}
-            onChange={(event) => setGeneral(event.target.value)}
+            onChange={(event) => setGeneralPrompt(pullRequestKey, event.target.value)}
           />
         </div>
         <DialogFooter>

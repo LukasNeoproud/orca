@@ -3,7 +3,10 @@ import { useAzureDevOpsReviewDraftPrompts } from './azure-devops-review-draft-pr
 
 describe('useAzureDevOpsReviewDraftPrompts', () => {
   beforeEach(() => {
-    useAzureDevOpsReviewDraftPrompts.setState({ prompts: {} })
+    useAzureDevOpsReviewDraftPrompts.setState({
+      prompts: {},
+      generalPrompts: {}
+    })
   })
 
   it('drops a prompt set to blank text', () => {
@@ -24,5 +27,19 @@ describe('useAzureDevOpsReviewDraftPrompts', () => {
       'live',
       'other'
     ])
+  })
+
+  it('keeps the general prompt per pull request and drops it when blank', () => {
+    const store = useAzureDevOpsReviewDraftPrompts.getState()
+    store.setGeneralPrompt('pr', 'Check thread safety ')
+    store.setGeneralPrompt('pr2', 'Other')
+    expect(useAzureDevOpsReviewDraftPrompts.getState().generalPrompts).toEqual({
+      pr: 'Check thread safety ',
+      pr2: 'Other'
+    })
+    store.setGeneralPrompt('pr', ' ')
+    expect(useAzureDevOpsReviewDraftPrompts.getState().generalPrompts).toEqual({
+      pr2: 'Other'
+    })
   })
 })

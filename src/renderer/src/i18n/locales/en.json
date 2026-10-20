@@ -20366,7 +20366,7 @@
     "editAiPrompt": "Edit AI prompt",
     "addAiPrompt": "Add AI prompt",
     "aiPrompt": "AI prompt",
-    "saveAiPrompt": "Save prompt",
+    "doneAiPrompt": "Done",
     "askAi": "Ask AI",
     "aiDraftsTitle": "Send drafts to AI",
     "aiDraftsToChat": "The drafts and your prompts go to this pull request's AI chat. It checks them against the code and edits the drafts; nothing is published.",

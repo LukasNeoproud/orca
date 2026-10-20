@@ -23,25 +23,12 @@ export function AzureDevOpsDraftAiPrompt({
   const saved = useAzureDevOpsReviewDraftPrompts((s) => s.prompts[draftId]?.text ?? '')
   const setPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.setPrompt)
   const [open, setOpen] = useState(false)
-  const [text, setText] = useState(saved)
   const label = saved
     ? translate('azureDevOpsReview.editAiPrompt', 'Edit AI prompt')
     : translate('azureDevOpsReview.addAiPrompt', 'Add AI prompt')
-  const save = (value: string): void => {
-    setPrompt(draftId, { pullRequestKey, text: value.trim() })
-    setOpen(false)
-  }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        if (next) {
-          setText(saved)
-        }
-        setOpen(next)
-      }}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         {variant === 'pill' ? (
           <button
@@ -65,21 +52,22 @@ export function AzureDevOpsDraftAiPrompt({
           </p>
           <Textarea
             autoFocus
-            value={text}
-            onChange={(event) => setText(event.target.value)}
+            value={saved}
+            // Why save per keystroke: the page unmounts on a workspace switch and would drop unsaved text.
+            onChange={(event) => setPrompt(draftId, { pullRequestKey, text: event.target.value })}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault()
-                save(text)
+                setOpen(false)
               }
             }}
             aria-label={translate('azureDevOpsReview.aiPrompt', 'AI prompt')}
             className="min-h-24"
           />
           <div className="flex justify-end">
-            {/* Saving blank text removes the prompt. */}
-            <Button size="xs" disabled={!text.trim() && !saved} onClick={() => save(text)}>
-              {translate('azureDevOpsReview.saveAiPrompt', 'Save prompt')}
+            {/* Clearing the text removes the prompt. */}
+            <Button size="xs" onClick={() => setOpen(false)}>
+              {translate('azureDevOpsReview.doneAiPrompt', 'Done')}
             </Button>
           </div>
         </div>
