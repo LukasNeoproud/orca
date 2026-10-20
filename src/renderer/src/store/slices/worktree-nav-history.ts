@@ -54,9 +54,16 @@ export type WorktreeNavHistoryTaskDetailEntry =
       issue: JiraIssue
       sourceContext?: TaskSourceContext | null
     }
+/** A pull request page shown over `worktreeId`, the workspace it was opened from. */
+export type WorktreeNavHistoryPullRequestEntry = {
+  kind: 'azure-devops-pull-request'
+  pullRequestKey: string
+  worktreeId: string | null
+}
 export type WorktreeNavHistoryViewEntry =
   | WorktreeNavHistorySimpleViewEntry
   | WorktreeNavHistoryTaskDetailEntry
+  | WorktreeNavHistoryPullRequestEntry
 export type WorktreeNavHistoryEntry = (string & {}) | WorktreeNavHistoryViewEntry
 
 export type WorktreeNavHistorySlice = {
@@ -111,6 +118,9 @@ function getHistoryEntryKey(entry: WorktreeNavHistoryEntry): string {
   if (typeof entry === 'string') {
     return isSimpleViewEntry(entry) ? `view:${entry}` : `worktree:${entry}`
   }
+  if (entry.kind === 'azure-devops-pull-request') {
+    return `view:azure-devops-pull-request:${entry.pullRequestKey}`
+  }
   if (entry.source === 'github') {
     const sourceScope =
       entry.sourceContext?.provider === 'github'
@@ -153,9 +163,15 @@ function isLiveEntry(entry: WorktreeNavHistoryEntry, state: AppState): boolean {
 }
 
 function appendHistoryEntry(
-  s: { worktreeNavHistory: WorktreeNavHistoryEntry[]; worktreeNavHistoryIndex: number },
+  s: {
+    worktreeNavHistory: WorktreeNavHistoryEntry[]
+    worktreeNavHistoryIndex: number
+  },
   entry: WorktreeNavHistoryEntry
-): { worktreeNavHistory: WorktreeNavHistoryEntry[]; worktreeNavHistoryIndex: number } {
+): {
+  worktreeNavHistory: WorktreeNavHistoryEntry[]
+  worktreeNavHistoryIndex: number
+} {
   // Why: de-dup only against the current entry so A -> B -> A stays a valid stack.
   const current = s.worktreeNavHistory[s.worktreeNavHistoryIndex]
   if (current !== undefined && getHistoryEntryKey(current) === getHistoryEntryKey(entry)) {

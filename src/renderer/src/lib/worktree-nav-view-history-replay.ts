@@ -1,5 +1,6 @@
 import { useAppStore } from '@/store'
 import type { WorktreeNavHistoryViewEntry } from '@/store/slices/worktree-nav-history'
+import { replayAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 
 // Why: page entries replay via setActiveView (not open*Page) so back/forward doesn't mutate previousViewBefore* or duplicate history (see navigateToIndex).
 export function applyWorktreeNavViewEntry(entry: WorktreeNavHistoryViewEntry): void {
@@ -29,6 +30,10 @@ export function applyWorktreeNavViewEntry(entry: WorktreeNavHistoryViewEntry): v
         openJiraSourceContext: undefined
       }
     }))
+    return
+  }
+  if (entry.kind === 'azure-devops-pull-request') {
+    replayAzureDevOpsPullRequestPage(entry)
     return
   }
   if (entry.source === 'github') {
