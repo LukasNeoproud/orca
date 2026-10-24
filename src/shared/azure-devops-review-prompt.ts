@@ -28,7 +28,7 @@ export function azureDevOpsReviewMcpAgentArgs(
     .join(' ')
 }
 
-/** Initial prompt for an agent reviewing a PR in the shared review worktree. */
+/** Initial prompt for an agent reviewing a PR in its review worktree. */
 export function buildAzureDevOpsReviewAgentPrompt(
   pullRequest: AzureDevOpsReviewPullRequest,
   tools: { cli: string; mcp: boolean },

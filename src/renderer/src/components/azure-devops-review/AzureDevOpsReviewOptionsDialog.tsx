@@ -101,7 +101,7 @@ export function AzureDevOpsReviewOptionsDialog({
           <DialogDescription>
             {translate(
               'azureDevOpsReview.optionsDescription',
-              'The agent writes findings as drafts in this language. Building and testing run in the shared review workspace.'
+              "The agent writes findings as drafts in this language. Building and testing run in the pull request's own review workspace."
             )}
           </DialogDescription>
         </DialogHeader>

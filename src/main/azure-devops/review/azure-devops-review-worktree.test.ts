@@ -36,7 +36,7 @@ function pullRequest(id: number, patch: Partial<AzureDevOpsReviewPullRequest> = 
   } as AzureDevOpsReviewPullRequest
 }
 
-function makeHost(options: { status?: string; busy?: boolean } = {}) {
+function makeHost(options: { status?: string; busy?: boolean; missing?: string[] } = {}) {
   const calls: string[][] = []
   const git = vi.fn(async (args: string[], cwd: string) => {
     calls.push([cwd, ...args])
@@ -49,14 +49,21 @@ function makeHost(options: { status?: string; busy?: boolean } = {}) {
     return ''
   })
   const host: AzureDevOpsReviewWorktreeHost = {
-    createWorktree: vi.fn(async () => ({
-      id: 'wt-1',
-      path: '/wt/app-review',
-      branch: 'app-review'
+    createWorktree: vi.fn(async ({ name }: { name: string }) => ({
+      id: `wt-${/-(\d+)$/.exec(name)?.[1] ?? 1}`,
+      path: `/wt/${name}`,
+      branch: name
     })),
-    findWorktree: vi.fn(async (id: string) =>
-      id === 'wt-1' ? { id, path: '/wt/app-review' } : null
-    ),
+    findWorktree: vi.fn(async (id: string) => {
+      const index = /^wt-(\d+)$/.exec(id)?.[1]
+      if (!index || options.missing?.includes(id)) {
+        return null
+      }
+      return {
+        id,
+        path: index === '1' ? '/wt/app-review' : `/wt/app-review-${index}`
+      }
+    }),
     updateWorktree: vi.fn(async () => undefined),
     isAgentWorking: vi.fn(async () => options.busy === true),
     git
@@ -72,6 +79,7 @@ describe('openAzureDevOpsReviewWorktree', () => {
   })
   afterEach(() => {
     _setAzureDevOpsReviewWorktreeRegistryPath(null)
+    vi.useRealTimers()
     rmSync(dir, { recursive: true, force: true })
   })
 
@@ -118,7 +126,32 @@ describe('openAzureDevOpsReviewWorktree', () => {
     })
   })
 
-  it('switches the existing worktree, asking before discarding changes', async () => {
+  it('switches an idle, clean worktree to another pull request', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    await openAzureDevOpsReviewWorktree({
+      host: makeHost().host,
+      source,
+      pullRequest: pullRequest(1),
+      discardChanges: false
+    })
+    vi.setSystemTime(Date.now() + 4 * 60_000)
+    const idle = makeHost()
+    const result = await openAzureDevOpsReviewWorktree({
+      host: idle.host,
+      source,
+      pullRequest: pullRequest(2),
+      discardChanges: false
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      created: false,
+      worktree: { worktreeId: 'wt-1' }
+    })
+    expect(idle.host.createWorktree).not.toHaveBeenCalled()
+    expect(idle.calls).toContainEqual(['/wt/app-review', 'checkout', '--detach', 'sha2'])
+  })
+
+  it('asks before discarding changes when reopening the same pull request', async () => {
     await openAzureDevOpsReviewWorktree({
       host: makeHost().host,
       source,
@@ -131,7 +164,7 @@ describe('openAzureDevOpsReviewWorktree', () => {
       await openAzureDevOpsReviewWorktree({
         host: dirty.host,
         source,
-        pullRequest: pullRequest(2),
+        pullRequest: pullRequest(1),
         discardChanges: false
       })
     ).toMatchObject({ ok: false, reason: 'dirty' })
@@ -139,17 +172,16 @@ describe('openAzureDevOpsReviewWorktree', () => {
     const result = await openAzureDevOpsReviewWorktree({
       host: dirty.host,
       source,
-      pullRequest: pullRequest(2),
+      pullRequest: pullRequest(1),
       discardChanges: true
     })
     expect(result).toMatchObject({ ok: true, created: false })
     expect(dirty.host.createWorktree).not.toHaveBeenCalled()
     expect(dirty.calls).toContainEqual(['/wt/app-review', 'reset', '--hard'])
     expect(dirty.calls).toContainEqual(['/wt/app-review', 'clean', '-fd'])
-    expect(dirty.calls).toContainEqual(['/wt/app-review', 'checkout', '--detach', 'sha2'])
   })
 
-  it('will not switch away while an agent is working', async () => {
+  it('opens another worktree while an agent reviews a different pull request', async () => {
     await openAzureDevOpsReviewWorktree({
       host: makeHost().host,
       source,
@@ -157,14 +189,110 @@ describe('openAzureDevOpsReviewWorktree', () => {
       discardChanges: false
     })
     const busy = makeHost({ busy: true })
-    expect(
-      await openAzureDevOpsReviewWorktree({
-        host: busy.host,
+    const result = await openAzureDevOpsReviewWorktree({
+      host: busy.host,
+      source,
+      pullRequest: pullRequest(2),
+      discardChanges: false
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      created: true,
+      worktree: { worktreeId: 'wt-2' }
+    })
+    expect(busy.host.createWorktree).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'app-review-2' })
+    )
+    expect(busy.calls).not.toContainEqual(['/wt/app-review', 'checkout', '--detach', 'sha2'])
+    expect(findAzureDevOpsReviewWorktree(source.key, pullRequest(1).key)).toMatchObject({
+      worktreeId: 'wt-1'
+    })
+    expect(findAzureDevOpsReviewWorktree(source.key, pullRequest(2).key)).toMatchObject({
+      worktreeId: 'wt-2'
+    })
+
+    // Reopening a pull request returns to its own worktree even while others are busy.
+    const again = await openAzureDevOpsReviewWorktree({
+      host: makeHost({ busy: true }).host,
+      source,
+      pullRequest: pullRequest(1),
+      discardChanges: false
+    })
+    expect(again).toMatchObject({
+      ok: true,
+      created: false,
+      worktree: { worktreeId: 'wt-1' }
+    })
+  })
+
+  it('gives reviews started together their own worktrees before any agent reports', async () => {
+    const { host } = makeHost()
+    const [first, second] = await Promise.all([
+      openAzureDevOpsReviewWorktree({
+        host,
+        source,
+        pullRequest: pullRequest(1),
+        discardChanges: false
+      }),
+      openAzureDevOpsReviewWorktree({
+        host,
         source,
         pullRequest: pullRequest(2),
         discardChanges: false
       })
-    ).toMatchObject({ ok: false, reason: 'busy' })
+    ])
+    expect(first).toMatchObject({ ok: true, worktree: { worktreeId: 'wt-1' } })
+    expect(second).toMatchObject({
+      ok: true,
+      worktree: { worktreeId: 'wt-2' }
+    })
+  })
+
+  it("never discards another pull request's changes to free a worktree", async () => {
+    await openAzureDevOpsReviewWorktree({
+      host: makeHost().host,
+      source,
+      pullRequest: pullRequest(1),
+      discardChanges: false
+    })
+    const dirty = makeHost({ status: ' M src/a.ts\n' })
+    const result = await openAzureDevOpsReviewWorktree({
+      host: dirty.host,
+      source,
+      pullRequest: pullRequest(2),
+      discardChanges: true
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      created: true,
+      worktree: { worktreeId: 'wt-2' }
+    })
+    expect(dirty.calls.some(([, command]) => command === 'reset')).toBe(false)
+  })
+
+  it('reuses the name of a review worktree that was deleted', async () => {
+    await openAzureDevOpsReviewWorktree({
+      host: makeHost().host,
+      source,
+      pullRequest: pullRequest(1),
+      discardChanges: false
+    })
+    await openAzureDevOpsReviewWorktree({
+      host: makeHost({ busy: true }).host,
+      source,
+      pullRequest: pullRequest(2),
+      discardChanges: false
+    })
+    const gone = makeHost({ busy: true, missing: ['wt-1'] })
+    await openAzureDevOpsReviewWorktree({
+      host: gone.host,
+      source,
+      pullRequest: pullRequest(3),
+      discardChanges: false
+    })
+    expect(gone.host.createWorktree).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'app-review' })
+    )
   })
 
   it('reviews the branch tip when the PR commit was not fetched', async () => {
@@ -200,7 +328,10 @@ describe('openAzureDevOpsReviewWorktree', () => {
     const result = await openAzureDevOpsReviewWorktree({
       host,
       source,
-      pullRequest: pullRequest(4, { status: 'completed', targetCommit: 'target4' }),
+      pullRequest: pullRequest(4, {
+        status: 'completed',
+        targetCommit: 'target4'
+      }),
       discardChanges: false
     })
 
@@ -222,7 +353,10 @@ describe('openAzureDevOpsReviewWorktree', () => {
     await openAzureDevOpsReviewWorktree({
       host,
       source,
-      pullRequest: pullRequest(5, { status: 'abandoned', targetCommit: 'target5' }),
+      pullRequest: pullRequest(5, {
+        status: 'abandoned',
+        targetCommit: 'target5'
+      }),
       discardChanges: false
     })
     expect(calls.some(([, command]) => command === 'fetch')).toBe(false)

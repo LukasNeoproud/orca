@@ -161,7 +161,7 @@ export function AzureDevOpsPullRequestPage({
                   )
                 : translate(
                     'azureDevOpsReview.reviewInWorkspaceHint',
-                    "Checks out this PR's latest commit in the repo's shared review workspace and opens it, with Source Control comparing against the target branch."
+                    "Checks out this PR's latest commit in a review workspace of the repo and opens it, with Source Control comparing against the target branch. Each pull request under review gets its own workspace."
                   )}
             </TooltipContent>
           </Tooltip>

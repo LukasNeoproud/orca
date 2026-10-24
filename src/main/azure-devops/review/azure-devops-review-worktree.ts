@@ -1,7 +1,3 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { durableWriteTempPath, writeFileDurableSync } from '../../durable-file-write'
 import { gitExecFileAsync, promptGuardGitEnv } from '../../git/runner'
 import type {
   AzureDevOpsReviewPullRequest,
@@ -14,13 +10,25 @@ import {
   closedAzureDevOpsReviewCommits
 } from '../../../shared/azure-devops-review-base-ref'
 import type { AzureDevOpsReviewRepoSource } from './azure-devops-review-repos'
+import {
+  _setAzureDevOpsReviewWorktreeRegistryPathOnly as setRegistryPath,
+  forgetAzureDevOpsReviewWorktreeEntry as forgetRegistryEntry,
+  loadAzureDevOpsReviewWorktreeRegistry as loadRegistry,
+  nextAzureDevOpsReviewWorktreeIndex as nextReviewWorktreeIndex,
+  saveAzureDevOpsReviewWorktreeEntry as saveRegistryEntry,
+  type AzureDevOpsReviewWorktreeEntry as RegistryEntry
+} from './azure-devops-review-worktree-registry'
+
+export { findAzureDevOpsReviewWorktree } from './azure-devops-review-worktree-registry'
 
 const FETCH_TIMEOUT_MS = 120_000
+// Why: an agent reports "working" only seconds after launch; until then its worktree is spoken for.
+const CLAIM_MS = 3 * 60_000
 
-type RegistryEntry = AzureDevOpsReviewWorktreeInfo & { repoKey: string }
-type Registry = { version: 1; worktrees: RegistryEntry[] }
+const claimedAt = new Map<string, number>()
+const repoQueues = new Map<string, Promise<unknown>>()
 
-/** Runtime capabilities the shared review worktree needs; injected so tests stay off the runtime. */
+/** Runtime capabilities the review worktrees need; injected so tests stay off the runtime. */
 export type AzureDevOpsReviewWorktreeHost = {
   createWorktree: (args: {
     repoId: string
@@ -31,86 +39,20 @@ export type AzureDevOpsReviewWorktreeHost = {
   findWorktree: (worktreeId: string) => Promise<{ id: string; path: string } | null>
   updateWorktree: (
     worktreeId: string,
-    updates: { baseRef: string; linkedAzureDevOpsPR: number; displayName: string }
+    updates: {
+      baseRef: string
+      linkedAzureDevOpsPR: number
+      displayName: string
+    }
   ) => Promise<void>
   isAgentWorking: (worktreeId: string) => Promise<boolean>
   git?: (args: string[], cwd: string, timeoutMs?: number) => Promise<string>
 }
 
-let registryCache: Registry | null = null
-let registryPathOverride: string | null = null
-
-function registryPath(): string {
-  return registryPathOverride ?? join(homedir(), '.orca', 'azure-devops-review-worktrees.json')
-}
-
 /** @internal - tests point the registry at a temp file. */
 export function _setAzureDevOpsReviewWorktreeRegistryPath(path: string | null): void {
-  registryPathOverride = path
-  registryCache = null
-}
-
-function loadRegistry(): Registry {
-  if (registryCache) {
-    return registryCache
-  }
-  let worktrees: RegistryEntry[] = []
-  if (existsSync(registryPath())) {
-    try {
-      const parsed = JSON.parse(readFileSync(registryPath(), 'utf-8')) as Partial<Registry>
-      worktrees = (Array.isArray(parsed.worktrees) ? parsed.worktrees : []).filter(
-        (entry): entry is RegistryEntry =>
-          typeof entry?.repoKey === 'string' &&
-          typeof entry.worktreeId === 'string' &&
-          typeof entry.repoId === 'string' &&
-          typeof entry.path === 'string'
-      )
-    } catch {
-      worktrees = []
-    }
-  }
-  registryCache = { version: 1, worktrees }
-  return registryCache
-}
-
-function saveRegistryEntry(entry: RegistryEntry): void {
-  const worktrees = [...loadRegistry().worktrees.filter((e) => e.repoKey !== entry.repoKey), entry]
-  registryCache = { version: 1, worktrees }
-  mkdirSync(join(registryPath(), '..'), { recursive: true })
-  writeFileDurableSync(
-    durableWriteTempPath(registryPath()),
-    registryPath(),
-    JSON.stringify(registryCache, null, 2)
-  )
-}
-
-function forgetRegistryEntry(repoKey: string): void {
-  const registry = loadRegistry()
-  if (!registry.worktrees.some((entry) => entry.repoKey === repoKey)) {
-    return
-  }
-  registryCache = { version: 1, worktrees: registry.worktrees.filter((e) => e.repoKey !== repoKey) }
-  writeFileDurableSync(
-    durableWriteTempPath(registryPath()),
-    registryPath(),
-    JSON.stringify(registryCache, null, 2)
-  )
-}
-
-export function findAzureDevOpsReviewWorktree(
-  repoKey: string
-): AzureDevOpsReviewWorktreeInfo | null {
-  const entry = loadRegistry().worktrees.find((candidate) => candidate.repoKey === repoKey)
-  if (!entry) {
-    return null
-  }
-  return {
-    worktreeId: entry.worktreeId,
-    repoId: entry.repoId,
-    path: entry.path,
-    pullRequestKey: entry.pullRequestKey,
-    commit: entry.commit
-  }
+  setRegistryPath(path)
+  claimedAt.clear()
 }
 
 async function defaultGit(args: string[], cwd: string, timeoutMs?: number): Promise<string> {
@@ -123,12 +65,12 @@ async function defaultGit(args: string[], cwd: string, timeoutMs?: number): Prom
   return stdout
 }
 
-function reviewWorktreeName(repository: string): string {
+function reviewWorktreeName(repository: string, index: number): string {
   const slug = repository
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return `${slug || 'repo'}-review`
+  return `${slug || 'repo'}-review${index > 1 ? `-${index}` : ''}`
 }
 
 async function commitExists(
@@ -183,6 +125,63 @@ async function fetchPullRequestCommit(
   return (await git(['rev-parse', `${sourceRef}^{commit}`], repoPath)).trim()
 }
 
+type PickedReviewWorktree = {
+  worktree: { id: string; path: string }
+  reviewIndex: number
+  samePullRequest: boolean
+}
+
+/**
+ * The worktree a PR is reviewed in: the one already on it, else an idle one with nothing to lose.
+ * Null means a new worktree is needed, so reviews of different PRs run side by side.
+ */
+async function pickReviewWorktree(
+  host: AzureDevOpsReviewWorktreeHost,
+  git: NonNullable<AzureDevOpsReviewWorktreeHost['git']>,
+  repoKey: string,
+  pullRequestKey: string
+): Promise<PickedReviewWorktree | null> {
+  const entries = loadRegistry().worktrees.filter((entry) => entry.repoKey === repoKey)
+  const live: {
+    entry: RegistryEntry
+    worktree: { id: string; path: string }
+  }[] = []
+  for (const entry of entries) {
+    const worktree = await host.findWorktree(entry.worktreeId)
+    if (worktree) {
+      live.push({ entry, worktree })
+    } else {
+      forgetRegistryEntry(entry.worktreeId)
+    }
+  }
+  const same = live.find(({ entry }) => entry.pullRequestKey === pullRequestKey)
+  if (same) {
+    return {
+      worktree: same.worktree,
+      reviewIndex: same.entry.reviewIndex ?? 1,
+      samePullRequest: true
+    }
+  }
+  // Why oldest first: the most recent review is the one the user is likeliest to return to.
+  for (const { entry, worktree } of live) {
+    if (
+      Date.now() - (claimedAt.get(worktree.id) ?? 0) < CLAIM_MS ||
+      (await host.isAgentWorking(worktree.id))
+    ) {
+      continue
+    }
+    const status = await git(['status', '--porcelain'], worktree.path).catch(() => null)
+    if (status !== null && !status.trim()) {
+      return {
+        worktree,
+        reviewIndex: entry.reviewIndex ?? 1,
+        samePullRequest: false
+      }
+    }
+  }
+  return null
+}
+
 function failure(
   reason: Extract<AzureDevOpsReviewWorktreeResult, { ok: false }>['reason'],
   message: string
@@ -191,15 +190,34 @@ function failure(
 }
 
 /**
- * Opens a PR in the repo's shared review worktree, creating it on first use.
- * The worktree always sits on a detached HEAD at the PR commit, compared against the PR target.
+ * Opens a PR in one of the repo's review worktrees, creating another while every existing one is
+ * busy with a different PR. A worktree always sits on a detached HEAD at the PR commit.
  */
-export async function openAzureDevOpsReviewWorktree(args: {
+export function openAzureDevOpsReviewWorktree(
+  args: OpenReviewWorktreeArgs
+): Promise<AzureDevOpsReviewWorktreeResult> {
+  // Why serialized per repo: two reviews started together must not pick the same idle worktree.
+  const previous = repoQueues.get(args.source.key) ?? Promise.resolve()
+  const next = previous.catch(() => undefined).then(() => openReviewWorktree(args))
+  repoQueues.set(args.source.key, next)
+  void next.finally(() => {
+    if (repoQueues.get(args.source.key) === next) {
+      repoQueues.delete(args.source.key)
+    }
+  })
+  return next
+}
+
+type OpenReviewWorktreeArgs = {
   host: AzureDevOpsReviewWorktreeHost
   source: AzureDevOpsReviewRepoSource
   pullRequest: AzureDevOpsReviewPullRequest
   discardChanges: boolean
-}): Promise<AzureDevOpsReviewWorktreeResult> {
+}
+
+async function openReviewWorktree(
+  args: OpenReviewWorktreeArgs
+): Promise<AzureDevOpsReviewWorktreeResult> {
   const { host, source, pullRequest } = args
   const git = host.git ?? defaultGit
   if (pullRequest.isFork) {
@@ -219,45 +237,35 @@ export async function openAzureDevOpsReviewWorktree(args: {
     )
   }
 
-  const registered = findAzureDevOpsReviewWorktree(source.key)
-  let worktree = registered ? await host.findWorktree(registered.worktreeId) : null
-  if (registered && !worktree) {
-    forgetRegistryEntry(source.key)
-  }
-  let created = false
-
-  if (worktree) {
-    if (
-      registered?.pullRequestKey !== pullRequest.key &&
-      (await host.isAgentWorking(worktree.id))
-    ) {
-      return failure(
-        'busy',
-        'An agent is still working in the review workspace. Wait for it to finish before switching pull requests.'
-      )
-    }
-    const status = await git(['status', '--porcelain'], worktree.path).catch(() => '')
+  const picked = await pickReviewWorktree(host, git, source.key, pullRequest.key)
+  if (picked?.samePullRequest) {
+    const status = await git(['status', '--porcelain'], picked.worktree.path).catch(() => '')
     if (status.trim()) {
       if (!args.discardChanges) {
         return failure('dirty', 'The review workspace has uncommitted changes.')
       }
       try {
-        await git(['reset', '--hard'], worktree.path)
+        await git(['reset', '--hard'], picked.worktree.path)
         // Why no -x: ignored dependencies and build caches stay to make the next review fast.
-        await git(['clean', '-fd'], worktree.path)
+        await git(['clean', '-fd'], picked.worktree.path)
       } catch (error) {
         return failure('git-failed', `Could not discard changes: ${String(error)}`)
       }
     }
+  }
+  const created = !picked
+  const reviewIndex = picked?.reviewIndex ?? nextReviewWorktreeIndex(source.key)
+  let worktree: { id: string; path: string }
+  if (picked) {
+    worktree = picked.worktree
   } else {
     try {
       const createdWorktree = await host.createWorktree({
         repoId: source.primaryRepo.id,
-        name: reviewWorktreeName(source.repository),
+        name: reviewWorktreeName(source.repository, reviewIndex),
         baseBranch: `${REVIEW_REMOTE}/${pullRequest.targetBranch}`
       })
       worktree = { id: createdWorktree.id, path: createdWorktree.path }
-      created = true
       await git(['checkout', '--detach', commit], worktree.path)
       // Why: the review worktree never sits on its scratch branch, so it must not linger.
       if (createdWorktree.branch) {
@@ -291,6 +299,7 @@ export async function openAzureDevOpsReviewWorktree(args: {
     pullRequestKey: pullRequest.key,
     commit
   }
-  saveRegistryEntry({ ...info, repoKey: source.key })
+  saveRegistryEntry({ ...info, repoKey: source.key, reviewIndex })
+  claimedAt.set(worktree.id, Date.now())
   return { ok: true, worktree: info, created }
 }

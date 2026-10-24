@@ -55,7 +55,10 @@ export function compareAzureDevOpsReviewPullRequestsNewestFirst(
 export type AzureDevOpsReviewHost = {
   listRepos: () => Repo[]
   /** Review worktree currently registered for a repo, if any. */
-  findReviewWorktree?: (repoKey: string) => AzureDevOpsReviewWorktreeInfo | null
+  findReviewWorktree?: (
+    repoKey: string,
+    pullRequestKey?: string
+  ) => AzureDevOpsReviewWorktreeInfo | null
 }
 
 export type AzureDevOpsResolvedPullRequest = {
@@ -250,6 +253,6 @@ export async function getAzureDevOpsReviewDetail(
       .sort((a, b) => a.id - b.id),
     changes,
     drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest),
-    reviewWorktree: host.findReviewWorktree?.(resolved.source.key) ?? null
+    reviewWorktree: host.findReviewWorktree?.(resolved.source.key, pullRequestKey) ?? null
   }
 }

@@ -6,8 +6,8 @@ import { openAzureDevOpsReviewWorktree } from './azure-devops-review-client'
 import type { AzureDevOpsReviewWorktreeInfo } from '../../../shared/azure-devops-review-types'
 
 /**
- * Switches the shared review worktree to a pull request, asking before it discards uncommitted
- * changes there. Null when the user declined or the switch failed (already reported).
+ * Opens the pull request's review worktree, asking before it discards uncommitted changes there.
+ * Null when the user declined or the switch failed (already reported).
  */
 export async function switchAzureDevOpsReviewWorktree(
   pullRequestKey: string,
@@ -19,9 +19,9 @@ export async function switchAzureDevOpsReviewWorktree(
       title: translate('azureDevOpsReview.dirtyTitle', 'Discard changes in the review workspace?'),
       description: translate(
         'azureDevOpsReview.dirtyDescription',
-        'The shared review workspace has uncommitted changes. Switching to this pull request discards them; ignored files such as dependencies stay.'
+        'The review workspace of this pull request has uncommitted changes. Opening it again discards them; ignored files such as dependencies stay.'
       ),
-      confirmLabel: translate('azureDevOpsReview.dirtyConfirm', 'Discard and switch'),
+      confirmLabel: translate('azureDevOpsReview.dirtyConfirm', 'Discard and open'),
       confirmVariant: 'destructive'
     })
     if (!discard) {

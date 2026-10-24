@@ -7,7 +7,7 @@ import type { AzureDevOpsReviewOptions } from './azure-devops-review-options'
  */
 export type AzureDevOpsReviewAgentRequest = {
   pullRequestKey: string
-  /** Switches the shared review workspace even when it has uncommitted changes. */
+  /** Reopens the pull request's review workspace even when it has uncommitted changes. */
   discardChanges?: boolean
 } & (
   | { kind: 'review'; options: AzureDevOpsReviewOptions }
