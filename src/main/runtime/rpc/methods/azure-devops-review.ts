@@ -34,8 +34,6 @@ import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
 import { mapAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-mappers'
 
-const WORKTREE_PS_SCAN_LIMIT = 5_000
-
 function reviewHost(runtime: OrcaRuntimeService): AzureDevOpsReviewHost {
   return {
     listRepos: () => runtime.listRepos(),
@@ -71,11 +69,6 @@ function reviewWorktreeHost(runtime: OrcaRuntimeService): AzureDevOpsReviewWorkt
         ...updates,
         displayNameIsPinned: true
       })
-    },
-    isAgentWorking: async (worktreeId) => {
-      const ps = await runtime.getWorktreePs(WORKTREE_PS_SCAN_LIMIT)
-      const row = ps.worktrees.find((candidate) => candidate.worktreeId === worktreeId)
-      return row?.status === 'working' || row?.status === 'permission'
     }
   }
 }

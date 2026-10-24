@@ -15,17 +15,12 @@ import {
   forgetAzureDevOpsReviewWorktreeEntry as forgetRegistryEntry,
   loadAzureDevOpsReviewWorktreeRegistry as loadRegistry,
   nextAzureDevOpsReviewWorktreeIndex as nextReviewWorktreeIndex,
-  saveAzureDevOpsReviewWorktreeEntry as saveRegistryEntry,
-  type AzureDevOpsReviewWorktreeEntry as RegistryEntry
+  saveAzureDevOpsReviewWorktreeEntry as saveRegistryEntry
 } from './azure-devops-review-worktree-registry'
 
 export { findAzureDevOpsReviewWorktree } from './azure-devops-review-worktree-registry'
 
 const FETCH_TIMEOUT_MS = 120_000
-// Why: an agent reports "working" only seconds after launch; until then its worktree is spoken for.
-const CLAIM_MS = 3 * 60_000
-
-const claimedAt = new Map<string, number>()
 const repoQueues = new Map<string, Promise<unknown>>()
 
 /** Runtime capabilities the review worktrees need; injected so tests stay off the runtime. */
@@ -45,14 +40,12 @@ export type AzureDevOpsReviewWorktreeHost = {
       displayName: string
     }
   ) => Promise<void>
-  isAgentWorking: (worktreeId: string) => Promise<boolean>
   git?: (args: string[], cwd: string, timeoutMs?: number) => Promise<string>
 }
 
 /** @internal - tests point the registry at a temp file. */
 export function _setAzureDevOpsReviewWorktreeRegistryPath(path: string | null): void {
   setRegistryPath(path)
-  claimedAt.clear()
 }
 
 async function defaultGit(args: string[], cwd: string, timeoutMs?: number): Promise<string> {
@@ -128,58 +121,28 @@ async function fetchPullRequestCommit(
 type PickedReviewWorktree = {
   worktree: { id: string; path: string }
   reviewIndex: number
-  samePullRequest: boolean
 }
 
 /**
- * The worktree a PR is reviewed in: the one already on it, else an idle one with nothing to lose.
- * Null means a new worktree is needed, so reviews of different PRs run side by side.
+ * The worktree that already has this PR checked out; null means the PR gets a new one.
+ * Why never another PR's: its finished review and AI chat must stay where the user left them.
+ * Forgets deleted worktrees on the way, so their names can be reused.
  */
 async function pickReviewWorktree(
   host: AzureDevOpsReviewWorktreeHost,
-  git: NonNullable<AzureDevOpsReviewWorktreeHost['git']>,
   repoKey: string,
   pullRequestKey: string
 ): Promise<PickedReviewWorktree | null> {
-  const entries = loadRegistry().worktrees.filter((entry) => entry.repoKey === repoKey)
-  const live: {
-    entry: RegistryEntry
-    worktree: { id: string; path: string }
-  }[] = []
-  for (const entry of entries) {
+  let picked: PickedReviewWorktree | null = null
+  for (const entry of loadRegistry().worktrees.filter((e) => e.repoKey === repoKey)) {
     const worktree = await host.findWorktree(entry.worktreeId)
-    if (worktree) {
-      live.push({ entry, worktree })
-    } else {
+    if (!worktree) {
       forgetRegistryEntry(entry.worktreeId)
+    } else if (!picked && entry.pullRequestKey === pullRequestKey) {
+      picked = { worktree, reviewIndex: entry.reviewIndex ?? 1 }
     }
   }
-  const same = live.find(({ entry }) => entry.pullRequestKey === pullRequestKey)
-  if (same) {
-    return {
-      worktree: same.worktree,
-      reviewIndex: same.entry.reviewIndex ?? 1,
-      samePullRequest: true
-    }
-  }
-  // Why oldest first: the most recent review is the one the user is likeliest to return to.
-  for (const { entry, worktree } of live) {
-    if (
-      Date.now() - (claimedAt.get(worktree.id) ?? 0) < CLAIM_MS ||
-      (await host.isAgentWorking(worktree.id))
-    ) {
-      continue
-    }
-    const status = await git(['status', '--porcelain'], worktree.path).catch(() => null)
-    if (status !== null && !status.trim()) {
-      return {
-        worktree,
-        reviewIndex: entry.reviewIndex ?? 1,
-        samePullRequest: false
-      }
-    }
-  }
-  return null
+  return picked
 }
 
 function failure(
@@ -190,13 +153,13 @@ function failure(
 }
 
 /**
- * Opens a PR in one of the repo's review worktrees, creating another while every existing one is
- * busy with a different PR. A worktree always sits on a detached HEAD at the PR commit.
+ * Opens a PR in its own review worktree, creating one on first use, so reviews of different PRs
+ * run side by side. A worktree always sits on a detached HEAD at the PR commit.
  */
 export function openAzureDevOpsReviewWorktree(
   args: OpenReviewWorktreeArgs
 ): Promise<AzureDevOpsReviewWorktreeResult> {
-  // Why serialized per repo: two reviews started together must not pick the same idle worktree.
+  // Why serialized per repo: two reviews started together must not claim the same worktree name.
   const previous = repoQueues.get(args.source.key) ?? Promise.resolve()
   const next = previous.catch(() => undefined).then(() => openReviewWorktree(args))
   repoQueues.set(args.source.key, next)
@@ -237,8 +200,8 @@ async function openReviewWorktree(
     )
   }
 
-  const picked = await pickReviewWorktree(host, git, source.key, pullRequest.key)
-  if (picked?.samePullRequest) {
+  const picked = await pickReviewWorktree(host, source.key, pullRequest.key)
+  if (picked) {
     const status = await git(['status', '--porcelain'], picked.worktree.path).catch(() => '')
     if (status.trim()) {
       if (!args.discardChanges) {
@@ -300,6 +263,5 @@ async function openReviewWorktree(
     commit
   }
   saveRegistryEntry({ ...info, repoKey: source.key, reviewIndex })
-  claimedAt.set(worktree.id, Date.now())
   return { ok: true, worktree: info, created }
 }
