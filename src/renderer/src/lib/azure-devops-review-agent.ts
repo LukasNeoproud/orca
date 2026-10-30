@@ -8,7 +8,10 @@ import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
-import { buildAzureDevOpsReviewAgentPrompt } from '../../../shared/azure-devops-review-prompt'
+import {
+  buildAzureDevOpsReviewAgentPrompt,
+  type AzureDevOpsReviewToolAccess
+} from '../../../shared/azure-devops-review-prompt'
 import { azureDevOpsReviewAgentLaunchArgs } from '../../../shared/azure-devops-review-agent-args'
 import { orcaLaunchCliCommand } from '../../../shared/terminal-interaction-launch'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
@@ -27,12 +30,17 @@ type AzureDevOpsReviewAgentWorktree = {
   piExtensionPath?: string
 }
 
+/** A fixed prompt, or one built once the launch knows how the agent reaches Orca's tools. */
+export type AzureDevOpsReviewAgentPrompt =
+  | string
+  | ((tools: { cli: string; access: AzureDevOpsReviewToolAccess }) => string)
+
 /** Launches the default agent in the review worktree with the review prompt, or `prompt` instead. */
 export async function startAzureDevOpsReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
   worktree: AzureDevOpsReviewAgentWorktree,
   options?: AzureDevOpsReviewOptions,
-  prompt?: string
+  prompt?: AzureDevOpsReviewAgentPrompt
 ): Promise<boolean> {
   return (await launchReviewAgent(pullRequest, worktree, options, prompt, false)) !== null
 }
@@ -54,7 +62,7 @@ async function launchReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
   worktree: AzureDevOpsReviewAgentWorktree,
   options: AzureDevOpsReviewOptions | undefined,
-  prompt: string | undefined,
+  prompt: AzureDevOpsReviewAgentPrompt | undefined,
   background: boolean
 ): Promise<ReviewAgentLaunch | null> {
   const launchedAt = Date.now()
@@ -106,8 +114,10 @@ async function launchReviewAgent(
     groupId: worktreeId,
     agentArgs,
     prompt:
-      prompt ??
-      buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, access: tools }, reviewOptions),
+      typeof prompt === 'function'
+        ? prompt({ cli, access: tools })
+        : (prompt ??
+          buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, access: tools }, reviewOptions)),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })

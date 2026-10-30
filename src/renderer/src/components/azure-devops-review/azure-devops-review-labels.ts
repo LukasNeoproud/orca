@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import type {
   AzureDevOpsReviewChangeType,
   AzureDevOpsReviewDraft,
+  AzureDevOpsReviewThread,
   AzureDevOpsThreadStatus
 } from '../../../../shared/azure-devops-review-types'
 
@@ -22,6 +23,20 @@ export function threadStatusLabel(status: AzureDevOpsThreadStatus): string {
     case 'unknown':
       return translate('azureDevOpsReview.threadUnknown', 'Unknown')
   }
+}
+
+/** `path:line` (or a range) of a thread; null for a general thread. */
+export function threadLocationLabel(
+  thread: Pick<AzureDevOpsReviewThread, 'filePath' | 'anchor'>
+): string | null {
+  if (!thread.filePath) {
+    return null
+  }
+  if (!thread.anchor) {
+    return thread.filePath
+  }
+  const { startLine, endLine } = thread.anchor
+  return `${thread.filePath}:${startLine === endLine ? startLine : `${startLine}–${endLine}`}`
 }
 
 export function changeTypeLabel(changeType: AzureDevOpsReviewChangeType): string {

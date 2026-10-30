@@ -1,5 +1,6 @@
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import type {
+  AzureDevOpsFeedbackWorktreeResult,
   AzureDevOpsPullRequestStatusFilter,
   AzureDevOpsReviewDetail,
   AzureDevOpsReviewDraftCreateInput,
@@ -81,6 +82,18 @@ export function openAzureDevOpsReviewWorktree(
     LOCAL,
     'azureDevOpsReview.openWorktree',
     { pullRequestKey, discardChanges },
+    { timeoutMs: WORKTREE_TIMEOUT_MS }
+  )
+}
+
+/** The author's workspace with the pull request's source branch, created when none has it. */
+export function openAzureDevOpsFeedbackWorktree(
+  pullRequestKey: string
+): Promise<AzureDevOpsFeedbackWorktreeResult> {
+  return callRuntimeRpc(
+    LOCAL,
+    'azureDevOpsReview.openFeedbackWorktree',
+    { pullRequestKey },
     { timeoutMs: WORKTREE_TIMEOUT_MS }
   )
 }

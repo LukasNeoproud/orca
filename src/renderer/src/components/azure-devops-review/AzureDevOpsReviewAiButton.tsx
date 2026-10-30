@@ -19,13 +19,18 @@ import {
 import { useAppStore } from '@/store'
 import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 
-/** "Open AI chat" once a review agent runs for this pull request, else "Review with AI". */
+/**
+ * "Open AI chat" once an agent runs for this pull request, else "Review with AI", or
+ * "Address feedback with AI" on the user's own pull request (`feedback`).
+ */
 export function AzureDevOpsReviewAiButton({
   pullRequestKey,
+  feedback,
   disabled,
   onStartReview
 }: {
   pullRequestKey: string
+  feedback: boolean
   disabled: boolean
   onStartReview: () => void
 }): React.JSX.Element {
@@ -43,7 +48,9 @@ export function AzureDevOpsReviewAiButton({
         })
       : null
   )
-  const startLabel = translate('azureDevOpsReview.reviewWithAi', 'Review with AI')
+  const startLabel = feedback
+    ? translate('azureDevOpsReview.addressFeedbackWithAi', 'Address feedback with AI')
+    : translate('azureDevOpsReview.reviewWithAi', 'Review with AI')
 
   if (!chatTab || !status) {
     return (
@@ -58,10 +65,15 @@ export function AzureDevOpsReviewAiButton({
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-72">
-          {translate(
-            'azureDevOpsReview.reviewWithAgentHint',
-            'Opens the review workspace and starts your default agent there. It writes findings as drafts; nothing is published until you do it.'
-          )}
+          {feedback
+            ? translate(
+                'azureDevOpsReview.addressFeedbackHint',
+                'Starts your default agent in the workspace with this branch. It judges the open threads, fixes what holds and drafts a reply to each; nothing is committed or published.'
+              )
+            : translate(
+                'azureDevOpsReview.reviewWithAgentHint',
+                'Opens the review workspace and starts your default agent there. It writes findings as drafts; nothing is published until you do it.'
+              )}
         </TooltipContent>
       </Tooltip>
     )
@@ -98,7 +110,9 @@ export function AzureDevOpsReviewAiButton({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={openChat}>{openLabel}</DropdownMenuItem>
         <DropdownMenuItem onSelect={onStartReview}>
-          {translate('azureDevOpsReview.startNewAiReview', 'Start a new AI review')}
+          {feedback
+            ? translate('azureDevOpsReview.addressFeedbackAgain', 'Address feedback again')
+            : translate('azureDevOpsReview.startNewAiReview', 'Start a new AI review')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

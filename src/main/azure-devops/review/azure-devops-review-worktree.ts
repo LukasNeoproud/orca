@@ -20,7 +20,7 @@ import {
 
 export { findAzureDevOpsReviewWorktree } from './azure-devops-review-worktree-registry'
 
-const FETCH_TIMEOUT_MS = 120_000
+export const AZURE_DEVOPS_REVIEW_FETCH_TIMEOUT_MS = 120_000
 const repoQueues = new Map<string, Promise<unknown>>()
 
 /** Runtime capabilities the review worktrees need; injected so tests stay off the runtime. */
@@ -48,7 +48,12 @@ export function _setAzureDevOpsReviewWorktreeRegistryPath(path: string | null): 
   setRegistryPath(path)
 }
 
-async function defaultGit(args: string[], cwd: string, timeoutMs?: number): Promise<string> {
+/** Git as review and feedback worktrees run it: no credential prompts, the configured SSH command. */
+export async function azureDevOpsReviewGit(
+  args: string[],
+  cwd: string,
+  timeoutMs?: number
+): Promise<string> {
   const { stdout } = await gitExecFileAsync(args, {
     cwd,
     env: promptGuardGitEnv(process.env),
@@ -95,7 +100,11 @@ async function fetchPullRequestCommit(
     }
     if (missing.length > 0) {
       // Why by commit: the branch is usually deleted, and a squash merge leaves its commits on no branch.
-      await git(['fetch', '--no-tags', REVIEW_REMOTE, ...missing], repoPath, FETCH_TIMEOUT_MS)
+      await git(
+        ['fetch', '--no-tags', REVIEW_REMOTE, ...missing],
+        repoPath,
+        AZURE_DEVOPS_REVIEW_FETCH_TIMEOUT_MS
+      )
     }
     return closed.source
   }
@@ -109,7 +118,7 @@ async function fetchPullRequestCommit(
       `+refs/heads/${pullRequest.targetBranch}:refs/remotes/${REVIEW_REMOTE}/${pullRequest.targetBranch}`
     ],
     repoPath,
-    FETCH_TIMEOUT_MS
+    AZURE_DEVOPS_REVIEW_FETCH_TIMEOUT_MS
   )
   if (pullRequest.sourceCommit && (await commitExists(git, repoPath, pullRequest.sourceCommit))) {
     return pullRequest.sourceCommit
@@ -182,7 +191,7 @@ async function openReviewWorktree(
   args: OpenReviewWorktreeArgs
 ): Promise<AzureDevOpsReviewWorktreeResult> {
   const { host, source, pullRequest } = args
-  const git = host.git ?? defaultGit
+  const git = host.git ?? azureDevOpsReviewGit
   if (pullRequest.isFork) {
     return failure('fork', 'Pull requests from forks are not supported for review.')
   }

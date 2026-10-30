@@ -30,6 +30,10 @@ import {
   openAzureDevOpsReviewWorktree,
   type AzureDevOpsReviewWorktreeHost
 } from '../../../azure-devops/review/azure-devops-review-worktree'
+import {
+  openAzureDevOpsFeedbackWorktree,
+  type AzureDevOpsFeedbackWorktreeHost
+} from '../../../azure-devops/review/azure-devops-feedback-worktree'
 import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure-devops-review-file-diff'
 import { ensureAzureDevOpsReviewPiExtension } from '../../../azure-devops/review/azure-devops-review-pi-extension'
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
@@ -72,6 +76,63 @@ function reviewWorktreeHost(runtime: OrcaRuntimeService): AzureDevOpsReviewWorkt
       })
     }
   }
+}
+
+function feedbackWorktreeHost(runtime: OrcaRuntimeService): AzureDevOpsFeedbackWorktreeHost {
+  return {
+    listWorktrees: async (repoIds) => {
+      const lists = await Promise.all(
+        repoIds.map((repoId) => runtime.listManagedWorktrees(`id:${repoId}`).catch(() => null))
+      )
+      return lists.flatMap((list) =>
+        (list?.worktrees ?? []).map((worktree) => ({
+          id: worktree.id,
+          repoId: worktree.repoId,
+          path: worktree.path,
+          branch: worktree.branch,
+          linkedAzureDevOpsPR: worktree.linkedAzureDevOpsPR ?? null
+        }))
+      )
+    },
+    createWorktree: async ({ repoId, name, branch, remoteRef, baseRef, pullRequestId }) => {
+      const result = await runtime.createManagedWorktree({
+        repoSelector: `id:${repoId}`,
+        name,
+        explicitCreation: {
+          branch: remoteRef
+            ? { kind: 'remote', name: branch, remoteRef }
+            : { kind: 'local', name: branch },
+          destination: { relativeDirectory: name }
+        },
+        linkedAzureDevOpsPR: pullRequestId,
+        setupDecision: 'inherit'
+      })
+      await runtime.updateManagedWorktreeMeta(`id:${result.worktree.id}`, { baseRef })
+      return { id: result.worktree.id, path: result.worktree.path }
+    },
+    linkPullRequest: async (worktreeId, pullRequestId) => {
+      await runtime.updateManagedWorktreeMeta(`id:${worktreeId}`, {
+        linkedAzureDevOpsPR: pullRequestId
+      })
+    }
+  }
+}
+
+async function resolveFreshPullRequest(runtime: OrcaRuntimeService, pullRequestKey: string) {
+  const resolved = await resolveAzureDevOpsReviewPullRequest(reviewHost(runtime), pullRequestKey)
+  const pullRequest = mapAzureDevOpsReviewPullRequest(
+    await getAzureDevOpsReviewPullRequest(resolved.target),
+    {
+      repo: resolved.source,
+      repositoryId: resolved.target.repositoryId,
+      repositoryWebUrl: resolved.repositoryWebUrl,
+      meId: null
+    }
+  )
+  if (!pullRequest) {
+    throw new Error('Azure DevOps returned an unreadable pull request.')
+  }
+  return { source: resolved.source, pullRequest }
 }
 
 // Why: the desktop that owns the Azure DevOps credentials answers for every client;
@@ -154,25 +215,28 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     permission: 'workspace',
     params: AzureDevOpsReviewOpenWorktreeParams,
     handler: async (params, { runtime }) => {
-      const host = reviewHost(runtime)
-      const resolved = await resolveAzureDevOpsReviewPullRequest(host, params.pullRequestKey)
-      const pullRequest = mapAzureDevOpsReviewPullRequest(
-        await getAzureDevOpsReviewPullRequest(resolved.target),
-        {
-          repo: resolved.source,
-          repositoryId: resolved.target.repositoryId,
-          repositoryWebUrl: resolved.repositoryWebUrl,
-          meId: null
-        }
-      )
-      if (!pullRequest) {
-        throw new Error('Azure DevOps returned an unreadable pull request.')
-      }
+      const { source, pullRequest } = await resolveFreshPullRequest(runtime, params.pullRequestKey)
       const result = await openAzureDevOpsReviewWorktree({
         host: reviewWorktreeHost(runtime),
-        source: resolved.source,
+        source,
         pullRequest,
         discardChanges: params.discardChanges === true
+      })
+      const piExtensionPath = result.ok ? ensureAzureDevOpsReviewPiExtension() : null
+      return piExtensionPath ? { ...result, piExtensionPath } : result
+    }
+  }),
+  defineMethod({
+    // Why separate from openWorktree: the author's branch workspace is never reset or detached.
+    name: 'azureDevOpsReview.openFeedbackWorktree',
+    permission: 'workspace',
+    params: AzureDevOpsReviewKeyParams,
+    handler: async (params, { runtime }) => {
+      const { source, pullRequest } = await resolveFreshPullRequest(runtime, params.pullRequestKey)
+      const result = await openAzureDevOpsFeedbackWorktree({
+        host: feedbackWorktreeHost(runtime),
+        source,
+        pullRequest
       })
       const piExtensionPath = result.ok ? ensureAzureDevOpsReviewPiExtension() : null
       return piExtensionPath ? { ...result, piExtensionPath } : result

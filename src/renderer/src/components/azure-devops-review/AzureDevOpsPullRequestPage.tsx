@@ -11,8 +11,13 @@ import { cn } from '@/lib/utils'
 import { switchAzureDevOpsReviewWorktree } from '@/lib/azure-devops-review-worktree-switch'
 import {
   revealAzureDevOpsReviewWorktree,
-  startAzureDevOpsReviewAgent
+  startAzureDevOpsReviewAgent,
+  type AzureDevOpsReviewAgentPrompt
 } from '@/lib/azure-devops-review-agent'
+import {
+  azureDevOpsFeedbackAgentPrompt,
+  openAzureDevOpsFeedbackWorkspace
+} from '@/lib/azure-devops-feedback-agent'
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDetail } from './use-azure-devops-review-detail'
@@ -27,6 +32,7 @@ import {
 import type { AzureDevOpsReviewOptions } from '../../../../shared/azure-devops-review-options'
 import { AzureDevOpsReviewOptionsDialog } from './AzureDevOpsReviewOptionsDialog'
 import { AzureDevOpsDraftsAiDialog } from './AzureDevOpsDraftsAiDialog'
+import { AzureDevOpsFeedbackDialog } from './AzureDevOpsFeedbackDialog'
 import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
 
 type ReviewMode = 'workspace' | 'agent'
@@ -59,8 +65,11 @@ export function AzureDevOpsPullRequestPage({
   const confirm = useConfirmationDialog()
   const [busy, setBusy] = useState<ReviewMode | null>(null)
   const [choosingOptions, setChoosingOptions] = useState(false)
+  const [choosingThreads, setChoosingThreads] = useState(false)
   const [aiDraftIds, setAiDraftIds] = useState<string[] | null>(null)
   const pr = detail?.pullRequest ?? null
+  // Why: on the user's own open PR the agent and the workspace are the author's branch, not a review checkout.
+  const ownPullRequest = pr?.createdByMe === true && pr.status === 'active'
   const unpublished = detail?.drafts.filter((draft) => draft.state !== 'published').length ?? 0
   const pendingAiPrompts = useAzureDevOpsReviewDraftPrompts(
     (s) =>
@@ -80,14 +89,16 @@ export function AzureDevOpsPullRequestPage({
   const review = async (
     mode: ReviewMode,
     options?: AzureDevOpsReviewOptions,
-    prompt?: string
+    prompt?: AzureDevOpsReviewAgentPrompt
   ): Promise<boolean> => {
     if (!pr) {
       return false
     }
     setBusy(mode)
     try {
-      const worktree = await switchAzureDevOpsReviewWorktree(pullRequestKey, confirm)
+      const worktree = ownPullRequest
+        ? await openAzureDevOpsFeedbackWorkspace(pullRequestKey)
+        : await switchAzureDevOpsReviewWorktree(pullRequestKey, confirm)
       if (!worktree) {
         return false
       }
@@ -159,10 +170,15 @@ export function AzureDevOpsPullRequestPage({
                     'azureDevOpsReview.forkUnsupported',
                     'Pull requests from forks are not supported for review.'
                   )
-                : translate(
-                    'azureDevOpsReview.reviewInWorkspaceHint',
-                    "Checks out this PR's latest commit in a review workspace of the repo and opens it, with Source Control comparing against the target branch. Each pull request under review gets its own workspace."
-                  )}
+                : ownPullRequest
+                  ? translate(
+                      'azureDevOpsReview.openOwnInWorkspaceHint',
+                      "Opens the workspace that has this pull request's branch checked out, or creates one on it."
+                    )
+                  : translate(
+                      'azureDevOpsReview.reviewInWorkspaceHint',
+                      "Checks out this PR's latest commit in a review workspace of the repo and opens it, with Source Control comparing against the target branch. Each pull request under review gets its own workspace."
+                    )}
             </TooltipContent>
           </Tooltip>
           {pendingAiPrompts > 0 ? (
@@ -180,8 +196,11 @@ export function AzureDevOpsPullRequestPage({
           ) : null}
           <AzureDevOpsReviewAiButton
             pullRequestKey={pullRequestKey}
+            feedback={ownPullRequest}
             disabled={!pr || busy !== null || forkBlocked}
-            onStartReview={() => setChoosingOptions(true)}
+            onStartReview={() =>
+              ownPullRequest ? setChoosingThreads(true) : setChoosingOptions(true)
+            }
           />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -305,6 +324,21 @@ export function AzureDevOpsPullRequestPage({
             setChoosingOptions(false)
             storeAzureDevOpsReviewOptions(options)
             void review('agent', options)
+          }}
+        />
+      ) : null}
+      {choosingThreads && detail ? (
+        <AzureDevOpsFeedbackDialog
+          detail={detail}
+          onCancel={() => setChoosingThreads(false)}
+          onStart={(threadIds, instruction) => {
+            setChoosingThreads(false)
+            const options = readAzureDevOpsReviewOptions()
+            void review(
+              'agent',
+              options,
+              azureDevOpsFeedbackAgentPrompt(detail, threadIds, instruction, options.language)
+            )
           }}
         />
       ) : null}

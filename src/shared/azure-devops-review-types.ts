@@ -321,3 +321,25 @@ export const AZURE_DEVOPS_REVIEW_THREAD_STATUSES: readonly AzureDevOpsThreadStat
   'byDesign',
   'pending'
 ]
+
+/** The author's workspace for a pull request: a worktree with its source branch checked out. */
+export type AzureDevOpsFeedbackWorktreeInfo = {
+  worktreeId: string
+  repoId: string
+  path: string
+  branch: string
+}
+
+export type AzureDevOpsFeedbackWorktreeResult =
+  | {
+      ok: true
+      worktree: AzureDevOpsFeedbackWorktreeInfo
+      created: boolean
+      /** Pi extension with the review tools, for `--extension`; absent when it could not be written. */
+      piExtensionPath?: string
+    }
+  | {
+      ok: false
+      reason: 'fork' | 'closed' | 'git-failed'
+      message: string
+    }

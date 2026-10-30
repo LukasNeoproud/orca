@@ -5,23 +5,9 @@ import { CommentMarkdownAsync } from '@/components/sidebar/comment-markdown-lazy
 import { translate } from '@/i18n/i18n'
 import { formatUiRelativeTimeFromDate } from '@/i18n/relative-time-format'
 import { cn } from '@/lib/utils'
-import type {
-  AzureDevOpsReviewDetail,
-  AzureDevOpsReviewThread
-} from '../../../../shared/azure-devops-review-types'
+import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
-import { threadStatusLabel } from './azure-devops-review-labels'
-
-function threadLocation(thread: AzureDevOpsReviewThread): string | null {
-  if (!thread.filePath) {
-    return null
-  }
-  if (!thread.anchor) {
-    return thread.filePath
-  }
-  const { startLine, endLine } = thread.anchor
-  return `${thread.filePath}:${startLine === endLine ? startLine : `${startLine}–${endLine}`}`
-}
+import { threadLocationLabel, threadStatusLabel } from './azure-devops-review-labels'
 
 export function AzureDevOpsReviewThreads({
   detail,
@@ -50,7 +36,7 @@ export function AzureDevOpsReviewThreads({
   return (
     <ul className="space-y-3">
       {threads.map((thread) => {
-        const location = threadLocation(thread)
+        const location = threadLocationLabel(thread)
         return (
           <li key={thread.id} className="rounded-md border border-border">
             <div className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs">

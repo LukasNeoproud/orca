@@ -752,6 +752,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'azureDevOpsReview.fileDiff': AzureDevOpsReviewFileDiffParams,
   'azureDevOpsReview.get': AzureDevOpsReviewKeyParams,
   'azureDevOpsReview.list': AzureDevOpsReviewListParams,
+  'azureDevOpsReview.openFeedbackWorktree': AzureDevOpsReviewKeyParams,
   'azureDevOpsReview.openWorktree': AzureDevOpsReviewOpenWorktreeParams,
   'azureDevOpsReview.publishDrafts': AzureDevOpsReviewPublishParams,
   'azureDevOpsReview.repos': null,
