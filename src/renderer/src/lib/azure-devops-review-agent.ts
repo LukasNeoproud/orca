@@ -20,10 +20,17 @@ import {
   type AzureDevOpsReviewOptions
 } from '../../../shared/azure-devops-review-options'
 
+/** A review worktree as the launch needs it; `piExtensionPath` comes from opening the worktree. */
+type AzureDevOpsReviewAgentWorktree = {
+  worktreeId: string
+  repoId: string
+  piExtensionPath?: string
+}
+
 /** Launches the default agent in the review worktree with the review prompt, or `prompt` instead. */
 export async function startAzureDevOpsReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
-  worktree: { worktreeId: string; repoId: string },
+  worktree: AzureDevOpsReviewAgentWorktree,
   options?: AzureDevOpsReviewOptions,
   prompt?: string
 ): Promise<boolean> {
@@ -33,7 +40,7 @@ export async function startAzureDevOpsReviewAgent(
 /** Like startAzureDevOpsReviewAgent, but leaves the user where they are; resolves to the agent's tab. */
 export function startAzureDevOpsReviewAgentInBackground(
   pullRequest: AzureDevOpsReviewPullRequest,
-  worktree: { worktreeId: string; repoId: string },
+  worktree: AzureDevOpsReviewAgentWorktree,
   options: AzureDevOpsReviewOptions,
   prompt?: string
 ): Promise<ReviewAgentLaunch | null> {
@@ -45,7 +52,7 @@ export type ReviewAgentLaunch = { tabId: string | null; launchedAt: number }
 
 async function launchReviewAgent(
   pullRequest: AzureDevOpsReviewPullRequest,
-  worktree: { worktreeId: string; repoId: string },
+  worktree: AzureDevOpsReviewAgentWorktree,
   options: AzureDevOpsReviewOptions | undefined,
   prompt: string | undefined,
   background: boolean
@@ -73,12 +80,13 @@ async function launchReviewAgent(
   }
   const cli = orcaLaunchCliCommand(CLIENT_PLATFORM, import.meta.env.DEV)
   const reviewOptions = normalizeAzureDevOpsReviewOptions(options)
-  const { agentArgs, mcp } = azureDevOpsReviewAgentLaunchArgs({
+  const { agentArgs, tools } = azureDevOpsReviewAgentLaunchArgs({
     agent,
     platform: CLIENT_PLATFORM,
     cli,
     settings: store.settings ?? null,
-    options: reviewOptions
+    options: reviewOptions,
+    piExtensionPath: worktree.piExtensionPath
   })
   const tabsBeforeLaunch = reviewTabIds(useAppStore.getState(), worktreeId)
   const result = launchAgentInNewTab({
@@ -97,7 +105,9 @@ async function launchReviewAgent(
     worktreeId,
     groupId: worktreeId,
     agentArgs,
-    prompt: prompt ?? buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, mcp }, reviewOptions),
+    prompt:
+      prompt ??
+      buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli, access: tools }, reviewOptions),
     promptDelivery: 'submit-after-ready',
     launchSource: 'task_page'
   })

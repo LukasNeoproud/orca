@@ -63,7 +63,7 @@ describe('azureDevOpsReviewMcpAgentArgs', () => {
 
 describe('buildAzureDevOpsReviewAgentPrompt', () => {
   it('diffs an active PR against its target branch and a completed one against its last target commit', () => {
-    const tools = { cli: 'orca', mcp: true }
+    const tools = { cli: 'orca', access: 'mcp' as const }
     expect(buildAzureDevOpsReviewAgentPrompt(pullRequest, tools)).toContain(
       '`git diff origin/main...HEAD`'
     )
@@ -79,7 +79,10 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
   })
 
   it('points MCP-enabled agents at the ado tools with a CLI fallback', () => {
-    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', mcp: true })
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, {
+      cli: 'orca-dev',
+      access: 'mcp'
+    })
     expect(prompt).toContain('`ado_get_pull_request`')
     expect(prompt).toContain('`ado_create_draft`')
     expect(prompt).toContain('`mcp__orca_ado__ado_get_pull_request`')
@@ -89,8 +92,25 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
     )
   })
 
+  it("points Pi at Orca's native review tools with a CLI fallback", () => {
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, {
+      cli: 'orca-dev',
+      access: 'pi-tools'
+    })
+    expect(prompt).toContain(
+      '`ado_get_pull_request` (pullRequestKey `dev.azure.com/contoso+repo+7`)'
+    )
+    expect(prompt).toContain('`ado_create_draft`')
+    expect(prompt).not.toContain('mcp__')
+    expect(prompt).toContain('switch to the CLI at once')
+    expect(prompt).toContain('`orca-dev ado draft update <id> --body-file -`')
+  })
+
   it('uses the given CLI for every Orca command without MCP', () => {
-    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', mcp: false })
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, {
+      cli: 'orca-dev',
+      access: 'cli'
+    })
     expect(prompt).toContain('`orca-dev ado pr dev.azure.com/contoso+repo+7 --json`')
     expect(prompt).toContain(
       '`orca-dev ado draft create --pr dev.azure.com/contoso+repo+7 --kind reply --thread <id> --body-file -`'
@@ -101,11 +121,14 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
   })
 
   it('asks the agent to review the change against the PR description', () => {
-    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca', mcp: true })
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, {
+      cli: 'orca',
+      access: 'mcp' as const
+    })
     expect(prompt).toContain('Read the PR description before the code')
     const bare = buildAzureDevOpsReviewAgentPrompt(
       { ...pullRequest, description: ' ' },
-      { cli: 'orca', mcp: true }
+      { cli: 'orca', access: 'mcp' as const }
     )
     expect(bare).toContain('The PR has no description')
   })

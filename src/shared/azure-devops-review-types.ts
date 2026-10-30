@@ -269,7 +269,13 @@ export type AzureDevOpsReviewPublishResult = {
 }
 
 export type AzureDevOpsReviewWorktreeResult =
-  | { ok: true; worktree: AzureDevOpsReviewWorktreeInfo; created: boolean }
+  | {
+      ok: true
+      worktree: AzureDevOpsReviewWorktreeInfo
+      created: boolean
+      /** Pi extension with the review tools, for `--extension`; absent when it could not be written. */
+      piExtensionPath?: string
+    }
   | {
       ok: false
       reason: 'fork' | 'no-local-repo' | 'dirty' | 'busy' | 'git-failed'
@@ -288,9 +294,11 @@ export function azureDevOpsPullRequestKey(
   return [organizationKey, repositoryId.toLowerCase(), pullRequestId].join(KEY_SEPARATOR)
 }
 
-export function parseAzureDevOpsPullRequestKey(
-  key: string
-): { organizationKey: string; repositoryId: string; pullRequestId: number } | null {
+export function parseAzureDevOpsPullRequestKey(key: string): {
+  organizationKey: string
+  repositoryId: string
+  pullRequestId: number
+} | null {
   const idIndex = key.lastIndexOf(KEY_SEPARATOR)
   const repoIndex = idIndex > 0 ? key.lastIndexOf(KEY_SEPARATOR, idIndex - 1) : -1
   if (repoIndex <= 0) {

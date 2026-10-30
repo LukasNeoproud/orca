@@ -31,6 +31,7 @@ import {
   type AzureDevOpsReviewWorktreeHost
 } from '../../../azure-devops/review/azure-devops-review-worktree'
 import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure-devops-review-file-diff'
+import { ensureAzureDevOpsReviewPiExtension } from '../../../azure-devops/review/azure-devops-review-pi-extension'
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
 import { mapAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-mappers'
 
@@ -167,12 +168,14 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
       if (!pullRequest) {
         throw new Error('Azure DevOps returned an unreadable pull request.')
       }
-      return openAzureDevOpsReviewWorktree({
+      const result = await openAzureDevOpsReviewWorktree({
         host: reviewWorktreeHost(runtime),
         source: resolved.source,
         pullRequest,
         discardChanges: params.discardChanges === true
       })
+      const piExtensionPath = result.ok ? ensureAzureDevOpsReviewPiExtension() : null
+      return piExtensionPath ? { ...result, piExtensionPath } : result
     }
   }),
   defineMethod({

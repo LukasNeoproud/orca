@@ -12,7 +12,7 @@ import type { AzureDevOpsReviewWorktreeInfo } from '../../../shared/azure-devops
 export async function switchAzureDevOpsReviewWorktree(
   pullRequestKey: string,
   confirm: ConfirmationDialogContextValue
-): Promise<AzureDevOpsReviewWorktreeInfo | null> {
+): Promise<(AzureDevOpsReviewWorktreeInfo & { piExtensionPath?: string }) | null> {
   let result = await openAzureDevOpsReviewWorktree(pullRequestKey)
   if (!result.ok && result.reason === 'dirty') {
     const discard = await confirm({
@@ -36,5 +36,5 @@ export async function switchAzureDevOpsReviewWorktree(
   useAzureDevOpsReviewChatLinks
     .getState()
     .setWorktreePullRequest(result.worktree.worktreeId, result.worktree.pullRequestKey)
-  return result.worktree
+  return { ...result.worktree, piExtensionPath: result.piExtensionPath }
 }

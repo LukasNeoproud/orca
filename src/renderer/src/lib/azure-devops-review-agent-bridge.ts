@@ -71,7 +71,7 @@ export async function runAzureDevOpsReviewAgentRequest(
       : (request.options ?? readAzureDevOpsReviewOptions())
   const launch = await startAzureDevOpsReviewAgentInBackground(
     detail.pullRequest,
-    opened.worktree,
+    { ...opened.worktree, piExtensionPath: opened.piExtensionPath },
     options,
     prompt
   )
