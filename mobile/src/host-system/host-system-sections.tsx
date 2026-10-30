@@ -1,10 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Thermometer } from 'lucide-react-native'
 import type {
   HostDiskVolume,
   HostSwitchablePowerMode,
   HostSystemSnapshot
 } from '../../../src/shared/host-system-types'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { HostBatteryGlyph } from './host-battery-glyph'
 import {
   DISK_LEVEL_COLORS,
   formatBytes,
@@ -22,17 +24,17 @@ export function HostStatusCard({ snapshot }: { snapshot: HostSystemSnapshot }) {
     <View style={styles.card}>
       <View style={styles.row}>
         <Text style={styles.label}>Battery</Text>
-        <Text style={styles.value}>
-          {snapshot.battery
-            ? `${snapshot.battery.percent}%${snapshot.battery.charging ? ' · charging' : ''}`
-            : 'No battery'}
-        </Text>
+        {snapshot.battery ? (
+          <HostBatteryGlyph battery={snapshot.battery} />
+        ) : (
+          <Text style={styles.value}>No battery</Text>
+        )}
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Temperature</Text>
         {thermal ? (
           <View style={styles.inline}>
-            <View style={[styles.dot, { backgroundColor: THERMAL_COLORS[thermal] }]} />
+            <Thermometer size={16} color={THERMAL_COLORS[thermal]} />
             <Text style={styles.value}>{THERMAL_LABELS[thermal]}</Text>
           </View>
         ) : (
@@ -147,7 +149,6 @@ const styles = StyleSheet.create({
   ...hostSystemStyles,
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   label: { color: colors.textSecondary, fontSize: typography.bodySize },
   value: { color: colors.textPrimary, fontSize: typography.bodySize },
   segment: {
