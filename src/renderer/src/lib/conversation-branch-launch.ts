@@ -20,11 +20,12 @@ import { structuredAgentSessionTabId } from '../../../shared/structured-agent-se
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 /** Opens a Claude chat on `providerSessionId` (a fresh one when null) with `prompt` unsent. */
-function openBranchChat(args: {
+export function openBranchChat(args: {
   worktreeId: string
   providerSessionId: string | null
   prompt: string
-  label: string
+  /** The tab's title; a reopened member keeps its own. */
+  label?: string
 }): Promise<string> {
   const plan = adoptAgentSessionLaunchVerdict({
     route: 'structured-native-chat',
@@ -45,11 +46,13 @@ function openBranchChat(args: {
   return launch.settlement.then((settlement: StructuredAgentLaunchSettlement) => {
     if (settlement.kind === 'structured' || settlement.kind === 'visibility-unknown') {
       // Two branches of one review would otherwise both read "Claude Chat".
-      useAppStore
-        .getState()
-        .setTabCustomTitle(structuredAgentSessionTabId(settlement.sessionId), args.label, {
-          recordInteraction: false
-        })
+      if (args.label) {
+        useAppStore
+          .getState()
+          .setTabCustomTitle(structuredAgentSessionTabId(settlement.sessionId), args.label, {
+            recordInteraction: false
+          })
+      }
       if (settlement.sessionId !== draftedFor) {
         appendNativeChatDraftCache(
           structuredAgentSessionDraftScopeKey(settlement.sessionId),

@@ -1,4 +1,4 @@
-import { useMemo, type Dispatch, type SetStateAction } from 'react'
+import { useContext, useMemo, type Dispatch, type SetStateAction } from 'react'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { useStructuredAgentAcceptsImages } from '@/runtime/use-host-structured-agent'
 import type {
@@ -7,6 +7,7 @@ import type {
 } from './native-chat-composer-types'
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import type { useStructuredAgentSession } from './use-structured-agent-session'
+import { NativeChatBranchContext } from './native-chat-branch-context'
 import type { StructuredAgentSessionQueuedMessagesController } from './use-structured-agent-session-queued-messages'
 
 /** What the composer of a structured chat sends, picks and runs through, from the chat's controller. */
@@ -35,23 +36,27 @@ export function useNativeChatStructuredComposerTransport(args: {
     props.agent,
     controller.acceptsImages
   )
+  const guardSend = useContext(NativeChatBranchContext)?.guardSend
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal
     const setThreadGoalObjective = threadGoal
       ? (objective: string) => threadGoal.change({ kind: 'set', objective })
       : null
     return {
-      send: (text, attachments) =>
-        sendThroughLaunch(text, attachments.length > 0, () =>
-          controller.send(
-            text,
-            attachments.map(({ path, connectionId }) => ({
-              path,
-              previewUri: path,
-              ...(connectionId ? { connectionId } : {})
-            }))
+      send: (text, attachments) => {
+        const send = (): boolean | 'queued' =>
+          sendThroughLaunch(text, attachments.length > 0, () =>
+            controller.send(
+              text,
+              attachments.map(({ path, connectionId }) => ({
+                path,
+                previewUri: path,
+                ...(connectionId ? { connectionId } : {})
+              }))
+            )
           )
-        ),
+        return guardSend ? guardSend(text, send) : send()
+      },
       dispatchCommand: (text: string) =>
         dispatchStructuredAgentSessionComposerCommand(text, {
           agent: props.agent,
@@ -87,6 +92,7 @@ export function useNativeChatStructuredComposerTransport(args: {
   }, [
     acceptsImages,
     controller,
+    guardSend,
     worktreeId,
     onError,
     onSubmitted,

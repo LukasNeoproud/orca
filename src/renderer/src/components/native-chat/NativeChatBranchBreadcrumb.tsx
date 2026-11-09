@@ -1,36 +1,21 @@
-import { useMemo, useSyncExternalStore } from 'react'
-import { CornerUpLeft, GitBranch } from 'lucide-react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import { CornerUpLeft, GitBranch, ListTree } from 'lucide-react'
+import { toast } from 'sonner'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { translate } from '@/i18n/i18n'
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
-import { revealStructuredSession } from '@/lib/activate-ai-vault-structured-session'
+import { openConversationBranchMember } from '@/lib/conversation-branch-members'
+import { conversationBranchChat } from '../../../../shared/conversation-branch-relatives'
 import { getStructuredAgentSessionStatusFeed } from '@/runtime/structured-agent-session-status-feed'
-import {
-  conversationBranchOf,
-  type ConversationBranchRecord
-} from '../../../../shared/conversation-branch'
+import { conversationBranchOf } from '../../../../shared/conversation-branch'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
+import { ConversationBranchFamilyPanel } from '../conversation-branch/ConversationBranchFamilyPanel'
+import { conversationBranchErrorText } from '../conversation-branch/conversation-branch-error-text'
 import { useConversationBranches } from '../conversation-branch/use-conversation-branches'
 import { useStructuredAgentSessionStatusSummary } from './StructuredAgentSessionStatusBridge'
-import { requestNativeChatRailJump } from './native-chat-requested-rail-jump'
 
-/** Opens the chat the branch started from and scrolls it to the prompt of the forked turn. */
-async function returnToBranchPoint(
-  branch: ConversationBranchRecord,
-  worktreeId: string,
-  target: RuntimeClientTarget
-): Promise<void> {
-  const parentSessionId = branch.parent.structuredSessionId
-  if (!parentSessionId) {
-    return
-  }
-  if (branch.parent.turnItemId) {
-    requestNativeChatRailJump(branch.parent.turnItemId)
-  }
-  if (!activateStructuredAgentSessionById({ worktreeId, sessionId: parentSessionId, target })) {
-    await revealStructuredSession({ worktreeId, sessionId: parentSessionId, target })
-  }
-}
+const ACTION_CLASS =
+  'flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 /** "Branch of …": shown in a chat that was branched from another, with the way back. */
 export function NativeChatBranchBreadcrumb({
@@ -47,15 +32,24 @@ export function NativeChatBranchBreadcrumb({
       ?.providerSession?.id ?? null
   const branch = providerSessionId ? conversationBranchOf(branches, providerSessionId) : null
   const feed = useMemo(() => getStructuredAgentSessionStatusFeed(session.target), [session.target])
-  const parentName = useSyncExternalStore(feed.subscribe, () =>
-    branch?.parent.structuredSessionId
-      ? (feed.getSnapshot().get(branch.parent.structuredSessionId)?.conversationName ?? null)
-      : null
-  )
-  if (!branch || !claudeWorktreeId) {
+  const snapshot = useSyncExternalStore(feed.subscribe, feed.getSnapshot)
+  const [familyOpen, setFamilyOpen] = useState(false)
+  if (!branch || !claudeWorktreeId || !providerSessionId) {
     return null
   }
-  const canReturn = Boolean(branch.parent.structuredSessionId)
+  const parentId = branch.parent.providerSessionId
+  const parentName =
+    conversationBranchOf(branches, parentId)?.label ??
+    conversationBranchChat(snapshot, parentId)?.conversationName ??
+    branch.parent.excerpt
+  const returnToBranchPoint = (): void => {
+    openConversationBranchMember({
+      target: session.target,
+      worktreeId: claudeWorktreeId,
+      providerSessionId: parentId,
+      ...(branch.parent.turnItemId ? { jumpToItemId: branch.parent.turnItemId } : {})
+    }).catch((error: unknown) => toast.error(conversationBranchErrorText(error)))
+  }
   return (
     <div
       data-native-chat-find-skip
@@ -65,19 +59,32 @@ export function NativeChatBranchBreadcrumb({
       <span className="min-w-0 truncate" title={branch.parent.excerpt}>
         {translate('conversationBranch.breadcrumb', '{{value0}} · branch of {{value1}}', {
           value0: branch.label,
-          value1: parentName ?? branch.parent.excerpt
+          value1: parentName
         })}
       </span>
-      {canReturn ? (
-        <button
-          type="button"
-          onClick={() => void returnToBranchPoint(branch, claudeWorktreeId, session.target)}
-          className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
+      <span className="ml-auto flex shrink-0 items-center gap-1">
+        <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
+          <PopoverTrigger asChild>
+            <button type="button" className={ACTION_CLASS}>
+              <ListTree className="size-3.5" />
+              {translate('conversationBranch.familyButton', 'Family')}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80">
+            <ConversationBranchFamilyPanel
+              branches={branches}
+              providerSessionId={providerSessionId}
+              target={session.target}
+              worktreeId={claudeWorktreeId}
+              onOpened={() => setFamilyOpen(false)}
+            />
+          </PopoverContent>
+        </Popover>
+        <button type="button" onClick={returnToBranchPoint} className={ACTION_CLASS}>
           <CornerUpLeft className="size-3.5" />
           {translate('conversationBranch.backToBranchPoint', 'Back to branch point')}
         </button>
-      ) : null}
+      </span>
     </div>
   )
 }

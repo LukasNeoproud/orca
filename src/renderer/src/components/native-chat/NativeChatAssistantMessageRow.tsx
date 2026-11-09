@@ -1,6 +1,7 @@
 import { useContext } from 'react'
 import { cn } from '@/lib/utils'
 import { NativeChatBranchContext } from './native-chat-branch-context'
+import { NativeChatBranchPointChip } from './NativeChatBranchPointChip'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { deriveNativeChatRowContent } from '../../../../shared/native-chat-row-content'
 import type { MessageRowProps } from './NativeChatMessageRow'
@@ -110,6 +111,7 @@ export function NativeChatAssistantMessageRow({
         />
       ) : null}
       {toolRun ? <NativeChatToolRun {...toolRun} /> : null}
+      {showControls && onBranch ? <NativeChatBranchPointChip messageId={message.id} /> : null}
       {showControls ? (
         <NativeChatAgentControls
           markdown={words}

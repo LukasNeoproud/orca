@@ -57,6 +57,8 @@ test('branches a Claude chat after a review reply and returns to the branch poin
 }, testInfo) => {
   test.skip(process.env.ORCA_E2E_CONVERSATION_BRANCH !== '1', 'needs the claude CLI on PATH')
   test.setTimeout(240_000)
+  // A hidden window does not run the popovers' entry animation; without one they draw settled.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await waitForSessionReady(page)
   await waitForActiveWorktree(page)
   await ensureTerminalVisible(page)
@@ -117,13 +119,21 @@ test('branches a Claude chat after a review reply and returns to the branch poin
   await expect(page.getByText('Fix the parser', { exact: true }).first()).toBeVisible()
   await shoot(page, testInfo, '03-branch-chat')
 
+  await page.getByRole('button', { name: 'Family' }).click()
+  await expect(page.getByRole('group', { name: 'Conversation family' })).toBeVisible()
+  await shoot(page, testInfo, '04-family-from-branch')
+  await page.getByRole('button', { name: 'Family' }).click()
+  await expect(page.getByRole('group', { name: 'Conversation family' })).toHaveCount(0)
+
   await page.getByRole('button', { name: 'Back to branch point' }).click()
-  await expect(
-    page
-      .locator('[data-native-chat-root="true"]:visible')
-      .getByText('Nothing else stood out.', { exact: true })
-  ).toBeVisible({
+  const parent = page.locator('[data-native-chat-root="true"]:visible')
+  await expect(parent.getByText('Nothing else stood out.', { exact: true })).toBeVisible({
     timeout: 30_000
   })
-  await shoot(page, testInfo, '04-back-at-branch-point')
+  await parent.getByRole('button', { name: '1 branch' }).click()
+  const family = page.getByRole('group', { name: 'Conversation family' })
+  await expect(family.getByText('Fix the parser')).toBeVisible()
+  await shoot(page, testInfo, '05-branch-point-chip')
+  await family.getByText('Fix the parser').click()
+  await expect(page.getByText(/Fix the parser · branch of/)).toBeVisible({ timeout: 30_000 })
 })
