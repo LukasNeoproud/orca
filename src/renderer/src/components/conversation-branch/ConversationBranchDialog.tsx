@@ -21,7 +21,7 @@ import {
 import {
   defaultCleanBranchPrompt,
   defaultConversationBranchLabel
-} from './conversation-branch-dialog-defaults'
+} from '../../../../shared/conversation-branch-defaults'
 import { conversationBranchErrorText } from './conversation-branch-error-text'
 import { ConversationBranchModeField } from './ConversationBranchModeField'
 

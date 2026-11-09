@@ -18,10 +18,6 @@ import { conversationBranchChat } from '../../../shared/conversation-branch-rela
 import type { ConversationBranchRecord } from '../../../shared/conversation-branch'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
-export function conversationBranchReturnDraft(label: string, reply: string): string {
-  return `Result of the branch "${label}":\n\n${reply.trim()}`
-}
-
 /** A parent running in a terminal gets the result pasted unsent; a closed one reopens with it. */
 async function returnOutsideChat(
   worktreeId: string,

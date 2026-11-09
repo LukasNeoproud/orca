@@ -5,6 +5,7 @@ import { MobilePersistentEmulatorPanes } from './MobilePersistentEmulatorPanes'
 import { MobileMarkdownLinkHandlerProvider } from '../components/mobile-markdown-link-handlers'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
+import { MobileConversationBranchProvider } from './MobileConversationBranchProvider'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -244,22 +245,34 @@ export function MobileSessionActiveContent({
           onShowLinkActions: handleNativeChatLinkActions
         }}
       >
-        <MobileNativeChatOverlay
-          controller={nativeChatController}
-          onOpenFile={handleNativeChatFileTap}
-          images={nativeChatImages}
-          onMicPress={handleDictationToggle}
-          micActive={dictation.isRecording}
-          dictationMode={dictationMode}
-          onMicPressIn={handleDictationPressIn}
-          onMicPressOut={handleDictationPressOut}
-          inputLockReason={nativeChatOverlayInputLockReason}
-          sendErrorMessage={nativeChatSendError.message}
-          onClearSendError={nativeChatSendError.clear}
-          sendSurfaceId={controller.nativeChatScopeKey ?? ''}
-          getSendCompletionGeneration={controller.getSendCompletionGeneration}
-          keyboardInset={keyboardLift}
-        />
+        <MobileConversationBranchProvider
+          client={client}
+          hostId={controller.hostId}
+          worktreeId={worktreeId}
+          supported={controller.agentSessionHostSupport?.branches === true}
+          chat={
+            controller.activeSessionTab?.type === 'agent-session'
+              ? controller.activeSessionTab
+              : null
+          }
+        >
+          <MobileNativeChatOverlay
+            controller={nativeChatController}
+            onOpenFile={handleNativeChatFileTap}
+            images={nativeChatImages}
+            onMicPress={handleDictationToggle}
+            micActive={dictation.isRecording}
+            dictationMode={dictationMode}
+            onMicPressIn={handleDictationPressIn}
+            onMicPressOut={handleDictationPressOut}
+            inputLockReason={nativeChatOverlayInputLockReason}
+            sendErrorMessage={nativeChatSendError.message}
+            onClearSendError={nativeChatSendError.clear}
+            sendSurfaceId={controller.nativeChatScopeKey ?? ''}
+            getSendCompletionGeneration={controller.getSendCompletionGeneration}
+            keyboardInset={keyboardLift}
+          />
+        </MobileConversationBranchProvider>
       </MobileMarkdownLinkHandlerProvider>
       {toastMessage && (
         <Animated.View pointerEvents="none" style={[styles.toast, toastAnimatedStyle]}>

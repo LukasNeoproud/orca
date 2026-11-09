@@ -5,7 +5,7 @@ import {
   defaultFindingBranchFocus,
   defaultFindingBranchLabel,
   defaultFindingBranchPrompt
-} from './conversation-branch-dialog-defaults'
+} from './conversation-branch-defaults'
 
 describe('defaultConversationBranchLabel', () => {
   it('takes the first prose line without markdown markers', () => {

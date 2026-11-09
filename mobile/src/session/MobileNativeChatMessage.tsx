@@ -211,6 +211,11 @@ function MobileNativeChatMessageImpl({
   const onCommentQuote = useMobileNativeChatResponseComments()?.onCommentQuote
   const commentQuote =
     message.role === 'user' || message.id === 'streaming' ? undefined : onCommentQuote
+  // A finished reply, not one still streaming: a branch starts after its turn.
+  const branchable =
+    message.role === 'assistant' &&
+    message.id !== 'streaming' &&
+    !(mayStillGrow && activeTurnIsWorking === true)
   const renderVisual = useContext(MobileNativeChatVisualContext) ?? undefined
   // Structured replies grow in place: only the last block of the newest row may still be typing.
   const growingBlock =
@@ -320,6 +325,7 @@ function MobileNativeChatMessageImpl({
           message={message}
           onClose={() => setActionsOpen(false)}
           onCommentQuote={commentQuote}
+          branchable={branchable}
         />
       ) : null}
       {turnStatusAbove ? null : statusRow}

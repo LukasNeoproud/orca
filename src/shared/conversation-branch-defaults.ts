@@ -2,8 +2,8 @@ import {
   CONVERSATION_BRANCH_FOCUS_MAX,
   CONVERSATION_BRANCH_LABEL_MAX,
   type ConversationBranchMode
-} from '../../../../shared/conversation-branch'
-import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
+} from './conversation-branch'
+import type { ConversationBranchFinding } from './conversation-branch-findings'
 
 const CLEAN_CONTEXT_MAX = 4_000
 

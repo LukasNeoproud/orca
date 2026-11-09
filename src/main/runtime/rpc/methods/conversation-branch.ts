@@ -32,9 +32,13 @@ export const CONVERSATION_BRANCH_METHODS = [
     name: 'conversationBranch.list',
     permission: 'workspace',
     params: ConversationBranchListParams,
-    handler: async (params, ctx): Promise<ConversationBranchListResult> => ({
-      branches: await (await requireService(ctx)).list(params.worktreeId)
-    })
+    handler: async (params, ctx): Promise<ConversationBranchListResult> => {
+      const service = await requireService(ctx)
+      return {
+        branches: await service.list(params.worktreeId),
+        chats: service.chats(params.worktreeId)
+      }
+    }
   }),
   defineMethod({
     name: 'conversationBranch.outline',

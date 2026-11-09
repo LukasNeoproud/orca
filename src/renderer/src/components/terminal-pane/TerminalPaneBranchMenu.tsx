@@ -18,10 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { translate } from '@/i18n/i18n'
 import { structuredAgentSessionLaunchFeasible } from '@/lib/agent-session-launch-plan'
 import { workspaceKindForWorktreeId } from '@/lib/agent-launch-route-input'
-import {
-  conversationBranchReturnDraft,
-  returnConversationBranchResult
-} from '@/lib/conversation-branch-return'
+import { returnConversationBranchResult } from '@/lib/conversation-branch-return'
 import {
   listConversationBranches,
   readConversationBranchOutline,
@@ -34,6 +31,7 @@ import {
 import { useAppStore } from '@/store'
 import {
   conversationBranchOf,
+  conversationBranchReturnDraft,
   type ConversationBranchRecord
 } from '../../../../shared/conversation-branch'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'

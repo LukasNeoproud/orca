@@ -10,7 +10,15 @@ import {
   View
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Copy, MessageSquareQuote, TextSelect, X } from 'lucide-react-native'
+import {
+  Copy,
+  GitBranch,
+  ListTree,
+  MessageSquareQuote,
+  Reply,
+  TextSelect,
+  X
+} from 'lucide-react-native'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { ActionSheetContent } from '../components/ActionSheetModal'
 import { BottomDrawer } from '../components/BottomDrawer'
@@ -19,6 +27,10 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { nativeChatMessagePlainText } from './mobile-native-chat-message-plain-text'
 import { nativeChatCommentableText } from './mobile-native-chat-message-text'
 import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
+import {
+  useMobileConversationBranching,
+  type MobileConversationBranching
+} from './mobile-conversation-branch-context'
 
 type Props = {
   /** The long-pressed message. The owner mounts this only while the sheet is open. */
@@ -26,13 +38,48 @@ type Props = {
   onClose: () => void
   /** Quotes a selected range of an agent reply into a response comment. */
   onCommentQuote?: (quote: string) => void
+  /** A finished agent reply: a conversation can branch after it or hand it back. */
+  branchable?: boolean
+}
+
+type BranchAction = 'branch' | 'return' | 'family'
+
+function branchActions(
+  branching: MobileConversationBranching | null,
+  branchable: boolean,
+  request: (action: BranchAction) => void
+) {
+  if (!branching) {
+    return []
+  }
+  return [
+    ...(branchable
+      ? [{ label: 'Branch from here', icon: GitBranch, onPress: () => request('branch') }]
+      : []),
+    ...(branchable && branching.returnFrom
+      ? [
+          {
+            label: 'Return result to the branch point',
+            icon: Reply,
+            onPress: () => request('return')
+          }
+        ]
+      : []),
+    ...(branching.openFamily
+      ? [{ label: 'Conversation family', icon: ListTree, onPress: () => request('family') }]
+      : [])
+  ]
 }
 
 export function MobileNativeChatMessageActionsSheet({
   message,
   onClose,
-  onCommentQuote
+  onCommentQuote,
+  branchable = false
 }: Props): React.JSX.Element {
+  const branching = useMobileConversationBranching()
+  // The branch drawers are modals too, so they open once this drawer has unmounted.
+  const branchRequested = useRef<BranchAction | null>(null)
   const clipboard = useClipboardWriter()
   const [sheetVisible, setSheetVisible] = useState(true)
   const [selecting, setSelecting] = useState(false)
@@ -50,13 +97,16 @@ export function MobileNativeChatMessageActionsSheet({
       <BottomDrawer
         visible={sheetVisible}
         onClose={closeSheet}
-        onAfterClose={() =>
-          selectRequested.current
-            ? setSelecting(true)
-            : commentRequested.current
-              ? setCommenting(true)
-              : onClose()
-        }
+        onAfterClose={() => {
+          if (selectRequested.current) {
+            setSelecting(true)
+          } else if (commentRequested.current) {
+            setCommenting(true)
+          } else {
+            onClose()
+            runBranchAction(branching, branchRequested.current, message)
+          }
+        }}
         dragContentToDismiss
       >
         <ActionSheetContent
@@ -93,7 +143,10 @@ export function MobileNativeChatMessageActionsSheet({
                     }
                   }
                 ]
-              : [])
+              : []),
+            ...branchActions(branching, branchable, (action) => {
+              branchRequested.current = action
+            })
           ]}
         />
       </BottomDrawer>
@@ -110,6 +163,20 @@ export function MobileNativeChatMessageActionsSheet({
       ) : null}
     </>
   )
+}
+
+function runBranchAction(
+  branching: MobileConversationBranching | null,
+  action: BranchAction | null,
+  message: NativeChatMessage
+): void {
+  if (action === 'branch') {
+    branching?.branchFrom(message)
+  } else if (action === 'return') {
+    branching?.returnFrom?.(message)
+  } else if (action === 'family') {
+    branching?.openFamily?.()
+  }
 }
 
 function SelectTextScreen({

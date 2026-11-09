@@ -25,7 +25,8 @@ export function conversationBranchFamily(
 ): ConversationBranchFamily {
   const rootProviderSessionId = conversationBranchRoot(branches, providerSessionId)
   const byParent = new Map<string, Map<string, ConversationBranchPoint>>()
-  for (const branch of branches.toSorted((left, right) => left.createdAt - right.createdAt)) {
+  // A spread copy, not toSorted: Hermes on the phone has none.
+  for (const branch of [...branches].sort((left, right) => left.createdAt - right.createdAt)) {
     const points = byParent.get(branch.parent.providerSessionId) ?? new Map()
     byParent.set(branch.parent.providerSessionId, points)
     const key = `${branch.parent.providerSessionId}\n${branch.parent.boundaryUuid}`

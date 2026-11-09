@@ -93,7 +93,14 @@ export type ConversationBranchOutline = {
   lastReply?: string
 }
 export type ConversationBranchPrepareResult = { branch: ConversationBranchRecord }
-export type ConversationBranchListResult = { branches: ConversationBranchRecord[] }
+/** A Claude chat on the host and the conversation it runs, for clients that cannot read the
+ *  chat's Claude id themselves (the phone). */
+export type ConversationBranchChat = { sessionId: string; providerSessionId: string }
+export type ConversationBranchListResult = {
+  branches: ConversationBranchRecord[]
+  /** Absent from hosts that predate it. */
+  chats?: ConversationBranchChat[]
+}
 
 /** Refusal codes a client maps to copy; anything else is shown as a generic failure. */
 export const CONVERSATION_BRANCH_ERRORS = [
@@ -117,9 +124,12 @@ export function conversationBranchChildren(
   branches: readonly ConversationBranchRecord[],
   providerSessionId: string
 ): ConversationBranchRecord[] {
-  return branches
-    .filter((branch) => branch.parent.providerSessionId === providerSessionId)
-    .toSorted((left, right) => left.createdAt - right.createdAt)
+  return (
+    branches
+      .filter((branch) => branch.parent.providerSessionId === providerSessionId)
+      // filter() made a copy; Hermes on the phone has no toSorted.
+      .sort((left, right) => left.createdAt - right.createdAt)
+  )
 }
 
 /** The branch whose child is `providerSessionId`, if it is one. */
@@ -144,4 +154,9 @@ export function conversationBranchRoot(
     cursor = branch.parent.providerSessionId
   }
   return cursor
+}
+
+/** What a branch hands back: its reply under a line naming the branch. */
+export function conversationBranchReturnDraft(label: string, reply: string): string {
+  return `Result of the branch "${label}":\n\n${reply.trim()}`
 }

@@ -294,3 +294,14 @@ describe('ConversationBranchService.prepare', () => {
 function transcriptPath(): string {
   return transcriptFile()
 }
+
+describe('ConversationBranchService.chats', () => {
+  it('names the Claude conversation of each chat in the workspace, skipping unknown ones', () => {
+    const { branches } = service({
+      listChatSessionIds: (workspaceId) => (workspaceId === 'wt-1' ? ['s1', 'gone'] : []),
+      chatProviderSessionId: (sessionId) => (sessionId === 's1' ? 'claude-1' : null)
+    })
+    expect(branches.chats('wt-1')).toEqual([{ sessionId: 's1', providerSessionId: 'claude-1' }])
+    expect(branches.chats('wt-2')).toEqual([])
+  })
+})

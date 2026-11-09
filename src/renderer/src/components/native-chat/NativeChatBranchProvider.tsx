@@ -10,11 +10,11 @@ import {
 import { ConversationBranchDialog } from '../conversation-branch/ConversationBranchDialog'
 import { ConversationBranchBatchDialog } from '../conversation-branch/ConversationBranchBatchDialog'
 import { ConversationBranchReturnDialog } from '../conversation-branch/ConversationBranchReturnDialog'
+import { returnConversationBranchResult } from '@/lib/conversation-branch-return'
 import {
-  conversationBranchReturnDraft,
-  returnConversationBranchResult
-} from '@/lib/conversation-branch-return'
-import { conversationBranchOf } from '../../../../shared/conversation-branch'
+  conversationBranchOf,
+  conversationBranchReturnDraft
+} from '../../../../shared/conversation-branch'
 import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
 import { ConversationBranchSendGuardDialog } from '../conversation-branch/ConversationBranchSendGuardDialog'
 import { useConversationBranchSendGuard } from '../conversation-branch/conversation-branch-send-guard'

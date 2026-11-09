@@ -103,6 +103,13 @@ function createConversationBranchService(
         claudeSessionIdForOrcaSession(sessionId)
       )
     },
+    listChatSessionIds: (workspaceId) =>
+      store
+        .listRecords()
+        .filter(
+          (record) => record.provider === 'claude' && record.location.workspaceId === workspaceId
+        )
+        .map((record) => record.sessionId),
     findTranscript: findClaudeTranscript,
     forkFull: forkClaudeConversationInWorker,
     forkCompacted: async (fork, accountHomePath) => {

@@ -7,6 +7,7 @@ import type { z } from 'zod'
 import type { AgentJournalSnapshot } from '../../shared/agent-session-journal-types'
 import {
   CONVERSATION_BRANCH_RETURN_MAX,
+  type ConversationBranchChat,
   type ConversationBranchOutline,
   type ConversationBranchRecord
 } from '../../shared/conversation-branch'
@@ -45,6 +46,8 @@ export type ConversationBranchServiceDeps = {
   ) => Promise<Pick<AgentJournalSnapshot, 'items' | 'submissions'>>
   /** The Claude id a chat that has not launched yet will run under. */
   chatProviderSessionId: (sessionId: string) => string | null
+  /** The workspace's Claude chats. */
+  listChatSessionIds?: (workspaceId: string) => string[]
   findTranscript: (
     providerSessionId: string,
     preferredAccountHomePath?: string
@@ -80,6 +83,13 @@ export class ConversationBranchService {
 
   list(workspaceId: string): Promise<ConversationBranchRecord[]> {
     return this.deps.store.list(workspaceId)
+  }
+
+  chats(workspaceId: string): ConversationBranchChat[] {
+    return (this.deps.listChatSessionIds?.(workspaceId) ?? []).flatMap((sessionId) => {
+      const providerSessionId = this.deps.chatProviderSessionId(sessionId)
+      return providerSessionId ? [{ sessionId, providerSessionId }] : []
+    })
   }
 
   async outline(providerSessionId: string): Promise<ConversationBranchOutline> {
