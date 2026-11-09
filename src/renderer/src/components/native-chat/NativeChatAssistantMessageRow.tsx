@@ -1,4 +1,6 @@
+import { useContext } from 'react'
 import { cn } from '@/lib/utils'
+import { NativeChatBranchContext } from './native-chat-branch-context'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { deriveNativeChatRowContent } from '../../../../shared/native-chat-row-content'
 import type { MessageRowProps } from './NativeChatMessageRow'
@@ -62,6 +64,11 @@ export function NativeChatAssistantMessageRow({
   // A working turn's last row is only its frontier: more can still land under it.
   const showControls =
     !isSystem && words.length > 0 && !continuesTurn && activeTurnIsWorking !== true
+  const branch = useContext(NativeChatBranchContext)
+  const onBranch =
+    branch && message.role === 'assistant' && !inSubagentSection
+      ? () => branch.branchFrom({ messageId: message.id, markdown: words })
+      : undefined
 
   return (
     <div
@@ -108,6 +115,7 @@ export function NativeChatAssistantMessageRow({
           markdown={words}
           timestamp={message.timestamp}
           onScrollToTop={scrollToTop}
+          onBranch={onBranch}
           className={cn(
             'mt-1 w-fit select-none transition-opacity can-hover:pointer-events-none can-hover:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 [.group:has(:focus-visible)_&]:pointer-events-auto [.group:has(:focus-visible)_&]:opacity-100',
             // They hang into the gap below; a section keeps them inside its border instead.

@@ -1,4 +1,4 @@
-import type { ConversationBranchRecord } from '../../shared/conversation-branch'
+import type { ConversationBranchRecord } from './conversation-branch'
 
 export function branchRecord(
   overrides: Partial<ConversationBranchRecord> = {}

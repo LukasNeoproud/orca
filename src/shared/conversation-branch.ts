@@ -7,6 +7,10 @@ import { z } from 'zod'
 export const CONVERSATION_BRANCH_MODES = ['full', 'compact', 'clean'] as const
 export type ConversationBranchMode = (typeof CONVERSATION_BRANCH_MODES)[number]
 
+export function isConversationBranchMode(value: string): value is ConversationBranchMode {
+  return CONVERSATION_BRANCH_MODES.some((mode) => mode === value)
+}
+
 export const CONVERSATION_BRANCH_SURFACES = ['chat', 'terminal'] as const
 export type ConversationBranchSurface = (typeof CONVERSATION_BRANCH_SURFACES)[number]
 

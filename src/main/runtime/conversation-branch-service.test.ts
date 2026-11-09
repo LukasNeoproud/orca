@@ -191,6 +191,27 @@ describe('ConversationBranchService.prepare', () => {
     expect(forkCompacted).toHaveBeenCalledOnce()
   })
 
+  it('retries a request whose fork failed without writing anything', async () => {
+    const forkFull = vi
+      .fn<ConversationBranchServiceDeps['forkFull']>()
+      .mockRejectedValueOnce(new Error('worker exited'))
+      .mockResolvedValueOnce('second-try')
+    const { branches } = service({ forkFull })
+    const params = {
+      requestId: 'r1',
+      worktreeId: 'wt-1',
+      source: transcriptSource,
+      mode: 'full',
+      surface: 'chat',
+      label: 'Finding 1'
+    } as const
+    await expect(branches.prepare(params)).rejects.toThrow('worker exited')
+    const retried = await branches.prepare(params)
+    expect(retried).toMatchObject({ branchId: 'branch-a', state: 'prepared' })
+    expect(retried.child.providerSessionId).toBe('second-try')
+    expect(await branches.list('wt-1')).toHaveLength(1)
+  })
+
   it('prepares a clean branch without forking: a terminal gets a fresh id, a chat its own', async () => {
     const { branches, deps } = service()
     const terminal = await branches.prepare({

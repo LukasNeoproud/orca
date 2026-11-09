@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConversationBranchStore } from './conversation-branch-store'
-import { branchRecord } from './conversation-branch.test-fixture'
+import { branchRecord } from '../../shared/conversation-branch.test-fixture'
 
 const roots: string[] = []
 afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })))

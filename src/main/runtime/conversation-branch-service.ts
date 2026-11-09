@@ -111,7 +111,8 @@ export class ConversationBranchService {
 
   private async prepareOnce(params: PrepareParams): Promise<ConversationBranchRecord> {
     const existing = await this.deps.store.findByRequest(params.requestId)
-    if (existing) {
+    // A failure is proven to have written nothing, so retrying the same request starts over.
+    if (existing && existing.state !== 'failed') {
       return existing
     }
     const source = await this.resolveSource(params)
@@ -126,7 +127,7 @@ export class ConversationBranchService {
     const createdAt = this.now()
     const base: ConversationBranchRecord = {
       schemaVersion: 1,
-      branchId: this.newId(),
+      branchId: existing?.branchId ?? this.newId(),
       requestId: params.requestId,
       workspaceId: params.worktreeId,
       executionHostId: this.deps.hostId,

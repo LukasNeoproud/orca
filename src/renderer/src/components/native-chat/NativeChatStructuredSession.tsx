@@ -21,7 +21,7 @@ import { useNativeChatComposerRevealFocus } from './use-native-chat-composer-rev
 import { useNativeChatFontSize } from './use-native-chat-font-size'
 import { useNativeChatFind } from './use-native-chat-find'
 import { NativeChatFindBar } from './NativeChatFindBar'
-import { NativeChatResumeInCliButton } from './NativeChatResumeInCliButton'
+import { NativeChatSessionTopBar } from './NativeChatSessionTopBar'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import { useNativeChatLinkActions } from './use-native-chat-link-actions'
 import { useNativeChatFileLinkContext } from './use-native-chat-file-link-context'
@@ -278,7 +278,7 @@ export function NativeChatStructuredSession(
     >
       <ClaudeModsPaneDock session={props} {...modsSite}>
         {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
-        <NativeChatResumeInCliButton {...props} worktreeId={find.isOpen ? null : ownerWorktreeId} />
+        <NativeChatSessionTopBar {...props} findOpen={find.isOpen} />
         {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
           loadingPane
         ) : viewState.kind === 'error' ? (

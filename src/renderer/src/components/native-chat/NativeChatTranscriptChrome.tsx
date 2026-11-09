@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Image as ImageIcon } from 'lucide-react'
+import { NativeChatBranchButton } from './NativeChatBranchButton'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { basename } from '@/lib/path'
@@ -284,11 +285,14 @@ export function NativeChatAgentControls({
   markdown,
   timestamp,
   onScrollToTop,
+  onBranch,
   className
 }: {
   markdown: string
   timestamp: number | null
   onScrollToTop: () => void
+  /** Absent where the chat cannot branch from this reply. */
+  onBranch?: () => void
   className?: string
 }): React.JSX.Element {
   return (
@@ -308,6 +312,7 @@ export function NativeChatAgentControls({
       >
         <ArrowUp className="size-3.5" />
       </button>
+      {onBranch ? <NativeChatBranchButton onBranch={onBranch} /> : null}
       <NativeChatMessageTimestamp timestamp={timestamp} />
     </div>
   )
