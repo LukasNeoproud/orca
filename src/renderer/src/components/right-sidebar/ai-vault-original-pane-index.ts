@@ -209,13 +209,13 @@ export function getAiVaultOriginalPaneIndex(state: OriginalPaneState): AiVaultOr
   return lastIndex
 }
 
-/** Only a pane whose agent is live now; retained and sleeping panes are not running. */
-export function findRunningOriginalAiVaultSessionPaneInIndex(
+/** The pane whose live agent reports exactly this conversation id; no prompt matching. */
+export function findLiveProviderSessionPaneInIndex(
   index: AiVaultOriginalPaneIndex,
-  session: AiVaultSession
+  agent: string,
+  providerSessionId: string
 ): AiVaultOriginalPaneTarget | null {
-  for (const entry of index.liveByProvider.get(providerKey(session.agent, session.sessionId)) ??
-    []) {
+  for (const entry of index.liveByProvider.get(providerKey(agent, providerSessionId)) ?? []) {
     const target = resolveOriginalPaneTarget({
       state: index.state,
       paneKey: entry.paneKey,
@@ -225,6 +225,18 @@ export function findRunningOriginalAiVaultSessionPaneInIndex(
     if (target) {
       return target
     }
+  }
+  return null
+}
+
+/** Only a pane whose agent is live now; retained and sleeping panes are not running. */
+export function findRunningOriginalAiVaultSessionPaneInIndex(
+  index: AiVaultOriginalPaneIndex,
+  session: AiVaultSession
+): AiVaultOriginalPaneTarget | null {
+  const exact = findLiveProviderSessionPaneInIndex(index, session.agent, session.sessionId)
+  if (exact) {
+    return exact
   }
   const promptMatches: AiVaultOriginalPaneTarget[] = []
   for (const entry of index.liveWithoutProviderByAgent.get(session.agent) ?? []) {

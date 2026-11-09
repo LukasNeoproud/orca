@@ -20,6 +20,8 @@ export type ClaudeTranscriptTurn = {
   boundaryUuid: string
   prompt: string
   reply: string
+  /** The reply as written, for a caller that hands it on whole. */
+  replyText: string
 }
 
 function nonEmpty(value: unknown): string | null {
@@ -52,7 +54,9 @@ function hasToolResult(content: unknown): boolean {
 function readEntry(row: Record<string, unknown>): ChainEntry | null {
   const uuid = nonEmpty(row.uuid)
   const type = nonEmpty(row.type)
-  if (!uuid || !type || row.isSidechain === true) {
+  // Metadata rows (a fork's `custom-title`) carry a uuid but no parent: never the chain's newest.
+  const linked = 'parentUuid' in row || 'logicalParentUuid' in row
+  if (!uuid || !type || !linked || row.isSidechain === true) {
     return null
   }
   const message = row.message && typeof row.message === 'object' ? row.message : null
@@ -69,10 +73,14 @@ function readEntry(row: Record<string, unknown>): ChainEntry | null {
   return { uuid, parentUuid, type, prompt, text }
 }
 
+/** Short and plain, but keeping its lines so the first one can name a branch. */
 function excerpt(text: string): string {
   const plain = text
     .replace(/<\/?command-[a-z]+>/g, ' ')
-    .replace(/\s+/g, ' ')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
   return plain.length <= CONVERSATION_BRANCH_EXCERPT_MAX
     ? plain
@@ -140,7 +148,8 @@ export function claudeTranscriptTurns(chain: readonly ChainEntry[]): ClaudeTrans
         promptUuid: chain[start].uuid,
         boundaryUuid: chain[end].uuid,
         prompt: excerpt(chain[start].text),
-        reply: excerpt(reply.text)
+        reply: excerpt(reply.text),
+        replyText: reply.text
       }
     ]
   })

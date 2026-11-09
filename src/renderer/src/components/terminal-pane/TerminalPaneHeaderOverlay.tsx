@@ -9,6 +9,7 @@ import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
 import type { PtyTransport } from './pty-transport-types'
 import { TerminalPaneHeaderDropSurface } from './TerminalPaneHeaderDropSurface'
 import { TerminalPaneResumeInChatButton } from './TerminalPaneResumeInChatButton'
+import { TerminalPaneBranchMenu } from './TerminalPaneBranchMenu'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 
 export type PaneTitleOverlayRect = {
@@ -46,6 +47,8 @@ type TerminalPaneHeaderOverlayProps = {
   onShowTerminal?: () => void
   /** Offers the tab menu's "Resume in New Native Chat" for the active pane's own conversation. */
   canResumeInNewNativeChat?: boolean
+  /** The active pane's Claude conversation, which can be branched from its header. */
+  activePaneClaudeSessionId?: string | null
   canContinueAgentSessionInNewSession?: boolean
   onContinueAgentSessionInNewSession?: (pane: ManagedPane) => void
   onSplitPane: (pane: ManagedPane, direction: 'vertical' | 'horizontal') => void
@@ -85,6 +88,7 @@ export default function TerminalPaneHeaderOverlay({
   canShowTerminal,
   onShowTerminal,
   canResumeInNewNativeChat,
+  activePaneClaudeSessionId,
   canContinueAgentSessionInNewSession,
   onContinueAgentSessionInNewSession,
   onSplitPane,
@@ -245,6 +249,12 @@ export default function TerminalPaneHeaderOverlay({
                         )}
                       </TooltipContent>
                     </Tooltip>
+                  ) : null}
+                  {!canShowTerminal && isActivePane && activePaneClaudeSessionId ? (
+                    <TerminalPaneBranchMenu
+                      worktreeId={worktreeId}
+                      providerSessionId={activePaneClaudeSessionId}
+                    />
                   ) : null}
                   {canShowTerminal && isActivePane ? (
                     <Tooltip>

@@ -1,9 +1,12 @@
 import { useMemo, useSyncExternalStore } from 'react'
-import { CornerDownRight, MessagesSquare } from 'lucide-react'
+import { CornerDownRight, MessagesSquare, SquareTerminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import { openConversationBranchMember } from '@/lib/conversation-branch-members'
+import {
+  conversationBranchMemberSurface,
+  openConversationBranchMember
+} from '@/lib/conversation-branch-members'
 import { conversationBranchChat } from '../../../../shared/conversation-branch-relatives'
 import { getStructuredAgentSessionStatusFeed } from '@/runtime/structured-agent-session-status-feed'
 import { StatusDot } from '../native-chat/NativeChatSubagentRun'
@@ -70,11 +73,16 @@ export function ConversationBranchFamilyPanel({
       target,
       worktreeId,
       providerSessionId: memberId,
+      surface: conversationBranchMemberSurface(branches, memberId),
       ...(jumpToItemId ? { jumpToItemId } : {})
     }).catch((error: unknown) => toast.error(conversationBranchErrorText(error)))
   }
   const rootChat = conversationBranchChat(snapshot, family.rootProviderSessionId)
   const rootCurrent = family.rootProviderSessionId === providerSessionId
+  const RootIcon =
+    conversationBranchMemberSurface(branches, family.rootProviderSessionId) === 'terminal'
+      ? SquareTerminal
+      : MessagesSquare
 
   return (
     <div
@@ -88,7 +96,7 @@ export function ConversationBranchFamilyPanel({
         className={ROW_CLASS}
         onClick={() => !rootCurrent && open(family.rootProviderSessionId)}
       >
-        <MessagesSquare className="size-3.5 shrink-0" />
+        <RootIcon className="size-3.5 shrink-0" />
         <span className={cn('min-w-0 flex-1 truncate', rootCurrent && 'font-semibold')}>
           {rootChat?.conversationName ??
             translate('conversationBranch.original', 'Original conversation')}
@@ -119,10 +127,12 @@ export function ConversationBranchFamilyPanel({
                     type="button"
                     aria-current={current || undefined}
                     className={ROW_CLASS}
-                    // Terminal branches open from the terminal until it can resume them here.
-                    disabled={!childId || branch.child.surface === 'terminal'}
+                    disabled={!childId}
                     onClick={() => childId && !current && open(childId)}
                   >
+                    {branch.child.surface === 'terminal' ? (
+                      <SquareTerminal className="size-3.5 shrink-0 text-muted-foreground" />
+                    ) : null}
                     <span className="min-w-0 flex-1">
                       <span className={cn('block truncate', current && 'font-semibold')}>
                         {branch.label}

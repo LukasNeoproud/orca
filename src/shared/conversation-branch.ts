@@ -87,7 +87,11 @@ export type ConversationBranchTurn = {
   reply: string
 }
 
-export type ConversationBranchOutline = { turns: ConversationBranchTurn[] }
+export type ConversationBranchOutline = {
+  turns: ConversationBranchTurn[]
+  /** The newest reply whole (up to the return limit): what a branch hands back. */
+  lastReply?: string
+}
 export type ConversationBranchPrepareResult = { branch: ConversationBranchRecord }
 export type ConversationBranchListResult = { branches: ConversationBranchRecord[] }
 

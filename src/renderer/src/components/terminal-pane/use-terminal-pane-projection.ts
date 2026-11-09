@@ -20,7 +20,7 @@ import type { TerminalPaneMobileController } from './use-terminal-pane-mobile-ac
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
-import { resolvePaneAgentSessionId } from './pane-agent-session-id'
+import { resolvePaneAgentSessionId, resolvePaneClaudeSessionId } from './pane-agent-session-id'
 import { canPaneOfferResumeInNewChat } from '../tab-bar/tab-session-history-switch'
 
 export function useTerminalPaneProjection(controller: TerminalPaneMobileController) {
@@ -178,7 +178,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
   const contextMenuCanToggleChat = canToggleChatForLeaf(contextMenuLeafId)
   const activeLeafId = activePane?.leafId ?? null
   // One subscription for both reads keeps the pane inside its store listener budget.
-  const { menuAgentSessionId, activePaneCanResumeInChat } = useAppStore(
+  const { menuAgentSessionId, activePaneCanResumeInChat, activePaneClaudeSessionId } = useAppStore(
     useShallow((state) => ({
       menuAgentSessionId:
         contextMenu.open && contextMenuLeafId
@@ -191,7 +191,11 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
         canPaneOfferResumeInNewChat(state, {
           worktreeId,
           paneKey: makePaneKey(tabId, activeLeafId)
-        })
+        }),
+      activePaneClaudeSessionId:
+        !activePaneIsChatLeaf && activeLeafId !== null
+          ? resolvePaneClaudeSessionId(state, makePaneKey(tabId, activeLeafId))
+          : null
     }))
   )
   const contextMenuIsChatView = effectiveChatViewMode && contextMenuLeafId === chatLeafId
@@ -228,6 +232,7 @@ export function useTerminalPaneProjection(controller: TerminalPaneMobileControll
     activePaneCanContinueInNewSession,
     contextMenuCanContinueInNewSession,
     activePaneCanResumeInChat,
+    activePaneClaudeSessionId,
     contextMenuCanToggleChat,
     contextMenuIsChatView,
     handleContextMenuToggleNativeChat

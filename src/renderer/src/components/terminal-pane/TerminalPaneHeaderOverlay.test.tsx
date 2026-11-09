@@ -42,6 +42,11 @@ vi.mock('@/store', () => ({
   }
 }))
 vi.mock('./terminal-input-activity', () => ({ recordTerminalUserInputForLeaf: vi.fn() }))
+vi.mock('./TerminalPaneBranchMenu', () => ({
+  TerminalPaneBranchMenu: ({ providerSessionId }: { providerSessionId: string }) => (
+    <button type="button">Conversation branches {providerSessionId}</button>
+  )
+}))
 vi.mock('./TerminalPaneResumeInChatButton', () => ({
   TerminalPaneResumeInChatButton: () => <button type="button">Resume in New Native Chat</button>
 }))
@@ -80,6 +85,7 @@ function renderOverlay({
   onContinueAgentSessionInNewSession = vi.fn(),
   canShowTerminal = false,
   canResumeInNewNativeChat = false,
+  activePaneClaudeSessionId = null,
   renameValue = '',
   renamingPaneId = null,
   dropSetup
@@ -96,6 +102,7 @@ function renderOverlay({
   onContinueAgentSessionInNewSession?: ReturnType<typeof vi.fn>
   canShowTerminal?: boolean
   canResumeInNewNativeChat?: boolean
+  activePaneClaudeSessionId?: string | null
   renameValue?: string
   renamingPaneId?: number | null
   dropSetup?: {
@@ -147,6 +154,7 @@ function renderOverlay({
         canShowTerminal={canShowTerminal}
         onShowTerminal={vi.fn()}
         canResumeInNewNativeChat={canResumeInNewNativeChat}
+        activePaneClaudeSessionId={activePaneClaudeSessionId}
         onSplitPane={vi.fn()}
         onBeginPaneDrag={vi.fn()}
         onActivatePaneTitleInteraction={dropSetup?.activate ?? vi.fn()}
@@ -202,6 +210,29 @@ describe('TerminalPaneHeaderOverlay', () => {
       true
     )
     expect(container.querySelector('button[aria-label="Show chat view"]')).toBeNull()
+  })
+
+  it('offers branching only on the active pane of a Claude conversation, never in chat view', () => {
+    const branchButtons = (container: HTMLElement): HTMLButtonElement[] =>
+      [...container.querySelectorAll('button')].filter((button) =>
+        button.textContent?.startsWith('Conversation branches')
+      )
+    const claude = renderOverlay({ paneTitles: {}, activePaneClaudeSessionId: 'claude-1' })
+    expect(branchButtons(claude.container).map((button) => button.textContent)).toEqual([
+      'Conversation branches claude-1'
+    ])
+    expect(
+      branchButtons(claude.container)[0]
+        ?.closest('.pane-title-bar')
+        ?.hasAttribute('data-active-pane')
+    ).toBe(true)
+    expect(branchButtons(renderOverlay({ paneTitles: {} }).container)).toHaveLength(0)
+    const chatView = renderOverlay({
+      paneTitles: {},
+      canShowTerminal: true,
+      activePaneClaudeSessionId: 'claude-1'
+    })
+    expect(branchButtons(chatView.container)).toHaveLength(0)
   })
 
   it('keeps Show terminal as the way back from chat view', () => {

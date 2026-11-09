@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { SleepingAgentSessionRecord } from '../../../../shared/agent-session-resume'
-import { resolvePaneAgentSessionId, type PaneAgentSessionIdState } from './pane-agent-session-id'
+import {
+  resolvePaneAgentSessionId,
+  resolvePaneClaudeSessionId,
+  type PaneAgentSessionIdState
+} from './pane-agent-session-id'
 
 const PANE_KEY = 'tab-1:11111111-1111-4111-8111-111111111111'
 
@@ -106,5 +110,17 @@ describe('resolvePaneAgentSessionId', () => {
   it('does not read identity from a sibling pane', () => {
     const sibling = 'tab-1:22222222-2222-4222-8222-222222222222'
     expect(resolvePaneAgentSessionId(state(undefined, sleeping('session-1')), sibling)).toBeNull()
+  })
+})
+
+describe('resolvePaneClaudeSessionId', () => {
+  it('returns only a Claude pane’s conversation', () => {
+    expect(resolvePaneClaudeSessionId(state(live('claude-1')), PANE_KEY)).toBe('claude-1')
+    expect(
+      resolvePaneClaudeSessionId(state({ ...live('codex-1'), agentType: 'codex' }), PANE_KEY)
+    ).toBeNull()
+    expect(resolvePaneClaudeSessionId(state(undefined, sleeping('slept-1')), PANE_KEY)).toBe(
+      'slept-1'
+    )
   })
 })

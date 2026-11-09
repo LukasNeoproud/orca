@@ -5,9 +5,10 @@
 import { randomUUID } from 'node:crypto'
 import type { z } from 'zod'
 import type { AgentJournalSnapshot } from '../../shared/agent-session-journal-types'
-import type {
-  ConversationBranchOutline,
-  ConversationBranchRecord
+import {
+  CONVERSATION_BRANCH_RETURN_MAX,
+  type ConversationBranchOutline,
+  type ConversationBranchRecord
 } from '../../shared/conversation-branch'
 import type {
   ConversationBranchPrepareParams,
@@ -87,8 +88,10 @@ export class ConversationBranchService {
       throw new Error('conversation_branch_history_missing')
     }
     const { turns } = await readClaudeTranscriptTurns(transcript.path)
+    const lastReply = turns.at(-1)?.replyText.trim().slice(0, CONVERSATION_BRANCH_RETURN_MAX)
     return {
-      turns: turns.map(({ promptUuid, prompt, reply }) => ({ promptUuid, prompt, reply }))
+      turns: turns.map(({ promptUuid, prompt, reply }) => ({ promptUuid, prompt, reply })),
+      ...(lastReply ? { lastReply } : {})
     }
   }
 

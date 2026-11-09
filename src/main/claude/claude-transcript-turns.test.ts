@@ -37,7 +37,7 @@ describe('claudeTranscriptTurns', () => {
         user('p1', null, 'Review the change'),
         assistant('a1', 'p1', 'Running the tests'),
         user('t1', 'a1', [{ type: 'tool_result', content: 'ok' }]),
-        assistant('a2', 't1', 'Found 2 issues: 1. null check 2. race'),
+        assistant('a2', 't1', 'Found 2 issues:\n\n\n\n1.   null check\n2. race'),
         attachment('x1', 'a2'),
         user('p2', 'x1', 'Fix issue 1'),
         assistant('a3', 'p2', 'Fixed')
@@ -47,10 +47,27 @@ describe('claudeTranscriptTurns', () => {
         promptUuid: 'p1',
         boundaryUuid: 'x1',
         prompt: 'Review the change',
-        reply: 'Found 2 issues: 1. null check 2. race'
+        reply: 'Found 2 issues:\n\n1. null check\n2. race',
+        replyText: 'Found 2 issues:\n\n\n\n1.   null check\n2. race'
       },
-      { promptUuid: 'p2', boundaryUuid: 'a3', prompt: 'Fix issue 1', reply: 'Fixed' }
+      {
+        promptUuid: 'p2',
+        boundaryUuid: 'a3',
+        prompt: 'Fix issue 1',
+        reply: 'Fixed',
+        replyText: 'Fixed'
+      }
     ])
+  })
+
+  it('ends the chain at the newest message, not at a fork’s title row after it', () => {
+    expect(
+      turns([
+        user('p1', null, 'Review'),
+        assistant('a1', 'p1', 'Two findings'),
+        { type: 'custom-title', uuid: 't1', customTitle: 'Finding 2' }
+      ]).map((turn) => turn.replyText)
+    ).toEqual(['Two findings'])
   })
 
   it('keeps turns before a compaction reachable through its logical parent', () => {

@@ -5,6 +5,7 @@ import { build } from 'esbuild'
 import { afterEach, expect, it } from 'vitest'
 import { encodeClaudeProjectPath } from '../ai-vault/claude-project-dir-encoding'
 import { forkClaudeConversationInWorker } from './claude-conversation-fork-worker'
+import { readClaudeTranscriptTurns } from './claude-transcript-turns'
 
 const roots: string[] = []
 afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })))
@@ -80,6 +81,9 @@ it('forks in the account home the worker is pinned to, up to the boundary, leavi
   const forked = readFileSync(join(projects, `${child}.jsonl`), 'utf8')
   expect(forked).toContain('Two findings')
   expect(forked).not.toContain('Fix the first')
+  // The fork is readable as turns, which is how a branch hands back its reply.
+  const { turns } = await readClaudeTranscriptTurns(join(projects, `${child}.jsonl`))
+  expect(turns.map((turn) => turn.replyText)).toEqual(['Two findings'])
   expect(readFileSync(join(projects, `${SOURCE}.jsonl`), 'utf8')).toBe(`${parent}\n`)
   await expect(
     forkClaudeConversationInWorker(

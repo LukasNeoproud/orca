@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
   openMember: vi.fn(async () => undefined),
   openChat: vi.fn(async () => 'new-chat'),
   recordReturn: vi.fn(async () => ({})),
-  warning: vi.fn()
+  warning: vi.fn(),
+  livePane: vi.fn((): { tabId: string } | null => null),
+  paste: vi.fn(async () => true),
+  openTerminal: vi.fn()
 }))
 
 vi.mock('sonner', () => ({ toast: { warning: mocks.warning } }))
@@ -16,6 +19,15 @@ vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => f
 vi.mock('@/lib/conversation-branch-launch', () => ({ openBranchChat: mocks.openChat }))
 vi.mock('@/lib/conversation-branch-members', () => ({
   openConversationBranchMember: mocks.openMember
+}))
+vi.mock('@/lib/conversation-branch-terminal-launch', () => ({
+  openBranchTerminal: mocks.openTerminal
+}))
+vi.mock('@/lib/agent-launch-prompt-delivery', () => ({
+  deliverLaunchPromptToAgentTab: mocks.paste
+}))
+vi.mock('@/components/right-sidebar/ai-vault-running-pane-activation', () => ({
+  activateLiveProviderSessionPane: mocks.livePane
 }))
 vi.mock('@/runtime/conversation-branch-client', () => ({
   recordConversationBranchReturn: mocks.recordReturn
@@ -61,9 +73,17 @@ it('puts the result in the open parent chat as a draft and shows it', async () =
   )
 })
 
-it('resumes a parent with no chat holding the result, and keeps it when the host cannot record', async () => {
+it('resumes a chat parent with no open chat holding the result, and keeps it when the host cannot record', async () => {
   mocks.recordReturn.mockRejectedValueOnce(new Error('offline'))
-  await returnConversationBranchResult({ target, worktreeId: 'wt-1', branch, content: 'Done.' })
+  const chatBranch = branchRecord({
+    parent: { ...branch.parent, structuredSessionId: 'old-chat' }
+  })
+  await returnConversationBranchResult({
+    target,
+    worktreeId: 'wt-1',
+    branch: chatBranch,
+    content: 'Done.'
+  })
   expect(mocks.openChat).toHaveBeenCalledWith({
     worktreeId: 'wt-1',
     providerSessionId: 'parent',
@@ -71,4 +91,24 @@ it('resumes a parent with no chat holding the result, and keeps it when the host
   })
   expect(mocks.appendDraft).not.toHaveBeenCalled()
   expect(mocks.warning).toHaveBeenCalledOnce()
+})
+
+it('pastes the result unsent into the terminal running the parent', async () => {
+  mocks.livePane.mockReturnValueOnce({ tabId: 'tab-7' })
+  await returnConversationBranchResult({ target, worktreeId: 'wt-1', branch, content: 'Done.' })
+  expect(mocks.paste).toHaveBeenCalledWith(
+    expect.objectContaining({ tabId: 'tab-7', content: 'Done.', submit: false })
+  )
+  expect(mocks.openTerminal).not.toHaveBeenCalled()
+  expect(mocks.openChat).not.toHaveBeenCalled()
+})
+
+it('resumes a closed terminal parent in a new terminal with the result prefilled', async () => {
+  await returnConversationBranchResult({ target, worktreeId: 'wt-1', branch, content: 'Done.' })
+  expect(mocks.openTerminal).toHaveBeenCalledWith({
+    worktreeId: 'wt-1',
+    providerSessionId: 'parent',
+    prompt: 'Done.'
+  })
+  expect(mocks.openChat).not.toHaveBeenCalled()
 })

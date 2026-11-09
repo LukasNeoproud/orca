@@ -25,3 +25,14 @@ export function resolvePaneAgentSessionId(
   }
   return state.sleepingAgentSessionsByPaneKey[paneKey]?.providerSession.id ?? null
 }
+
+/** The pane's conversation id when its agent is Claude, for actions only Claude supports. */
+export function resolvePaneClaudeSessionId(
+  state: PaneAgentSessionIdState,
+  paneKey: string
+): string | null {
+  const agent =
+    state.agentStatusByPaneKey[paneKey]?.agentType ??
+    state.sleepingAgentSessionsByPaneKey[paneKey]?.agent
+  return agent === 'claude' ? resolvePaneAgentSessionId(state, paneKey) : null
+}

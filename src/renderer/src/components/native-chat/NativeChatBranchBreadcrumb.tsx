@@ -3,7 +3,10 @@ import { CornerUpLeft, GitBranch, ListTree } from 'lucide-react'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { translate } from '@/i18n/i18n'
-import { openConversationBranchMember } from '@/lib/conversation-branch-members'
+import {
+  conversationBranchMemberSurface,
+  openConversationBranchMember
+} from '@/lib/conversation-branch-members'
 import { conversationBranchChat } from '../../../../shared/conversation-branch-relatives'
 import { getStructuredAgentSessionStatusFeed } from '@/runtime/structured-agent-session-status-feed'
 import { conversationBranchOf } from '../../../../shared/conversation-branch'
@@ -47,6 +50,7 @@ export function NativeChatBranchBreadcrumb({
       target: session.target,
       worktreeId: claudeWorktreeId,
       providerSessionId: parentId,
+      surface: conversationBranchMemberSurface(branches, parentId),
       ...(branch.parent.turnItemId ? { jumpToItemId: branch.parent.turnItemId } : {})
     }).catch((error: unknown) => toast.error(conversationBranchErrorText(error)))
   }

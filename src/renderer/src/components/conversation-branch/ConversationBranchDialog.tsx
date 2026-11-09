@@ -35,14 +35,25 @@ export type ConversationBranchDialogValues = {
 /** Names a branch, picks how much of the conversation it keeps, and drafts its first prompt. */
 export function ConversationBranchDialog({
   replyMarkdown,
+  title,
+  description,
+  leadingFields,
+  trailingFields,
   onCancel,
   onCreate
 }: {
   replyMarkdown: string
+  title?: string
+  description?: string
+  /** Fields above the name, such as the turn a terminal branch starts after. */
+  leadingFields?: (disabled: boolean) => React.ReactNode
+  trailingFields?: (disabled: boolean) => React.ReactNode
   onCancel: () => void
   onCreate: (values: ConversationBranchDialogValues) => Promise<void>
 }): React.JSX.Element {
-  const [label, setLabel] = useState(() => defaultConversationBranchLabel(replyMarkdown))
+  // Follows the reply until typed, so picking another turn renames an untouched branch.
+  const [typedLabel, setLabel] = useState<string | null>(null)
+  const label = typedLabel ?? defaultConversationBranchLabel(replyMarkdown)
   const [mode, setMode] = useState<ConversationBranchMode>('full')
   const [focus, setFocus] = useState('')
   const [prompt, setPrompt] = useState('')
@@ -72,16 +83,18 @@ export function ConversationBranchDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {translate('conversationBranch.title', 'Branch from this reply')}
+            {title ?? translate('conversationBranch.title', 'Branch from this reply')}
           </DialogTitle>
           <DialogDescription>
-            {translate(
-              'conversationBranch.description',
-              'The branch opens in a new chat with its prompt unsent. Branches share this workspace, so file changes made in one are visible in the others.'
-            )}
+            {description ??
+              translate(
+                'conversationBranch.description',
+                'The branch opens in a new chat with its prompt unsent. Branches share this workspace, so file changes made in one are visible in the others.'
+              )}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          {leadingFields?.(pending)}
           <div className="space-y-1">
             <Label htmlFor="conversation-branch-label">
               {translate('conversationBranch.label', 'Name')}
@@ -123,6 +136,7 @@ export function ConversationBranchDialog({
               onChange={(event) => setPrompt(event.target.value)}
             />
           </div>
+          {trailingFields?.(pending)}
           {error ? (
             <p role="alert" className="text-xs text-destructive">
               {error}
