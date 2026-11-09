@@ -286,6 +286,7 @@ export function NativeChatAgentControls({
   timestamp,
   onScrollToTop,
   onBranch,
+  onBranchFindings,
   className
 }: {
   markdown: string
@@ -293,6 +294,8 @@ export function NativeChatAgentControls({
   onScrollToTop: () => void
   /** Absent where the chat cannot branch from this reply. */
   onBranch?: () => void
+  /** Offered when the reply lists findings. */
+  onBranchFindings?: () => void
   className?: string
 }): React.JSX.Element {
   return (
@@ -313,6 +316,7 @@ export function NativeChatAgentControls({
         <ArrowUp className="size-3.5" />
       </button>
       {onBranch ? <NativeChatBranchButton onBranch={onBranch} /> : null}
+      {onBranchFindings ? <NativeChatBranchButton onBranch={onBranchFindings} perFinding /> : null}
       <NativeChatMessageTimestamp timestamp={timestamp} />
     </div>
   )

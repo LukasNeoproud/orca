@@ -21,8 +21,10 @@ import {
 } from '@/lib/structured-agent-session-launch-admission'
 import {
   resolveStructuredAgentSessionOwner,
+  structuredAgentSessionFocusOwner,
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
+import { clearWebSessionFocusIntentIfMatches } from '@/runtime/web-session-focus-intent'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 
 type LocalProvisionalLaunch = StructuredAgentLaunchHandle & { tab: Tab }
@@ -170,6 +172,15 @@ function beginLocalProvisionalLaunch(args: ProvisionalLaunchArgs): LocalProvisio
       ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
       ...(args.activate !== undefined ? { activate: args.activate } : {})
     })
+    const hostTarget = structuredAgentSessionTargetForHost(handle.executionHostId)
+    if (args.activate === false && hostTarget) {
+      // The launch asked to focus the chat once its host publishes it; a background one must not.
+      clearWebSessionFocusIntentIfMatches(
+        structuredAgentSessionFocusOwner(hostTarget),
+        worktreeId,
+        `agent-session:${handle.sessionId}`
+      )
+    }
     return { ...handle, tab }
   } catch (error) {
     // Why: a launch without its owning surface would strand a late publication.

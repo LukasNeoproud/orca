@@ -26,6 +26,8 @@ export function openBranchChat(args: {
   prompt: string
   /** The tab's title; a reopened member keeps its own. */
   label?: string
+  /** Opens the tab without switching to it, as for a batch. */
+  background?: boolean
 }): Promise<string> {
   const plan = adoptAgentSessionLaunchVerdict({
     route: 'structured-native-chat',
@@ -34,7 +36,11 @@ export function openBranchChat(args: {
     worktreeId: args.worktreeId,
     ...(args.providerSessionId ? { resumeFrom: { providerSessionId: args.providerSessionId } } : {})
   })
-  const launch = beginStructuredAgentSessionProvisionalLaunch({ plan, hooks: {} })
+  const launch = beginStructuredAgentSessionProvisionalLaunch({
+    plan,
+    hooks: {},
+    ...(args.background ? { activate: false } : {})
+  })
   if (!launch) {
     return Promise.reject(new Error('conversation_branch_unavailable'))
   }
@@ -75,16 +81,19 @@ export type ConversationBranchChatRequest = Omit<
 /** Prepares the branch on the host, then opens it. A clean branch is a new chat the host links. */
 export async function startConversationBranchInChat(
   target: RuntimeClientTarget,
-  request: ConversationBranchChatRequest
+  request: ConversationBranchChatRequest,
+  options: { background?: boolean } = {}
 ): Promise<ConversationBranchRecord> {
   const { prompt, ...prepare } = request
+  const background = options.background === true
   try {
     if (request.mode === 'clean') {
       const sessionId = await openBranchChat({
         worktreeId: request.worktreeId,
         providerSessionId: null,
         prompt,
-        label: request.label
+        label: request.label,
+        background
       })
       return await prepareConversationBranch(target, {
         ...prepare,
@@ -97,10 +106,54 @@ export async function startConversationBranchInChat(
       worktreeId: request.worktreeId,
       providerSessionId: branch.child.providerSessionId,
       prompt,
-      label: request.label
+      label: request.label,
+      background
     })
     return branch
   } finally {
     void refreshConversationBranches(target, request.worktreeId)
+  }
+}
+
+export type ConversationBranchBatchItem = {
+  /** Kept across retries, so a branch the host already made is not made twice. */
+  requestId: string
+  label: string
+  prompt: string
+  focus?: string
+}
+
+export type ConversationBranchBatchOutcome =
+  | { kind: 'created'; branch: ConversationBranchRecord }
+  | { kind: 'failed'; error: unknown }
+
+/** One branch per item, one after another, each opened beside the parent without switching to it.
+ *  A failure is that item's alone; the rest still go. */
+export async function startConversationBranchBatch(
+  target: RuntimeClientTarget,
+  batch: Omit<ConversationBranchChatRequest, 'requestId' | 'label' | 'prompt' | 'focus'> & {
+    batchId: string
+    items: readonly ConversationBranchBatchItem[]
+  },
+  onOutcome: (index: number, outcome: ConversationBranchBatchOutcome) => void
+): Promise<void> {
+  const { items, ...shared } = batch
+  for (const [index, item] of items.entries()) {
+    try {
+      const branch = await startConversationBranchInChat(
+        target,
+        {
+          ...shared,
+          requestId: item.requestId,
+          label: item.label,
+          prompt: item.prompt,
+          ...(shared.mode === 'compact' && item.focus ? { focus: item.focus } : {})
+        },
+        { background: true }
+      )
+      onOutcome(index, { kind: 'created', branch })
+    } catch (error) {
+      onOutcome(index, { kind: 'failed', error })
+    }
   }
 }

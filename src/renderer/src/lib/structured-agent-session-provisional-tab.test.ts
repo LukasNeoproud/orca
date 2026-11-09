@@ -24,6 +24,11 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
 }))
 
 import { beginStructuredAgentSessionProvisionalLaunch } from './structured-agent-session-provisional-tab'
+import {
+  peekWebSessionFocusIntent,
+  recordWebSessionFocusIntent
+} from '@/runtime/web-session-focus-intent'
+import { structuredAgentSessionFocusOwner } from '@/runtime/structured-agent-session-owner'
 
 function planSettlingAs(settlement: StructuredAgentLaunchSettlement): AgentSessionLaunchPlan {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: begin() is the only member this path calls.
@@ -67,5 +72,23 @@ describe('a provisional structured chat tab', () => {
       'agent-session',
       expect.objectContaining({ executionHostId: 'local', targetGroupId: 'group-2' })
     )
+  })
+
+  it('opens a background chat without the focus its launch asked for', async () => {
+    const owner = structuredAgentSessionFocusOwner({ kind: 'local' })
+    // What building the launch records: focus the chat once its host publishes it.
+    recordWebSessionFocusIntent(owner, 'wt-1', 'agent-session:claude_1')
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: planSettlingAs({ kind: 'structured', sessionId: 'claude_1' }),
+      hooks: {},
+      activate: false
+    })
+    await launch?.settlement
+    expect(mocks.createUnifiedTab).toHaveBeenCalledWith(
+      'wt-1',
+      'agent-session',
+      expect.objectContaining({ activate: false })
+    )
+    expect(peekWebSessionFocusIntent(owner, 'wt-1')).toBeNull()
   })
 })

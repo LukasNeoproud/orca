@@ -28,7 +28,10 @@ vi.mock('@/components/conversation-branch/use-conversation-branches', () => ({
   refreshConversationBranches: mocks.refresh
 }))
 
-import { startConversationBranchInChat } from './conversation-branch-launch'
+import {
+  startConversationBranchBatch,
+  startConversationBranchInChat
+} from './conversation-branch-launch'
 
 const target = { kind: 'local' as const }
 const request = {
@@ -87,4 +90,34 @@ it('opens nothing when the fork is refused', async () => {
   )
   expect(mocks.begin).not.toHaveBeenCalled()
   expect(mocks.refresh).toHaveBeenCalled()
+})
+
+it('makes a batch one branch at a time in the background, and a failure stays its own', async () => {
+  mocks.prepare.mockImplementationOnce(async () => {
+    mocks.calls.push('prepare')
+    throw new Error('conversation_branch_fork_unverified')
+  })
+  const outcomes: string[] = []
+  await startConversationBranchBatch(
+    target,
+    {
+      worktreeId: 'wt-1',
+      source: request.source,
+      mode: 'compact',
+      batchId: 'batch-1',
+      items: [
+        { requestId: 'r-1', label: '1. Parser', prompt: 'Fix 1', focus: 'Finding 1' },
+        { requestId: 'r-2', label: '2. Cache', prompt: 'Fix 2', focus: 'Finding 2' }
+      ]
+    },
+    (index, outcome) => outcomes.push(`${index}:${outcome.kind}`)
+  )
+  expect(outcomes).toEqual(['0:failed', '1:created'])
+  expect(mocks.calls).toEqual(['prepare', 'prepare', 'open'])
+  expect(mocks.prepare.mock.calls[1]?.[1]).toMatchObject({
+    requestId: 'r-2',
+    batchId: 'batch-1',
+    focus: 'Finding 2'
+  })
+  expect(mocks.begin.mock.calls[0]?.[0]).toMatchObject({ activate: false })
 })

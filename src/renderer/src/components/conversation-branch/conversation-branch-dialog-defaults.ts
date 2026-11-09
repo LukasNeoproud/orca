@@ -1,4 +1,9 @@
-import { CONVERSATION_BRANCH_LABEL_MAX } from '../../../../shared/conversation-branch'
+import {
+  CONVERSATION_BRANCH_FOCUS_MAX,
+  CONVERSATION_BRANCH_LABEL_MAX,
+  type ConversationBranchMode
+} from '../../../../shared/conversation-branch'
+import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
 
 const CLEAN_CONTEXT_MAX = 4_000
 
@@ -31,4 +36,29 @@ export function defaultCleanBranchPrompt(markdown: string): string {
     .map((line) => `> ${line}`)
     .join('\n')
   return `Context from the conversation this one branched from:\n\n${quoted}\n\nTask: `
+}
+
+/** A finding's branch name: its number and first line, as the reply listed them. */
+export function defaultFindingBranchLabel(finding: ConversationBranchFinding): string {
+  // Not through the reply's label: that drops the list number this one is built from.
+  const label = `${finding.index}. ${finding.title}`
+  return label.length <= 80 ? label : `${label.slice(0, 79).trimEnd()}…`
+}
+
+/** What a finding's branch is asked to do. A clean branch has no history, so it quotes the finding. */
+export function defaultFindingBranchPrompt(
+  finding: ConversationBranchFinding,
+  mode: ConversationBranchMode
+): string {
+  return mode === 'clean'
+    ? `${defaultCleanBranchPrompt(finding.text)}Fix this finding.`
+    : `Fix finding ${finding.index}: ${finding.title}`
+}
+
+/** A summary that keeps what one finding needs. */
+export function defaultFindingBranchFocus(finding: ConversationBranchFinding): string {
+  const focus = `Finding ${finding.index}: ${finding.text}`
+  return focus.length <= CONVERSATION_BRANCH_FOCUS_MAX
+    ? focus
+    : focus.slice(0, CONVERSATION_BRANCH_FOCUS_MAX)
 }

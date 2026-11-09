@@ -1,7 +1,8 @@
-import { useContext } from 'react'
+import { useContext, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { NativeChatBranchContext } from './native-chat-branch-context'
 import { NativeChatBranchPointChip } from './NativeChatBranchPointChip'
+import { conversationBranchFindings } from '../../../../shared/conversation-branch-findings'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { deriveNativeChatRowContent } from '../../../../shared/native-chat-row-content'
 import type { MessageRowProps } from './NativeChatMessageRow'
@@ -66,9 +67,18 @@ export function NativeChatAssistantMessageRow({
   const showControls =
     !isSystem && words.length > 0 && !continuesTurn && activeTurnIsWorking !== true
   const branch = useContext(NativeChatBranchContext)
+  const canBranch = branch !== undefined && message.role === 'assistant' && !inSubagentSection
   const onBranch =
-    branch && message.role === 'assistant' && !inSubagentSection
+    branch && canBranch
       ? () => branch.branchFrom({ messageId: message.id, markdown: words })
+      : undefined
+  const findings = useMemo(
+    () => (canBranch && showControls ? conversationBranchFindings(words) : []),
+    [canBranch, showControls, words]
+  )
+  const onBranchFindings =
+    branch && findings.length >= 2
+      ? () => branch.branchFindings({ messageId: message.id, markdown: words }, findings)
       : undefined
 
   return (
@@ -118,6 +128,7 @@ export function NativeChatAssistantMessageRow({
           timestamp={message.timestamp}
           onScrollToTop={scrollToTop}
           onBranch={onBranch}
+          onBranchFindings={onBranchFindings}
           className={cn(
             'mt-1 w-fit select-none transition-opacity can-hover:pointer-events-none can-hover:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 [.group:has(:focus-visible)_&]:pointer-events-auto [.group:has(:focus-visible)_&]:opacity-100',
             // They hang into the gap below; a section keeps them inside its border instead.

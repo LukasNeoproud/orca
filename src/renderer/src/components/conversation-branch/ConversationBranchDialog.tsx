@@ -11,19 +11,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import {
   CONVERSATION_BRANCH_FOCUS_MAX,
   CONVERSATION_BRANCH_LABEL_MAX,
-  isConversationBranchMode,
   type ConversationBranchMode
 } from '../../../../shared/conversation-branch'
 import {
@@ -31,31 +23,13 @@ import {
   defaultConversationBranchLabel
 } from './conversation-branch-dialog-defaults'
 import { conversationBranchErrorText } from './conversation-branch-error-text'
+import { ConversationBranchModeField } from './ConversationBranchModeField'
 
 export type ConversationBranchDialogValues = {
   label: string
   mode: ConversationBranchMode
   focus: string
   prompt: string
-}
-
-function modeDescription(mode: ConversationBranchMode): string {
-  if (mode === 'compact') {
-    return translate(
-      'conversationBranch.modeCompactDescription',
-      'The branch keeps the conversation up to this reply, summarized with a focus. Claude summarizes it before the branch opens, which can take a minute.'
-    )
-  }
-  if (mode === 'clean') {
-    return translate(
-      'conversationBranch.modeCleanDescription',
-      'A new conversation without the history. Its prompt quotes this reply; edit it to say what the branch is for.'
-    )
-  }
-  return translate(
-    'conversationBranch.modeFullDescription',
-    'The branch keeps the whole conversation up to and including this reply.'
-  )
 }
 
 /** Names a branch, picks how much of the conversation it keeps, and drafts its first prompt. */
@@ -119,31 +93,7 @@ export function ConversationBranchDialog({
               onChange={(event) => setLabel(event.target.value)}
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="conversation-branch-mode">
-              {translate('conversationBranch.mode', 'Context')}
-            </Label>
-            <Select
-              value={mode}
-              onValueChange={(value) => isConversationBranchMode(value) && chooseMode(value)}
-            >
-              <SelectTrigger id="conversation-branch-mode" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full">
-                  {translate('conversationBranch.modeFull', 'Whole conversation')}
-                </SelectItem>
-                <SelectItem value="compact">
-                  {translate('conversationBranch.modeCompact', 'Summarized conversation')}
-                </SelectItem>
-                <SelectItem value="clean">
-                  {translate('conversationBranch.modeClean', 'New conversation')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{modeDescription(mode)}</p>
-          </div>
+          <ConversationBranchModeField mode={mode} disabled={pending} onChange={chooseMode} />
           {mode === 'compact' ? (
             <div className="space-y-1">
               <Label htmlFor="conversation-branch-focus">

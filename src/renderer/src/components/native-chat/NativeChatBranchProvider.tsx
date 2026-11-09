@@ -2,8 +2,13 @@ import { useMemo, useState } from 'react'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
-import { startConversationBranchInChat } from '@/lib/conversation-branch-launch'
+import {
+  startConversationBranchBatch,
+  startConversationBranchInChat
+} from '@/lib/conversation-branch-launch'
 import { ConversationBranchDialog } from '../conversation-branch/ConversationBranchDialog'
+import { ConversationBranchBatchDialog } from '../conversation-branch/ConversationBranchBatchDialog'
+import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
 import { ConversationBranchSendGuardDialog } from '../conversation-branch/ConversationBranchSendGuardDialog'
 import { useConversationBranchSendGuard } from '../conversation-branch/conversation-branch-send-guard'
 import { useConversationBranches } from '../conversation-branch/use-conversation-branches'
@@ -41,11 +46,18 @@ export function NativeChatBranchProvider({
   const [request, setRequest] = useState<{ row: NativeChatBranchRow; requestId: string } | null>(
     null
   )
+  const [batch, setBatch] = useState<{
+    row: NativeChatBranchRow
+    findings: ConversationBranchFinding[]
+    batchId: string
+  } | null>(null)
   const surface = useMemo<NativeChatBranchSurface | undefined>(
     () =>
       supported && claudeWorktreeId
         ? {
             branchFrom: (row) => setRequest({ row, requestId: newAgentLaunchRequestId() }),
+            branchFindings: (row, findings) =>
+              setBatch({ row, findings, batchId: newAgentLaunchRequestId() }),
             branchesAt: (messageId) =>
               branches.filter(
                 (branch) =>
@@ -82,6 +94,25 @@ export function NativeChatBranchProvider({
             })
             setRequest(null)
           }}
+        />
+      ) : null}
+      {batch && claudeWorktreeId ? (
+        <ConversationBranchBatchDialog
+          findings={batch.findings}
+          onCancel={() => setBatch(null)}
+          onCreate={(mode, items, onOutcome) =>
+            startConversationBranchBatch(
+              session.target,
+              {
+                worktreeId: claudeWorktreeId,
+                source: { kind: 'chat', sessionId: session.sessionId, itemId: batch.row.messageId },
+                mode,
+                batchId: batch.batchId,
+                items
+              },
+              onOutcome
+            )
+          }
         />
       ) : null}
       {guard.asking ? (

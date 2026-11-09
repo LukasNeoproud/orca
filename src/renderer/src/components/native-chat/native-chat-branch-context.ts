@@ -1,12 +1,15 @@
 import { createContext } from 'react'
 import type { ConversationBranchRecord } from '../../../../shared/conversation-branch'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
+import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
 
 export type NativeChatBranchRow = { messageId: string; markdown: string }
 
 /** What a Claude chat offers about branches; absent where the chat cannot branch. */
 export type NativeChatBranchSurface = {
   branchFrom: (row: NativeChatBranchRow) => void
+  /** One branch per finding `findings` lists; offered only for two or more. */
+  branchFindings: (row: NativeChatBranchRow, findings: ConversationBranchFinding[]) => void
   /** The branches made from this reply, oldest first. */
   branchesAt: (messageId: string) => ConversationBranchRecord[]
   family: {
