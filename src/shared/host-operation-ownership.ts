@@ -25,6 +25,7 @@ export const HOST_OPERATION_OWNERSHIP = {
   browser: 'host',
   clipboard: 'host',
   computer: 'host',
+  conversationBranch: 'host',
   deviceApproval: 'host',
   diagnostics: 'host',
   emulator: 'host',

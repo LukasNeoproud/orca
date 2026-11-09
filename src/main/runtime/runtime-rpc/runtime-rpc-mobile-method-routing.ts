@@ -1,4 +1,5 @@
 import { MOBILE_AGENT_SESSION_RPC_METHODS } from './runtime-rpc-mobile-agent-session-methods'
+import { MOBILE_RPC_CONVERSATION_BRANCH_METHODS } from './runtime-rpc-mobile-conversation-branch-methods'
 import { PAIRED_DESKTOP_METHODS } from './runtime-rpc-mobile-paired-desktop-methods'
 import { MOBILE_RPC_BACKLOG_METHODS } from './runtime-rpc-mobile-backlog-methods'
 import { MOBILE_RPC_PROJECT_METHODS } from './runtime-rpc-mobile-project-methods'
@@ -165,6 +166,7 @@ export const EXECUTION_HOST_METHODS = [
   'session.tabs.unsubscribe',
   'session.tabs.unsubscribeAll',
   ...MOBILE_AGENT_SESSION_RPC_METHODS,
+  ...MOBILE_RPC_CONVERSATION_BRANCH_METHODS,
   'terminal.adoptOrphans',
   'terminal.agentStatus',
   'terminal.clearBuffer',

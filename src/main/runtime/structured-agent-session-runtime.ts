@@ -68,6 +68,7 @@ import {
   type RuntimeAgentAccountHomeResolver
 } from './structured-agent-model-catalog-wiring'
 import type { ClaudeCliFlagSupport } from '../claude/claude-cli-flag-support'
+import * as conversationBranches from './conversation-branch-runtime'
 import {
   scheduleNativeChatVisualsSweep,
   type NativeChatVisualsSweepDeps
@@ -212,6 +213,7 @@ export async function stopStructuredAgentSessionRuntime(options?: {
   const pending = installing
   installing = null
   setStructuredAgentSessionHost(null)
+  conversationBranches.setConversationBranchService(null)
   stopAgentSessionAttachments()
   const outstanding = [...pendingTeardown]
   pendingTeardown.clear()
@@ -346,6 +348,7 @@ async function installOnJournal(
     })
   }
   setStructuredAgentSessionHost(host)
+  conversationBranches.installConversationBranchService(context, host)
   // The host starts with its runtime, local or remote, so this is the runtime-start listing.
   const modelCatalog = host.deps.modelCatalog
   void modelCatalog?.prewarm()

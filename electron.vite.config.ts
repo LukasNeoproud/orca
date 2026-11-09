@@ -265,6 +265,10 @@ export const electronViteConfig: UserConfig = {
           'claude-profile-setup-worker-entry': resolve(
             'src/main/claude-accounts/claude-profile-setup-worker-entry.ts'
           ),
+          // Why: the SDK's fork reads CLAUDE_CONFIG_DIR from its process env, pinned per worker.
+          'claude-conversation-fork-worker-entry': resolve(
+            'src/main/claude/claude-conversation-fork-worker-entry.ts'
+          ),
           'profile-state-backup-worker-entry': resolve(
             'src/main/persistence/profile-state/profile-state-backup-worker-entry.ts'
           ),

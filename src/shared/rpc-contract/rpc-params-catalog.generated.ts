@@ -190,6 +190,12 @@ import {
   TypeText
 } from './computer-schemas-params'
 import {
+  ConversationBranchListParams,
+  ConversationBranchOutlineParams,
+  ConversationBranchPrepareParams,
+  ConversationBranchRecordReturnParams
+} from './conversation-branch-params'
+import {
   EmulatorMobileDevicesParams,
   EmulatorMobileInputParams,
   EmulatorMobileStreamParams,
@@ -878,6 +884,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'computer.scroll': ScrollOfComputerSchemasParams,
   'computer.setValue': SetValue,
   'computer.typeText': TypeText,
+  'conversationBranch.list': ConversationBranchListParams,
+  'conversationBranch.outline': ConversationBranchOutlineParams,
+  'conversationBranch.prepare': ConversationBranchPrepareParams,
+  'conversationBranch.recordReturn': ConversationBranchRecordReturnParams,
   'deviceApproval.enroll': EnrollmentResponseSchema,
   'deviceApproval.list': DeviceApprovalListParams,
   'deviceApproval.respond': ApprovalResponseSchema,

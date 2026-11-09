@@ -51,7 +51,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export type ClaudeStreamJsonLaunch = {
   /** Orca's resolved user CLI; the SDK falls back to a bundled binary that is not installed. */
   pathToClaudeCodeExecutable: string
-  options: ClaudeStructuredSdkOptions
+  // The fork pair is only for a conversation branch's compaction; chat launches never fork.
+  options: ClaudeStructuredSdkOptions &
+    Partial<Pick<ClaudeAgentSdk.Options, 'forkSession' | 'resumeSessionAt'>>
   cwd: string
   env?: Record<string, string>
   /** Removed after the child's env is built over Orca's own, as every provider child's are. */
