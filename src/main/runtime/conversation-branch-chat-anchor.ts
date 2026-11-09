@@ -28,7 +28,11 @@ export function resolveConversationBranchChatAnchor(
   )
   const { turnKeys } = nativeChatTurnMembership(transcript, { items, submissions })
   const index = transcript.findIndex((message) => message.id === itemId)
-  const turnItemId = index === -1 ? undefined : turnKeys[index]
+  // History a chat resumed from carries no turn records, so its rows go by position.
+  const turnItemId =
+    index === -1
+      ? undefined
+      : (turnKeys[index] ?? nativeChatTurnMembership(transcript).turnKeys[index])
   if (!turnItemId) {
     throw new Error('conversation_branch_invalid_anchor')
   }

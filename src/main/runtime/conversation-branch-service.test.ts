@@ -2,7 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AgentJournalRenderItem } from '../../shared/agent-session-journal-types'
+import {
+  AGENT_JOURNAL_THREAD_SCOPE,
+  type AgentJournalRenderItem
+} from '../../shared/agent-session-journal-types'
 import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
 import {
   ConversationBranchService,
@@ -141,6 +144,31 @@ describe('ConversationBranchService.prepare', () => {
       '/home/.claude'
     )
     expect(branch.parent).toMatchObject({ structuredSessionId: 'chat-1', promptUuid: 'p1' })
+  })
+
+  it('maps a row of history the chat resumed from, which has no turn records, by position', async () => {
+    const { branches, deps } = service({
+      readChatJournal: async () => ({
+        items: [
+          journalItem(1, 'user', 'p1', 'Review'),
+          journalItem(2, 'assistant', 'a1', 'Found two issues'),
+          journalItem(3, 'user', 'p2', 'Fix one'),
+          journalItem(4, 'assistant', 'a2', 'Fixed')
+        ].map((item) => ({ ...item, turnScope: AGENT_JOURNAL_THREAD_SCOPE })),
+        submissions: []
+      })
+    })
+    const replyItemId = agentJournalItemKey({ provider: 'claude', sessionId: PARENT, uuid: 'a2' })
+    const branch = await branches.prepare({
+      requestId: 'r1',
+      worktreeId: 'wt-1',
+      source: { kind: 'chat', sessionId: 'chat-1', itemId: replyItemId },
+      mode: 'full',
+      surface: 'chat',
+      label: 'After the fix'
+    })
+    expect(deps.forkFull).toHaveBeenCalledOnce()
+    expect(branch.parent).toMatchObject({ promptUuid: 'p2', replyItemId })
   })
 
   it('compacts into a pre-chosen id with the focus, in the directory Claude ran in', async () => {

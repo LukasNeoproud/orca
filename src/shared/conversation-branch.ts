@@ -50,6 +50,8 @@ export const ConversationBranchRecordSchema = z.object({
     structuredSessionId: Key.optional(),
     /** The chat's journal item that opened the forked turn, for jumping back to it. */
     turnItemId: Key.optional(),
+    /** The chat's reply the branch was made from, where its fork point is marked. */
+    replyItemId: Key.optional(),
     /** The prompt that opened the forked turn, in the parent's transcript. */
     promptUuid: Key,
     /** The turn's last main-chain entry: the child holds history up to and including it. */

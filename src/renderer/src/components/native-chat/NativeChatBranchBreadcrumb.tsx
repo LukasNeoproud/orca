@@ -59,7 +59,7 @@ export function NativeChatBranchBreadcrumb({
   return (
     <div
       data-native-chat-find-skip
-      className="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1 text-xs text-chat-foreground-faint"
+      className="flex min-w-0 items-center gap-2 border-b border-border py-1 pr-12 pl-3 text-xs text-chat-foreground-faint"
     >
       <GitBranch className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate" title={branch.parent.excerpt}>

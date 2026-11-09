@@ -62,6 +62,7 @@ type Source = {
   promptUuid: string
   structuredSessionId?: string
   turnItemId?: string
+  replyItemId?: string
   preferredAccountHomePath?: string
 }
 
@@ -136,6 +137,7 @@ export class ConversationBranchService {
         providerSessionId: source.providerSessionId,
         ...(source.structuredSessionId ? { structuredSessionId: source.structuredSessionId } : {}),
         ...(source.turnItemId ? { turnItemId: source.turnItemId } : {}),
+        ...(source.replyItemId ? { replyItemId: source.replyItemId } : {}),
         promptUuid: turn.promptUuid,
         boundaryUuid: turn.boundaryUuid,
         excerpt: turn.reply || turn.prompt
@@ -213,6 +215,7 @@ export class ConversationBranchService {
     return {
       ...anchor,
       structuredSessionId: sessionId,
+      replyItemId: itemId,
       preferredAccountHomePath: chat.accountHomePath
     }
   }
