@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { translate } from '@/i18n/i18n'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
@@ -8,6 +9,12 @@ import {
 } from '@/lib/conversation-branch-launch'
 import { ConversationBranchDialog } from '../conversation-branch/ConversationBranchDialog'
 import { ConversationBranchBatchDialog } from '../conversation-branch/ConversationBranchBatchDialog'
+import { ConversationBranchReturnDialog } from '../conversation-branch/ConversationBranchReturnDialog'
+import {
+  conversationBranchReturnDraft,
+  returnConversationBranchResult
+} from '@/lib/conversation-branch-return'
+import { conversationBranchOf } from '../../../../shared/conversation-branch'
 import type { ConversationBranchFinding } from '../../../../shared/conversation-branch-findings'
 import { ConversationBranchSendGuardDialog } from '../conversation-branch/ConversationBranchSendGuardDialog'
 import { useConversationBranchSendGuard } from '../conversation-branch/conversation-branch-send-guard'
@@ -51,6 +58,8 @@ export function NativeChatBranchProvider({
     findings: ConversationBranchFinding[]
     batchId: string
   } | null>(null)
+  const [returning, setReturning] = useState<NativeChatBranchRow | null>(null)
+  const ownBranch = providerSessionId ? conversationBranchOf(branches, providerSessionId) : null
   const surface = useMemo<NativeChatBranchSurface | undefined>(
     () =>
       supported && claudeWorktreeId
@@ -58,6 +67,7 @@ export function NativeChatBranchProvider({
             branchFrom: (row) => setRequest({ row, requestId: newAgentLaunchRequestId() }),
             branchFindings: (row, findings) =>
               setBatch({ row, findings, batchId: newAgentLaunchRequestId() }),
+            ...(ownBranch ? { returnFrom: setReturning } : {}),
             branchesAt: (messageId) =>
               branches.filter(
                 (branch) =>
@@ -73,7 +83,7 @@ export function NativeChatBranchProvider({
             guardSend
           }
         : undefined,
-    [supported, claudeWorktreeId, branches, providerSessionId, session, guardSend]
+    [supported, claudeWorktreeId, branches, providerSessionId, session, guardSend, ownBranch]
   )
   return (
     <NativeChatBranchContext.Provider value={surface}>
@@ -113,6 +123,25 @@ export function NativeChatBranchProvider({
               onOutcome
             )
           }
+        />
+      ) : null}
+      {returning && ownBranch && claudeWorktreeId ? (
+        <ConversationBranchReturnDialog
+          initialContent={conversationBranchReturnDraft(ownBranch.label, returning.markdown)}
+          parentName={
+            conversationBranchOf(branches, ownBranch.parent.providerSessionId)?.label ??
+            translate('conversationBranch.originalInline', 'the original conversation')
+          }
+          onCancel={() => setReturning(null)}
+          onReturn={async (content) => {
+            await returnConversationBranchResult({
+              target: session.target,
+              worktreeId: claudeWorktreeId,
+              branch: ownBranch,
+              content
+            })
+            setReturning(null)
+          }}
         />
       ) : null}
       {guard.asking ? (

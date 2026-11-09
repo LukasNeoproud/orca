@@ -10,6 +10,8 @@ export type NativeChatBranchSurface = {
   branchFrom: (row: NativeChatBranchRow) => void
   /** One branch per finding `findings` lists; offered only for two or more. */
   branchFindings: (row: NativeChatBranchRow, findings: ConversationBranchFinding[]) => void
+  /** Present in a branch: hands a reply back to the conversation it came from. */
+  returnFrom?: (row: NativeChatBranchRow) => void
   /** The branches made from this reply, oldest first. */
   branchesAt: (messageId: string) => ConversationBranchRecord[]
   family: {

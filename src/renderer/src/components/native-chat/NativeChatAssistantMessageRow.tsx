@@ -129,6 +129,11 @@ export function NativeChatAssistantMessageRow({
           onScrollToTop={scrollToTop}
           onBranch={onBranch}
           onBranchFindings={onBranchFindings}
+          onReturnResult={
+            canBranch && branch?.returnFrom
+              ? () => branch.returnFrom?.({ messageId: message.id, markdown: words })
+              : undefined
+          }
           className={cn(
             'mt-1 w-fit select-none transition-opacity can-hover:pointer-events-none can-hover:opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 [.group:has(:focus-visible)_&]:pointer-events-auto [.group:has(:focus-visible)_&]:opacity-100',
             // They hang into the gap below; a section keeps them inside its border instead.

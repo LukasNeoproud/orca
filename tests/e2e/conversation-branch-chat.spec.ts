@@ -137,9 +137,27 @@ test('branches a Claude chat after a review reply and returns to the branch poin
   await family.getByText('Fix the parser').click()
   await expect(page.getByText(/Fix the parser · branch of/)).toBeVisible({ timeout: 30_000 })
 
-  // One branch per finding, opened beside the parent; none of them sends anything.
-  await page.getByRole('button', { name: 'Back to branch point' }).click()
+  // The branch hands its reply back: a draft in the parent's composer, not a message.
+  const fixChat = page.locator('[data-native-chat-root="true"]:visible')
+  await fixChat.getByText('The cache never expires.', { exact: true }).hover()
+  await fixChat.getByRole('button', { name: 'Return result to the branch point' }).click()
+  const returnDialog = page.getByRole('dialog')
+  await expect(returnDialog.getByRole('textbox', { name: 'Result' })).toHaveValue(
+    /^Result of the branch "Fix the parser":/
+  )
+  await page.waitForTimeout(300)
+  await shoot(page, testInfo, '06-return-dialog')
+  await returnDialog.getByRole('button', { name: 'Return to the branch point' }).click()
+  await expect(returnDialog).toHaveCount(0, { timeout: 30_000 })
   const review = page.locator('[data-native-chat-root="true"]:visible')
+  await expect(review.getByText('Nothing else stood out.', { exact: true })).toBeVisible({
+    timeout: 30_000
+  })
+  await expect(
+    page.getByRole('textbox', { name: /Ask anything/ }).filter({ visible: true })
+  ).toContainText('Result of the branch "Fix the parser"')
+
+  // One branch per finding, opened beside the parent; none of them sends anything.
   await review.getByText('The cache never expires.', { exact: true }).hover()
   await review.getByRole('button', { name: 'Branch per finding' }).first().click()
   const batch = page.getByRole('dialog')
@@ -149,15 +167,15 @@ test('branches a Claude chat after a review reply and returns to the branch poin
   )
   // Dialogs keep their fade under reduced motion; the screenshot waits it out.
   await page.waitForTimeout(300)
-  await shoot(page, testInfo, '06-batch-dialog')
+  await shoot(page, testInfo, '07-batch-dialog')
   await batch.getByRole('button', { name: 'Create 2 branches' }).click()
   await expect(batch).toHaveCount(0, { timeout: 60_000 })
-  await expect(page.getByText('2. The cache never expires.', { exact: true })).toBeVisible({
+  await expect(page.locator('[data-tab-title="2. The cache never expires."]')).toBeVisible({
     timeout: 30_000
   })
   await expect(review.getByText('Nothing else stood out.', { exact: true })).toBeVisible()
   await expect(review.getByRole('button', { name: '3 branches' })).toBeVisible({
     timeout: 30_000
   })
-  await shoot(page, testInfo, '07-batch-created')
+  await shoot(page, testInfo, '08-batch-created')
 })
