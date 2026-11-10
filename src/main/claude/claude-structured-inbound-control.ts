@@ -1,4 +1,10 @@
-import type { CanUseTool, OnUserDialog, PermissionResult } from '@anthropic-ai/claude-agent-sdk'
+import type {
+  CanUseTool,
+  OnElicitation,
+  OnUserDialog,
+  PermissionResult
+} from '@anthropic-ai/claude-agent-sdk'
+import { buildClaudeElicitationCallback } from './claude-mcp-elicitation-prompt'
 import type { ClaudePromptRegistry } from './claude-structured-prompt-replies'
 import type { ClaudeStructuredSessionEvent } from './claude-structured-session-state'
 import {
@@ -33,6 +39,7 @@ function denySafeResult(toolUseId: string | undefined): PermissionResult {
 export function buildClaudePermissionCallbacks(deps: ClaudePermissionCallbackDeps): {
   canUseTool: CanUseTool
   onUserDialog: OnUserDialog
+  onElicitation: OnElicitation
 } {
   const canUseTool: CanUseTool = (toolName, input, options) =>
     new Promise<PermissionResult | null>((resolve) => {
@@ -82,5 +89,5 @@ export function buildClaudePermissionCallbacks(deps: ClaudePermissionCallbackDep
 
   const onUserDialog: OnUserDialog = () => Promise.resolve({ behavior: 'cancelled' })
 
-  return { canUseTool, onUserDialog }
+  return { canUseTool, onUserDialog, onElicitation: buildClaudeElicitationCallback(deps) }
 }

@@ -359,8 +359,8 @@ export function NativeChatStructuredSession(
             <NativeChatApprovalCard
               key={`${prompt.itemId}:${prompt.revision}`}
               approval={approval}
-              onChoose={(optionId) =>
-                void promptResponse.respond(prompt, { kind: 'option', optionId })
+              onChoose={(optionId, extras) =>
+                void promptResponse.respond(prompt, { kind: 'option', optionId, ...extras })
               }
               isSubmitting={promptResponse.holds(prompt)}
               onCancel={cancelPrompt}

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import {
   nativeChatSentPrompts,
-  stepNativeChatPromptRecall
+  stepNativeChatPromptRecall,
+  stepNativeChatPromptSearch
 } from './native-chat-sent-prompt-history'
 
 function message(
@@ -97,5 +98,32 @@ describe('stepNativeChatPromptRecall', () => {
       draft: 'two'
     })
     expect(step?.draft).toBe('one')
+  })
+})
+
+describe('stepNativeChatPromptSearch', () => {
+  const prompts = [
+    { id: 'a', prompt: 'run the tests' },
+    { id: 'b', prompt: 'fix the parser' },
+    { id: 'c', prompt: 'run lint' }
+  ]
+
+  it('finds the newest prompt holding the typed text, then the next older on a repeat', () => {
+    const first = stepNativeChatPromptSearch({ prompts, search: null, draft: 'RUN' })
+    expect(first).toEqual({ term: 'run', last: prompts[2] })
+    const second = stepNativeChatPromptSearch({ prompts, search: first, draft: 'run lint' })
+    expect(second).toEqual({ term: 'run', last: prompts[0] })
+    expect(
+      stepNativeChatPromptSearch({ prompts, search: second, draft: 'run the tests' })
+    ).toBeNull()
+  })
+
+  it('starts over when the draft is no longer the last match, and recalls the newest from empty', () => {
+    const stale = { term: 'run', last: prompts[2]! }
+    expect(stepNativeChatPromptSearch({ prompts, search: stale, draft: 'parser' })).toEqual({
+      term: 'parser',
+      last: prompts[1]
+    })
+    expect(stepNativeChatPromptSearch({ prompts, search: null, draft: '' })?.last).toBe(prompts[2])
   })
 })

@@ -8,22 +8,36 @@ import type {
 import { formatToolInput, truncateToolDetail } from '../../shared/native-chat-tool-summary'
 import { isPlanApprovalSubject } from '../../shared/agent-session-approval-subject'
 import { boundJournalPromptBody } from '../native-chat/agent-session-journal/journal-prompt-body-bounds'
+import { AGENT_SESSION_APPROVAL_INPUT_MAX_LENGTH } from '../../shared/agent-session-question-answer'
+import { claudeRememberedAllowOption } from './claude-permission-suggestion-summary'
 import { claudeRecord, claudeText } from './claude-structured-item-translation'
 import {
   encodeClaudeQuestionOptionId,
   type ClaudePendingPrompt
 } from './claude-structured-prompt-replies'
 
-const APPROVAL_OPTIONS: readonly AgentJournalPromptOption[] = [
-  { id: 'allow', label: 'Allow' },
-  { id: 'allowForSession', label: 'Allow for this session' },
-  { id: 'deny', label: 'Deny' }
-]
-
 const PLAN_APPROVAL_OPTIONS: readonly AgentJournalPromptOption[] = [
-  { id: 'allow', label: 'Approve plan' },
+  { id: 'allowAcceptEdits', label: 'Approve and accept edits' },
+  { id: 'allow', label: 'Approve, ask before edits' },
   { id: 'deny', label: 'Keep planning' }
 ]
+
+function approvalOptions(prompt: ClaudePendingPrompt): AgentJournalPromptOption[] {
+  const remembered = claudeRememberedAllowOption(prompt.suggestions)
+  return [
+    { id: 'allow', label: 'Allow' },
+    ...(remembered ? [remembered] : []),
+    { id: 'deny', label: 'Deny' }
+  ]
+}
+
+/** The one input field worth rewriting before allowing: a shell command. */
+function editableInputField(prompt: ClaudePendingPrompt): { name: string; value: string } | null {
+  const command = prompt.toolName === 'Bash' ? prompt.input.command : null
+  return typeof command === 'string' && command.length <= AGENT_SESSION_APPROVAL_INPUT_MAX_LENGTH
+    ? { name: 'command', value: command }
+    : null
+}
 
 const PENDING = {
   state: 'pending',
@@ -47,8 +61,10 @@ export function claudePromptIdentity(input: {
 export function claudeApprovalItem(prompt: ClaudePendingPrompt): AgentJournalApprovalItem {
   const planSubject = isPlanApprovalSubject(prompt.subject) ? prompt.subject : null
   const detail = truncateToolDetail(planSubject?.text ?? formatToolInput(prompt.input))
+  const inputField = planSubject ? null : editableInputField(prompt)
   return boundJournalPromptBody({
     kind: 'approval',
+    accepts: { note: true, ...(inputField ? { inputField } : {}) },
     title: prompt.title ?? (planSubject ? 'Review proposed plan' : `Allow ${prompt.toolName}?`),
     ...(prompt.displayName ? { displayName: prompt.displayName } : {}),
     ...(prompt.description ? { description: prompt.description } : {}),
@@ -57,9 +73,9 @@ export function claudeApprovalItem(prompt: ClaudePendingPrompt): AgentJournalApp
     ...(prompt.matchedAskRule ? { matchedAskRule: prompt.matchedAskRule } : {}),
     ...(prompt.subject ? { subject: prompt.subject } : {}),
     detail: detail || null,
-    options: (planSubject ? PLAN_APPROVAL_OPTIONS : APPROVAL_OPTIONS).map((option) => ({
-      ...option
-    })),
+    options: planSubject
+      ? PLAN_APPROVAL_OPTIONS.map((option) => ({ ...option }))
+      : approvalOptions(prompt),
     resolution: { ...PENDING }
   })
 }

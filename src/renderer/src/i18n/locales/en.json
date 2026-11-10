@@ -18546,7 +18546,9 @@
         "runLivePlanOne": "Updating the plan",
         "runLivePlanMany": "Updating the plan {{value0}} times",
         "runLiveToolOne": "Using 1 tool",
-        "runLiveToolMany": "Using {{value0}} tools"
+        "runLiveToolMany": "Using {{value0}} tools",
+        "runningFor": "Running for {{value0}}",
+        "moveToBackground": "Move to background"
       },
       "providerFrame": {
         "byteLength": "{{value0}} bytes"
@@ -18688,7 +18690,9 @@
         "needsNewerOrca": "This request needs a newer version of Orca.",
         "plan": {
           "file": "Plan file"
-        }
+        },
+        "editInput": "Command to run (you can edit it)",
+        "note": "What to do instead (sent when you decline)"
       },
       "launchPromptNotDelivered": "Not delivered — check the terminal",
       "subagents": {
@@ -18710,7 +18714,9 @@
         "ranOne": "Ran 1 subagent",
         "ranN": "Ran {{value0}} subagents",
         "tokens": "{{value0}} tokens",
-        "unnamed": "Subagent"
+        "unnamed": "Subagent",
+        "openPanel": "Open {{value0}} in the side panel",
+        "panelEmpty": "Nothing from this subagent is loaded yet."
       },
       "conversationCommand": {
         "pendingWork": "Wait for pending work and messages to finish before using this command."
@@ -18882,6 +18888,80 @@
         "paneEmptyTitle": "Nothing to show yet",
         "paneEmptyBody": "{{plugin}} has not drawn in this pane",
         "statusLines": "Plugin status lines"
+      },
+      "claudeControls": {
+        "notRunning": "Claude is not running in this chat yet. Send a message first.",
+        "sideEmpty": "Type the question after /btw.",
+        "mcp": {
+          "command": "Manage MCP servers",
+          "connected": "Connected",
+          "failed": "Failed",
+          "needsAuth": "Needs sign-in",
+          "pending": "Connecting",
+          "disabled": "Disabled",
+          "title": "MCP servers",
+          "description": "The servers this chat’s Claude loaded. Changes apply to this chat.",
+          "none": "No MCP servers are configured.",
+          "tools": "{{value0}} tools",
+          "signIn": "Sign in",
+          "reconnect": "Reconnect",
+          "signOut": "Sign out",
+          "enable": "Enable",
+          "disable": "Disable"
+        },
+        "permissions": {
+          "command": "View and edit permission rules",
+          "allow": "Allow",
+          "ask": "Ask",
+          "deny": "Deny",
+          "user": "All projects",
+          "project": "This project (shared)",
+          "local": "This project (only you)",
+          "session": "This session",
+          "policy": "Managed policy",
+          "remove": "Remove rule",
+          "title": "Permissions",
+          "managedOnly": "Your organization allows managed rules only; other rules are ignored.",
+          "description": "Rules Claude applies before it asks. A saved rule is written to Claude’s settings file.",
+          "newRule": "New rule",
+          "add": "Add to {{value0}}",
+          "directories": "Additional directories"
+        },
+        "sideCommand": "Ask a side question without adding it to the conversation",
+        "refresh": "Refresh",
+        "close": "Close",
+        "sideNoAnswer": "Claude had no answer.",
+        "sideTitle": "Side question",
+        "sideAsking": "Asking Claude…",
+        "copy": "Copy"
+      },
+      "sidePanel": {
+        "noArtifacts": "This conversation has produced no artifacts yet.",
+        "contextWindow": "Context window",
+        "contextUsed": "{{used}} of {{window}} tokens · {{percent}}%",
+        "noContextUsage": "Known once the agent has answered.",
+        "skills": "Skills ({{value0}})",
+        "noPlan": "No plan or task list in this conversation yet.",
+        "tasks": "Tasks",
+        "plan": "Plan",
+        "background": "Background",
+        "planAndTasks": "Plan",
+        "subagents": "Subagents",
+        "context": "Context",
+        "artifacts": "Artifacts",
+        "label": "Conversation panel",
+        "close": "Close panel",
+        "allSubagents": "All subagents",
+        "noSubagents": "This conversation has started no subagents.",
+        "toggle": "Conversation panel",
+        "noBackground": "Nothing is running in the background.",
+        "limitScoped": "Weekly · {{value0}}",
+        "limitWeekly": "Weekly limit",
+        "limitSession": "5-hour limit",
+        "usage": "Usage",
+        "sessionCost": "This session: ${{value0}}",
+        "resets": "resets {{value0}}",
+        "stopSubagent": "Stop"
       }
     },
     "tab": {

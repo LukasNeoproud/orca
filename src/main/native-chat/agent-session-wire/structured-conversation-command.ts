@@ -39,6 +39,8 @@ export type ConversationCommandParams = {
   command: AgentSessionConversationCommand
   /** /compact only: wait as a card while the agent works, as a queued send does. */
   delivery?: 'queue-if-active'
+  /** /compact only: what the summary should keep. */
+  instructions?: string
   /** Host-local, set by the client-facing command RPC as for an ordinary send. */
   userSend?: true
 }

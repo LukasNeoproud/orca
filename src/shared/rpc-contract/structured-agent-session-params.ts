@@ -27,6 +27,8 @@ import { isAgentSessionOptions } from '../agent-session-record'
 import { isStructuredAgentId } from '../agent-session-provider-handle-encoding'
 import { normalizeExecutionHostId } from '../execution-host'
 import {
+  AGENT_SESSION_APPROVAL_INPUT_MAX_LENGTH,
+  AGENT_SESSION_APPROVAL_NOTE_MAX_LENGTH,
   AGENT_SESSION_QUESTION_ANSWER_MAX_BYTES,
   AGENT_SESSION_RESPONSE_OPTION_ID_MAX_LENGTH
 } from '../agent-session-question-answer'
@@ -211,7 +213,10 @@ export const RespondParams = z
     itemId: Identifier('Invalid item id'),
     /** Compare-and-set: the revision the client had on screen. */
     expectedRevision: z.number().int().positive(),
-    optionId: Identifier('Invalid option id', MAX_RESPONSE_OPTION_ID_LENGTH)
+    optionId: Identifier('Invalid option id', MAX_RESPONSE_OPTION_ID_LENGTH),
+    /** Sent only for an approval whose item says it `accepts` them. */
+    note: z.string().max(AGENT_SESSION_APPROVAL_NOTE_MAX_LENGTH).optional(),
+    inputValue: z.string().max(AGENT_SESSION_APPROVAL_INPUT_MAX_LENGTH).optional()
   })
   .strict()
 
@@ -288,6 +293,8 @@ export const ModelCatalogParams = z.strictObject({
   savedOnly: z.boolean().optional()
 })
 
+export const MAX_COMPACT_INSTRUCTIONS_LENGTH = 4000
+
 export const ConversationCommandParams = z
   .object({
     envelope: MutationEnvelope,
@@ -296,7 +303,10 @@ export const ConversationCommandParams = z
      *  Strict object, so an older host refuses it: clients send it only when
      *  `agent-session.queued-commands.v1` is advertised. A /clear never waits: its operation
      *  fingerprints no `delivery`, so one sent with it is refused as a conflict. */
-    delivery: z.literal('queue-if-active').optional()
+    delivery: z.literal('queue-if-active').optional(),
+    /** /compact only: what the summary should keep. Strict object, so clients send it only
+     *  when `agent-session.compact-instructions.v1` is advertised. */
+    instructions: z.string().trim().min(1).max(MAX_COMPACT_INSTRUCTIONS_LENGTH).optional()
   })
   .strict()
 

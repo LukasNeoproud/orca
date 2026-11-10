@@ -40,6 +40,9 @@ export type AgentSessionPromptRequest = {
   /** A decision id; or, from a client that predates `answers`, a question answer packed into one id. */
   optionId?: string
   answers?: AgentSessionQuestionAnswer[]
+  /** Read only where the approval `accepts` them. */
+  note?: string
+  inputValue?: string
 }
 
 function invalid(
@@ -56,9 +59,20 @@ function readPromptChoice(
 ): { response: AgentSessionPromptResponse; selectedOptionId: string } | null {
   if (prompt.kind === 'approval') {
     const optionId = input.optionId
-    return optionId !== undefined && prompt.options.some((option) => option.id === optionId)
-      ? { response: { kind: 'option', optionId }, selectedOptionId: optionId }
-      : null
+    if (optionId === undefined || !prompt.options.some((option) => option.id === optionId)) {
+      return null
+    }
+    const note = prompt.accepts?.note ? input.note?.trim() : undefined
+    const inputValue = prompt.accepts?.inputField ? input.inputValue : undefined
+    return {
+      response: {
+        kind: 'option',
+        optionId,
+        ...(note ? { note } : {}),
+        ...(inputValue !== undefined ? { inputValue } : {})
+      },
+      selectedOptionId: optionId
+    }
   }
   // An Orca interaction form answers with its whole packed result; the provider adapter decodes it.
   const interaction = OrcaInteractionRequestSchema.safeParse(prompt.interaction)

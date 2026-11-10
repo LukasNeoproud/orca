@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
-import { Package, RotateCcw } from 'lucide-react'
+import { Folder, Package, RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { SkillSourceKind } from '../../../../shared/skills'
@@ -338,7 +338,8 @@ export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
   return (
     <PickerListbox id={listboxId}>
       {files.map((path, index) => {
-        const FileIcon = getFileTypeIcon(path)
+        const folder = path.endsWith('/')
+        const FileIcon = folder ? Folder : getFileTypeIcon(path)
         return (
           <PickerOptionButton
             key={path}
@@ -348,7 +349,7 @@ export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
             onChoose={() => onChoose(path)}
           >
             <FileIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-            <FilenameFirstPath path={path} />
+            <FilenameFirstPath path={folder ? path.slice(0, -1) : path} />
           </PickerOptionButton>
         )
       })}

@@ -16,7 +16,8 @@ export function useStructuredAgentSessionCommandWrite(
   write: StructuredAgentSessionWrite
 ): (
   command: AgentSessionConversationCommand,
-  delivery?: 'queue-if-active'
+  delivery?: 'queue-if-active',
+  instructions?: string
 ) => Promise<StructuredAgentSessionWriteOutcome<AgentSessionConversationCommandResult>> {
   // Null once the view left or unmounted, so a reply that lands later releases its hold.
   const shown = useRef<string | null>(sessionId)
@@ -30,12 +31,12 @@ export function useStructuredAgentSessionCommandWrite(
     }
   }, [sessionId])
   return useCallback(
-    async (command, delivery) => {
+    async (command, delivery, instructions) => {
       const send = () =>
         write<AgentSessionConversationCommandResult>(
           'agentSession.conversationCommand',
           'agentSession.conversationCommand',
-          { command, ...(delivery ? { delivery } : {}) }
+          { command, ...(delivery ? { delivery } : {}), ...(instructions ? { instructions } : {}) }
         )
       if (command !== 'clear') {
         return send()

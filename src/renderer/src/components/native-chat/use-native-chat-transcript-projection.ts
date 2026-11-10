@@ -8,6 +8,7 @@ import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { AgentSessionLatestTurn } from '../../../../shared/agent-session-wire'
 import { createNativeChatMessageListProjection } from './native-chat-message-list-projection'
 import { projectNativeChatTaskListFrames } from './native-chat-task-list-frames'
+import { projectClaudeTaskToolCalls } from './native-chat-claude-task-tool-calls'
 import { omitNativeChatThreadGoalRows } from './native-chat-thread-goal-rows'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 
@@ -39,7 +40,9 @@ export function useNativeChatTranscriptProjection(
     [journalItems, journalSubmissions, latestTurn, projectMessages, session.messages]
   )
   const messages = useMemo(() => {
-    const projected = projectNativeChatTaskListFrames(projection.conversation)
+    const projected = projectClaudeTaskToolCalls(
+      projectNativeChatTaskListFrames(projection.conversation)
+    )
     // Structured sessions show goal state in the banner above the composer.
     return journalItems ? omitNativeChatThreadGoalRows(projected) : projected
   }, [journalItems, projection.conversation])

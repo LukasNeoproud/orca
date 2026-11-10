@@ -23,3 +23,23 @@ export function claudeInformationalRowBody(
       }
     : null
 }
+
+export const CLAUDE_COMPACT_BOUNDARY_FRAME_KIND = 'message:system:compact_boundary'
+
+/**
+ * The row an automatic compaction writes. A `/compact` the user sent reports itself through its
+ * own turn's end, so only the CLI's own trigger is said here; without it the summary replaces the
+ * history with nothing in the chat to show for it.
+ */
+export function claudeAutoCompactionRowBody(
+  message: Record<string, unknown>
+): AgentJournalStatusItem | null {
+  const metadata = message.compact_metadata
+  const trigger =
+    typeof metadata === 'object' && metadata !== null && 'trigger' in metadata
+      ? metadata.trigger
+      : null
+  return trigger === 'auto'
+    ? { kind: 'status', text: 'Context compacted', presentation: 'compaction' }
+    : null
+}

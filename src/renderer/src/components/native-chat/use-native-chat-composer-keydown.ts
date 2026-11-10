@@ -13,7 +13,9 @@ import {
   isNativeChatRecallActive,
   nativeChatSentPrompts,
   stepNativeChatPromptRecall,
-  type NativeChatComposerRecall
+  stepNativeChatPromptSearch,
+  type NativeChatComposerRecall,
+  type NativeChatPromptSearch
 } from './native-chat-sent-prompt-history'
 
 export type UseNativeChatComposerKeyDownArgs = {
@@ -61,6 +63,7 @@ export function useNativeChatComposerKeyDown({
   // Read through a ref: the transcript changes on every streamed frame.
   const recallRef = useRef(recall)
   recallRef.current = recall
+  const searchRef = useRef<NativeChatPromptSearch | null>(null)
   return useCallback(
     (event) => {
       if (isComposing() || event.nativeEvent.isComposing || event.keyCode === 229) {
@@ -127,6 +130,23 @@ export function useNativeChatComposerKeyDown({
       if (event.key === 'Escape') {
         event.preventDefault()
         interrupt()
+        return
+      }
+      // Ctrl+R on every platform, as in a terminal: the newest sent prompt holding what is typed.
+      const searchChord = event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey
+      if (searchChord && event.key.toLowerCase() === 'r' && recallRef.current && !hasAttachments) {
+        event.preventDefault()
+        const found = stepNativeChatPromptSearch({
+          prompts: nativeChatSentPrompts(recallRef.current.source),
+          search: searchRef.current,
+          draft
+        })
+        if (found) {
+          searchRef.current = found
+          setDraft(found.last.prompt)
+          setCaret(found.last.prompt.length)
+          recallRef.current.show(found.last.prompt)
+        }
         return
       }
       if (event.key === 'Enter' && !event.shiftKey) {

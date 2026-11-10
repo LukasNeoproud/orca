@@ -8,6 +8,10 @@ const SINGLE_QUESTION_ID = 'q1'
 /** Longest option id a host takes, which also bounds an answer packed into one. */
 export const AGENT_SESSION_RESPONSE_OPTION_ID_MAX_LENGTH = 1024
 
+/** Longest note typed on an approval, and longest rewritten input field. */
+export const AGENT_SESSION_APPROVAL_NOTE_MAX_LENGTH = 16 * 1024
+export const AGENT_SESSION_APPROVAL_INPUT_MAX_LENGTH = 64 * 1024
+
 /** Largest typed answer to one question, in UTF-8 bytes. */
 export const AGENT_SESSION_QUESTION_ANSWER_MAX_BYTES = 64 * 1024
 
@@ -19,7 +23,7 @@ export type AgentSessionQuestionAnswer = {
 
 /** What a client chose on a prompt: a decision id for an approval, per-question answers for a question. */
 export type AgentSessionPromptResponse =
-  | { kind: 'option'; optionId: string }
+  | { kind: 'option'; optionId: string; note?: string; inputValue?: string }
   | { kind: 'answers'; answers: AgentSessionQuestionAnswer[] }
 
 /** The questions an item asks: its grouped list, or the item itself as one question. */

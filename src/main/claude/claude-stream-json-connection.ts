@@ -1,7 +1,6 @@
 import type { PipedProcessSpawner } from '@orca/process-host/process-spec'
 import { providerDiagnostic, withProviderDiagnostic } from '../../shared/agent-session-failure'
 import type * as ClaudeAgentSdk from '@anthropic-ai/claude-agent-sdk'
-import type { CanUseTool, OnUserDialog, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { spawnProcess } from '@orca/process-host'
 import { buildClaudeChildProcessEnv } from './claude-child-process-environment'
 import { withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
@@ -75,9 +74,11 @@ export type ClaudeStreamJsonConnectionHandlers = {
    * response by request_id itself. Setting it makes the SDK pass `--permission-prompt-tool
    * stdio` automatically; it must not be paired with `permissionPromptToolName`.
    */
-  canUseTool?: CanUseTool
+  canUseTool?: ClaudeAgentSdk.CanUseTool
   /** `request_user_dialog` control; the CLI only emits kinds declared in `supportedDialogKinds`. */
-  onUserDialog?: OnUserDialog
+  onUserDialog?: ClaudeAgentSdk.OnUserDialog
+  /** An MCP server asking the user for input; without it the CLI declines every such request. */
+  onElicitation?: ClaudeAgentSdk.OnElicitation
   /** A transport/process fault that is not itself first-hand root exit proof. */
   onFault?: (error: Error) => void
   /** The root process exited, reported once. `expected`: a close had begun, so it is that close's
@@ -162,7 +163,8 @@ export async function openClaudeStreamJsonConnection(
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
       spawnClaudeCodeProcess: spawner.spawn,
       ...(handlers.canUseTool ? { canUseTool: handlers.canUseTool } : {}),
-      ...(handlers.onUserDialog ? { onUserDialog: handlers.onUserDialog } : {})
+      ...(handlers.onUserDialog ? { onUserDialog: handlers.onUserDialog } : {}),
+      ...(handlers.onElicitation ? { onElicitation: handlers.onElicitation } : {})
     }
   })
   const managed = spawner.managed
@@ -301,7 +303,7 @@ export async function openClaudeStreamJsonConnection(
       )
     }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: dispatch constructs the SDK user envelope after mapping every content block.
-    return inbox.push(message as unknown as SDKUserMessage, beforeDispatch)
+    return inbox.push(message as unknown as ClaudeAgentSdk.SDKUserMessage, beforeDispatch)
   }
 
   const close = (): Promise<boolean> => {

@@ -1,4 +1,13 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
+import { NativeChatSidePanelContext } from './native-chat-side-panel-context'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { NativeChatSubagentRow } from '../../../../shared/native-chat-transcript-projection'
 import type { StructuredAgentSubagentRoster } from '../../../../shared/structured-agent-session-subagent-roster'
@@ -44,6 +53,12 @@ export function useNativeChatSubagentSections(
     () => nativeChatSubagentSections(conversation, subagentRows, roster),
     [conversation, roster, subagentRows]
   )
+  // The side panel reads the conversation and each child's rows from here; without one this
+  // publishes nowhere.
+  const publish = useContext(NativeChatSidePanelContext)?.publish
+  useEffect(() => {
+    publish?.({ conversation, subagentRows })
+  }, [conversation, publish, subagentRows])
   const subagentRowsInOrder = useMemo(
     () => nativeChatSubagentRowsInOrder(subagentRows),
     [subagentRows]

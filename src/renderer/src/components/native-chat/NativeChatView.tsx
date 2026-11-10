@@ -7,6 +7,8 @@ import { NativeChatPaneFileDropSurface } from './NativeChatPaneFileDropSurface'
 import { NativeChatVisualOwnerProvider } from './native-chat-visual-owner'
 import { NativeChatFileLinkExistenceProvider } from './use-native-chat-file-link-existence'
 import { NativeChatBranchProvider } from './NativeChatBranchProvider'
+import { NativeChatSidePanelProvider } from './NativeChatSidePanelProvider'
+import { NativeChatClaudeControlsProvider } from './NativeChatClaudeControlsProvider'
 
 export type { NativeChatViewProps } from './native-chat-view-types'
 
@@ -23,7 +25,11 @@ export default function NativeChatView(props: NativeChatViewProps): React.JSX.El
         >
           <NativeChatFileLinkExistenceProvider tabId={props.tabId}>
             <NativeChatBranchProvider session={props}>
-              <NativeChatStructuredSession {...props} />
+              <NativeChatClaudeControlsProvider session={props}>
+                <NativeChatSidePanelProvider session={props}>
+                  <NativeChatStructuredSession {...props} />
+                </NativeChatSidePanelProvider>
+              </NativeChatClaudeControlsProvider>
             </NativeChatBranchProvider>
           </NativeChatFileLinkExistenceProvider>
         </NativeChatVisualOwnerProvider>

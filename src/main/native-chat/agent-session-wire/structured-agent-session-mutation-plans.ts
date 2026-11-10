@@ -228,6 +228,7 @@ export type ConversationCommandAcceptance =
 export function conversationCommandPlan(params: {
   envelope: AgentSessionMutationEnvelope
   delivery?: 'queue-if-active'
+  instructions?: string
   priorRecord: () => AgentSessionConversationCommandResult | null
 }): MutationPlan<ConversationCommandAcceptance> {
   const clientMessageId = params.envelope.clientOperationId
@@ -238,7 +239,8 @@ export function conversationCommandPlan(params: {
     commandReceipt: submissionOrDraftReceipt(clientMessageId),
     fields: {
       command: STRUCTURED_AGENT_SESSION_COMPACT_COMMAND,
-      ...(params.delivery ? { delivery: params.delivery } : {})
+      ...(params.delivery ? { delivery: params.delivery } : {}),
+      ...(params.instructions ? { instructions: params.instructions } : {})
     },
     recoverUnknownFromDurableState: true,
     run: async (ctx) => {
@@ -248,7 +250,7 @@ export function conversationCommandPlan(params: {
         origin: 'client',
         source: USER_MESSAGE_SOURCE,
         payloadFingerprint: params.envelope.payloadFingerprint,
-        body: structuredAgentSessionCompactBody()
+        body: structuredAgentSessionCompactBody(params.instructions)
       })
       return sent.ok ? { ok: true, value: { clientMessageId } } : sent
     },

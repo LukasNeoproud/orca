@@ -23,7 +23,13 @@ export type ClaudeMessageEnvelope = {
 }
 
 export type ClaudeToolUse = { id: string; name: string; input: unknown }
-export type ClaudeToolResult = { toolUseId: string; output: string; failed: boolean }
+export type ClaudeToolResult = {
+  toolUseId: string
+  output: string
+  failed: boolean
+  /** The result's raw content, for the parts `output` cannot carry. */
+  content: unknown
+}
 
 export function claudeRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -166,6 +172,7 @@ export function claudeToolResults(envelope: ClaudeMessageEnvelope): ClaudeToolRe
           {
             toolUseId,
             output: resultText(part.content),
+            content: part.content,
             failed: part.is_error === true
           }
         ]
@@ -182,13 +189,39 @@ export function claudeThinkingText(envelope: ClaudeMessageEnvelope): string | nu
   return parts.length > 0 ? parts.join('\n') : null
 }
 
+const MAX_WEB_SEARCH_RESULTS = 20
+
+/** The hits a WebSearch result lists as `Links: [{title, url}, …]` lines, as the row's sources. */
+function webSearchResults(output: string): { title: string; url: string }[] {
+  const results: { title: string; url: string }[] = []
+  for (const match of output.matchAll(/^Links: (\[.*\])\s*$/gm)) {
+    let links: unknown
+    try {
+      links = JSON.parse(match[1]!)
+    } catch {
+      continue
+    }
+    for (const value of Array.isArray(links) ? links : []) {
+      const link = claudeRecord(value)
+      const url = claudeText(link?.url)
+      if (url && /^https?:\/\//i.test(url) && !results.some((known) => known.url === url)) {
+        results.push({ title: claudeText(link?.title) ?? url, url })
+      }
+    }
+  }
+  return results.slice(0, MAX_WEB_SEARCH_RESULTS)
+}
+
 export function claudeToolBody(input: {
   tool: ClaudeToolUse
   result?: ClaudeToolResult
 }): AgentJournalItemBody {
+  const sources =
+    input.result && input.tool.name === 'WebSearch' ? webSearchResults(input.result.output) : []
   return {
     kind: 'tool-call',
     name: input.tool.name,
+    ...(sources.length > 0 ? { webSearchResults: sources } : {}),
     input: input.tool.input,
     callId: input.tool.id,
     state: input.result ? (input.result.failed ? 'failed' : 'completed') : 'running',

@@ -25,7 +25,7 @@ import { bindStructuredAgentSessionStream } from './structured-agent-session-sta
 
 /** A chat subscribes before its first message starts the child, so an unknown session is
  *  admitted (its channel waits for the child); only a known non-Claude session is refused. */
-function requireClaudeSession(ctx: RpcContext, sessionId: string): void {
+export function requireClaudeSession(ctx: RpcContext, sessionId: string): void {
   const agent = requireStructuredHost(ctx).sessionAgent(sessionId)
   if (agent) {
     requireStructuredAgentAudience(ctx, agent)

@@ -6,6 +6,7 @@
 // read off an explicit context, so the open turn and the collaborators it
 // writes through stay owned by the translator.
 
+import { claudeToolImagesIdentity, claudeToolResultImagesBody } from './claude-tool-result-images'
 import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import type { ClaudeBackgroundTaskRows } from './claude-background-task-rows'
@@ -145,6 +146,15 @@ export function journalClaudeMessage(
     const resultIdentity = claudeToolIdentity(envelope.sessionId, result.toolUseId)
     const resultBody = claudeToolBody({ tool, result })
     ctx.sink.appendItem(resultIdentity, resultBody, stamp(resultIdentity, resultBody))
+    const imagesBody = claudeToolResultImagesBody(
+      envelope.sessionId,
+      result.toolUseId,
+      result.content
+    )
+    if (imagesBody) {
+      const imagesIdentity = claudeToolImagesIdentity(envelope.sessionId, result.toolUseId)
+      ctx.sink.appendItem(imagesIdentity, imagesBody, stamp(imagesIdentity, imagesBody))
+    }
     ctx.subagents.observeToolResult(result.toolUseId, result.failed)
     if (
       results.length === 1 &&

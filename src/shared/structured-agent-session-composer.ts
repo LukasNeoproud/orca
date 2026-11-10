@@ -35,8 +35,14 @@ export type StructuredAgentSessionComposerOptions = {
   setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
   conversationCommands?: readonly AgentSessionConversationCommand[]
   runConversationCommand?: (
-    command: AgentSessionConversationCommand
+    command: AgentSessionConversationCommand,
+    instructions?: string
   ) => Promise<Omit<StructuredAgentSessionCommandOutcome, 'handled'>>
+  /** Commands this chat answers with a surface of its own, by name; they win over every other
+   *  reading of the same command. */
+  hostCommands?: Readonly<
+    Record<string, (argument: string) => Omit<StructuredAgentSessionCommandOutcome, 'handled'>>
+  >
   /** Present only where the host can set this session's goal; otherwise `/goal`
    *  stays message text the agent acts on itself. */
   setThreadGoalObjective?: (objective: string) => Promise<boolean>
@@ -116,6 +122,11 @@ export function isStructuredAgentSessionComposerCommand(
   )
 }
 
+/** The command a draft names, without its slash; null for anything that is not a command. */
+export function structuredAgentSessionCommandName(text: string): string | null {
+  return commandParts(text)?.name ?? null
+}
+
 /** `/clear` or `/compact` alone: a conversation command with nothing after it. */
 export function isLoneStructuredAgentSessionConversationCommand(text: string): boolean {
   const command = commandParts(text.trim())
@@ -167,6 +178,10 @@ export async function dispatchStructuredAgentSessionComposerCommand(
   controller: StructuredAgentSessionComposerOptions
 ): Promise<StructuredAgentSessionCommandOutcome> {
   const command = commandParts(text)
+  const own = command ? controller.hostCommands?.[command.name] : undefined
+  if (command && own) {
+    return { handled: true, ...own(command.argument) }
+  }
   if (command?.name === 'goal' && controller.setThreadGoalObjective) {
     if (!command.argument) {
       return { handled: true, accepted: false, error: 'Describe the goal after /goal.' }
@@ -182,8 +197,8 @@ export async function dispatchStructuredAgentSessionComposerCommand(
     return { handled: false, accepted: false, error: null }
   }
   if (command.name === 'clear' || command.name === 'compact') {
-    if (command.argument) {
-      return { handled: true, accepted: false, error: `Use /${command.name} without arguments.` }
+    if (command.argument && command.name === 'clear') {
+      return { handled: true, accepted: false, error: 'Use /clear without arguments.' }
     }
     if (
       !controller.conversationCommands?.includes(command.name) ||
@@ -195,7 +210,11 @@ export async function dispatchStructuredAgentSessionComposerCommand(
         error: `/${command.name} is not supported by this chat host.`
       }
     }
-    return { handled: true, ...(await controller.runConversationCommand(command.name)) }
+    // The focus typed after /compact; a host that reads none refuses it rather than drop it.
+    const ran = command.argument
+      ? controller.runConversationCommand(command.name, command.argument)
+      : controller.runConversationCommand(command.name)
+    return { handled: true, ...(await ran) }
   }
   if (command.name !== 'model' && command.name !== 'effort') {
     return unavailable(command.name)

@@ -106,3 +106,18 @@ export function claudeStructuredPermissions(
     )
   }
 }
+
+/**
+ * The modes a chat may pick before its child runs. The pick is applied at the next start; bypass
+ * is a launch setting (Agent Permissions), so it shows only where it is already the saved pick.
+ */
+export function claudeRestingPermissions(saved: string | undefined): AgentSessionPermissionsOption {
+  const current = isClaudePermissionMode(saved) ? saved : undefined
+  return {
+    optionId: 'permissionMode',
+    ...(current ? { current } : {}),
+    choices: CHOICES.filter(
+      (choice) => choice.value === current || choice.value !== 'bypassPermissions'
+    ).map((choice) => ({ ...choice }))
+  }
+}

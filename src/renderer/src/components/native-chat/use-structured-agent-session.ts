@@ -1,3 +1,4 @@
+import { AGENT_SESSION_COMPACT_INSTRUCTIONS_RUNTIME_CAPABILITY } from '../../../../shared/structured-agent-session-surface-capabilities'
 import { useMemo, useRef } from 'react'
 import { useStructuredAgentSessionSends } from './use-structured-agent-session-sends'
 import { useStructuredAgentSessionCommandWrite } from './use-structured-agent-session-command-write'
@@ -10,6 +11,7 @@ import { useStructuredLegacyLaunchStop } from '@/lib/structured-agent-session-le
 import { supportsStructuredAgentSessionPromptCancel } from '@/runtime/structured-agent-session-client'
 import {
   useStructuredAgentSessionHostQueuesCommands,
+  useStructuredAgentSessionHostCapability,
   useStructuredAgentSessionHostEditsQueuedMessages,
   useStructuredAgentSessionHostQueuesMessagesState
 } from '@/runtime/structured-agent-session-host-capability'
@@ -245,7 +247,11 @@ export function useStructuredAgentSession(args: {
       rewindInFlight: rewind.blockedRef,
       sends: pending,
       items: () => stateRef.current.items,
-      send: commandWrite
+      send: commandWrite,
+      compactTakesInstructions: useStructuredAgentSessionHostCapability(
+        target,
+        AGENT_SESSION_COMPACT_INSTRUCTIONS_RUNTIME_CAPABILITY
+      )
     }),
     journalItems: transcriptItems,
     /** The host's newest turn record, which places a live turn whose record is not loaded. */

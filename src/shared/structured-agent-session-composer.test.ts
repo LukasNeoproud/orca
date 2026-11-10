@@ -128,19 +128,35 @@ describe('dispatchStructuredAgentSessionComposerCommand', () => {
       }
     }
   )
-  it('retains a draft on unsupported hosts and rejects arguments before dispatch', async () => {
+  it('retains a draft on unsupported hosts, refuses /clear arguments and hands /compact its focus', async () => {
     expect(await dispatchStructuredAgentSessionComposerCommand('/clear', controller)).toMatchObject(
       { handled: true, accepted: false, error: '/clear is not supported by this chat host.' }
     )
-    const runConversationCommand = vi.fn()
+    const runConversationCommand = vi.fn(async () => ({ accepted: true, error: null }))
+    const withCommands = {
+      ...controller,
+      conversationCommands: ['compact', 'clear'] as const,
+      runConversationCommand
+    }
     expect(
-      await dispatchStructuredAgentSessionComposerCommand('/compact keep this', {
-        ...controller,
-        conversationCommands: ['compact'],
-        runConversationCommand
-      })
+      await dispatchStructuredAgentSessionComposerCommand('/clear now', withCommands)
     ).toMatchObject({ handled: true, accepted: false })
     expect(runConversationCommand).not.toHaveBeenCalled()
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/compact keep this', withCommands)
+    ).toMatchObject({ handled: true, accepted: true })
+    expect(runConversationCommand).toHaveBeenLastCalledWith('compact', 'keep this')
+  })
+
+  it('answers a command the chat owns itself before any other reading of it', async () => {
+    const mcp = vi.fn(() => ({ accepted: true, error: null }))
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/mcp  figma', {
+        ...controller,
+        hostCommands: { mcp }
+      })
+    ).toEqual({ handled: true, accepted: true, error: null })
+    expect(mcp).toHaveBeenCalledWith('figma')
   })
 })
 

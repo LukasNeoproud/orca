@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { translate } from '@/i18n/i18n'
+import { NativeChatSidePanelContext } from './native-chat-side-panel-context'
 import { NativeChatBackgroundTasksStatus } from './NativeChatBackgroundTasksStatus'
 import type { AgentSessionCancelResult } from '../../../../shared/agent-session-wire'
 import {
@@ -20,14 +22,29 @@ type ConfirmedStops = { sessionId: string; taskIds: ReadonlyMap<string, string> 
 const NO_STOPPING_TASKS: ReadonlySet<string> = new Set()
 const NO_CONFIRMED_STOPS: ReadonlyMap<string, string> = new Map()
 
-export function NativeChatStructuredSessionStatus(props: {
+export type NativeChatStructuredSessionStatusProps = {
   sessionId: string
   /** The session's own status row, whose verdict the strip's children read. */
   paneKey: string
   isVisible: boolean
   backgroundTasks: StructuredSessionBackgroundTasksView
   stopBackgroundTask: (taskId?: string) => Promise<AgentSessionCancelResult | null>
-}): React.JSX.Element {
+}
+
+export function NativeChatStructuredSessionStatus(
+  props: NativeChatStructuredSessionStatusProps & {
+    /** The side panel's copy lists its tasks from the start; the strip opens on a press. */
+    startsExpanded?: boolean
+  }
+): React.JSX.Element {
+  // The panel beside the chat draws the same tasks from what the strip is given.
+  const publish = useContext(NativeChatSidePanelContext)?.publish
+  const { sessionId, paneKey, isVisible, backgroundTasks, stopBackgroundTask } = props
+  useEffect(() => {
+    publish?.({
+      background: { sessionId, paneKey, isVisible, backgroundTasks, stopBackgroundTask }
+    })
+  }, [backgroundTasks, isVisible, paneKey, publish, sessionId, stopBackgroundTask])
   const [stopping, setStopping] = useState<StoppingBackgroundTasks | null>(null)
   // Stops the host confirmed, with the run each was pressed on: each row keeps its stopping button
   // until that run leaves the strip.
@@ -109,10 +126,21 @@ export function NativeChatStructuredSessionStatus(props: {
           supportsStopAll={props.backgroundTasks.supportsStopAll}
           stoppingTaskIds={stoppingTaskIds}
           stoppingAll={activeStopping?.all ?? false}
-          expanded={expanded?.sessionId === props.sessionId && expanded.expanded}
+          expanded={
+            expanded?.sessionId === props.sessionId
+              ? expanded.expanded
+              : props.startsExpanded === true
+          }
           onExpandedChange={(value) => setExpanded({ sessionId: props.sessionId, expanded: value })}
           onStop={onStop}
         />
+      ) : props.startsExpanded ? (
+        <p className="px-2 py-1 text-sm text-muted-foreground">
+          {translate(
+            'components.native-chat.sidePanel.noBackground',
+            'Nothing is running in the background.'
+          )}
+        </p>
       ) : null}
     </>
   )

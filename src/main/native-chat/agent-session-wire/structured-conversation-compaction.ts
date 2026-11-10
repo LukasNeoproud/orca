@@ -144,6 +144,7 @@ function acceptStructuredConversationCommand(
   const plan = conversationCommandPlan({
     envelope: params.envelope,
     ...(params.delivery ? { delivery: params.delivery } : {}),
+    ...(params.instructions ? { instructions: params.instructions } : {}),
     priorRecord
   })
   return mutateStructuredAgentSession(
@@ -157,7 +158,7 @@ function acceptStructuredConversationCommand(
         // command waits behind too, so admission below never sees work in flight for it.
         const queued = await maybeQueueStructuredAgentSessionSend(context, ctx, {
           envelope: params.envelope,
-          body: structuredAgentSessionCompactBody(),
+          body: structuredAgentSessionCompactBody(params.instructions),
           ...(params.userSend ? { userSend: params.userSend } : {}),
           ...(params.delivery ? { delivery: params.delivery } : {})
         })

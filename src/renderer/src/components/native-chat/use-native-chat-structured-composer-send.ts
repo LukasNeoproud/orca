@@ -4,6 +4,7 @@ import { reportStructuredSessionUserInput } from '@/lib/worker-terminal-takeover
 import {
   isStructuredAgentSessionComposerCommand,
   isStructuredAgentSessionGoalCommand,
+  structuredAgentSessionCommandName,
   structuredAgentSessionCommandChangesConversation
 } from '../../../../shared/structured-agent-session-composer'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -40,6 +41,9 @@ export function isNativeChatStructuredHostCommand(
 ): boolean {
   return (
     isStructuredAgentSessionComposerCommand(text, agent) ||
+    transport.hostCommands?.suggestions.some(
+      (entry) => entry.name === structuredAgentSessionCommandName(text)
+    ) === true ||
     (transport.threadGoal !== undefined && isStructuredAgentSessionGoalCommand(text))
   )
 }

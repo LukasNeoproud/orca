@@ -30,6 +30,7 @@ export { claudeSessionIdForOrcaSession }
 
 export const CLAUDE_DEFAULT_SETTING_SOURCES = ['user', 'project', 'local'] as const
 export const CLAUDE_SESSION_STATE_EVENTS_ENV = 'CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS'
+export const CLAUDE_TASK_TOOLS_ENV = 'CLAUDE_CODE_ENABLE_TODO_TOOLS'
 
 export type ClaudeStructuredSdkOptions = Pick<
   ClaudeAgentSdkOptions,
@@ -222,7 +223,9 @@ export function claudeStructuredLaunchPart(
           {
             ...base,
             // The turn translator relies on Claude's authoritative idle frame when no result arrives.
-            [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1'
+            [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1',
+            // Without it a stream-json session gets no task list tools at all.
+            [CLAUDE_TASK_TOOLS_ENV]: '1'
           },
           visuals?.visuals ?? null
         ),

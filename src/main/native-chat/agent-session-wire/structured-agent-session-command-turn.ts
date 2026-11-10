@@ -50,13 +50,22 @@ export { structuredAgentSessionCommandTurn } from '../../../shared/structured-ag
 export const STRUCTURED_AGENT_SESSION_COMPACT_COMMAND = 'compact'
 
 /** What the user sent for `/compact`: the text they typed, and the command it names. */
-export function structuredAgentSessionCompactBody(): AgentJournalMessageItem {
+export function structuredAgentSessionCompactBody(instructions?: string): AgentJournalMessageItem {
   return {
     kind: 'message',
     role: 'user',
-    blocks: [{ type: 'text', text: '/compact' }],
+    blocks: [{ type: 'text', text: instructions ? `/compact ${instructions}` : '/compact' }],
     command: { name: STRUCTURED_AGENT_SESSION_COMPACT_COMMAND }
   }
+}
+
+/** The focus typed after `/compact` in a body built above; undefined for a bare command. */
+function compactInstructions(body: AgentJournalMessageItem): string | undefined {
+  const [block] = body.blocks
+  const text = block?.type === 'text' ? block.text : ''
+  return text.startsWith('/compact ')
+    ? text.slice('/compact '.length).trim() || undefined
+    : undefined
 }
 
 type AwaitedSubmission = Pick<
@@ -180,12 +189,18 @@ export async function handOverStructuredAgentSessionCommand(
     return
   }
   const { turn, running } = await openCommandTurn(ctx, submission)
+  const instructions = compactInstructions(body)
   let admission: AgentSessionCommandAdmission
   try {
     admission = await ctx.adapter.compact!({
       sessionId: ctx.sessionId,
       fence: ctx.fence,
-      command: { clientMessageId, ...turn, running }
+      command: {
+        clientMessageId,
+        ...turn,
+        running,
+        ...(instructions ? { instructions } : {})
+      }
     })
   } catch (error) {
     // Handed over only to a child that proved its start, so a throw is a lost reply: it may have run.

@@ -24,7 +24,9 @@ import {
   createClaudeApiRetryRuns
 } from './claude-api-retry-row'
 import {
+  CLAUDE_COMPACT_BOUNDARY_FRAME_KIND,
   CLAUDE_INFORMATIONAL_FRAME_KIND,
+  claudeAutoCompactionRowBody,
   claudeInformationalRowBody
 } from './claude-informational-row'
 
@@ -170,9 +172,13 @@ export function createClaudeProviderFrameFallback(
         sink.publish()
         return true
       }
-      if (kind === CLAUDE_INFORMATIONAL_FRAME_KIND) {
-        // Never the frame as a row: a warning in its own words, any other level nothing.
-        const body = claudeInformationalRowBody(claudeRecord(payload) ?? {})
+      if (kind === CLAUDE_INFORMATIONAL_FRAME_KIND || kind === CLAUDE_COMPACT_BOUNDARY_FRAME_KIND) {
+        // Never the frame as a row: a warning or an automatic compaction in its own words, else nothing.
+        const frame = claudeRecord(payload) ?? {}
+        const body =
+          kind === CLAUDE_INFORMATIONAL_FRAME_KIND
+            ? claudeInformationalRowBody(frame)
+            : claudeAutoCompactionRowBody(frame)
         if (!body) {
           return false
         }

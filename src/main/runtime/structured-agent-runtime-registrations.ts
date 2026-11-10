@@ -1,5 +1,7 @@
 // Each runtime registration owns its adapter, location support and account resolution at start.
 
+import { join } from 'node:path'
+import { setClaudeToolImageDirectory } from '../claude/claude-tool-result-images'
 import { codexStructuredLaunchPart } from '../codex/codex-structured-launch-resolution'
 import { claudeStructuredLaunchPart } from '../claude/claude-structured-launch-resolution'
 import { supportsCodexStructuredLocation } from '../codex/codex-structured-location-support'
@@ -164,6 +166,7 @@ function createClaudeAdapter(
 ): StructuredAgentRuntimeAdapter {
   const { deps, store, followUps, host } = context
   const overlay = claudeLaunchEnvOverlay(deps).resolveEnv
+  setClaudeToolImageDirectory(join(deps.stateDirectory, 'agent-session-tool-images'))
   return createStructuredClaudeRuntimeAdapter({
     store,
     resolveWorkspacePath: deps.resolveWorkspacePath,

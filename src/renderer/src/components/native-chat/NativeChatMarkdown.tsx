@@ -1,9 +1,11 @@
-import { useEffect, useState, type ComponentProps } from 'react'
+import { useEffect, useMemo, useState, type ComponentProps } from 'react'
+import rehypeKatex from 'rehype-katex'
 import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { cn } from '@/lib/utils'
 import { withoutPendingNativeChatVisualDirectiveTail } from '../../../../shared/native-chat-visual-directive'
 import { NativeChatMarkdownRowKeyContext } from './native-chat-disclosure-store'
 import { useNativeChatVisualMarkdownExtension } from './native-chat-visual-markdown-extension'
+import { withNativeChatMath } from './native-chat-math-markdown-extension'
 import { useNativeChatFileLinkExists } from './use-native-chat-file-link-existence'
 import './native-chat-markdown.css'
 
@@ -41,16 +43,23 @@ export function NativeChatMarkdown({
   ...props
 }: NativeChatMarkdownProps): React.JSX.Element {
   const wordFadeArmed = useWordFadeArmed(fadeWords)
-  const extension = useNativeChatVisualMarkdownExtension(visualMessageId)
+  const visuals = useNativeChatVisualMarkdownExtension(visualMessageId)
+  const extension = useMemo(() => withNativeChatMath(visuals), [visuals])
+  const { extraRehypePlugins } = props
+  const rehypeWithMath = useMemo(
+    () => [...(extraRehypePlugins ?? []), rehypeKatex],
+    [extraRehypePlugins]
+  )
   const fileLinkExists = useNativeChatFileLinkExists(linkifyFilePaths, streaming)
   return (
     <NativeChatMarkdownRowKeyContext.Provider value={rowKey}>
       <CommentMarkdown
         {...props}
         content={
-          extension && streaming ? withoutPendingNativeChatVisualDirectiveTail(content) : content
+          visuals && streaming ? withoutPendingNativeChatVisualDirectiveTail(content) : content
         }
         extension={extension}
+        extraRehypePlugins={rehypeWithMath}
         fileLinkExists={fileLinkExists}
         fadeWords={fadeWords}
         renderMermaid={!streaming}

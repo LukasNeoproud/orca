@@ -1,3 +1,4 @@
+import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
 import type { NativeChatQueueResume } from './native-chat-composer-primary-action'
 import type { NativeChatComposerNotice } from './native-chat-composer-notice'
 import type { AgentSessionConversationCommand } from '../../../../shared/agent-session-conversation-command'
@@ -47,6 +48,8 @@ export type NativeChatStructuredComposerTransport = {
   /** A send is out: Send stays disabled, and a send returns false, until it settles. */
   sendOut?: boolean
   dispatchCommand: (text: string) => Promise<StructuredAgentSessionCommandOutcome>
+  /** Commands the chat answers with a panel of its own; the menu lists them. */
+  hostCommands?: { suggestions: readonly SlashCommandSuggestion[] }
   optionsSurface: SessionOptionsSurface
   optionSnapshot: SessionOptionDescriptor[]
   optionPickerRequest?: NativeChatOptionPickerRequest | null

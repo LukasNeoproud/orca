@@ -145,7 +145,9 @@ export function NativeChatToolRun({
   // that started it and is the only durable report of how it ended.
   const standaloneRows = [
     ...subagentRows,
-    ...backgroundTasks.map((task) => <NativeChatBackgroundTaskRun key={task.taskId} block={task} />)
+    ...backgroundTasks.map((task) => (
+      <NativeChatBackgroundTaskRun key={task.taskId} block={task} onLinkClick={onLinkClick} />
+    ))
   ]
   const {
     asks,

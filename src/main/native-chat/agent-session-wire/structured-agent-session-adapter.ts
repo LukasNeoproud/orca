@@ -162,6 +162,8 @@ export type StructuredAgentSessionCommandRun = {
   resultIdentity: AgentJournalItemIdentity
   /** The turn record as the host wrote it; the translator's end revises it. */
   running: AgentJournalTurnItem
+  /** What the user asked the summary to keep; a provider without a focus ignores it. */
+  instructions?: string
 }
 
 /** A command the provider took answers it in place and echoes no item of its own. */

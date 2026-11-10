@@ -13,6 +13,7 @@ export async function dispatchClaudeCommand(
   command: StructuredAgentSessionCommandRun
 ): Promise<AgentSessionCommandAdmission> {
   const sentUuid = randomUUID()
+  const compactText = command.instructions ? `/compact ${command.instructions}` : '/compact'
   session.translator?.beginCommand({
     ...command,
     providerSessionId: session.providerSessionId,
@@ -21,7 +22,7 @@ export async function dispatchClaudeCommand(
   try {
     const admission = await dispatchClaudeTurn(session, {
       clientMessageId: command.clientMessageId,
-      body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: '/compact' }] },
+      body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: compactText }] },
       ...(command.running.requestedAt === undefined
         ? {}
         : { requestedAt: command.running.requestedAt }),

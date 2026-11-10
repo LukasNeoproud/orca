@@ -41,6 +41,15 @@ export const AGENT_SESSION_CLAUDE_MODS_PROMPT_ANSWERS_RUNTIME_CAPABILITY =
 // Why: `conversationBranch.*` is additive; a client hides branching on a host that lacks it.
 export const CONVERSATION_BRANCH_RUNTIME_CAPABILITY = 'conversation-branch.v1' as const
 
+// Why: `agentSession.claudeControl` reads and changes a running Claude chat's MCP servers and
+// permission rules and asks side questions; a client hides those on a host that lacks it.
+export const AGENT_SESSION_CLAUDE_CONTROL_RUNTIME_CAPABILITY =
+  'agent-session.claude-control.v1' as const
+// Why: `agentSession.conversationCommand`'s strict params gain `instructions`, the focus typed
+// after /compact. An older host rejects the key, so a client sends it only to a host with this.
+export const AGENT_SESSION_COMPACT_INSTRUCTIONS_RUNTIME_CAPABILITY =
+  'agent-session.compact-instructions.v1' as const
+
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
@@ -50,5 +59,7 @@ export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY,
   AGENT_SESSION_CLAUDE_MODS_RUNTIME_CAPABILITY,
   AGENT_SESSION_CLAUDE_MODS_PROMPT_ANSWERS_RUNTIME_CAPABILITY,
-  CONVERSATION_BRANCH_RUNTIME_CAPABILITY
+  CONVERSATION_BRANCH_RUNTIME_CAPABILITY,
+  AGENT_SESSION_CLAUDE_CONTROL_RUNTIME_CAPABILITY,
+  AGENT_SESSION_COMPACT_INSTRUCTIONS_RUNTIME_CAPABILITY
 ] as const

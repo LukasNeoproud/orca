@@ -4,6 +4,7 @@ import type {
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { openClaudeStreamJsonConnection } from './claude-stream-json-connection'
 import { claudeModsSessionChannel } from './claude-mods-surface-channel'
+import { bindClaudeSessionControls } from './claude-session-controls'
 import { buildClaudePermissionCallbacks } from './claude-structured-inbound-control'
 import { resolveClaudeReplayTurn } from './claude-replay-turn-resolution'
 import { claudeSessionStateEndsTurn } from './claude-session-state-turn-over'
@@ -153,7 +154,7 @@ export async function acquireClaudeSession({
   }
   const emit = (event: Parameters<typeof callbacks.emit>[2]): void =>
     callbacks.deliver(attempt, sessionId, () => callbacks.emit(liveSession, input.events, event))
-  const { canUseTool, onUserDialog } = buildClaudePermissionCallbacks({ sessionId, prompts, emit })
+  const inboundControl = buildClaudePermissionCallbacks({ sessionId, prompts, emit })
 
   try {
     const launch = await resolveClaudeAcquisitionLaunch({
@@ -190,8 +191,7 @@ export async function acquireClaudeSession({
         },
         {
           onMessage,
-          canUseTool,
-          onUserDialog,
+          ...inboundControl,
           ...(input.onOutput ? { onOutput: input.onOutput } : {}),
           onFault: (error) => {
             unbindMods?.()
@@ -215,7 +215,7 @@ export async function acquireClaudeSession({
       )
     )
     attempt.connection = connection
-    unbindMods = mods.bind(connection)
+    unbindMods = bindClaudeSessionControls(sessionId, connection, launch, mods.bind(connection))
     unbindReadingControl = bindClaudeConnectionJournalControls(
       input.events,
       connection,

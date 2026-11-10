@@ -131,6 +131,8 @@ export type ClaudeControlSurface = {
   getContextUsage: (options?: ClaudeControlOptions) => Promise<unknown>
   /** One `ui_*` request of the mods surface; absent when the SDK exposes no generic sender. */
   uiRequest?: (body: Record<string, unknown>, options?: ClaudeControlOptions) => Promise<unknown>
+  /** Any control request by its wire body; absent when the SDK exposes no generic sender. */
+  rawRequest?: (body: Record<string, unknown>, options?: ClaudeControlOptions) => Promise<unknown>
   /** Answers the CLI's mods asks (ui_copy, ui_prompt_*); absent when the SDK cannot be intercepted. */
   answerUiAsks?: ClaudeModsAskInterceptor
 }
@@ -143,13 +145,11 @@ type InterruptingQuery = {
 
 export function createClaudeControlSurface(query: Query): ClaudeControlSurface {
   const raw = claudeQueryRawRequester(query)
+  const send: ClaudeControlSurface['rawRequest'] = raw
+    ? (body, options) => runClaudeControl(String(body.subtype), () => raw(body), options?.timeoutMs)
+    : undefined
   return {
-    ...(raw
-      ? {
-          uiRequest: (body, options) =>
-            runClaudeControl(String(body.subtype), () => raw(body), options?.timeoutMs)
-        }
-      : {}),
+    ...(send ? { uiRequest: send, rawRequest: send } : {}),
     ...claudeQueryUiAskInterceptor(query),
     interrupt: (options) =>
       runClaudeControl(

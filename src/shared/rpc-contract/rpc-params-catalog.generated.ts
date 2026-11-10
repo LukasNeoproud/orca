@@ -159,6 +159,7 @@ import {
   ClaudeModsRequestParams,
   ClaudeModsSubscribeParams
 } from './claude-mods-surface-params'
+import { ClaudeSessionControlParams } from './claude-session-control-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
   NativeChatSessionOptionsMutation,
@@ -686,6 +687,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.acknowledgeAttention': AcknowledgeAttentionParams,
   'agentSession.agents': AgentsParams,
   'agentSession.cancel': CancelParams,
+  'agentSession.claudeControl': ClaudeSessionControlParams,
   'agentSession.claudeModsAnswer': ClaudeModsAnswerParams,
   'agentSession.claudeModsAsks': ClaudeModsAsksParams,
   'agentSession.claudeModsRequest': ClaudeModsRequestParams,

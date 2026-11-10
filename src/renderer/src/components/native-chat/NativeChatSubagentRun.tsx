@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Bot, ChevronRight } from 'lucide-react'
+import { useContext, useState } from 'react'
+import { Bot, ChevronRight, PanelRight } from 'lucide-react'
+import { translate } from '@/i18n/i18n'
+import { NativeChatSidePanelContext } from './native-chat-side-panel-context'
 import { cn } from '@/lib/utils'
 import { useNow } from '@/hooks/use-now'
 import {
@@ -92,6 +94,7 @@ export function NativeChatSubagentEntries({
   onSetSectionOpen?: (agentId: string, open: boolean) => void
   className?: string
 }): React.JSX.Element {
+  const panel = useContext(NativeChatSidePanelContext)
   return (
     <ul className={cn('space-y-0.5', className)}>
       {agents.map((agent) => {
@@ -115,28 +118,50 @@ export function NativeChatSubagentEntries({
           </>
         )
         return (
-          <li key={agent.id}>
-            {sectionOpen === undefined ? (
-              <div className="flex items-center gap-1.5 py-0.5">{entry}</div>
-            ) : (
+          <li key={agent.id} className="group/subagent-row flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              {sectionOpen === undefined ? (
+                <div className="flex items-center gap-1.5 py-0.5">{entry}</div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSetSectionOpen?.(agent.id, !sectionOpen)}
+                  aria-expanded={sectionOpen}
+                  className="group/subagent-entry flex w-full items-center gap-1.5 rounded-md py-0.5 text-left hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                >
+                  {entry}
+                  <ChevronRight
+                    aria-hidden
+                    className={cn(
+                      'size-3.5 shrink-0 text-chat-foreground-faint transition-all motion-reduce:transition-none',
+                      sectionOpen
+                        ? 'rotate-90 opacity-100'
+                        : 'opacity-0 group-hover/subagent-entry:opacity-100'
+                    )}
+                  />
+                </button>
+              )}
+            </div>
+            {panel ? (
               <button
                 type="button"
-                onClick={() => onSetSectionOpen?.(agent.id, !sectionOpen)}
-                aria-expanded={sectionOpen}
-                className="group/subagent-entry flex w-full items-center gap-1.5 rounded-md py-0.5 text-left hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                onClick={() => panel.openSubagent(agent)}
+                aria-pressed={panel.openAgentId === agent.id}
+                aria-label={translate(
+                  'components.native-chat.subagents.openPanel',
+                  'Open {{value0}} in the side panel',
+                  { value0: agent.label }
+                )}
+                className={cn(
+                  'flex size-5 shrink-0 items-center justify-center rounded-md text-chat-foreground-faint hover:bg-accent/40 hover:text-chat-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  panel.openAgentId === agent.id
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover/subagent-row:opacity-100'
+                )}
               >
-                {entry}
-                <ChevronRight
-                  aria-hidden
-                  className={cn(
-                    'size-3.5 shrink-0 text-chat-foreground-faint transition-all motion-reduce:transition-none',
-                    sectionOpen
-                      ? 'rotate-90 opacity-100'
-                      : 'opacity-0 group-hover/subagent-entry:opacity-100'
-                  )}
-                />
+                <PanelRight aria-hidden className="size-3.5" />
               </button>
-            )}
+            ) : null}
           </li>
         )
       })}

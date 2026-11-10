@@ -28,15 +28,18 @@ export function useNativeChatComposerCatalog(
   const structured = Boolean(structuredTransport)
   const reported = structuredTransport?.sessionCommands
   const conversationCommands = structuredTransport?.conversationCommands
-  const agentCommands = useMemo(
-    () =>
-      !structured
-        ? getVerifiedNativeChatCommands(agent)
-        : reported !== undefined
-          ? sessionSlashCommandSuggestions(agent, reported)
-          : structuredSlashCommands(conversationCommands, agent),
-    [agent, conversationCommands, reported, structured]
-  )
+  const own = structuredTransport?.hostCommands?.suggestions
+  const agentCommands = useMemo(() => {
+    const listed = !structured
+      ? getVerifiedNativeChatCommands(agent)
+      : reported !== undefined
+        ? sessionSlashCommandSuggestions(agent, reported)
+        : structuredSlashCommands(conversationCommands, agent)
+    // The chat's own answer to a command replaces the agent's entry of the same name.
+    return own
+      ? [...listed.filter((entry) => !own.some((mine) => mine.name === entry.name)), ...own]
+      : listed
+  }, [agent, conversationCommands, own, reported, structured])
   const sessionSkillNames = useMemo(
     () => (reported !== undefined ? sessionReportedSkillNames(reported) : undefined),
     [reported]

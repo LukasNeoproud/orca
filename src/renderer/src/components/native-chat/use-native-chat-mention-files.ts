@@ -10,7 +10,7 @@ const MENTION_FILE_LIMIT = 20
 const NO_FILES: readonly string[] = []
 
 export type NativeChatMentionFiles = {
-  /** Workspace-relative paths, best match first. */
+  /** Workspace-relative paths, best match first; folders end in `/`. */
   files: readonly string[]
   loading: boolean
   failed: boolean
@@ -40,17 +40,54 @@ export function useNativeChatMentionFiles(args: {
   })
   const failed = list.loadError !== null
 
-  return useMemo(
-    () => ({
-      files:
-        query === null
-          ? NO_FILES
-          : rankQuickOpenFilesWithHistory(query, list.files, history)
-              .slice(0, MENTION_FILE_LIMIT)
-              .map((item) => item.path),
+  return useMemo(() => {
+    if (query === null) {
+      return { files: NO_FILES, loading: list.loading, failed }
+    }
+    const files = rankQuickOpenFilesWithHistory(query, list.files, history)
+      .slice(0, MENTION_FILE_LIMIT)
+      .map((item) => item.path)
+    return {
+      files: [...mentionFolders(query, list.files), ...files].slice(0, MENTION_FILE_LIMIT),
       loading: list.loading,
       failed
-    }),
-    [failed, history, list.files, list.loading, query]
-  )
+    }
+  }, [failed, history, list.files, list.loading, query])
+}
+
+const MENTION_FOLDER_LIMIT = 4
+
+/**
+ * The folders a query names, as `path/`: Claude reads a mentioned folder as its listing. Only for
+ * a typed query, so a bare `@` still opens on the recent files; best is a folder whose own name
+ * starts with the query, then the shallowest.
+ */
+export function mentionFolders(query: string, files: readonly string[]): string[] {
+  const needle = query.toLowerCase().replace(/\/$/, '')
+  if (!needle) {
+    return []
+  }
+  const folders = new Map<string, number>()
+  for (const file of files) {
+    let end = file.lastIndexOf('/')
+    while (end > 0) {
+      const folder = file.slice(0, end)
+      if (folders.has(folder)) {
+        break
+      }
+      const lower = folder.toLowerCase()
+      const name = lower.slice(lower.lastIndexOf('/') + 1)
+      const rank = name.startsWith(needle) ? 0 : lower.includes(needle) ? 1 : -1
+      folders.set(folder, rank)
+      end = folder.lastIndexOf('/')
+    }
+  }
+  return [...folders]
+    .filter(([, rank]) => rank >= 0)
+    .sort(
+      ([a, rankA], [b, rankB]) =>
+        rankA - rankB || a.split('/').length - b.split('/').length || a.localeCompare(b)
+    )
+    .slice(0, MENTION_FOLDER_LIMIT)
+    .map(([folder]) => `${folder}/`)
 }

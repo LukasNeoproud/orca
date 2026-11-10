@@ -194,10 +194,16 @@ export function structuredConversationCommandRunner(args: {
   items: () => readonly AgentJournalRenderItem[]
   send: (
     command: AgentSessionConversationCommand,
-    delivery?: 'queue-if-active'
+    delivery?: 'queue-if-active',
+    instructions?: string
   ) => Promise<StructuredAgentSessionWriteOutcome<AgentSessionConversationCommandResult>>
+  /** The host reads a focus typed after /compact; without it the focus is refused, not dropped. */
+  compactTakesInstructions: boolean
 }): {
-  runConversationCommand: (command: AgentSessionConversationCommand) => Promise<CommandOutcome>
+  runConversationCommand: (
+    command: AgentSessionConversationCommand,
+    instructions?: string
+  ) => Promise<CommandOutcome>
   /** What a refusal's line stands on, as the chat shows it now. */
   commandRefusalCauses: StructuredConversationCommandCauses
 } {
@@ -212,7 +218,10 @@ export function structuredConversationCommandRunner(args: {
     sending: sendPending,
     retry: false
   }
-  const run = (command: AgentSessionConversationCommand) => {
+  const run = (command: AgentSessionConversationCommand, instructions?: string) => {
+    if (instructions && (command !== 'compact' || !args.compactTakesInstructions)) {
+      return Promise.resolve({ accepted: false, error: `Use /${command} without arguments.` })
+    }
     const waitsInLine =
       command === 'compact' &&
       args.commandsWait &&
@@ -235,7 +244,8 @@ export function structuredConversationCommandRunner(args: {
       send: (command) =>
         args.send(
           command,
-          command === 'compact' && args.commandsWait ? 'queue-if-active' : undefined
+          command === 'compact' && args.commandsWait ? 'queue-if-active' : undefined,
+          instructions
         )
     })
   }

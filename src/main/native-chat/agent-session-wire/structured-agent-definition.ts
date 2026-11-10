@@ -1,3 +1,4 @@
+import type { AgentSessionPermissionsOption } from '../../../shared/agent-session-permissions-option'
 // What the host knows about a structured agent before any session of it runs.
 //
 // Each agent's own module declares its definition, and runtime composition registers it with the
@@ -19,6 +20,8 @@ export type StructuredAgentDefinition = AgentSessionStoredAgent & {
     fallbackModels: () => AgentSessionModelOption[] | null
     /** An unpicked effort reads as the model's default effort, as a running child reports it. */
     effortDefaultsToModel: boolean
+    /** The permission postures a chat may pick before its child runs, given the saved pick. */
+    permissions?: (saved: string | undefined) => AgentSessionPermissionsOption
   }
 }
 

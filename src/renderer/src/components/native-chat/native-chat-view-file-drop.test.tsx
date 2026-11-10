@@ -10,6 +10,15 @@ const drop = vi.hoisted(() => ({ onDrop: vi.fn() }))
 
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('./NativeChatSessionGate', () => ({ NativeChatSessionGate: () => null }))
+vi.mock('./NativeChatBranchProvider', () => ({
+  NativeChatBranchProvider: ({ children }: { children: React.ReactNode }) => children
+}))
+vi.mock('./NativeChatSidePanelProvider', () => ({
+  NativeChatSidePanelProvider: ({ children }: { children: React.ReactNode }) => children
+}))
+vi.mock('./NativeChatClaudeControlsProvider', () => ({
+  NativeChatClaudeControlsProvider: ({ children }: { children: React.ReactNode }) => children
+}))
 vi.mock('./NativeChatResolvedView', () => ({ NativeChatResolvedView: () => null }))
 vi.mock('./use-native-chat-status-entry', () => ({ useNativeChatStatusEntry: vi.fn() }))
 vi.mock('./NativeChatStructuredSession', () => ({

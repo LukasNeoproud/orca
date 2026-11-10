@@ -50,12 +50,82 @@ describe('Claude structured approval presentation', () => {
       decisionReason: 'The path requires approval.',
       blockedPath: '/repo/secrets.txt',
       matchedAskRule: { source: 'project', toolName: 'Write', ruleContent: 'ask' },
+      accepts: { note: true },
       options: [
         { id: 'allow', label: 'Allow' },
-        { id: 'allowForSession', label: 'Allow for this session' },
         { id: 'deny', label: 'Deny' }
       ]
     })
+  })
+
+  it('offers to remember only what the CLI proposed, and lets a shell command be rewritten', () => {
+    const prompt = {
+      ...approvalPrompt({ command: 'npm run test' }, { toolName: 'Bash' }),
+      suggestions: [
+        {
+          type: 'addRules' as const,
+          rules: [{ toolName: 'Bash', ruleContent: 'npm run test:*' }],
+          behavior: 'allow' as const,
+          destination: 'localSettings' as const
+        }
+      ]
+    }
+    expect(claudeApprovalItem(prompt)).toMatchObject({
+      accepts: { note: true, inputField: { name: 'command', value: 'npm run test' } },
+      options: [
+        { id: 'allow', label: 'Allow' },
+        {
+          id: 'allowForSession',
+          label: 'Always allow',
+          description: 'Bash(npm run test:*) — in this project, for you'
+        },
+        { id: 'deny', label: 'Deny' }
+      ]
+    })
+    expect(
+      buildClaudePromptReply(prompt, {
+        kind: 'option',
+        optionId: 'allowForSession',
+        inputValue: 'npm run test -- --run'
+      })
+    ).toMatchObject({
+      behavior: 'allow',
+      updatedInput: { command: 'npm run test -- --run' },
+      updatedPermissions: prompt.suggestions
+    })
+  })
+
+  it('declines with the note the user typed, and approves a plan into accepting edits', () => {
+    expect(
+      buildClaudePromptReply(approvalPrompt({ command: 'rm -rf dist' }, { toolName: 'Bash' }), {
+        kind: 'option',
+        optionId: 'deny',
+        note: 'Use pnpm clean instead.'
+      })
+    ).toMatchObject({
+      behavior: 'deny',
+      message: expect.stringContaining('Use pnpm clean instead.')
+    })
+    const plan = approvalPrompt(
+      { plan: '# Release' },
+      { subject: { kind: 'plan', text: '# Release' } }
+    )
+    expect(
+      buildClaudePromptReply(plan, {
+        kind: 'option',
+        optionId: 'deny',
+        note: 'Add a rollback step.'
+      })
+    ).toMatchObject({ message: expect.stringMatching(/Add a rollback step\.[\s\S]*ExitPlanMode/) })
+    expect(
+      buildClaudePromptReply(plan, { kind: 'option', optionId: 'allowAcceptEdits' })
+    ).toMatchObject({
+      behavior: 'allow',
+      updatedPermissions: [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
+    })
+    expect(buildClaudePromptReply(plan, { kind: 'option', optionId: 'allow' })).not.toHaveProperty(
+      'updatedPermissions'
+    )
   })
 
   it('journals a plan with typed presentation and readable compatibility detail', () => {
@@ -73,7 +143,8 @@ describe('Claude structured approval presentation', () => {
       subject: { kind: 'plan', text: '# Release\n\n- Run tests', filePath: '/repo/plan.md' },
       detail: '# Release\n\n- Run tests',
       options: [
-        { id: 'allow', label: 'Approve plan' },
+        { id: 'allowAcceptEdits', label: 'Approve and accept edits' },
+        { id: 'allow', label: 'Approve, ask before edits' },
         { id: 'deny', label: 'Keep planning' }
       ]
     })

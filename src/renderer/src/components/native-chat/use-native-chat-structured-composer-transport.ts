@@ -1,4 +1,5 @@
-import { useContext, useMemo, type Dispatch, type SetStateAction } from 'react'
+import { useContext, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react'
+import { NativeChatSidePanelContext } from './native-chat-side-panel-context'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { useStructuredAgentAcceptsImages } from '@/runtime/use-host-structured-agent'
 import type {
@@ -8,6 +9,7 @@ import type {
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import type { useStructuredAgentSession } from './use-structured-agent-session'
 import { NativeChatBranchContext } from './native-chat-branch-context'
+import { NativeChatClaudeControlsContext } from './native-chat-claude-controls-context'
 import type { StructuredAgentSessionQueuedMessagesController } from './use-structured-agent-session-queued-messages'
 
 /** What the composer of a structured chat sends, picks and runs through, from the chat's controller. */
@@ -37,6 +39,13 @@ export function useNativeChatStructuredComposerTransport(args: {
     controller.acceptsImages
   )
   const guardSend = useContext(NativeChatBranchContext)?.guardSend
+  const claudeControls = useContext(NativeChatClaudeControlsContext)
+  // The side panel's Context tab reads the same usage and command list the composer does.
+  const publish = useContext(NativeChatSidePanelContext)?.publish
+  const { contextUsage, sessionCommands } = controller
+  useEffect(() => {
+    publish?.({ contextUsage, commands: sessionCommands })
+  }, [contextUsage, publish, sessionCommands])
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal
     const setThreadGoalObjective = threadGoal
@@ -68,8 +77,10 @@ export function useNativeChatStructuredComposerTransport(args: {
           setOption: controller.setStructuredOption,
           conversationCommands: controller.conversationCommands,
           runConversationCommand: controller.runConversationCommand,
+          ...(claudeControls ? { hostCommands: claudeControls.commands } : {}),
           ...(setThreadGoalObjective ? { setThreadGoalObjective } : {})
         }),
+      ...(claudeControls ? { hostCommands: { suggestions: claudeControls.suggestions } } : {}),
       ...(setThreadGoalObjective ? { threadGoal: { setObjective: setThreadGoalObjective } } : {}),
       sendOut: controller.sendOut || starting,
       optionsSurface: controller.optionSurface,
@@ -91,6 +102,7 @@ export function useNativeChatStructuredComposerTransport(args: {
     }
   }, [
     acceptsImages,
+    claudeControls,
     controller,
     guardSend,
     worktreeId,

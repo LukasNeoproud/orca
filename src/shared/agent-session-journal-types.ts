@@ -224,8 +224,17 @@ export type AgentJournalApprovalSubject =
   | AgentJournalPlanApprovalSubject
   | AgentJournalUnknownApprovalSubject
 
+/** What an answer to this approval may carry beside the chosen option. */
+export type AgentJournalApprovalAccepts = {
+  /** A declining answer takes a typed note telling the agent what to do instead. */
+  note?: true
+  /** One string field of the tool's input the user may rewrite before allowing. */
+  inputField?: { name: string; value: string }
+}
+
 export type AgentJournalApprovalItem = {
   kind: 'approval'
+  accepts?: AgentJournalApprovalAccepts
   title: string
   displayName?: string
   description?: string

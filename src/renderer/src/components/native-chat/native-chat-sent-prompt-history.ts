@@ -112,3 +112,28 @@ export function stepNativeChatPromptRecall(input: {
   }
   return input.direction === 'forward' ? { position: null, draft: '' } : null
 }
+
+/** A reverse search through the sent prompts, as Ctrl+R in a shell: `term` is what was typed,
+ *  `last` the match the composer shows now. */
+export type NativeChatPromptSearch = { term: string; last: NativeChatSentPrompt }
+
+/**
+ * One Ctrl+R press: the newest prompt containing the search term, or, pressed again on a match,
+ * the next older one. A draft that is not the last match starts a new search for it. Null when
+ * nothing older matches.
+ */
+export function stepNativeChatPromptSearch(input: {
+  prompts: readonly NativeChatSentPrompt[]
+  search: NativeChatPromptSearch | null
+  draft: string
+}): NativeChatPromptSearch | null {
+  const continuing = input.search !== null && input.search.last.prompt === input.draft
+  const term = (continuing && input.search ? input.search.term : input.draft).trim().toLowerCase()
+  const lastId = continuing && input.search ? input.search.last.id : null
+  const from = lastId === null ? -1 : input.prompts.findIndex((prompt) => prompt.id === lastId)
+  const older = from < 0 ? input.prompts : input.prompts.slice(0, from)
+  const match = older.findLast(
+    (prompt) => prompt.prompt.toLowerCase().includes(term) && prompt.prompt !== input.draft
+  )
+  return match ? { term, last: match } : null
+}

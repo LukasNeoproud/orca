@@ -1,4 +1,4 @@
-import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk'
+import type { PermissionResult, PermissionUpdate } from '@anthropic-ai/claude-agent-sdk'
 import type {
   AgentSessionPromptResponse,
   AgentSessionQuestionAnswer
@@ -20,7 +20,13 @@ export {
 } from './claude-prompt-registry'
 
 /** No card offers `cancel` any more; an older card's "Stop" option answers it as a dismissal. */
-export const CLAUDE_APPROVAL_DECISIONS = ['allow', 'allowForSession', 'deny', 'cancel'] as const
+export const CLAUDE_APPROVAL_DECISIONS = [
+  'allow',
+  'allowForSession',
+  'allowAcceptEdits',
+  'deny',
+  'cancel'
+] as const
 export type ClaudeApprovalDecision = (typeof CLAUDE_APPROVAL_DECISIONS)[number]
 
 /** A card's own Cancel: an approval is dismissed (a tool's with the reply its Deny sends, a plan's
@@ -100,32 +106,60 @@ export function decodeClaudeQuestionOptionId(
   }
 }
 
-function approvalResponse(prompt: ClaudePendingPrompt, optionId: string): PermissionResult {
-  if (!isClaudeApprovalDecision(optionId)) {
-    throw new Error(`${optionId} is not a Claude approval decision`)
+/** The permission change an allowing decision carries beside the allow itself. */
+function allowedPermissionUpdates(
+  prompt: ClaudePendingPrompt,
+  decision: ClaudeApprovalDecision
+): PermissionUpdate[] {
+  const isPlan = prompt.subject?.kind === 'plan'
+  if (decision === 'allowAcceptEdits' && isPlan) {
+    return [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
   }
-  const decision = optionId
-  if (decision === 'allow' || decision === 'allowForSession') {
-    return {
-      behavior: 'allow',
-      updatedInput: prompt.input,
-      ...(decision === 'allowForSession' &&
-      prompt.subject?.kind !== 'plan' &&
-      prompt.suggestions.length > 0
-        ? { updatedPermissions: prompt.suggestions }
-        : {}),
-      toolUseID: prompt.toolUseId
-    }
+  return decision === 'allowForSession' && !isPlan ? prompt.suggestions : []
+}
+
+function denialMessage(prompt: ClaudePendingPrompt, note: string | undefined): string {
+  if (prompt.subject?.kind === 'plan') {
+    return note
+      ? `The user asked you to keep planning and said:\n${note}\nRevise the plan and call ExitPlanMode again.`
+      : 'The user asked you to keep planning. Revise the plan and call ExitPlanMode again.'
+  }
+  return note
+    ? `The user denied this action. To tell you how to proceed, the user said:\n${note}`
+    : 'User denied this action.'
+}
+
+function approvalResponse(
+  prompt: ClaudePendingPrompt,
+  response: Extract<AgentSessionPromptResponse, { kind: 'option' }>
+): PermissionResult {
+  const decision = response.optionId
+  if (!isClaudeApprovalDecision(decision)) {
+    throw new Error(`${decision} is not a Claude approval decision`)
   }
   if (decision === 'cancel') {
     return claudePromptDismissal(prompt)
   }
+  if (decision === 'deny') {
+    return {
+      behavior: 'deny',
+      message: denialMessage(prompt, response.note),
+      toolUseID: prompt.toolUseId
+    }
+  }
+  const updates = allowedPermissionUpdates(prompt, decision)
+  // Only the field the card offered for rewriting; nothing else of the input is the client's.
+  const rewritten =
+    response.inputValue !== undefined &&
+    prompt.toolName === 'Bash' &&
+    typeof prompt.input.command === 'string' &&
+    response.inputValue.trim().length > 0
+      ? { ...prompt.input, command: response.inputValue }
+      : prompt.input
   return {
-    behavior: 'deny',
-    message:
-      prompt.subject?.kind === 'plan'
-        ? 'The user asked you to keep planning. Revise the plan and call ExitPlanMode again.'
-        : 'User denied this action.',
+    behavior: 'allow',
+    updatedInput: rewritten,
+    ...(updates.length > 0 ? { updatedPermissions: updates } : {}),
     toolUseID: prompt.toolUseId
   }
 }
@@ -181,7 +215,7 @@ export function buildClaudePromptReply(
     if (response.kind !== 'option') {
       throw new Error(`Claude prompt ${prompt.promptKey} takes a decision, not answers`)
     }
-    return approvalResponse(prompt, response.optionId)
+    return approvalResponse(prompt, response)
   }
   if (response.kind !== 'answers') {
     throw new Error(`Claude prompt ${prompt.promptKey} takes answers, not a decision`)

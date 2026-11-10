@@ -1,6 +1,15 @@
 import { translate } from '@/i18n/i18n'
 import { nativeChatFilePreviewActions } from './native-chat-file-preview-actions'
-import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject
+} from 'react'
+import { NativeChatSidePanelContext } from './native-chat-side-panel-context'
 import {
   closeLinkActionRequest,
   type LinkActionRequest
@@ -210,6 +219,12 @@ export function useNativeChatLinkActions(
     () => Object.assign(onLinkClick, { createPreviewRequest, showPreview }),
     [createPreviewRequest, onLinkClick, showPreview]
   )
+  // The panel beside the chat opens the files its rows name through the same handler.
+  const publish = useContext(NativeChatSidePanelContext)?.publish
+  const published = context ? onLinkClickWithPreview : undefined
+  useEffect(() => {
+    publish?.({ onLinkClick: published })
+  }, [publish, published])
 
   return {
     onLinkClick: context ? onLinkClickWithPreview : undefined,

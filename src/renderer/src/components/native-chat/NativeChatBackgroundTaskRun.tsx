@@ -1,3 +1,5 @@
+import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import { NativeChatToolFileTarget } from './NativeChatToolFileTarget'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { AgentStateDot } from '@/components/AgentStateDot'
@@ -26,9 +28,12 @@ import { formatNativeChatDuration } from './NativeChatWorkingStatus'
  * that watched it can say it stopped reporting, and one does.
  */
 export function NativeChatBackgroundTaskRun({
-  block
+  block,
+  onLinkClick
 }: {
   block: NativeChatBackgroundTaskBlock
+  /** Opens the task's output file in Orca; without it the path is only text. */
+  onLinkClick?: CommentMarkdownLinkClickHandler
 }): React.JSX.Element {
   const kind = normalizeBackgroundTaskKind(block.kind)
   const Icon = KIND_ICONS[kind]
@@ -75,9 +80,18 @@ export function NativeChatBackgroundTaskRun({
       )}
       {block.outputFile ? (
         <p className="mt-0.5 truncate pl-7 font-mono text-xs text-chat-foreground-faint">
-          {translate('components.native-chat.backgroundTasks.outputFile', 'Output: {{value0}}', {
-            value0: block.outputFile
-          })}
+          <NativeChatToolFileTarget
+            path={block.outputFile}
+            label={translate(
+              'components.native-chat.backgroundTasks.outputFile',
+              'Output: {{value0}}',
+              {
+                value0: block.outputFile
+              }
+            )}
+            className=""
+            onLinkClick={onLinkClick}
+          />
         </p>
       ) : null}
     </div>

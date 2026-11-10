@@ -1,3 +1,4 @@
+import { NativeChatRunningToolBackground } from './NativeChatRunningToolBackground'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -192,6 +193,9 @@ export function NativeChatToolLine({
           ) : null}
         </span>
       </button>
+      {isCall && lifecycle === 'running' && block.name === 'Bash' && block.callId ? (
+        <NativeChatRunningToolBackground callId={block.callId} />
+      ) : null}
       {hasDetail ? (
         <NativeChatExpandable open={expanded}>
           <ClaudeModsToolResultSite block={block} result={result}>
