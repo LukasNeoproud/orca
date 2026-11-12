@@ -180,6 +180,8 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
         align="start"
         side="bottom"
         sideOffset={6}
+        // Why: a hover anchored at the pointer must also reach under a pointer that drifted left.
+        alignOffset={request.transient && !request.anchorElement ? -16 : 0}
         collisionPadding={8}
         aria-label={title}
         className={cn(
@@ -222,7 +224,9 @@ export function LinkPreviewPopover<TRequest extends LinkActionRequest>({
           }
         }}
       >
-        <div className="absolute inset-x-0 -top-2 h-2" aria-hidden="true" />
+        {/* Bridges the gap to the link on whichever side the popover landed. */}
+        <div className="absolute -inset-x-2 -top-2 h-2" aria-hidden="true" />
+        <div className="absolute -inset-x-2 -bottom-2 h-2" aria-hidden="true" />
         <div className="flex shrink-0 items-center gap-2 border-b border-border p-3">
           {target.kind === 'file' && isDirectory ? (
             <Folder className="size-4 shrink-0 text-muted-foreground" />

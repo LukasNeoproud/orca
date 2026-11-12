@@ -16,6 +16,19 @@ const context: RuntimeFileOperationArgs = {
   worktreePath: '/repo/worktree'
 }
 
+function stubVisibleIntersection(): void {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(private callback: (entries: { isIntersecting: boolean }[]) => void) {}
+      observe(): void {
+        this.callback([{ isIntersecting: true }])
+      }
+      disconnect(): void {}
+    }
+  )
+}
+
 afterEach(() => {
   cleanup()
   mocks.usePreview.mockReset()
@@ -33,17 +46,36 @@ describe('native chat link preview card', () => {
     expect(screen.getByText('https://%')).toBeTruthy()
   })
 
-  it('waits for explicit Load preview before enabling an outside-workspace read', async () => {
-    vi.stubGlobal(
-      'IntersectionObserver',
-      class {
-        constructor(private callback: (entries: { isIntersecting: boolean }[]) => void) {}
-        observe(): void {
-          this.callback([{ isIntersecting: true }])
-        }
-        disconnect(): void {}
-      }
+  it('reads a refused local path as a user-named file once Load preview is clicked', async () => {
+    stubVisibleIntersection()
+    mocks.usePreview.mockImplementation((_path, _context, _enabled, access) =>
+      access
+        ? { status: 'loading', changed: false, reload: vi.fn() }
+        : { status: 'outside', changed: false, reload: vi.fn() }
     )
+    render(
+      <NativeChatLinkPreviewCard
+        target={{
+          href: '/private/notes.txt',
+          key: '/private/notes.txt',
+          path: '/private/notes.txt',
+          kind: 'file',
+          line: null
+        }}
+        runtimeContext={context}
+      />
+    )
+    // Main decides what is outside every project, so the first read is attempted unasked.
+    await waitFor(() => expect(mocks.usePreview.mock.lastCall?.[2]).toBe(true))
+    expect(mocks.usePreview.mock.lastCall?.[3]).toBeUndefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load preview' }))
+    await waitFor(() => expect(mocks.usePreview.mock.lastCall?.[3]).toEqual({ kind: 'user-file' }))
+    expect(screen.getByText('Loading preview…')).toBeTruthy()
+  })
+
+  it('waits for explicit Load preview before a remote outside-workspace read', async () => {
+    stubVisibleIntersection()
     mocks.usePreview.mockReturnValue({ status: 'unavailable', changed: false, reload: vi.fn() })
     render(
       <NativeChatLinkPreviewCard
@@ -54,7 +86,7 @@ describe('native chat link preview card', () => {
           kind: 'file',
           line: null
         }}
-        runtimeContext={context}
+        runtimeContext={{ ...context, connectionId: 'ssh-1' }}
       />
     )
     expect(screen.getByText('This file is outside the conversation’s workspace.')).toBeTruthy()

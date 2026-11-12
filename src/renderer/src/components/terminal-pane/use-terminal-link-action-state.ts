@@ -8,7 +8,7 @@ import {
 import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
 
 const TERMINAL_LINK_PREVIEW_OPEN_DELAY_MS = 250
-const TERMINAL_LINK_PREVIEW_CLOSE_DELAY_MS = 150
+const TERMINAL_LINK_PREVIEW_CLOSE_DELAY_MS = 300
 
 function previewEnvironmentId(request: TerminalLinkActionRequest): string | null | undefined {
   const context = request.preview?.runtimeContext
@@ -159,10 +159,11 @@ export function useTerminalLinkActionState(): {
       if (requestRef.current?.paneId !== paneId) {
         return
       }
-      clearCloseTimer()
-      if (requestRef.current?.paneId === paneId && requestRef.current.transient) {
-        pointerOverPopoverRef.current = false
+      // Why: the pointer inside the preview means it is being read; the terminal moving on must not take it.
+      if (!requestRef.current.transient || pointerOverPopoverRef.current) {
+        return
       }
+      clearCloseTimer()
       setRequest((current) => (current?.paneId === paneId && current.transient ? null : current))
     },
     [clearCloseTimer, clearOpenTimer]

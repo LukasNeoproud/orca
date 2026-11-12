@@ -37,7 +37,7 @@ afterEach(() => {
 })
 
 describe('terminal link preview timing', () => {
-  it('opens after 250ms and closes 150ms after leaving the link and card', () => {
+  it('opens after 250ms and closes 300ms after leaving the link and card', () => {
     const hook = renderHook(useTerminalLinkActionState)
     act(() => hook.result.current.requestPreview(previewRequest()))
     act(() => vi.advanceTimersByTime(249))
@@ -52,7 +52,7 @@ describe('terminal link preview timing', () => {
     expect(hook.result.current.request).not.toBeNull()
 
     act(() => hook.result.current.onPointerLeave())
-    act(() => vi.advanceTimersByTime(150))
+    act(() => vi.advanceTimersByTime(300))
     expect(hook.result.current.request).toBeNull()
   })
 
@@ -76,7 +76,7 @@ describe('terminal link preview timing', () => {
     )
     expect(hook.result.current.request?.primary.label).toBe('Open pinned')
     act(() => hook.result.current.leavePreview(4))
-    act(() => vi.advanceTimersByTime(150))
+    act(() => vi.advanceTimersByTime(300))
     expect(hook.result.current.request).not.toBeNull()
   })
 
@@ -86,6 +86,19 @@ describe('terminal link preview timing', () => {
     act(() => hook.result.current.invalidatePanePreview(4))
     expect(hook.result.current.request).not.toBeNull()
     act(() => hook.result.current.dismissPanePreview(4))
+    expect(hook.result.current.request).toBeNull()
+  })
+
+  it('keeps a hovered preview the pointer is inside when the terminal scrolls', () => {
+    const hook = renderHook(useTerminalLinkActionState)
+    act(() => hook.result.current.requestPreview(previewRequest()))
+    act(() => vi.advanceTimersByTime(250))
+    act(() => hook.result.current.onPointerEnter())
+    act(() => hook.result.current.invalidatePanePreview(4))
+    expect(hook.result.current.request).not.toBeNull()
+
+    act(() => hook.result.current.onPointerLeave())
+    act(() => hook.result.current.invalidatePanePreview(4))
     expect(hook.result.current.request).toBeNull()
   })
 
@@ -118,7 +131,7 @@ describe('terminal link preview timing', () => {
     act(() => vi.advanceTimersByTime(250))
     act(() => hook.result.current.leavePreview(4))
     act(() => hook.result.current.invalidatePanePreview(9))
-    act(() => vi.advanceTimersByTime(150))
+    act(() => vi.advanceTimersByTime(300))
     expect(hook.result.current.request).toBeNull()
   })
 })

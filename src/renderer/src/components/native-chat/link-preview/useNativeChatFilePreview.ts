@@ -9,6 +9,10 @@ import { statRuntimePath } from '@/runtime/runtime-file-metadata-client'
 import { subscribeRuntimeFileChanges } from '@/runtime/runtime-file-watch-client'
 import { normalizeRuntimePathForComparison } from '../../../../../shared/cross-platform-path'
 import { hasRuntimeRpcErrorCode } from '../../../../../shared/runtime-rpc-error-code'
+import {
+  isPathOutsideAllowedDirectoriesError,
+  type LocalFileAccess
+} from '../../../../../shared/local-file-access'
 
 const TEXT_PREVIEW_MAX_BYTES = 256 * 1024
 const BINARY_PREVIEW_MAX_BYTES = 8 * 1024 * 1024
@@ -21,6 +25,8 @@ type NativeChatFilePreviewStatus =
   | 'missing'
   | 'unavailable'
   | 'large'
+  /** This computer refused the path as outside every project; reading it needs the user's say-so. */
+  | 'outside'
   | 'error'
 
 export type NativeChatFilePreview = {
@@ -90,7 +96,8 @@ async function loadPreview(
   key: string,
   context: RuntimeFileOperationArgs,
   filePath: string,
-  force: boolean
+  force: boolean,
+  access: LocalFileAccess | undefined
 ): Promise<LoadedPreview> {
   const ongoing = inFlightPreviews.get(key)
   if (ongoing && !force) {
@@ -98,7 +105,7 @@ async function loadPreview(
   }
   const load = (async (): Promise<LoadedPreview> => {
     try {
-      const stat = await statRuntimePath(context, filePath)
+      const stat = await statRuntimePath(context, filePath, access)
       const maxBytes = supportsBinaryPreview(filePath)
         ? BINARY_PREVIEW_MAX_BYTES
         : TEXT_PREVIEW_MAX_BYTES
@@ -115,7 +122,7 @@ async function loadPreview(
       if (stat.size > maxBytes) {
         return { status: 'large', changed: false, mtime: stat.mtime }
       }
-      const preview = await readRuntimeFilePreview(context, filePath)
+      const preview = await readRuntimeFilePreview(context, filePath, access)
       return {
         status: 'ready',
         content: preview.content,
@@ -130,6 +137,9 @@ async function loadPreview(
       }
       if (isRuntimeUnavailableError(error)) {
         return { status: 'unavailable', changed: false }
+      }
+      if (!access && isPathOutsideAllowedDirectoriesError(error)) {
+        return { status: 'outside', changed: false }
       }
       return { status: 'error', changed: false, error: errorMessage(error) }
     }
@@ -163,7 +173,9 @@ function eventTouchesFile(payload: FsChangedPayload, filePath: string): boolean 
 export function useNativeChatFilePreview(
   filePath: string,
   runtimeContext: RuntimeFileOperationArgs | null | undefined,
-  enabled: boolean
+  enabled: boolean,
+  /** Declared only once the user asked for this file; it lets a local read leave the project roots. */
+  access?: LocalFileAccess
 ): NativeChatFilePreview {
   const [reloadGeneration, setReloadGeneration] = useState(0)
   const [preview, setPreview] = useState<LoadedPreview>({
@@ -173,7 +185,10 @@ export function useNativeChatFilePreview(
   const originalMtimeRef = useRef<number | undefined>(undefined)
   const originalMtimeKeyRef = useRef<string | null>(null)
   const requestGenerationRef = useRef(0)
-  const contextKey = runtimeContext ? operationKey(runtimeContext, filePath) : ''
+  const accessKind = access?.kind
+  const contextKey = runtimeContext
+    ? `${operationKey(runtimeContext, filePath)}\0${accessKind ?? ''}`
+    : ''
   const active =
     enabled && runtimeContext !== null && runtimeContext !== undefined && filePath.length > 0
   const reload = useCallback(() => {
@@ -193,25 +208,27 @@ export function useNativeChatFilePreview(
     const requestGeneration = requestGenerationRef.current
     let disposed = false
     setPreview({ status: 'loading', changed: false })
-    void loadPreview(contextKey, runtimeContext, filePath, reloadGeneration > 0).then((next) => {
-      if (disposed || requestGeneration !== requestGenerationRef.current) {
-        return
+    void loadPreview(contextKey, runtimeContext, filePath, reloadGeneration > 0, access).then(
+      (next) => {
+        if (disposed || requestGeneration !== requestGenerationRef.current) {
+          return
+        }
+        if (next.mtime !== undefined && originalMtimeRef.current === undefined) {
+          originalMtimeRef.current = next.mtime
+        }
+        setPreview({
+          ...next,
+          changed:
+            originalMtimeRef.current !== undefined &&
+            next.mtime !== undefined &&
+            originalMtimeRef.current !== next.mtime
+        })
       }
-      if (next.mtime !== undefined && originalMtimeRef.current === undefined) {
-        originalMtimeRef.current = next.mtime
-      }
-      setPreview({
-        ...next,
-        changed:
-          originalMtimeRef.current !== undefined &&
-          next.mtime !== undefined &&
-          originalMtimeRef.current !== next.mtime
-      })
-    })
+    )
     return () => {
       disposed = true
     }
-  }, [active, contextKey, filePath, reloadGeneration, runtimeContext])
+  }, [access, active, contextKey, filePath, reloadGeneration, runtimeContext])
 
   useEffect(() => {
     if (!active || !runtimeContext) {

@@ -121,8 +121,9 @@ export function installTerminalPaneLinkHandling(context: PaneLinkContext): void 
     })
   )
   const previewInvalidationDisposables = [
-    pane.terminal.onScroll(() => dismissLinkPreview(pane.id)),
-    pane.terminal.onWriteParsed(() => invalidateLinkPreview(pane.id)),
+    // Why not on every write: an agent's spinner writes constantly, and xterm already reports a
+    // link whose own row changed as left.
+    pane.terminal.onScroll(() => invalidateLinkPreview(pane.id)),
     pane.terminal.buffer.onBufferChange(() => dismissLinkPreview(pane.id))
   ]
   refs.linkPreviewInvalidationDisposablesRef.current.set(pane.id, {

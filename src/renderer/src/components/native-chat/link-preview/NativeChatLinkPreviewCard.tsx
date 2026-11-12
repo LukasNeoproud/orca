@@ -1,4 +1,6 @@
 import { isPathInsideWorktree } from '@/lib/terminal-links'
+import { userNamedFileAccess } from '@/lib/local-file-access'
+import { hasRemoteRuntimeOwner } from '@/runtime/runtime-file-routing'
 import { translate } from '@/i18n/i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
@@ -35,7 +37,12 @@ export function NativeChatLinkPreviewCard({
     target.kind === 'file' &&
     !!runtimeContext?.worktreePath &&
     !isPathInsideWorktree(target.path, runtimeContext.worktreePath)
-  const needsExplicitRead = outsideWorkspace && approvedOutsideKey !== ownerKey
+  const approved = approvedOutsideKey === ownerKey
+  // Why local differs: main names the paths outside every project itself, so another worktree or
+  // project loads unasked; a remote host has no such check, so there the path text decides.
+  const localHost =
+    !!runtimeContext && !runtimeContext.connectionId && !hasRemoteRuntimeOwner(runtimeContext)
+  const askBeforeReading = outsideWorkspace && !localHost && !approved
   useEffect(() => {
     const element = ref.current
     if (!element) {
@@ -54,8 +61,10 @@ export function NativeChatLinkPreviewCard({
   const preview = useNativeChatFilePreview(
     target.path,
     runtimeContext,
-    visible && target.kind === 'file' && !needsExplicitRead
+    visible && target.kind === 'file' && !askBeforeReading,
+    approved ? userNamedFileAccess() : undefined
   )
+  const needsExplicitRead = askBeforeReading || (preview.status === 'outside' && !approved)
   const resolvedStatus = preview.status
   useEffect(() => {
     if (

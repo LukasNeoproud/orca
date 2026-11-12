@@ -78,8 +78,8 @@ describe('useNativeChatFilePreview', () => {
 
     await waitFor(() => expect(result.current.status).toBe('ready'))
 
-    expect(mocks.statRuntimePath).toHaveBeenCalledWith(CONTEXT, FILE_PATH)
-    expect(mocks.readRuntimeFilePreview).toHaveBeenCalledWith(CONTEXT, FILE_PATH)
+    expect(mocks.statRuntimePath).toHaveBeenCalledWith(CONTEXT, FILE_PATH, undefined)
+    expect(mocks.readRuntimeFilePreview).toHaveBeenCalledWith(CONTEXT, FILE_PATH, undefined)
     expect(result.current).toMatchObject({
       status: 'ready',
       content: 'const example = true\n',
@@ -198,6 +198,28 @@ describe('useNativeChatFilePreview', () => {
     expect(mocks.readRuntimeFilePreview).toHaveBeenCalledTimes(2)
   })
 
+  it('reports a path outside every project, then reads it once access is declared', async () => {
+    mocks.statRuntimePath.mockImplementation(async (_context, _path, access) => {
+      if (!access) {
+        throw new Error('Access denied: path resolves outside allowed directories')
+      }
+      return { size: 128, isDirectory: false, mtime: 1 }
+    })
+    const hook = renderHook(
+      ({ access }: { access?: { kind: 'user-file' } }) =>
+        useNativeChatFilePreview('/elsewhere/notes.txt', CONTEXT, true, access),
+      { initialProps: {} }
+    )
+    await waitFor(() => expect(hook.result.current.status).toBe('outside'))
+    expect(mocks.readRuntimeFilePreview).not.toHaveBeenCalled()
+
+    hook.rerender({ access: { kind: 'user-file' } })
+    await waitFor(() => expect(hook.result.current.status).toBe('ready'))
+    expect(mocks.readRuntimeFilePreview).toHaveBeenCalledWith(CONTEXT, '/elsewhere/notes.txt', {
+      kind: 'user-file'
+    })
+  })
+
   it('reports a transient unavailable runtime without treating it as a file error', async () => {
     mocks.statRuntimePath.mockRejectedValueOnce({
       code: 'runtime_unavailable',
@@ -239,7 +261,7 @@ describe('useNativeChatFilePreview', () => {
     })
 
     expect(result.current).toMatchObject({ content: 'new owner', changed: false })
-    expect(mocks.statRuntimePath).toHaveBeenCalledWith(nextContext, FILE_PATH)
+    expect(mocks.statRuntimePath).toHaveBeenCalledWith(nextContext, FILE_PATH, undefined)
   })
 
   it('starts a fresh request when a reload arrives during an in-flight read', async () => {
