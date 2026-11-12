@@ -28,6 +28,7 @@ import type { CrashReportsApi, FeedbackApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { DocPreviewApi } from './api/doc-preview-api'
 import type { EmulatorApi } from './api/emulator-api'
+import type { AndroidAppRunApi } from './api/android-app-run-api'
 import type { EphemeralVmApi } from './api/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
 import type { GitInspectionApi } from './api/git-inspection-api'
@@ -126,6 +127,7 @@ export type PreloadApi = {
   pet: PetApi
   browser: BrowserApi
   emulator: EmulatorApi
+  androidAppRun: AndroidAppRunApi
   hooks: HooksApi
   ephemeralVm: EphemeralVmApi
   cache: WorkspaceSessionApi['cache']

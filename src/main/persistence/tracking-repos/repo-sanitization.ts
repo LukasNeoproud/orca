@@ -79,6 +79,7 @@ export function sanitizeRepoUpdatesForPersistence<
       | 'hostLocalProjectId'
       | 'worktreeBasePath'
       | 'simplifiedWorktreeLayout'
+      | 'androidBuildVariant'
       | 'simplifiedWorktreeLocation'
       | 'projectHostSetupMethod'
       | 'forkSyncMode'

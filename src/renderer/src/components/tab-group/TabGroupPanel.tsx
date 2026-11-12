@@ -12,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import TabBar from '../tab-bar/TabBar'
 
+import { AndroidAppRunButton } from '../android-app-run/AndroidAppRunButton'
 import { TabBarQuickCommandsButton } from '../tab-bar/TabBarQuickCommandsButton'
 import { useTabGroupWorkspaceModel } from './useTabGroupWorkspaceModel'
 import { closeTerminalTab } from '../terminal/terminal-tab-actions'
@@ -299,6 +300,7 @@ export default function TabGroupPanel({
               style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             >
               <div className={focusedActionChromeClassName}>
+                {isFocused ? <AndroidAppRunButton worktreeId={worktreeId} /> : null}
                 {isFocused ? (
                   <TabBarQuickCommandsButton worktreeId={worktreeId} groupId={groupId} />
                 ) : null}

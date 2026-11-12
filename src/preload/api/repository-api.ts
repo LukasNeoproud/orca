@@ -50,6 +50,7 @@ export type RepositoryApi = {
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'
+        | 'androidBuildVariant'
         | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'issueSourcePreference'

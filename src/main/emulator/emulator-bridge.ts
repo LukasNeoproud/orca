@@ -46,6 +46,10 @@ export class EmulatorBridge {
     return listAvailableEmulatorDevices(this.backends)
   }
 
+  // Boots the AVD when it is down and returns its adb serial; starts no stream.
+  ensureAndroidDeviceBooted = (deviceOrName: string): Promise<string> =>
+    this.androidBackend.ensureBooted(deviceOrName)
+
   async listSimulators(): Promise<SimulatorDevice[]> {
     return this.iosBackend.listSimulators()
   }

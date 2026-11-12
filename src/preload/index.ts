@@ -52,6 +52,7 @@ import { skillsApi } from './api/skills-bridge'
 import { petApi } from './api/pet-bridge'
 import { browserApi } from './api/browser-bridge'
 import { emulatorApi } from './api/emulator-bridge'
+import { androidAppRunApi } from './api/android-app-run-api'
 import { hooksApi } from './api/hooks-bridge'
 import { ephemeralVmApi } from './api/ephemeral-vm-bridge'
 import { cacheApi } from './api/cache-bridge'
@@ -154,6 +155,7 @@ const api = {
   pet: petApi,
   browser: browserApi,
   emulator: emulatorApi,
+  androidAppRun: androidAppRunApi,
   hooks: hooksApi,
   ephemeralVm: ephemeralVmApi,
   cache: cacheApi,

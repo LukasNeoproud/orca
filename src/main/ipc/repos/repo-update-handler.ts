@@ -36,6 +36,7 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
             | 'worktreeBaseRef'
             | 'worktreeBasePath'
             | 'simplifiedWorktreeLayout'
+            | 'androidBuildVariant'
             | 'simplifiedWorktreeLocation'
             | 'kind'
             | 'symlinkPaths'

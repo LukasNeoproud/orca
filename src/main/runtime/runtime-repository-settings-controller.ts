@@ -26,6 +26,7 @@ type RepositoryUpdates = Partial<
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
     | 'simplifiedWorktreeLayout'
+    | 'androidBuildVariant'
     | 'simplifiedWorktreeLocation'
     | 'kind'
     | 'symlinkPaths'

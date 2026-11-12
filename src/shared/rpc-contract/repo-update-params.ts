@@ -55,6 +55,7 @@ export function createRepoUpdateSchema<T extends Readonly<Record<string, z.ZodTy
       worktreeBaseRef: OptionalString,
       worktreeBasePath: OptionalString,
       simplifiedWorktreeLayout: z.enum(['nested', 'flat']).optional(),
+      androidBuildVariant: z.string().max(200).optional(),
       simplifiedWorktreeLocation: z.enum(['inside', 'orca-default', 'custom']).optional(),
       kind: z.enum(['git', 'folder']).optional(),
       symlinkPaths: z.array(z.string()).optional(),

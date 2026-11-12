@@ -146,6 +146,7 @@ export class RepoLifecycleOperations {
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'
+        | 'androidBuildVariant'
         | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'folderUpgradeGitRootPath'

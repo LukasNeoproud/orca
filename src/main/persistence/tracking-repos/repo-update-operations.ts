@@ -88,6 +88,7 @@ export class RepoUpdatePersistenceOperations {
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'
+        | 'androidBuildVariant'
         | 'simplifiedWorktreeLocation'
         | 'kind'
         | 'folderUpgradeGitRootPath'

@@ -70,6 +70,8 @@ export type Repo = {
   worktreeBasePath?: string
   /** Directory layout for explicit branch-first creation; existing directories are unchanged. */
   simplifiedWorktreeLayout?: 'nested' | 'flat'
+  /** Build variant the Android Run action builds, one for every module and worktree of the project. */
+  androidBuildVariant?: string
   simplifiedWorktreeLocation?: 'inside' | 'orca-default' | 'custom'
   hookSettings?: RepoHookSettings
   /** SSH target ID for remote repos. null/undefined = local. */

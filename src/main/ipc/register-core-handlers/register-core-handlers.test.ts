@@ -290,6 +290,8 @@ vi.mock('../emulator-video-stream', () => ({
   registerEmulatorVideoStreamHandlers: registerEmulatorVideoStreamHandlersMock
 }))
 
+vi.mock('../android-app-run', () => ({ registerAndroidAppRunHandlers: vi.fn() }))
+
 vi.mock('../filesystem', () => ({
   registerFilesystemHandlers: registerFilesystemHandlersMock
 }))
