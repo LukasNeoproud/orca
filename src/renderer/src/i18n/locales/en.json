@@ -18689,7 +18689,10 @@
         "needsAccess": "Needs access to",
         "needsNewerOrca": "This request needs a newer version of Orca.",
         "plan": {
-          "file": "Plan file"
+          "file": "Plan file",
+          "note": "What should change in the plan? (sent with Keep planning)",
+          "openFull": "Open the plan full screen",
+          "reviewDescription": "The proposed plan in full, with the choices to approve it or keep planning."
         },
         "editInput": "Command to run (you can edit it)",
         "note": "What to do instead (sent when you decline)"
@@ -19414,6 +19417,45 @@
     },
     "automations": {
       "runTerminalUnavailable": "Run terminal is unavailable."
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Git graph",
+        "refresh": "Refresh graph",
+        "description": "Commits of every local branch, remote branch and tag.",
+        "currentBranchOnly": "This host runs an older Orca, so only the current branch is shown.",
+        "count": "{{value0}} commits",
+        "loadingMore": "Loading more commits…",
+        "retry": "Retry",
+        "selectHint": "Select a commit to see its message and changed files. Double-click to open its diff.",
+        "open": "Open graph of all branches"
+      }
+    },
+    "androidAppRun": {
+      "open": "Run Android app",
+      "label": "Run app",
+      "device": "Device",
+      "loadingDevices": "Looking for devices…",
+      "noDevices": "No device or emulator found",
+      "runningDevices": "Running",
+      "availableEmulators": "Emulators (started on Run)",
+      "refreshDevices": "Refresh devices",
+      "variant": "Build variant",
+      "loadingVariants": "Asking Gradle for variants…",
+      "noVariants": "No build variants found",
+      "refreshVariants": "Reload variants",
+      "variantHint": "One variant for the whole project, shared by all its workspaces.",
+      "stop": "Stop",
+      "run": "Run",
+      "phase": {
+        "boot": "Starting the device…",
+        "build": "Building…",
+        "install": "Installing…",
+        "launch": "Launching…",
+        "done": "App is running",
+        "failed": "Run failed",
+        "cancelled": "Run stopped"
+      }
     }
   },
   "dashboardPopout": {

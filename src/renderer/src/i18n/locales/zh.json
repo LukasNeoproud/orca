@@ -18179,7 +18179,10 @@
         "reason": "原因",
         "needsAccess": "需要访问的路径",
         "plan": {
-          "file": "计划文件"
+          "file": "计划文件",
+          "note": "计划中需要更改什么？（随“继续规划”一起发送）",
+          "openFull": "全屏打开计划",
+          "reviewDescription": "完整的拟议计划，以及批准或继续规划的选项。"
         }
       },
       "launchPromptNotDelivered": "未送达 — 请检查终端",
@@ -18840,6 +18843,45 @@
       "important": "重要",
       "warning": "警告",
       "caution": "注意"
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Git 图谱",
+        "refresh": "刷新图谱",
+        "description": "所有本地分支、远程分支和标签的提交。",
+        "currentBranchOnly": "此主机运行的是旧版 Orca，因此仅显示当前分支。",
+        "count": "{{value0}} 个提交",
+        "loadingMore": "正在加载更多提交…",
+        "retry": "重试",
+        "selectHint": "选择一个提交以查看其说明和更改的文件。双击可打开其差异。",
+        "open": "打开所有分支的图谱"
+      }
+    },
+    "androidAppRun": {
+      "open": "运行 Android 应用",
+      "label": "运行应用",
+      "device": "设备",
+      "loadingDevices": "正在查找设备…",
+      "noDevices": "未找到设备或模拟器",
+      "runningDevices": "正在运行",
+      "availableEmulators": "模拟器（运行时启动）",
+      "refreshDevices": "刷新设备",
+      "variant": "构建变体",
+      "loadingVariants": "正在向 Gradle 查询变体…",
+      "noVariants": "未找到构建变体",
+      "refreshVariants": "重新加载变体",
+      "variantHint": "整个项目使用同一个变体，并由其所有工作区共享。",
+      "stop": "停止",
+      "run": "运行",
+      "phase": {
+        "boot": "正在启动设备…",
+        "build": "正在构建…",
+        "install": "正在安装…",
+        "launch": "正在启动…",
+        "done": "应用正在运行",
+        "failed": "运行失败",
+        "cancelled": "运行已停止"
+      }
     }
   },
   "dashboardPopout": {

@@ -18165,7 +18165,10 @@
         "reason": "Motivo",
         "needsAccess": "Necesita acceso a",
         "plan": {
-          "file": "Archivo de plan"
+          "file": "Archivo de plan",
+          "note": "¿Qué debería cambiar en el plan? (se envía con Seguir planificando)",
+          "openFull": "Abrir el plan a pantalla completa",
+          "reviewDescription": "El plan propuesto completo, con las opciones para aprobarlo o seguir planificando."
         }
       },
       "launchPromptNotDelivered": "No entregado — revisa la terminal",
@@ -18826,6 +18829,45 @@
       "important": "Importante",
       "warning": "Advertencia",
       "caution": "Precaución"
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Grafo de Git",
+        "refresh": "Actualizar grafo",
+        "description": "Commits de todas las ramas locales, ramas remotas y etiquetas.",
+        "currentBranchOnly": "Este host ejecuta una versión anterior de Orca, por lo que solo se muestra la rama actual.",
+        "count": "{{value0}} commits",
+        "loadingMore": "Cargando más commits…",
+        "retry": "Reintentar",
+        "selectHint": "Selecciona un commit para ver su mensaje y los archivos modificados. Haz doble clic para abrir su diff.",
+        "open": "Abrir el grafo de todas las ramas"
+      }
+    },
+    "androidAppRun": {
+      "open": "Ejecutar app de Android",
+      "label": "Ejecutar app",
+      "device": "Dispositivo",
+      "loadingDevices": "Buscando dispositivos…",
+      "noDevices": "No se encontró ningún dispositivo ni emulador",
+      "runningDevices": "En ejecución",
+      "availableEmulators": "Emuladores (se inician al ejecutar)",
+      "refreshDevices": "Actualizar dispositivos",
+      "variant": "Variante de compilación",
+      "loadingVariants": "Consultando las variantes a Gradle…",
+      "noVariants": "No se encontraron variantes de compilación",
+      "refreshVariants": "Recargar variantes",
+      "variantHint": "Una variante para todo el proyecto, compartida por todos sus espacios de trabajo.",
+      "stop": "Detener",
+      "run": "Ejecutar",
+      "phase": {
+        "boot": "Iniciando el dispositivo…",
+        "build": "Compilando…",
+        "install": "Instalando…",
+        "launch": "Iniciando la app…",
+        "done": "La app está en ejecución",
+        "failed": "La ejecución falló",
+        "cancelled": "Ejecución detenida"
+      }
     }
   },
   "dashboardPopout": {

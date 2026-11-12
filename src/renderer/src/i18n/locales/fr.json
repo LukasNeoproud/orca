@@ -18267,7 +18267,10 @@
         "reason": "Raison",
         "needsAccess": "Nécessite l'accès à",
         "plan": {
-          "file": "Dossier de planification"
+          "file": "Dossier de planification",
+          "note": "Que faut-il changer dans le plan ? (envoyé avec Continuer la planification)",
+          "openFull": "Ouvrir le plan en plein écran",
+          "reviewDescription": "Le plan proposé en entier, avec les choix pour l’approuver ou continuer la planification."
         }
       },
       "launchPromptNotDelivered": "Non livré — vérifiez le terminal",
@@ -18928,6 +18931,45 @@
       "important": "Important",
       "warning": "Avertissement",
       "caution": "Attention"
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Graphe Git",
+        "refresh": "Actualiser le graphe",
+        "description": "Commits de toutes les branches locales, branches distantes et étiquettes.",
+        "currentBranchOnly": "Cet hôte exécute une version plus ancienne d’Orca ; seule la branche actuelle est affichée.",
+        "count": "{{value0}} commits",
+        "loadingMore": "Chargement d’autres commits…",
+        "retry": "Réessayer",
+        "selectHint": "Sélectionnez un commit pour voir son message et les fichiers modifiés. Double-cliquez pour ouvrir son diff.",
+        "open": "Ouvrir le graphe de toutes les branches"
+      }
+    },
+    "androidAppRun": {
+      "open": "Exécuter l’application Android",
+      "label": "Exécuter l’app",
+      "device": "Appareil",
+      "loadingDevices": "Recherche d’appareils…",
+      "noDevices": "Aucun appareil ni émulateur trouvé",
+      "runningDevices": "En cours d’exécution",
+      "availableEmulators": "Émulateurs (démarrés à l’exécution)",
+      "refreshDevices": "Actualiser les appareils",
+      "variant": "Variante de build",
+      "loadingVariants": "Interrogation de Gradle pour les variantes…",
+      "noVariants": "Aucune variante de build trouvée",
+      "refreshVariants": "Recharger les variantes",
+      "variantHint": "Une seule variante pour tout le projet, partagée par tous ses espaces de travail.",
+      "stop": "Arrêter",
+      "run": "Exécuter",
+      "phase": {
+        "boot": "Démarrage de l’appareil…",
+        "build": "Compilation…",
+        "install": "Installation…",
+        "launch": "Lancement…",
+        "done": "L’application est en cours d’exécution",
+        "failed": "Échec de l’exécution",
+        "cancelled": "Exécution arrêtée"
+      }
     }
   },
   "dashboardPopout": {

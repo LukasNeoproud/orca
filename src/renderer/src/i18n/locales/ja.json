@@ -18200,7 +18200,10 @@
         "reason": "理由",
         "needsAccess": "アクセスが必要なパス",
         "plan": {
-          "file": "計画ファイル"
+          "file": "計画ファイル",
+          "note": "プランのどこを変更しますか？（「計画を続ける」と一緒に送信されます）",
+          "openFull": "プランを全画面で開く",
+          "reviewDescription": "提案されたプランの全文と、承認するか計画を続けるかの選択肢。"
         }
       },
       "launchPromptNotDelivered": "配信されませんでした — ターミナルを確認してください",
@@ -18826,6 +18829,45 @@
       "important": "重要",
       "warning": "警告",
       "caution": "注意"
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Git グラフ",
+        "refresh": "グラフを更新",
+        "description": "すべてのローカルブランチ、リモートブランチ、タグのコミット。",
+        "currentBranchOnly": "このホストは古いバージョンの Orca を実行しているため、現在のブランチのみ表示されます。",
+        "count": "{{value0}} 件のコミット",
+        "loadingMore": "さらにコミットを読み込み中…",
+        "retry": "再試行",
+        "selectHint": "コミットを選択すると、メッセージと変更されたファイルが表示されます。ダブルクリックで差分を開きます。",
+        "open": "すべてのブランチのグラフを開く"
+      }
+    },
+    "androidAppRun": {
+      "open": "Android アプリを実行",
+      "label": "アプリを実行",
+      "device": "デバイス",
+      "loadingDevices": "デバイスを検索中…",
+      "noDevices": "デバイスもエミュレーターも見つかりません",
+      "runningDevices": "実行中",
+      "availableEmulators": "エミュレーター（実行時に起動）",
+      "refreshDevices": "デバイスを更新",
+      "variant": "ビルドバリアント",
+      "loadingVariants": "Gradle にバリアントを問い合わせ中…",
+      "noVariants": "ビルドバリアントが見つかりません",
+      "refreshVariants": "バリアントを再読み込み",
+      "variantHint": "プロジェクト全体で 1 つのバリアントを使用し、すべてのワークスペースで共有されます。",
+      "stop": "停止",
+      "run": "実行",
+      "phase": {
+        "boot": "デバイスを起動中…",
+        "build": "ビルド中…",
+        "install": "インストール中…",
+        "launch": "起動中…",
+        "done": "アプリは実行中です",
+        "failed": "実行に失敗しました",
+        "cancelled": "実行を停止しました"
+      }
     }
   },
   "dashboardPopout": {

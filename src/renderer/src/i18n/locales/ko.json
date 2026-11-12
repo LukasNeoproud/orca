@@ -18200,7 +18200,10 @@
         "reason": "이유",
         "needsAccess": "접근이 필요한 경로",
         "plan": {
-          "file": "계획 파일"
+          "file": "계획 파일",
+          "note": "계획에서 무엇을 바꿔야 하나요? (계속 계획하기와 함께 전송됩니다)",
+          "openFull": "계획을 전체 화면으로 열기",
+          "reviewDescription": "제안된 계획 전체와, 승인하거나 계속 계획하는 선택지입니다."
         }
       },
       "launchPromptNotDelivered": "전달되지 않음 — 터미널을 확인하세요",
@@ -18826,6 +18829,45 @@
       "important": "중요",
       "warning": "경고",
       "caution": "주의"
+    },
+    "right-sidebar": {
+      "gitGraph": {
+        "title": "Git 그래프",
+        "refresh": "그래프 새로 고침",
+        "description": "모든 로컬 브랜치, 원격 브랜치, 태그의 커밋입니다.",
+        "currentBranchOnly": "이 호스트는 이전 버전의 Orca를 실행 중이어서 현재 브랜치만 표시됩니다.",
+        "count": "커밋 {{value0}}개",
+        "loadingMore": "커밋을 더 불러오는 중…",
+        "retry": "다시 시도",
+        "selectHint": "커밋을 선택하면 메시지와 변경된 파일을 볼 수 있습니다. 두 번 클릭하면 diff가 열립니다.",
+        "open": "모든 브랜치의 그래프 열기"
+      }
+    },
+    "androidAppRun": {
+      "open": "Android 앱 실행",
+      "label": "앱 실행",
+      "device": "기기",
+      "loadingDevices": "기기를 찾는 중…",
+      "noDevices": "기기나 에뮬레이터를 찾을 수 없습니다",
+      "runningDevices": "실행 중",
+      "availableEmulators": "에뮬레이터(실행 시 시작)",
+      "refreshDevices": "기기 새로 고침",
+      "variant": "빌드 변형",
+      "loadingVariants": "Gradle에 변형을 요청하는 중…",
+      "noVariants": "빌드 변형을 찾을 수 없습니다",
+      "refreshVariants": "변형 다시 불러오기",
+      "variantHint": "프로젝트 전체에 하나의 변형을 사용하며 모든 워크스페이스가 공유합니다.",
+      "stop": "중지",
+      "run": "실행",
+      "phase": {
+        "boot": "기기를 시작하는 중…",
+        "build": "빌드 중…",
+        "install": "설치 중…",
+        "launch": "실행하는 중…",
+        "done": "앱이 실행 중입니다",
+        "failed": "실행 실패",
+        "cancelled": "실행이 중지되었습니다"
+      }
     }
   },
   "dashboardPopout": {
