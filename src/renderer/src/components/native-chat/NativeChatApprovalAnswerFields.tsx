@@ -1,5 +1,4 @@
 import { translate } from '@/i18n/i18n'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { AgentJournalApprovalAccepts } from '../../../../shared/agent-session-journal-types'
 import type { ChatApprovalAnswerExtras } from './native-chat-interactive-prompt'
@@ -9,12 +8,15 @@ export function NativeChatApprovalAnswerFields({
   accepts,
   extras,
   disabled,
-  onChange
+  onChange,
+  isPlan = false
 }: {
   accepts: AgentJournalApprovalAccepts
   extras: ChatApprovalAnswerExtras
   disabled: boolean
   onChange: (extras: ChatApprovalAnswerExtras) => void
+  /** A plan's note asks what to change; it goes with "Keep planning". */
+  isPlan?: boolean
 }): React.JSX.Element {
   const stopCardKeys = (event: React.KeyboardEvent): void => {
     // Typing must not reach the card's own shortcuts; Escape still leaves the card.
@@ -22,6 +24,15 @@ export function NativeChatApprovalAnswerFields({
       event.stopPropagation()
     }
   }
+  const noteLabel = isPlan
+    ? translate(
+        'components.native-chat.approval.plan.note',
+        'What should change in the plan? (sent with Keep planning)'
+      )
+    : translate(
+        'components.native-chat.approval.note',
+        'What to do instead (sent when you decline)'
+      )
   return (
     <div className="flex shrink-0 flex-col gap-2">
       {accepts.inputField ? (
@@ -41,16 +52,11 @@ export function NativeChatApprovalAnswerFields({
         />
       ) : null}
       {accepts.note ? (
-        <Input
+        <Textarea
           data-native-chat-approval-note="true"
-          aria-label={translate(
-            'components.native-chat.approval.note',
-            'What to do instead (sent when you decline)'
-          )}
-          placeholder={translate(
-            'components.native-chat.approval.note',
-            'What to do instead (sent when you decline)'
-          )}
+          aria-label={noteLabel}
+          placeholder={noteLabel}
+          rows={2}
           disabled={disabled}
           value={extras.note ?? ''}
           onKeyDown={stopCardKeys}

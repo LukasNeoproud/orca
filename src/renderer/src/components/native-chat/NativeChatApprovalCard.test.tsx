@@ -1,8 +1,19 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render as renderBare,
+  screen,
+  type RenderOptions
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatApprovalCard } from './NativeChatApprovalCard'
+
+// A plan card's full-screen button carries a tooltip.
+const render = (ui: React.ReactNode, options?: RenderOptions) =>
+  renderBare(ui, { wrapper: TooltipProvider, ...options })
 
 afterEach(cleanup)
 
@@ -284,5 +295,70 @@ describe('NativeChatApprovalCard', () => {
     expect(content?.textContent).not.toContain('raw json that must not be shown')
     expect(actions?.contains(approve)).toBe(true)
     expect(content?.contains(approve)).toBe(false)
+  })
+
+  describe('a plan that accepts a note', () => {
+    function renderPlan() {
+      const onChoose = vi.fn()
+      const onCancel = vi.fn()
+      render(
+        <NativeChatApprovalCard
+          approval={{
+            title: 'Review proposed plan',
+            subject: { kind: 'plan', text: '# Release plan\n\n- Run the tests' },
+            accepts: { note: true },
+            options: [
+              { label: 'Approve', send: 'allow' },
+              { label: 'Keep planning', send: 'deny' }
+            ]
+          }}
+          onChoose={onChoose}
+          onCancel={onCancel}
+        />
+      )
+      return { onChoose, onCancel }
+    }
+    const NOTE = 'What should change in the plan? (sent with Keep planning)'
+
+    it('sends the typed note with Keep planning', () => {
+      const { onChoose } = renderPlan()
+      fireEvent.change(screen.getByRole('textbox', { name: NOTE }), {
+        target: { value: 'Skip the migration' }
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Keep planning' }))
+      expect(onChoose).toHaveBeenCalledWith('deny', { note: 'Skip the migration' })
+    })
+
+    it('opens the plan full screen and answers from there with the same note', () => {
+      const { onChoose, onCancel } = renderPlan()
+      fireEvent.change(screen.getByRole('textbox', { name: NOTE }), {
+        target: { value: 'Split step 2' }
+      })
+      const openDialog = (): HTMLElement => {
+        fireEvent.click(screen.getByRole('button', { name: 'Open the plan full screen' }))
+        return screen.getByRole('dialog')
+      }
+      const noteIn = (dialog: HTMLElement): HTMLTextAreaElement =>
+        dialog.querySelector<HTMLTextAreaElement>('[data-native-chat-approval-note]')!
+      let dialog = openDialog()
+      expect(
+        dialog.querySelector('[data-native-chat-approval-plan="true"]')?.textContent
+      ).toContain('Release plan')
+      // The note typed in the card is the one the dialog edits.
+      expect(noteIn(dialog).value).toBe('Split step 2')
+      fireEvent.change(noteIn(dialog), { target: { value: 'Split step 2 in two' } })
+      // Escape closes the dialog only: reaching the card, it would cancel the turn.
+      fireEvent.keyDown(noteIn(dialog), { key: 'Escape' })
+      expect(onCancel).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      dialog = openDialog()
+      expect(noteIn(dialog).value).toBe('Split step 2 in two')
+      const keepPlanning = Array.from(dialog.querySelectorAll('button')).find(
+        (button) => button.textContent === 'Keep planning'
+      )
+      fireEvent.click(keepPlanning!)
+      expect(onChoose).toHaveBeenCalledWith('deny', { note: 'Split step 2 in two' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
   })
 })

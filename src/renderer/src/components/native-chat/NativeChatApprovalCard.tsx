@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react'
-import { ShieldQuestion, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Maximize2, ShieldQuestion, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
-import { NativeChatMarkdown } from './NativeChatMarkdown'
 import { approvalBlockedPathToShow } from '../../../../shared/agent-session-approval-blocked-path'
 import {
   isNewerApprovalSubject,
   isPlanApprovalSubject
 } from '../../../../shared/agent-session-approval-subject'
-import { NativeChatCodeBlock } from './NativeChatCodeBlock'
+import { NativeChatApprovalOptionButtons } from './NativeChatApprovalOptionButtons'
+import { NativeChatApprovalPlanBody } from './NativeChatApprovalPlanBody'
+import { NativeChatPlanReviewDialog } from './NativeChatPlanReviewDialog'
 import type { ChatApproval, ChatApprovalAnswerExtras } from './native-chat-interactive-prompt'
 import { NativeChatApprovalAnswerFields } from './NativeChatApprovalAnswerFields'
 import { NativeChatPromptCollapseToggle } from './NativeChatPromptCollapse'
@@ -59,7 +61,21 @@ export function NativeChatApprovalCard({
     approval.subject ||
     approval.detail
   )
+  const planSubject = isPlanApprovalSubject(approval.subject) ? approval.subject : null
+  const [planOpen, setPlanOpen] = useState(false)
+  const choose = (send: string): void => {
+    setPlanOpen(false)
+    if (approval.accepts) {
+      onChoose(send, extras)
+    } else {
+      onChoose(send)
+    }
+  }
   useNativeChatPromptCardFocus(cardRef, shouldFocus)
+  const openPlanLabel = translate(
+    'components.native-chat.approval.plan.openFull',
+    'Open the plan full screen'
+  )
   const escape = onCancel ?? (isSubmitting ? undefined : onCollapse)
 
   return (
@@ -88,6 +104,25 @@ export function NativeChatApprovalCard({
                 {approval.title}
               </p>
             </div>
+            {planSubject ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    data-native-chat-approval-plan-expand="true"
+                    aria-label={openPlanLabel}
+                    onClick={() => setPlanOpen(true)}
+                  >
+                    <Maximize2 />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={4}>
+                  {openPlanLabel}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
             {onCancel ? (
               <button
                 type="button"
@@ -131,26 +166,12 @@ export function NativeChatApprovalCard({
                   <span className="font-mono">{neededPath}</span>
                 </p>
               ) : null}
-              {isPlanApprovalSubject(approval.subject) ? (
-                <div data-native-chat-approval-plan="true">
-                  <NativeChatMarkdown
-                    content={approval.subject.text}
-                    variant="document"
-                    className="text-sm text-chat-foreground"
-                    renderCodeBlock={NativeChatCodeBlock}
-                    {...(onLinkClick ? { onLinkClick } : {})}
-                    allowFileUriLinks={allowFileUriLinks}
-                    linkifyFilePaths={onLinkClick !== undefined}
-                  />
-                  {approval.subject.filePath ? (
-                    <p className="mt-2 break-all">
-                      <span className="font-medium text-foreground">
-                        {translate('components.native-chat.approval.plan.file', 'Plan file')}:{' '}
-                      </span>
-                      <span className="font-mono">{approval.subject.filePath}</span>
-                    </p>
-                  ) : null}
-                </div>
+              {planSubject ? (
+                <NativeChatApprovalPlanBody
+                  subject={planSubject}
+                  {...(onLinkClick ? { onLinkClick } : {})}
+                  allowFileUriLinks={allowFileUriLinks}
+                />
               ) : approval.detail && !inputField ? (
                 <div
                   data-native-chat-approval-detail="true"
@@ -176,28 +197,29 @@ export function NativeChatApprovalCard({
               extras={extras}
               disabled={isSubmitting}
               onChange={setExtras}
+              isPlan={planSubject !== null}
             />
           ) : null}
-          <div data-native-chat-approval-actions="true" className="flex shrink-0 flex-wrap gap-2">
-            {approval.options.map((opt, i) => (
-              <button
-                key={`${opt.label}-${i}`}
-                type="button"
-                disabled={newerSubject || isSubmitting}
-                title={opt.description}
-                onClick={() => (approval.accepts ? onChoose(opt.send, extras) : onChoose(opt.send))}
-                className={cn(
-                  'rounded-md px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-                  i === 0
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'border border-border bg-background text-foreground hover:bg-accent'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <NativeChatApprovalOptionButtons
+            options={approval.options}
+            disabled={newerSubject || isSubmitting}
+            onChoose={choose}
+          />
         </div>
+        {planSubject ? (
+          <NativeChatPlanReviewDialog
+            open={planOpen}
+            onOpenChange={setPlanOpen}
+            approval={approval}
+            subject={planSubject}
+            extras={extras}
+            onExtrasChange={setExtras}
+            onChoose={choose}
+            isSubmitting={isSubmitting}
+            {...(onLinkClick ? { onLinkClick } : {})}
+            allowFileUriLinks={allowFileUriLinks}
+          />
+        ) : null}
       </div>
     </div>
   )
