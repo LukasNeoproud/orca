@@ -5,6 +5,7 @@
   "printWidth": 100,
   "trailingComma": "none",
   "ignorePatterns": [
+    "backlog/**",
     "cloud/**",
     "resources/licenses/**",
     ".github/actions/cloud-sql-rollout-lease/**",
