@@ -102,17 +102,18 @@ export function useSourceControlFileListing({
     sourceControlViewMode,
     collapsedSections
   })
-  const { gitHistoryState, refreshGitHistory, refreshGitHistoryRef } = useSourceControlGitHistory({
-    activeRepoTarget,
-    activeWorktreeId,
-    worktreePath,
-    compareBaseRef,
-    isFolder,
-    isBranchVisible,
-    isGitHistoryExpanded,
-    isGitHistoryVisible,
-    worktreeMap
-  })
+  const { gitHistoryState, refreshGitHistory, refreshGitHistoryRef, loadAllRefsGitHistory } =
+    useSourceControlGitHistory({
+      activeRepoTarget,
+      activeWorktreeId,
+      worktreePath,
+      compareBaseRef,
+      isFolder,
+      isBranchVisible,
+      isGitHistoryExpanded,
+      isGitHistoryVisible,
+      worktreeMap
+    })
 
   // Why: modifier-click keeps the current pane intact by opening the file in a fresh split to the right.
   const { resolveSplitTargetGroupId, activeOpenRowKeys, handleOpenDiff, openCommittedDiff } =
@@ -221,6 +222,7 @@ export function useSourceControlFileListing({
     handleUnstagePaths,
     isExecutingBulk,
     isGitHistoryVisible,
+    loadAllRefsGitHistory,
     normalizedFilter,
     openCommittedDiff,
     pushRecovery,

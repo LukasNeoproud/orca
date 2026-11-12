@@ -149,4 +149,34 @@ describe('real unrelated Git histories', () => {
       expect(truncated.items).toHaveLength(2)
     }
   )
+
+  it('walks every branch, remote branch and tag only when asked for all refs', async () => {
+    const { repo, git } = await createRepository()
+    await git(['tag', 'v1', 'first~1'])
+    await git(['update-ref', 'refs/remotes/origin/first', 'first'])
+    await git(['update-ref', 'refs/stash', 'first'])
+
+    const workspace = await loadGitHistoryFromExecutor(git, repo, { limit: 10 })
+    expect(workspace.items.map((item) => item.subject)).toEqual(['V'])
+    expect(workspace.scope).toBeUndefined()
+
+    const all = await loadGitHistoryFromExecutor(git, repo, { limit: 10, scope: 'all' })
+    expect(all.scope).toBe('all')
+    expect(all.items.map((item) => item.subject)).toEqual(['V', 'A', 'B'])
+    expect(all.items.map((item) => item.references?.map((ref) => ref.id))).toEqual([
+      ['refs/heads/unrelated'],
+      ['refs/heads/first', 'refs/remotes/origin/first'],
+      ['refs/tags/v1']
+    ])
+
+    const firstPage = await loadGitHistoryFromExecutor(git, repo, { limit: 2, scope: 'all' })
+    expect(firstPage.hasMore).toBe(true)
+    const secondPage = await loadGitHistoryFromExecutor(git, repo, {
+      limit: 2,
+      scope: 'all',
+      skip: firstPage.items.length
+    })
+    expect(secondPage.items.map((item) => item.subject)).toEqual(['B'])
+    expect(secondPage.hasMore).toBe(false)
+  })
 })

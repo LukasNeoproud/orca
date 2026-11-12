@@ -21,7 +21,8 @@ export type {
   GitHistoryItemStatistics,
   GitHistoryOptions,
   GitHistoryRefCategory,
-  GitHistoryResult
+  GitHistoryResult,
+  GitHistoryScope
 } from './git-history-types'
 export {
   GIT_HISTORY_BASE_REF_COLOR,
@@ -41,6 +42,10 @@ function clampHistoryLimit(limit: number | undefined): number {
     GIT_HISTORY_MAX_LIMIT,
     Math.max(1, Math.trunc(limit ?? GIT_HISTORY_DEFAULT_LIMIT))
   )
+}
+
+function clampHistorySkip(skip: number | undefined): number {
+  return Number.isFinite(skip) ? Math.max(0, Math.trunc(skip ?? 0)) : 0
 }
 
 async function resolveCommit(
@@ -170,6 +175,8 @@ export async function loadGitHistoryFromExecutor(
   options: GitHistoryOptions = {}
 ): Promise<GitHistoryResult> {
   const limit = clampHistoryLimit(options.limit)
+  const skip = clampHistorySkip(options.skip)
+  const allRefs = options.scope === 'all'
   const headOid = await resolveCommit(git, cwd, 'HEAD')
   if (!headOid) {
     return {
@@ -194,7 +201,8 @@ export async function loadGitHistoryFromExecutor(
 
   // Why: this panel is scoped to the active workspace. Upstream and base refs
   // stay as comparison metadata so old workspaces do not list newly fetched upstream/base commits.
-  const historyRevisions = [headOid]
+  // Named namespaces rather than --all, which would also walk stashes, notes and agent refs.
+  const historyRevisions = allRefs ? [headOid, '--branches', '--remotes', '--tags'] : [headOid]
 
   let mergeBase: string | undefined
   if (remoteRef?.revision && currentRef.revision && remoteRef.revision !== currentRef.revision) {
@@ -213,8 +221,10 @@ export async function loadGitHistoryFromExecutor(
       '--no-color',
       `--format=${GIT_HISTORY_COMMIT_FORMAT}`,
       '-z',
-      '--topo-order',
+      // Why date order for all refs: topo order lists one branch to exhaustion before the next.
+      allRefs ? '--date-order' : '--topo-order',
       '--decorate=full',
+      ...(skip > 0 ? [`--skip=${skip}`] : []),
       `-n${limit + 1}`,
       ...historyRevisions
     ],
@@ -237,6 +247,7 @@ export async function loadGitHistoryFromExecutor(
     hasIncomingChanges,
     hasOutgoingChanges,
     hasMore: parsed.length > limit,
-    limit
+    limit,
+    ...(allRefs ? { scope: 'all' as const } : {})
   }
 }

@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { GitHistoryItem, GitHistoryResult } from '../../../../../../shared/git-history'
+import { GitGraphLauncher } from './git-graph-launcher'
 import type { GitBranchChangeEntry } from '../../../../../../shared/git-diff-compare-types'
 import {
   buildDefaultGitHistoryColorMap,
@@ -48,7 +49,8 @@ export function GitHistoryPanel({
   onOpenCommit,
   onLoadCommitFiles,
   onOpenCommitFile,
-  onCommitAction
+  onCommitAction,
+  onLoadAllRefsHistory
 }: {
   state: GitHistoryPanelState
   collapsed: boolean
@@ -62,6 +64,8 @@ export function GitHistoryPanel({
     event?: SourceControlRowOpenEvent
   ) => void
   onCommitAction?: (action: GitHistoryCommitAction, item: GitHistoryItem) => void
+  /** Pages the history of every branch and tag; enables the full graph window. */
+  onLoadAllRefsHistory?: (skip: number) => Promise<GitHistoryResult>
 }): React.JSX.Element | null {
   const result = state.result
   const viewModels = useMemo(() => {
@@ -286,6 +290,15 @@ export function GitHistoryPanel({
               )}
             </TooltipContent>
           </Tooltip>
+          {onLoadAllRefsHistory && (
+            <GitGraphLauncher
+              onLoadHistory={onLoadAllRefsHistory}
+              onOpenCommit={onOpenCommit}
+              onLoadCommitFiles={onLoadCommitFiles}
+              onOpenCommitFile={onOpenCommitFile}
+              onCommitAction={onCommitAction}
+            />
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

@@ -54,9 +54,15 @@ export type GitHistoryItem = {
   references?: GitHistoryItemRef[]
 }
 
+/** `workspace` walks HEAD only; `all` walks every local branch, remote branch and tag too. */
+export type GitHistoryScope = 'workspace' | 'all'
+
 export type GitHistoryOptions = {
   limit?: number
   baseRef?: string | null
+  scope?: GitHistoryScope
+  /** Commits to skip, for paging past `limit`. */
+  skip?: number
 }
 
 export type GitHistoryResult = {
@@ -69,6 +75,8 @@ export type GitHistoryResult = {
   hasOutgoingChanges: boolean
   hasMore: boolean
   limit: number
+  /** Set only when the host honoured `scope: 'all'`; an older host drops the option and omits this. */
+  scope?: GitHistoryScope
 }
 
 export type GitHistoryExecutor = (

@@ -3,6 +3,7 @@ import { requireGitOwnerTarget } from '../../worktree-git-owner-target'
 import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
 import { getConnectionId } from '@/lib/connection-context'
 import { getRuntimeGitHistory } from '@/runtime/runtime-git-status-client'
+import { GIT_HISTORY_MAX_LIMIT, type GitHistoryResult } from '../../../../../../shared/git-history'
 import type { GitHistoryPanelState } from './git-history-panel'
 
 const EMPTY_GIT_HISTORY_STATE: GitHistoryPanelState = { status: 'idle' }
@@ -41,6 +42,7 @@ export function useSourceControlGitHistory({
   gitHistoryState: GitHistoryPanelState
   refreshGitHistory: () => Promise<void>
   refreshGitHistoryRef: RefObject<() => Promise<void>>
+  loadAllRefsGitHistory: (skip: number) => Promise<GitHistoryResult>
 } {
   const [gitHistoryByWorktree, setGitHistoryByWorktree] = useState<
     Record<string, GitHistoryPanelState>
@@ -167,5 +169,24 @@ export function useSourceControlGitHistory({
     worktreePath
   ])
 
-  return { gitHistoryState, refreshGitHistory, refreshGitHistoryRef }
+  // Not gated on the Commits section: the graph window loads on its own, one page per call.
+  const loadAllRefsGitHistory = useCallback(
+    async (skip: number): Promise<GitHistoryResult> => {
+      if (!activeWorktreeId || !worktreePath || isFolder) {
+        throw new Error('No Git repository is open')
+      }
+      return getRuntimeGitHistory(
+        {
+          target: requireGitOwnerTarget(activeRepoTarget),
+          worktreeId: activeWorktreeId,
+          worktreePath,
+          connectionId: getConnectionId(activeWorktreeId) ?? undefined
+        },
+        { limit: GIT_HISTORY_MAX_LIMIT, baseRef: compareBaseRef, scope: 'all', skip }
+      )
+    },
+    [activeRepoTarget, activeWorktreeId, compareBaseRef, isFolder, worktreePath]
+  )
+
+  return { gitHistoryState, refreshGitHistory, refreshGitHistoryRef, loadAllRefsGitHistory }
 }

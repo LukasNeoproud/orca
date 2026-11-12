@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Cloud, GitBranch, GitCommitHorizontal, Tag } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { GitHistoryItem, GitHistoryItemRef } from '../../../../../../shared/git-history'
@@ -8,20 +8,41 @@ import { GitHistoryGraphSvg, graphColor } from './git-history-graph-svg'
 import { dedupeRemoteTrackingRefs } from '../../../../../../shared/git-history-ref-display'
 import { translate } from '@/i18n/i18n'
 
-function GitHistoryRefBadge({ itemRef }: { itemRef: GitHistoryItemRef }): React.JSX.Element {
+const REF_CATEGORY_ICONS = {
+  branches: GitBranch,
+  'remote branches': Cloud,
+  tags: Tag,
+  commits: GitCommitHorizontal
+} as const
+
+export function GitHistoryRefBadge({
+  itemRef,
+  withCategoryIcon = false,
+  className
+}: {
+  itemRef: GitHistoryItemRef
+  /** The all-refs graph mixes local, remote and tag refs, so it marks which is which. */
+  withCategoryIcon?: boolean
+  className?: string
+}): React.JSX.Element {
   const refLabel = itemRef.category ? `${itemRef.name} (${itemRef.category})` : itemRef.name
+  const CategoryIcon = withCategoryIcon && itemRef.category && REF_CATEGORY_ICONS[itemRef.category]
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className="max-w-[8rem] truncate rounded-full border bg-sidebar px-1.5 py-0.5 text-[10px] leading-none"
+          className={cn(
+            'flex max-w-[8rem] items-center gap-1 rounded-full border bg-sidebar px-1.5 py-0.5 text-3xs leading-none',
+            className
+          )}
           style={{
             borderColor: itemRef.color ? graphColor(itemRef.color) : 'var(--border)',
             color: itemRef.color ? graphColor(itemRef.color) : 'var(--muted-foreground)'
           }}
         >
-          {itemRef.name}
+          {CategoryIcon ? <CategoryIcon aria-hidden="true" className="size-2.5 shrink-0" /> : null}
+          <span className="truncate">{itemRef.name}</span>
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={6} className="max-w-72">

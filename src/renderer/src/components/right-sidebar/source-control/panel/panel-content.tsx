@@ -45,6 +45,7 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
     isAbortingOperation,
     isExecutingBulk,
     isGitHistoryVisible,
+    loadAllRefsGitHistory,
     loadCommitFiles,
     normalizedFilter,
     openAllDiffs,
@@ -223,6 +224,7 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
             onRefresh={() => void refreshGitHistory()}
             onOpenCommit={(item) => void openHistoryCommitDiff(item)}
             onLoadCommitFiles={loadCommitFiles}
+            onLoadAllRefsHistory={loadAllRefsGitHistory}
             onOpenCommitFile={openCommitFile}
             onCommitAction={handleCommitAction}
           />
