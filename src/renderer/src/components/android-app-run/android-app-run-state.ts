@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { toast } from 'sonner'
+import { translate } from '@/i18n/i18n'
 import type {
   AndroidAppRunEvent,
   AndroidAppRunPhase
@@ -11,7 +13,10 @@ export type AndroidAppRunState = {
   runId: string
   phase: AndroidAppRunPhase
   detail?: string
+  /** Only filled when the build could not get a terminal tab. */
   output: string
+  /** Terminal tab holding the build output. */
+  terminalTabId?: string
 }
 
 /**
@@ -39,12 +44,24 @@ export function applyAndroidAppRunEvent(event: AndroidAppRunEvent): void {
   if (!worktreeId || !current || current.runId !== event.runId) {
     return
   }
-  runs.set(
-    worktreeId,
-    event.kind === 'output'
-      ? { ...current, output: (current.output + event.text).slice(-MAX_OUTPUT_CHARS) }
-      : { ...current, phase: event.phase, detail: event.detail }
-  )
+  if (event.kind === 'output') {
+    runs.set(worktreeId, {
+      ...current,
+      output: (current.output + event.text).slice(-MAX_OUTPUT_CHARS)
+    })
+  } else if (event.kind === 'terminal') {
+    runs.set(worktreeId, { ...current, terminalTabId: event.tabId })
+  } else {
+    runs.set(worktreeId, { ...current, phase: event.phase, detail: event.detail })
+    // The popover is usually closed by now, so the outcome has to reach the user elsewhere.
+    if (event.phase === 'done') {
+      toast.success(translate('components.androidAppRun.phase.done', 'App is running'))
+    } else if (event.phase === 'failed') {
+      toast.error(translate('components.androidAppRun.phase.failed', 'Run failed'), {
+        description: event.detail
+      })
+    }
+  }
   notify()
 }
 

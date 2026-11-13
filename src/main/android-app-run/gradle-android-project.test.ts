@@ -3,11 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  apkFromOutputMetadata,
   assembleTaskName,
   findBuiltApks,
   gradleWrapperSpec,
   isGradleAndroidProject,
-  parseAndroidBuildVariants
+  parseAndroidBuildVariants,
+  singleAbiGradleArgs
 } from './gradle-android-project'
 
 const roots: string[] = []
@@ -118,5 +120,32 @@ describe('findBuiltApks', () => {
         applicationId: 'com.example.freeDebug'
       }
     ])
+  })
+})
+
+describe('single-ABI builds', () => {
+  it('injects the ABI the way Android Studio does when deploying to one device', () => {
+    expect(singleAbiGradleArgs('arm64-v8a')).toEqual(['-Pandroid.injected.build.abi=arm64-v8a'])
+    expect(singleAbiGradleArgs(undefined)).toEqual([])
+  })
+
+  it('prefers the split built for the requested ABI over the universal APK', () => {
+    const metadata = JSON.stringify({
+      applicationId: 'com.example.app',
+      variantName: 'debug',
+      elements: [
+        { outputFile: 'app-universal-debug.apk', filters: [] },
+        {
+          outputFile: 'app-arm64-v8a-debug.apk',
+          filters: [{ filterType: 'ABI', value: 'arm64-v8a' }]
+        }
+      ]
+    })
+    expect(apkFromOutputMetadata('/out', metadata, 'debug', 'arm64-v8a')?.apkPath).toBe(
+      join('/out', 'app-arm64-v8a-debug.apk')
+    )
+    expect(apkFromOutputMetadata('/out', metadata, 'debug', 'x86_64')?.apkPath).toBe(
+      join('/out', 'app-universal-debug.apk')
+    )
   })
 })

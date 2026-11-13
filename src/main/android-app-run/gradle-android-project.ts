@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ProcessSpec } from '@orca/process-host/process-spec'
+import type { AndroidAbi } from '../../shared/android-app-run-types'
 
 const SKIPPED_DIRECTORIES = new Set(['node_modules', 'build', 'gradle', 'buildSrc'])
 const MODULE_SEARCH_DEPTH = 2
@@ -105,6 +106,14 @@ export function assembleTaskName(variant: string): string {
   return `assemble${variant[0]!.toUpperCase()}${variant.slice(1)}`
 }
 
+/**
+ * The property Android Studio injects when it deploys to one device: the Android Gradle Plugin
+ * then packages native libraries for that ABI only. Projects need no configuration for it.
+ */
+export function singleAbiGradleArgs(abi: AndroidAbi | undefined): string[] {
+  return abi ? [`-Pandroid.injected.build.abi=${abi}`] : []
+}
+
 export type BuiltAndroidApk = { apkPath: string; applicationId: string }
 
 type ApkOutputMetadata = {
@@ -113,11 +122,30 @@ type ApkOutputMetadata = {
   elements?: { outputFile?: unknown; filters?: unknown }[]
 }
 
-/** Picks the universal APK when the variant is split by ABI or density. */
+function hasAbiFilter(filters: unknown, abi: string): boolean {
+  return (
+    Array.isArray(filters) &&
+    filters.some(
+      (filter: unknown) =>
+        typeof filter === 'object' &&
+        filter !== null &&
+        'filterType' in filter &&
+        filter.filterType === 'ABI' &&
+        'value' in filter &&
+        filter.value === abi
+    )
+  )
+}
+
+/**
+ * Picks the APK of a variant split by ABI or density: the split for `abi` when one was asked
+ * for and exists, else the universal APK.
+ */
 export function apkFromOutputMetadata(
   metadataDirectory: string,
   rawMetadata: string,
-  variant: string
+  variant: string,
+  abi?: AndroidAbi
 ): BuiltAndroidApk | null {
   let metadata: ApkOutputMetadata
   try {
@@ -130,6 +158,7 @@ export function apkFromOutputMetadata(
   }
   const elements = Array.isArray(metadata.elements) ? metadata.elements : []
   const element =
+    (abi ? elements.find((item) => hasAbiFilter(item.filters, abi)) : undefined) ??
     elements.find((item) => !Array.isArray(item.filters) || item.filters.length === 0) ??
     elements[0]
   return typeof element?.outputFile === 'string'
@@ -141,7 +170,11 @@ export function apkFromOutputMetadata(
 }
 
 /** Finds what `assemble<Variant>` produced, wherever the modules keep their build directories. */
-export async function findBuiltApks(root: string, variant: string): Promise<BuiltAndroidApk[]> {
+export async function findBuiltApks(
+  root: string,
+  variant: string,
+  abi?: AndroidAbi
+): Promise<BuiltAndroidApk[]> {
   const found: BuiltAndroidApk[] = []
   let scanned = 0
   const visit = async (
@@ -154,7 +187,7 @@ export async function findBuiltApks(root: string, variant: string): Promise<Buil
     }
     if (insideApkOutputs) {
       const raw = await readFile(join(directory, 'output-metadata.json'), 'utf8').catch(() => null)
-      const apk = raw ? apkFromOutputMetadata(directory, raw, variant) : null
+      const apk = raw ? apkFromOutputMetadata(directory, raw, variant, abi) : null
       if (apk) {
         found.push(apk)
         return

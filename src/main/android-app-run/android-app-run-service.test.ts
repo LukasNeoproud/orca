@@ -70,7 +70,7 @@ describe('AndroidAppRunService', () => {
     const events: AndroidAppRunEvent[] = []
 
     const running = runner.run(
-      { runId: 'r', worktreePath: root, variant: 'debug', device: 'Pixel_9' },
+      { runId: 'r', worktreeId: 'w', worktreePath: root, variant: 'debug', device: 'Pixel_9' },
       (event) => events.push(event)
     )
     await vi.waitFor(() => expect(gradle.spawned).toHaveLength(1))
@@ -99,7 +99,13 @@ describe('AndroidAppRunService', () => {
     const events: AndroidAppRunEvent[] = []
 
     const running = runner.run(
-      { runId: 'r', worktreePath: await projectWithBuiltApk(), variant: 'debug', device: 'd' },
+      {
+        runId: 'r',
+        worktreeId: 'w',
+        worktreePath: await projectWithBuiltApk(),
+        variant: 'debug',
+        device: 'd'
+      },
       (event) => events.push(event)
     )
     await vi.waitFor(() => expect(gradle.spawned).toHaveLength(1))
@@ -115,7 +121,13 @@ describe('AndroidAppRunService', () => {
     const { deps, runner } = service({ spawnProcess: gradle.spawnProcess })
 
     const running = runner.run(
-      { runId: 'r', worktreePath: await projectWithBuiltApk(), variant: 'debug', device: 'd' },
+      {
+        runId: 'r',
+        worktreeId: 'w',
+        worktreePath: await projectWithBuiltApk(),
+        variant: 'debug',
+        device: 'd'
+      },
       () => undefined
     )
     await vi.waitFor(() => expect(gradle.spawned).toHaveLength(1))
@@ -147,5 +159,74 @@ describe('AndroidAppRunService', () => {
     expect(runProcess).toHaveBeenCalledTimes(2)
     await runner.listVariants('/p', { refresh: true })
     expect(runProcess).toHaveBeenCalledTimes(3)
+  })
+
+  it('builds in a terminal tab and installs once the tab reports success', async () => {
+    const root = await projectWithBuiltApk()
+    const gradle = fakeGradle()
+    const buildInTerminal = vi.fn<NonNullable<AndroidAppRunDependencies['buildInTerminal']>>(
+      async (build) => {
+        build.onTerminal('tab-1')
+        return { exitCode: 0 }
+      }
+    )
+    const { deps, runner } = service({ buildInTerminal, spawnProcess: gradle.spawnProcess })
+    const events: AndroidAppRunEvent[] = []
+
+    const result = await runner.run(
+      { runId: 'r', worktreeId: 'w', worktreePath: root, variant: 'debug', device: 'd' },
+      (event) => events.push(event)
+    )
+
+    expect(result.phase).toBe('done')
+    expect(buildInTerminal.mock.calls[0]![0]).toMatchObject({
+      worktreeId: 'w',
+      root,
+      gradleArgs: ['assembleDebug']
+    })
+    expect(events).toContainEqual({ runId: 'r', kind: 'terminal', tabId: 'tab-1' })
+    expect(gradle.spawned).toHaveLength(0)
+    expect(deps.installApk).toHaveBeenCalled()
+  })
+
+  it('fails the run when the terminal build exits with an error', async () => {
+    const { deps, runner } = service({ buildInTerminal: async () => ({ exitCode: 1 }) })
+
+    const result = await runner.run(
+      {
+        runId: 'r',
+        worktreeId: 'w',
+        worktreePath: await projectWithBuiltApk(),
+        variant: 'debug',
+        device: 'd'
+      },
+      () => undefined
+    )
+
+    expect(result).toMatchObject({ phase: 'failed', error: expect.stringContaining('exit code 1') })
+    expect(deps.installApk).not.toHaveBeenCalled()
+  })
+
+  it('builds as a plain process when no terminal can be opened', async () => {
+    const gradle = fakeGradle()
+    const { runner } = service({
+      buildInTerminal: async () => null,
+      spawnProcess: gradle.spawnProcess
+    })
+
+    const running = runner.run(
+      {
+        runId: 'r',
+        worktreeId: 'w',
+        worktreePath: await projectWithBuiltApk(),
+        variant: 'debug',
+        device: 'd'
+      },
+      () => undefined
+    )
+    await vi.waitFor(() => expect(gradle.spawned).toHaveLength(1))
+    gradle.child.emit('close', 0)
+
+    expect((await running).phase).toBe('done')
   })
 })

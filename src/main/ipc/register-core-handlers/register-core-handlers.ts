@@ -233,7 +233,11 @@ export function registerCoreHandlers(
   registerUIHandlers(store, { isDashboardPopoutRenderer })
   registerEmulatorFrameStreamHandlers()
   registerEmulatorVideoStreamHandlers()
-  registerAndroidAppRunHandlers(store, () => runtime.getEmulatorBridge())
+  registerAndroidAppRunHandlers(
+    store,
+    () => runtime.getEmulatorBridge(),
+    () => runtime
+  )
   registerWorkspaceSpaceHandlers(store)
   registerWorkspacePortHandlers(store)
   registerLocalhostWorktreeLabelHandlers(store)

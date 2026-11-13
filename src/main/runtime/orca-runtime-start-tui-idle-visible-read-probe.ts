@@ -120,13 +120,15 @@ export class OrcaRuntimeWithStartTuiIdleVisibleReadProbe extends OrcaRuntimeWith
 
   async waitForSetupTerminalCompletion(
     handle: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    // For an observed command the caller typed itself, outside worktree provisioning.
+    observedToken?: string
   ): Promise<{ exitCode: number | null }> {
     const ptyId = this.getLivePtyForHandle(handle)?.pty.ptyId
     if (!ptyId) {
       throw new Error('terminal_handle_stale')
     }
-    const completionToken = this.setupCompletionTokenByPtyId.get(ptyId)
+    const completionToken = observedToken ?? this.setupCompletionTokenByPtyId.get(ptyId)
     const exitAbort = new AbortController()
     return await new Promise<{ exitCode: number | null }>((resolve, reject) => {
       let settled = false

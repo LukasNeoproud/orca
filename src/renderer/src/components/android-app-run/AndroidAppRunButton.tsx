@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
-import { Loader2, Play } from 'lucide-react'
+import { CircleAlert, Loader2, Play } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
@@ -10,7 +10,7 @@ import { translate } from '@/i18n/i18n'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
 import { isAndroidAppRunActive, useAndroidAppRunState } from './android-app-run-state'
-import { AndroidAppRunPanel } from './AndroidAppRunPanel'
+import { AndroidAppRunPanel, androidAppRunPhaseLabel } from './AndroidAppRunPanel'
 
 /** Whether the workspace is an Android project on this machine, where the SDK and adb live. */
 function useLocalAndroidProjectPath(worktreeId: string): string | null {
@@ -72,11 +72,16 @@ export function AndroidAppRunButton({
             >
               {running ? (
                 <Loader2 className="size-3.5 animate-spin" />
+              ) : run?.phase === 'failed' ? (
+                <CircleAlert className="size-3.5 text-destructive" />
               ) : (
                 <Play className="size-3.5" />
               )}
+              {/* The phase stays readable here once the popover is dismissed. */}
               <span className="text-xs font-medium">
-                {translate('components.androidAppRun.label', 'Run app')}
+                {running && run
+                  ? androidAppRunPhaseLabel(run.phase)
+                  : translate('components.androidAppRun.label', 'Run app')}
               </span>
             </button>
           </PopoverTrigger>
@@ -91,6 +96,7 @@ export function AndroidAppRunButton({
           worktreePath={worktreePath}
           repoId={repo.id}
           savedVariant={repo.androidBuildVariant}
+          onShowOutput={() => setOpen(false)}
         />
       </PopoverContent>
     </Popover>

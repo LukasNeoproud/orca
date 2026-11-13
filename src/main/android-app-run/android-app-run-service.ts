@@ -1,5 +1,8 @@
+import { stat } from 'node:fs/promises'
 import { runProcess, spawnProcess } from '@orca/process-host'
 import type {
+  AndroidApkBuildRequest,
+  AndroidApkBuildResult,
   AndroidAppRunEvent,
   AndroidAppRunPhase,
   AndroidAppRunRequest,
@@ -9,6 +12,7 @@ import {
   GRADLE_LIST_TASKS_ARGS,
   assembleTaskName,
   findBuiltApks,
+  singleAbiGradleArgs,
   gradleWrapperSpec,
   parseAndroidBuildVariants
 } from './gradle-android-project'
@@ -23,8 +27,22 @@ export type AndroidAppRunDependencies = {
   launchApp: (serial: string, applicationId: string) => Promise<void>
   /** Gradle needs the user's JAVA_HOME, which a GUI-launched app does not inherit. */
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
+  /**
+   * Runs Gradle in a terminal tab of the workspace and resolves with its exit code, or with
+   * `null` when no terminal could be opened and the build should run as a plain process.
+   */
+  buildInTerminal?: (build: AndroidTerminalBuild) => Promise<{ exitCode: number | null } | null>
   runProcess?: typeof runProcess
   spawnProcess?: typeof spawnProcess
+}
+
+export type AndroidTerminalBuild = {
+  runId: string
+  worktreeId: string
+  root: string
+  gradleArgs: readonly string[]
+  signal: AbortSignal
+  onTerminal: (tabId: string) => void
 }
 
 class RunCancelledError extends Error {}
@@ -98,9 +116,7 @@ export class AndroidAppRunService {
       const booting = this.deps.bootDevice(request.device)
       booting.catch(() => undefined)
       phase('build', task)
-      await this.runGradle(root, [task, '--console=plain'], controller.signal, (text) =>
-        emit({ runId, kind: 'output', text })
-      )
+      await this.build(request, [task], controller.signal, emit)
       const apks = await findBuiltApks(root, variant)
       const apk = apks[0]
       if (!apk) {
@@ -127,6 +143,76 @@ export class AndroidAppRunService {
       this.activeRuns.delete(runId)
     }
     return result
+  }
+
+  /** Builds one variant and reports where its APK is, without touching any device. */
+  async buildApk(
+    request: AndroidApkBuildRequest,
+    emit: (event: AndroidAppRunEvent) => void
+  ): Promise<AndroidApkBuildResult> {
+    const { runId, worktreePath: root, variant, abi } = request
+    const controller = new AbortController()
+    this.activeRuns.set(runId, controller)
+    const phase = (name: AndroidAppRunPhase, detail?: string): void =>
+      emit({ runId, kind: 'phase', phase: name, ...(detail ? { detail } : {}) })
+    try {
+      const task = assembleTaskName(variant)
+      phase('build', task)
+      await this.build(request, [task, ...singleAbiGradleArgs(abi)], controller.signal, emit)
+      const apk = (await findBuiltApks(root, variant, abi))[0]
+      if (!apk) {
+        throw new Error(`The build produced no APK for variant "${variant}".`)
+      }
+      const { size } = await stat(apk.apkPath)
+      phase('done')
+      return { phase: 'done', ...apk, sizeBytes: size }
+    } catch (error) {
+      if (error instanceof RunCancelledError || controller.signal.aborted) {
+        phase('cancelled')
+        return { phase: 'cancelled' }
+      }
+      const message = errorMessage(error)
+      phase('failed', message)
+      return { phase: 'failed', error: message }
+    } finally {
+      this.activeRuns.delete(runId)
+    }
+  }
+
+  private async build(
+    request: Pick<AndroidAppRunRequest, 'runId' | 'worktreeId' | 'worktreePath'>,
+    gradleArgs: readonly string[],
+    signal: AbortSignal,
+    emit: (event: AndroidAppRunEvent) => void
+  ): Promise<void> {
+    const { runId, worktreeId, worktreePath: root } = request
+    const inTerminal = await this.deps
+      .buildInTerminal?.({
+        runId,
+        worktreeId,
+        root,
+        gradleArgs,
+        signal,
+        onTerminal: (tabId) => emit({ runId, kind: 'terminal', tabId })
+      })
+      .catch(() => null)
+    if (!inTerminal) {
+      if (signal.aborted) {
+        throw new RunCancelledError()
+      }
+      await this.runGradle(root, [...gradleArgs, '--console=plain'], signal, (text) =>
+        emit({ runId, kind: 'output', text })
+      )
+      return
+    }
+    if (signal.aborted) {
+      throw new RunCancelledError()
+    }
+    if (inTerminal.exitCode !== 0) {
+      throw new Error(
+        `Gradle build failed (exit code ${inTerminal.exitCode ?? 'unknown'}). See the build output.`
+      )
+    }
   }
 
   private async runGradle(

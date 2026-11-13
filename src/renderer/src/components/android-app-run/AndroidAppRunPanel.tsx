@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import { Play, RefreshCw, Square } from 'lucide-react'
+import { Play, RefreshCw, Square, SquareTerminal } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -23,6 +23,7 @@ import {
   useAndroidAppRunState
 } from './android-app-run-state'
 import { useAndroidRunTargets, type AndroidRunDevice } from './use-android-run-targets'
+import { useAndroidBuildDirectory } from './use-android-build-directory'
 
 const LAST_DEVICE_STORAGE_KEY = 'orca.androidAppRun.lastDevice'
 
@@ -34,7 +35,7 @@ function readLastDevice(): string {
   }
 }
 
-function phaseLabel(phase: AndroidAppRunPhase): string {
+export function androidAppRunPhaseLabel(phase: AndroidAppRunPhase): string {
   switch (phase) {
     case 'boot':
       return translate('components.androidAppRun.phase.boot', 'Starting the device…')
@@ -80,19 +81,35 @@ export function AndroidAppRunPanel({
   worktreeId,
   worktreePath,
   repoId,
-  savedVariant
+  savedVariant,
+  onShowOutput
 }: {
   worktreeId: string
+  /** The workspace's own directory; the build may run from another worktree of its repository. */
   worktreePath: string
   repoId: string
   savedVariant: string | undefined
+  /** Called after the build terminal tab was brought forward. */
+  onShowOutput: () => void
 }): React.JSX.Element {
   const updateRepo = useAppStore((state) => state.updateRepo)
+  const run = useAndroidAppRunState(worktreeId)
+  const buildDirectory = useAndroidBuildDirectory({
+    worktreeId,
+    repoId,
+    workspacePath: worktreePath
+  })
+  const buildPath = buildDirectory.selected.path
   const { devices, variants, refreshDevices, refreshVariants } = useAndroidRunTargets({
     open: true,
-    worktreePath
+    worktreePath: buildPath
   })
-  const run = useAndroidAppRunState(worktreeId)
+  const outputTab = useAppStore((state) =>
+    state.unifiedTabsByWorktree[worktreeId]?.find(
+      (tab) => tab.contentType === 'terminal' && tab.entityId === run?.terminalTabId
+    )
+  )
+  const activateTab = useAppStore((state) => state.activateTab)
   const running = isAndroidAppRunActive(run)
   const [device, setDevice] = useState(readLastDevice)
   // The saved variant is usable at once; the Gradle listing can take a minute on a cold daemon.
@@ -134,7 +151,7 @@ export function AndroidAppRunPanel({
     const runId = createBrowserUuid()
     beginAndroidAppRun(worktreeId, runId)
     void window.api.androidAppRun
-      .run({ runId, worktreePath, variant, device })
+      .run({ runId, worktreeId, worktreePath: buildPath, variant, device })
       .then((result) => {
         // An AVD Orca booted has no window of its own, so show it in the emulator pane.
         if (result.phase === 'done' && result.serial && target.state === 'shutdown') {
@@ -154,8 +171,11 @@ export function AndroidAppRunPanel({
     devices.error ?? variants.error ?? (run?.phase === 'failed' ? run.detail : undefined)
 
   return (
-    <div className="grid gap-3" data-testid="android-app-run-panel">
-      <div className="grid gap-1.5">
+    <div
+      className="scrollbar-sleek grid max-h-[var(--radix-popover-content-available-height)] min-w-0 gap-3 overflow-y-auto p-3"
+      data-testid="android-app-run-panel"
+    >
+      <div className="grid min-w-0 gap-1.5">
         <Label htmlFor="android-app-run-device">
           {translate('components.androidAppRun.device', 'Device')}
         </Label>
@@ -197,7 +217,44 @@ export function AndroidAppRunPanel({
         </div>
       </div>
 
-      <div className="grid gap-1.5">
+      {buildDirectory.directories.length > 1 ? (
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="android-app-run-directory">
+            {translate('components.androidAppRun.buildFrom', 'Build from')}
+          </Label>
+          <Select value={buildPath} onValueChange={buildDirectory.select} disabled={running}>
+            <SelectTrigger id="android-app-run-directory" size="sm" className="w-full min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {buildDirectory.directories.map((directory) => (
+                <SelectItem key={directory.path} value={directory.path}>
+                  {/* Truncates in the trigger too, which mirrors this text. */}
+                  <span className="block max-w-72 truncate">
+                    {directory.isWorkspace
+                      ? translate(
+                          'components.androidAppRun.thisWorkspace',
+                          '{{value0}} (this workspace)',
+                          { value0: directory.label }
+                        )
+                      : directory.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="truncate text-xs text-muted-foreground" title={buildPath}>
+            {buildDirectory.followsConversation
+              ? translate(
+                  'components.androidAppRun.followsConversation',
+                  'The conversation in this tab is working in this worktree.'
+                )
+              : buildPath}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="grid min-w-0 gap-1.5">
         <Label htmlFor="android-app-run-variant">
           {translate('components.androidAppRun.variant', 'Build variant')}
         </Label>
@@ -247,21 +304,44 @@ export function AndroidAppRunPanel({
       </div>
 
       {run ? (
-        <div className="grid gap-1.5">
-          <div className="text-xs font-medium text-foreground" role="status">
-            {phaseLabel(run.phase)}
+        <div className="grid min-w-0 gap-1.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className="min-w-0 flex-1 truncate text-xs font-medium text-foreground"
+              role="status"
+            >
+              {androidAppRunPhaseLabel(run.phase)}
+            </div>
+            {outputTab ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  activateTab(outputTab.id, { worktreeId })
+                  onShowOutput()
+                }}
+              >
+                <SquareTerminal />
+                {translate('components.androidAppRun.showOutput', 'Show output')}
+              </Button>
+            ) : null}
           </div>
           {run.output ? (
             <pre
               ref={outputRef}
-              className="scrollbar-sleek max-h-40 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-2xs whitespace-pre-wrap text-muted-foreground"
+              className="scrollbar-sleek max-h-40 min-w-0 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-2xs break-all whitespace-pre-wrap text-muted-foreground"
             >
               {run.output}
             </pre>
           ) : null}
         </div>
       ) : null}
-      {problem ? <p className="text-xs break-words text-destructive">{problem}</p> : null}
+      {problem ? (
+        <p className="scrollbar-sleek max-h-24 min-w-0 overflow-y-auto text-xs break-words text-destructive">
+          {problem}
+        </p>
+      ) : null}
 
       {running && run ? (
         <Button
