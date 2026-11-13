@@ -50,7 +50,8 @@ export function GitHistoryPanel({
   onLoadCommitFiles,
   onOpenCommitFile,
   onCommitAction,
-  onLoadAllRefsHistory
+  onLoadAllRefsHistory,
+  onOpenGraphTab
 }: {
   state: GitHistoryPanelState
   collapsed: boolean
@@ -66,6 +67,8 @@ export function GitHistoryPanel({
   onCommitAction?: (action: GitHistoryCommitAction, item: GitHistoryItem) => void
   /** Pages the history of every branch and tag; enables the full graph window. */
   onLoadAllRefsHistory?: (skip: number) => Promise<GitHistoryResult>
+  /** Opens the graph of all branches as a workspace tab. */
+  onOpenGraphTab?: () => void
 }): React.JSX.Element | null {
   const result = state.result
   const viewModels = useMemo(() => {
@@ -297,6 +300,7 @@ export function GitHistoryPanel({
               onLoadCommitFiles={onLoadCommitFiles}
               onOpenCommitFile={onOpenCommitFile}
               onCommitAction={onCommitAction}
+              onOpenInTab={onOpenGraphTab}
             />
           )}
           <Tooltip>

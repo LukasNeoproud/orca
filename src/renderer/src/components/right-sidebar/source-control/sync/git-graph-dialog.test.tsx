@@ -121,4 +121,17 @@ describe('GitGraphDialog', () => {
     )
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
+
+  it('hands the graph over to a workspace tab', async () => {
+    const onOpenInTab = vi.fn()
+    const { onOpenChange } = renderDialog({
+      onLoadHistory: async () => page([commit('a', null, 'Head commit')]),
+      onOpenInTab
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open in a tab' }))
+
+    expect(onOpenInTab).toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
 })

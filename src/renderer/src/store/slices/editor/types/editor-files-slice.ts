@@ -165,6 +165,8 @@ export type EditorFilesSlice = {
   ) => void
   reloadOpenCheckRunDetailsTab: (fileId: string) => Promise<void>
   openChatVisualTab: (worktreeId: string, visual: OpenChatVisualTabState) => void
+  /** Opens, or focuses, the workspace's one tab with the graph of all branches and tags. */
+  openGitGraphTab: (worktreeId: string) => void
   openBranchAllDiffs: (
     worktreeId: string,
     worktreePath: string,

@@ -19,6 +19,7 @@ import { createOpenConflictFile } from './actions/open-conflict-file'
 import { createOpenConflictReview } from './actions/open-conflict-review'
 import { createCheckRunDetailsActions } from './actions/check-run-details-actions'
 import { createChatVisualTabActions } from './actions/chat-visual-tab-actions'
+import { createGitGraphTabActions } from './actions/git-graph-tab-actions'
 import { createEditorCursorLine } from './actions/editor-cursor-line'
 import { createGitStatusActions } from './actions/git-status-actions'
 import { createGitRemoteStatus } from './actions/git-remote-status'
@@ -49,6 +50,7 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
   ...createOpenConflictReview(set, get),
   ...createCheckRunDetailsActions(set, get),
   ...createChatVisualTabActions(set, get),
+  ...createGitGraphTabActions(set, get),
   ...createEditorCursorLine(set, get),
   ...createGitStatusActions(set, get),
   ...createGitRemoteStatus(set, get),

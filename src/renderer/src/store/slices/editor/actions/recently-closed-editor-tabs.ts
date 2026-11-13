@@ -169,7 +169,8 @@ export function createRecentlyClosedEditorTabs(
           if (
             untitledIdsToDelete.has(f.id) ||
             f.mode === 'markdown-preview' ||
-            f.mode === 'chat-visual'
+            f.mode === 'chat-visual' ||
+            f.mode === 'git-graph'
           ) {
             continue
           }

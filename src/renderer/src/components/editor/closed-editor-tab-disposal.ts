@@ -118,6 +118,7 @@ export function disposeClosedEditorTabCaches(
         break
       case 'check-details':
       case 'chat-visual':
+      case 'git-graph':
         break
     }
   }

@@ -242,7 +242,8 @@ export function createCloseFileAction(
           wtRecent &&
           !shouldDeleteFromDisk &&
           closedFile.mode !== 'markdown-preview' &&
-          closedFile.mode !== 'chat-visual'
+          closedFile.mode !== 'chat-visual' &&
+          closedFile.mode !== 'git-graph'
         ) {
           const {
             id: _id,

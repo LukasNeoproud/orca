@@ -66,7 +66,8 @@ export function isReplaceablePreviewContentType(contentType: Tab['contentType'])
     contentType === 'diff' ||
     contentType === 'conflict-review' ||
     contentType === 'check-details' ||
-    contentType === 'chat-visual'
+    contentType === 'chat-visual' ||
+    contentType === 'git-graph'
   )
 }
 

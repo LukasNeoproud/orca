@@ -33,7 +33,7 @@ export function getEditorDisplayLabel(
     return file.checkRunDetails?.check.name ?? getBaseLabel(file, variant)
   }
 
-  if (file.mode === 'chat-visual') {
+  if (file.mode === 'chat-visual' || file.mode === 'git-graph') {
     return file.relativePath
   }
 

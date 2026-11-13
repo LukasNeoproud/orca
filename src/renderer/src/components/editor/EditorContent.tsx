@@ -4,6 +4,7 @@ import type { GitDiffResult } from '../../../../shared/git-diff-compare-types'
 import type { GitStatusEntry } from '../../../../shared/git-status-types'
 import { CheckRunDetailsPanel } from './CheckRunDetailsPanel'
 import { NativeChatVisualTab } from '../native-chat/NativeChatVisualTab'
+import { GitGraphTab } from '../right-sidebar/source-control/sync/git-graph-tab'
 import { NativeChatVisualUnavailable } from '../native-chat/NativeChatInlineVisual'
 import { CombinedDiffViewer, MarkdownPreview } from './editor-lazy-views'
 import { EditorConflictReviewSurface } from './EditorConflictReviewSurface'
@@ -161,6 +162,10 @@ export function EditorContent({
     ) : (
       <NativeChatVisualUnavailable />
     )
+  }
+
+  if (activeFile.mode === 'git-graph') {
+    return <GitGraphTab worktreeId={activeFile.worktreeId} />
   }
 
   if (activeFile.mode === 'conflict-review') {

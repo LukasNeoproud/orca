@@ -24,6 +24,7 @@ export type TabContentType =
   | 'conflict-review'
   | 'check-details'
   | 'chat-visual'
+  | 'git-graph'
   | 'agent-session'
   | 'browser'
   | 'simulator'

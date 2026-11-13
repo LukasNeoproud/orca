@@ -20,6 +20,7 @@ export function createOpenFileAction(
         file.mode === 'conflict-review' ||
         file.mode === 'check-details' ||
         file.mode === 'chat-visual' ||
+        file.mode === 'git-graph' ||
         file.mode === 'diff'
           ? file.mode
           : 'editor'
