@@ -1,3 +1,4 @@
+import { routeFileChunkFrame } from './file-chunk-frame-inbox'
 import type { ConnectOptions, RpcClient, SendRequestOptions } from './rpc-client'
 import { DirectConnectionLog } from './direct-connection-log'
 import { RpcClientAuthenticationRetry } from './rpc-client-authentication-retry'
@@ -93,7 +94,7 @@ export class DirectRpcClient implements RpcClient {
       onAuthenticated: (session) => this.handleAuthenticated(session),
       onAuthRejected: (reason) => this.authenticationRetry.reject(reason),
       onRpcResponse: (response) => this.handleRpcResponse(response),
-      onBinary: (bytes) => this.streams.handleBinary(bytes),
+      onBinary: (bytes) => void (routeFileChunkFrame(bytes) || this.streams.handleBinary(bytes)),
       onAuthenticatedInbound: (session) => this.liveness.noteAuthenticatedInbound(session),
       onClosed: (session, closeCode) => this.socketClose.handle(session, closeCode),
       onForcedClose: (session) => this.socketClose.forceClose(session)

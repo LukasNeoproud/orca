@@ -74,6 +74,11 @@ export type RuntimeFilePreviewResult = {
 
 export type RuntimeFileReadChunkResult = {
   contentBase64: string
+  /** Length of the raw range, whatever `encoding` the content travels in. */
   bytesRead: number
   eof: boolean
+  /** Set only for a caller that sent `acceptGzip`: `contentBase64` is then gzip of the range. */
+  encoding?: 'gzip'
+  /** The content went ahead in a binary frame with the caller's `binaryFrameToken`. */
+  binaryFrame?: true
 }

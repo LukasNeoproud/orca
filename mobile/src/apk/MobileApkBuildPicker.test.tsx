@@ -13,6 +13,7 @@ const { listMobileApkBuilds, installMobileApkBuild } = vi.hoisted(() => ({
 
 vi.mock('./mobile-apk-builds', () => ({ listMobileApkBuilds }))
 vi.mock('./mobile-apk-transfer', () => ({ installMobileApkBuild }))
+vi.mock('./MobileApkHostBuildSection', () => ({ MobileApkHostBuildSection: () => null }))
 vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: 'BottomDrawer' }))
 vi.mock('lucide-react-native', () => ({ FileDown: 'FileDown', RefreshCw: 'RefreshCw' }))
 vi.mock('react-native', () => ({

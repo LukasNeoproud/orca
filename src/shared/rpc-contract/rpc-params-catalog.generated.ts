@@ -66,6 +66,11 @@ import {
   AiVaultSessionTitlesParams
 } from './ai-vault-params'
 import {
+  AndroidApkBuildListVariantsParams,
+  AndroidApkBuildRunParams,
+  AndroidApkBuildStartParams
+} from './android-app-run-params'
+import {
   AntigravityAccountMutationParams,
   AntigravityAccountTargetParams
 } from './antigravity-accounts-params'
@@ -740,6 +745,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'aiVault.searchSessions': AiVaultSearchRequestSchema,
   'aiVault.searchStatus': AiVaultSearchStatusRequestSchema,
   'aiVault.setSearchEnabled': AiVaultSetSearchEnabledParamsSchema,
+  'androidAppRun.buildApk': AndroidApkBuildStartParams,
+  'androidAppRun.buildStatus': AndroidApkBuildRunParams,
+  'androidAppRun.cancel': AndroidApkBuildRunParams,
+  'androidAppRun.listVariants': AndroidApkBuildListVariantsParams,
+  'androidAppRun.probe': WorktreeSelector,
   'artifacts.delete': ArtifactsDeleteParams,
   'artifacts.getPublishedLink': SourceRequest,
   'artifacts.list': ListOptions,

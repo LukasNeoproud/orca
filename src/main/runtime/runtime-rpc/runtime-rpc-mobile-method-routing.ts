@@ -10,6 +10,11 @@ export type MobileRpcMethodRoute = 'execution-host' | 'paired-desktop'
 
 export const EXECUTION_HOST_METHODS = [
   'agent.launch',
+  'androidAppRun.buildApk',
+  'androidAppRun.buildStatus',
+  'androidAppRun.cancel',
+  'androidAppRun.listVariants',
+  'androidAppRun.probe',
   'agent.launchReplay',
   'agentTeams.prepareLaunch',
   'agentTeams.tmuxCompat',

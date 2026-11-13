@@ -1,3 +1,4 @@
+import { routeFileChunkFrame } from './file-chunk-frame-inbox'
 import {
   PairingGetEndpointsResultSchema,
   type DeviceResumeConfirmed,
@@ -256,6 +257,9 @@ export function connectMobileRelayRpcSession(args: {
   }
 
   function handleBinary(bytes: Uint8Array): void {
+    if (routeFileChunkFrame(bytes)) {
+      return
+    }
     streams.handleBinary(bytes)
   }
 

@@ -6,6 +6,7 @@ import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { listMobileApkBuilds, type MobileApkBuild } from './mobile-apk-builds'
 import { installMobileApkBuild } from './mobile-apk-transfer'
+import { MobileApkHostBuildSection } from './MobileApkHostBuildSection'
 import { styles } from './mobile-apk-build-picker-styles'
 
 const REFRESH_INTERVAL_MS = 5_000
@@ -116,8 +117,8 @@ export function MobileApkBuildPicker({ visible, client, worktreeId, onClose }: P
     setRootPath(pathDraft.trim())
     refresh()
   }
-  const install = async () => {
-    if (!client || !availableSelection || installControllerRef.current) {
+  const install = async (target: MobileApkBuild | undefined = availableSelection) => {
+    if (!client || !target || installControllerRef.current) {
       return
     }
     const controller = new AbortController()
@@ -130,7 +131,7 @@ export function MobileApkBuildPicker({ visible, client, worktreeId, onClose }: P
       await installMobileApkBuild(
         client,
         worktreeId,
-        availableSelection,
+        target,
         (fraction) => {
           if (!controller.signal.aborted) {
             setProgress(Math.max(0, Math.min(1, fraction)))
@@ -162,7 +163,7 @@ export function MobileApkBuildPicker({ visible, client, worktreeId, onClose }: P
       <View style={styles.header}>
         <Text style={styles.title}>Install APK</Text>
         <Text style={styles.description}>
-          Choose a completed build from this workspace. New builds appear automatically.
+          Build on the desktop, or choose a completed build from this workspace.
         </Text>
       </View>
       <View style={styles.pathSection}>
@@ -196,6 +197,17 @@ export function MobileApkBuildPicker({ visible, client, worktreeId, onClose }: P
           </Pressable>
         </View>
       </View>
+      <MobileApkHostBuildSection
+        visible={visible}
+        client={client}
+        worktreeId={worktreeId}
+        busy={installing}
+        onBuilt={(built) => {
+          setSelectedBuild(built)
+          refresh()
+          void install(built)
+        }}
+      />
       {!client ? (
         <Text style={styles.message}>Connect to the paired Orca host to find APKs.</Text>
       ) : null}

@@ -1,7 +1,10 @@
+import { gzipSync } from 'fflate'
 import { Buffer } from 'buffer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { installMobileApkBuild } from './mobile-apk-transfer'
 import type { RpcClient } from '../transport/rpc-client'
+import { routeFileChunkFrame } from '../transport/file-chunk-frame-inbox'
+import { encodeFileChunkFrame } from '../../../src/shared/file-chunk-frame-protocol'
 
 const state = vi.hoisted(() => ({
   installed: vi.fn(async (_uri: string) => {}),
@@ -57,7 +60,10 @@ vi.mock('react-native', () => ({
     }
   }
 }))
-vi.mock('expo-crypto', () => ({ randomUUID: () => 'test-id' }))
+vi.mock('expo-crypto', () => ({
+  randomUUID: () => 'test-id',
+  getRandomBytes: (length: number) => new Uint8Array(length).fill(0xab)
+}))
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'file:///documents' },
   File: class {
@@ -90,29 +96,68 @@ const build = {
   mtime: 2
 }
 
-function clientWithChunks(corrupt = false): RpcClient {
+type FakeHost = {
+  corrupt?: boolean
+  gzip?: boolean
+  /** 'sent' delivers a binary frame; 'lost' claims one that never reaches the phone. */
+  binaryFrames?: 'sent' | 'lost'
+}
+
+function clientWithChunks(host: FakeHost = {}): RpcClient {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the transfer under test calls only sendRequest.
   return {
-    sendRequest: vi.fn(async (method: string, params: { offset?: number; length?: number }) => {
-      if (method === 'files.stat') {
-        return { ok: true, result: { ...build, isDirectory: false } }
-      }
-      if (method === 'files.readChunk') {
-        const bytes = data.subarray(
-          params.offset!,
-          params.offset! + params.length! - (corrupt ? 1 : 0)
-        )
-        return {
-          ok: true,
-          result: {
-            contentBase64: bytes.toString('base64'),
-            bytesRead: bytes.length,
-            eof: params.offset! + bytes.length >= data.length
+    sendRequest: vi.fn(
+      async (
+        method: string,
+        params: {
+          offset?: number
+          length?: number
+          acceptGzip?: boolean
+          binaryFrameToken?: string
+        }
+      ) => {
+        if (method === 'files.stat') {
+          return { ok: true, result: { ...build, isDirectory: false } }
+        }
+        if (method === 'files.readChunk') {
+          const bytes = data.subarray(
+            params.offset!,
+            params.offset! + params.length! - (host.corrupt ? 1 : 0)
+          )
+          const gzipped = host.gzip === true && params.acceptGzip === true
+          const wire = gzipped ? Buffer.from(gzipSync(new Uint8Array(bytes))) : bytes
+          const framed = host.binaryFrames !== undefined && params.binaryFrameToken !== undefined
+          if (framed && host.binaryFrames === 'sent') {
+            routeFileChunkFrame(
+              encodeFileChunkFrame({
+                token: params.binaryFrameToken!,
+                encoding: gzipped ? 'gzip' : 'identity',
+                bytes: new Uint8Array(wire)
+              })
+            )
+          }
+          return {
+            ok: true,
+            result: {
+              contentBase64: framed ? '' : wire.toString('base64'),
+              bytesRead: bytes.length,
+              eof: params.offset! + bytes.length >= data.length,
+              ...(gzipped ? { encoding: 'gzip' } : {}),
+              ...(framed ? { binaryFrame: true } : {})
+            }
           }
         }
+        throw new Error(`Unexpected ${method}`)
       }
-      throw new Error(`Unexpected ${method}`)
-    })
+    )
   } as unknown as RpcClient
+}
+
+function readChunkParams(client: RpcClient): Record<string, unknown>[] {
+  return vi
+    .mocked(client.sendRequest)
+    .mock.calls.filter(([method]) => method === 'files.readChunk')
+    .map(([, params]) => (typeof params === 'object' && params !== null ? { ...params } : {}))
 }
 
 describe('mobile APK transfer', () => {
@@ -142,6 +187,38 @@ describe('mobile APK transfer', () => {
     expect(state.notificationStopped).toHaveBeenCalledOnce()
     expect(state.released).toHaveBeenCalledOnce()
     expect(state.deleted).toBe(true)
+  })
+
+  it('asks for gzip chunks and inflates the ones a current desktop compresses', async () => {
+    const client = clientWithChunks({ gzip: true })
+
+    await installMobileApkBuild(client, 'wt-1', build, () => {})
+
+    expect(Buffer.concat(state.bytes)).toEqual(data)
+    expect(state.installed).toHaveBeenCalledOnce()
+  })
+
+  it('takes chunks from binary frames when the desktop sends them', async () => {
+    const client = clientWithChunks({ gzip: true, binaryFrames: 'sent' })
+
+    await installMobileApkBuild(client, 'wt-1', build, () => {})
+
+    expect(Buffer.concat(state.bytes)).toEqual(data)
+    expect(readChunkParams(client).map((params) => params.offset)).toEqual([0, 256 * 1024])
+    expect(state.installed).toHaveBeenCalledOnce()
+  })
+
+  it('goes back to replies for the rest of the file when a binary frame never arrives', async () => {
+    const client = clientWithChunks({ binaryFrames: 'lost' })
+
+    await installMobileApkBuild(client, 'wt-1', build, () => {})
+
+    expect(Buffer.concat(state.bytes)).toEqual(data)
+    expect(readChunkParams(client).map((params) => Boolean(params.binaryFrameToken))).toEqual([
+      true,
+      false,
+      false
+    ])
   })
 
   it('waits for foreground after a download finishes in background', async () => {
@@ -250,7 +327,7 @@ describe('mobile APK transfer', () => {
   it('rejects a short chunk before installation and removes partial download', async () => {
     state.installed.mockClear()
     await expect(
-      installMobileApkBuild(clientWithChunks(true), 'wt-1', build, () => {})
+      installMobileApkBuild(clientWithChunks({ corrupt: true }), 'wt-1', build, () => {})
     ).rejects.toThrow('complete')
     expect(state.installed).not.toHaveBeenCalled()
     expect(state.deleted).toBe(true)

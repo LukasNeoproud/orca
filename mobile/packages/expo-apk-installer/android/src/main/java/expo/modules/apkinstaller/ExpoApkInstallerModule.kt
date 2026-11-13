@@ -25,6 +25,9 @@ class ExpoApkInstallerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoApkInstaller")
 
+    // Most preferred first; lets a host build package native code for this device only.
+    Constants("supportedAbis" to Build.SUPPORTED_ABIS.toList())
+
     AsyncFunction("install") { localApkPath: String, promise: Promise ->
       if (pending != null) {
         promise.reject("INSTALL_IN_PROGRESS", "An APK installation is already active", null)

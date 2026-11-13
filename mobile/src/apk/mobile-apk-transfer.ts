@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer'
-import { randomUUID } from 'expo-crypto'
+import { getRandomBytes, randomUUID } from 'expo-crypto'
 import { File, Paths } from 'expo-file-system'
+import { gunzipSync } from 'fflate'
 import {
   markApkDownloadReady,
   startApkDownloadNotification,
@@ -8,6 +9,7 @@ import {
   updateApkDownloadNotification
 } from '@orca/expo-apk-installer'
 import type { RpcClient } from '../transport/rpc-client'
+import { expectFileChunkFrame } from '../transport/file-chunk-frame-inbox'
 import { retainHostLogicalClientDuringBackgroundTransfer } from '../transport/host-logical-client'
 import { ensureNotificationPermissions } from '../notifications/notification-permissions'
 import type { MobileApkBuild } from './mobile-apk-builds'
@@ -23,7 +25,13 @@ import {
 } from './mobile-apk-foreground-install'
 
 type FileStat = { size: number; mtime: number; isDirectory: boolean }
-type FileChunk = { contentBase64: string; bytesRead: number; eof: boolean }
+type FileChunk = {
+  contentBase64: string
+  bytesRead: number
+  eof: boolean
+  encoding?: string
+  binaryFrame?: boolean
+}
 const CHUNK_BYTES = 256 * 1024
 
 function assertNotAborted(signal?: AbortSignal) {
@@ -44,6 +52,57 @@ async function requestResult<T>(client: RpcClient, method: string, params: unkno
     throw new Error(response.error.message || `${method} failed`)
   }
   return response.result as T
+}
+
+function inflateChunk(wire: Uint8Array, gzip: boolean, expectedLength: number): Uint8Array {
+  // A supplied `out` is never grown, so a corrupt chunk cannot inflate without bound.
+  return gzip ? gunzipSync(wire, { out: new Uint8Array(expectedLength + 1) }) : wire
+}
+
+/** The raw bytes of a chunk that came inside its reply; `acceptGzip` hosts send them gzipped. */
+function replyChunkBytes(chunk: FileChunk, expectedLength: number): Uint8Array {
+  if (chunk.encoding !== undefined && chunk.encoding !== 'gzip') {
+    throw new Error('Update Orca on this phone to download this APK.')
+  }
+  const wire = new Uint8Array(Buffer.from(chunk.contentBase64, 'base64'))
+  return inflateChunk(wire, chunk.encoding === 'gzip', expectedLength)
+}
+
+/**
+ * Reads one range. A current desktop sends the bytes in a binary frame, which skips both the
+ * JSON base64 and the text frame's; anything else answers in the reply.
+ */
+async function readChunk(
+  client: RpcClient,
+  range: { worktree: string; relativePath: string; offset: number; length: number },
+  binaryFrames: boolean
+): Promise<{ chunk: FileChunk; bytes: Uint8Array | null }> {
+  // APKs carry uncompressed native libraries; older hosts ignore both optional fields.
+  const params = { ...range, acceptGzip: true }
+  if (!binaryFrames) {
+    const chunk = await requestResult<FileChunk>(client, 'files.readChunk', params)
+    return { chunk, bytes: chunk.binaryFrame ? null : replyChunkBytes(chunk, range.length) }
+  }
+  const expected = expectFileChunkFrame(
+    Array.from(getRandomBytes(16), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  )
+  try {
+    const chunk = await requestResult<FileChunk>(client, 'files.readChunk', {
+      ...params,
+      binaryFrameToken: expected.token
+    })
+    if (!chunk.binaryFrame) {
+      return { chunk, bytes: replyChunkBytes(chunk, range.length) }
+    }
+    const frame = expected.take()
+    return {
+      chunk,
+      bytes:
+        frame && inflateChunk(new Uint8Array(frame.bytes), frame.encoding === 'gzip', range.length)
+    }
+  } finally {
+    expected.dispose()
+  }
 }
 
 function matchesBuild(stat: FileStat, build: MobileApkBuild): boolean {
@@ -88,15 +147,21 @@ export async function installMobileApkBuild(
     handle = local.open()
     let offset = 0
     let reportedPercent = 0
+    let binaryFrames = true
     while (offset < build.size) {
       assertNotAborted(signal)
       const length = Math.min(CHUNK_BYTES, build.size - offset)
-      const chunk = await requestResult<FileChunk>(client, 'files.readChunk', {
-        ...selector,
-        offset,
-        length
-      })
-      const bytes = Buffer.from(chunk.contentBase64, 'base64')
+      const range = { ...selector, offset, length }
+      let read = await readChunk(client, range, binaryFrames)
+      if (!read.bytes) {
+        // The frame went to something between this phone and the host; stay on replies.
+        binaryFrames = false
+        read = await readChunk(client, range, false)
+      }
+      const { chunk, bytes } = read
+      if (!bytes) {
+        throw new Error('APK download ended before the file was complete.')
+      }
       if (
         chunk.bytesRead !== length ||
         bytes.length !== length ||

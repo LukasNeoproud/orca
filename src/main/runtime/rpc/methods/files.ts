@@ -1,5 +1,6 @@
 import { defineMethod, defineStreamingMethod } from '../core'
 import { runFileWatchStream } from './file-watch-stream-lifecycle'
+import { encodeFileChunkForTransfer } from './file-chunk-transfer-encoding'
 import { FILE_MUTATION_METHODS } from './files-mutation-methods'
 import {
   assertDirListingWithinRemoteBudget,
@@ -132,13 +133,20 @@ export const FILE_METHODS = [
     name: 'files.readChunk',
     permission: 'workspace',
     params: FileReadChunk,
-    handler: async (params, { runtime }) =>
-      runtime.readFileExplorerChunk(
+    handler: async (params, { runtime, clientKind, sendBinary }) => {
+      const chunk = await runtime.readFileExplorerChunk(
         params.worktree,
         params.relativePath,
         params.offset,
         params.length
       )
+      return encodeFileChunkForTransfer(chunk, {
+        acceptGzip: params.acceptGzip,
+        binaryFrameToken: params.binaryFrameToken,
+        // Why phones only: a desktop forwarding this call treats a binary frame as a broken socket.
+        sendBinary: clientKind === 'mobile' ? sendBinary : undefined
+      })
+    }
   }),
   defineMethod({
     name: 'files.readDir',

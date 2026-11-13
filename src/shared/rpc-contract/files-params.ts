@@ -81,7 +81,14 @@ export const FileReadChunk = FileOpen.extend({
     .number()
     .int()
     .positive()
-    .max(512 * 1024)
+    .max(512 * 1024),
+  /** The caller can inflate `encoding: 'gzip'` chunks; hosts older than this field ignore it. */
+  acceptGzip: z.boolean().optional(),
+  /** Asks for the bytes in a binary frame carrying this token; the reply then has no content. */
+  binaryFrameToken: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/)
+    .optional()
 })
 
 export const FileSearch = WorktreeSelector.extend({

@@ -1,6 +1,8 @@
 import { requireOptionalNativeModule } from 'expo-modules-core'
 
 type NativeApkInstaller = {
+  /** Absent from native builds older than this constant. */
+  supportedAbis?: string[]
   install(localApkPath: string): Promise<void>
   startDownloadNotification(title: string): Promise<void>
   updateDownloadNotification(progressPercent: number): Promise<void>
@@ -36,4 +38,9 @@ export async function markApkDownloadReady(): Promise<void> {
 
 export async function stopApkDownloadNotification(): Promise<void> {
   await requireApkInstaller().stopDownloadNotification()
+}
+
+/** The ABI this device prefers, e.g. `arm64-v8a`; null when the native app cannot say. */
+export function getPrimaryDeviceAbi(): string | null {
+  return nativeModule?.supportedAbis?.[0] ?? null
 }
