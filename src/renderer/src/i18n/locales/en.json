@@ -19428,7 +19428,9 @@
         "loadingMore": "Loading more commits…",
         "retry": "Retry",
         "selectHint": "Select a commit to see its message and changed files. Double-click to open its diff.",
-        "open": "Open graph of all branches"
+        "open": "Open graph of all branches",
+        "openInTab": "Open in a tab",
+        "noRepository": "No Git repository is open"
       }
     },
     "androidAppRun": {
@@ -19455,7 +19457,11 @@
         "done": "App is running",
         "failed": "Run failed",
         "cancelled": "Run stopped"
-      }
+      },
+      "buildFrom": "Build from",
+      "thisWorkspace": "{{value0}} (this workspace)",
+      "followsConversation": "The conversation in this tab is working in this worktree.",
+      "showOutput": "Show output"
     }
   },
   "dashboardPopout": {

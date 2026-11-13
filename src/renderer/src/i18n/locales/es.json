@@ -18840,7 +18840,9 @@
         "loadingMore": "Cargando más commits…",
         "retry": "Reintentar",
         "selectHint": "Selecciona un commit para ver su mensaje y los archivos modificados. Haz doble clic para abrir su diff.",
-        "open": "Abrir el grafo de todas las ramas"
+        "open": "Abrir el grafo de todas las ramas",
+        "openInTab": "Abrir en una pestaña",
+        "noRepository": "No hay ningún repositorio Git abierto"
       }
     },
     "androidAppRun": {
@@ -18867,7 +18869,11 @@
         "done": "La app está en ejecución",
         "failed": "La ejecución falló",
         "cancelled": "Ejecución detenida"
-      }
+      },
+      "buildFrom": "Compilar desde",
+      "thisWorkspace": "{{value0}} (este espacio de trabajo)",
+      "followsConversation": "La conversación de esta pestaña está trabajando en este worktree.",
+      "showOutput": "Mostrar salida"
     }
   },
   "dashboardPopout": {

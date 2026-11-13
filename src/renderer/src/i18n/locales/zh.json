@@ -18854,7 +18854,9 @@
         "loadingMore": "正在加载更多提交…",
         "retry": "重试",
         "selectHint": "选择一个提交以查看其说明和更改的文件。双击可打开其差异。",
-        "open": "打开所有分支的图谱"
+        "open": "打开所有分支的图谱",
+        "openInTab": "在标签页中打开",
+        "noRepository": "未打开 Git 仓库"
       }
     },
     "androidAppRun": {
@@ -18881,7 +18883,11 @@
         "done": "应用正在运行",
         "failed": "运行失败",
         "cancelled": "运行已停止"
-      }
+      },
+      "buildFrom": "构建来源",
+      "thisWorkspace": "{{value0}}（此工作区）",
+      "followsConversation": "此标签页中的对话正在该工作树中工作。",
+      "showOutput": "显示输出"
     }
   },
   "dashboardPopout": {

@@ -18840,7 +18840,9 @@
         "loadingMore": "さらにコミットを読み込み中…",
         "retry": "再試行",
         "selectHint": "コミットを選択すると、メッセージと変更されたファイルが表示されます。ダブルクリックで差分を開きます。",
-        "open": "すべてのブランチのグラフを開く"
+        "open": "すべてのブランチのグラフを開く",
+        "openInTab": "タブで開く",
+        "noRepository": "Git リポジトリが開かれていません"
       }
     },
     "androidAppRun": {
@@ -18867,7 +18869,11 @@
         "done": "アプリは実行中です",
         "failed": "実行に失敗しました",
         "cancelled": "実行を停止しました"
-      }
+      },
+      "buildFrom": "ビルド元",
+      "thisWorkspace": "{{value0}}（このワークスペース）",
+      "followsConversation": "このタブの会話はこのワークツリーで作業しています。",
+      "showOutput": "出力を表示"
     }
   },
   "dashboardPopout": {
