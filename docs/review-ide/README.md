@@ -18,6 +18,8 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 | [Projekty a Funkce](./04-projekty-a-funkce.md) | Skupina projektů, Funkce jako sada odkazů do repozitářů, reference jen pro čtení |
 | [Popis funkcí](./05-funkce.md) | Účel, chování a pravidla všech funkcí z prototypu se snímky obrazovek |
 | [AI a review](./06-ai-a-review.md) | Plán v pohledech, review během práce agenta, brány kvality, hodnocení nálezů, spustitelné review a další |
+| [Funkce převzaté z IDE](./07-funkce-z-ide.md) | Funkce Android Studia, Rideru a Xcode seřazené podle praktičnosti, s přínosem AI a realizovatelností |
+| [Zařízení, inspektory a hlas](./08-zarizeni-inspektory-hlas.md) | Build a nasazení na zařízení, umístění emulátoru, inspektory sítě a dat, přístupnost, hlasové zadávání a oznámení |
 
 ## Přijatá rozhodnutí
 
