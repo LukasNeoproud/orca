@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Hlavní menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; z-index: 20; box-sizing: border-box; width: 100%; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 20px; color: #e6e9ef; background: #1b1f26; border-bottom: 1px solid #2f3541; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px">
+<a href="Main.dc.html" style="font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-weight: 700; font-size: 15px; padding: 12px 12px 12px 4px; color: #e6e9ef; text-decoration: none">Orca</a>
+
+<div style="position: relative">
+<button type="button" aria-expanded="{{ show.file }}" onClick="{{ m.file.toggle }}" style="padding: 12px 10px; border: 0; border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 20px; cursor: pointer; background: {{ m.file.bg }}; color: {{ m.file.fg }}">Soubor</button>
+<sc-if value="{{ show.file }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; top: 100%; z-index: 30; width: 290px; max-width: 86vw; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #232832; border: 1px solid #3b4352; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+<a href="Open.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 4h4l1.5 2H14v7H2z"></path></svg><span style="flex: 1">Otevřít projekt…</span></a>
+<a href="Open.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M5 2v12 M5 6a4 4 0 0 0 6 3.5 M11 4v5.5"></path></svg><span style="flex: 1">Workspaces a worktrees</span></a>
+</div>
+</sc-if>
+</div>
+
+<div style="position: relative">
+<button type="button" aria-expanded="{{ show.view }}" onClick="{{ m.view.toggle }}" style="padding: 12px 10px; border: 0; border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 20px; cursor: pointer; background: {{ m.view.bg }}; color: {{ m.view.fg }}">Zobrazit</button>
+<sc-if value="{{ show.view }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; top: 100%; z-index: 30; width: 290px; max-width: 86vw; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #232832; border: 1px solid #3b4352; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 7l6-5 6 5v7H2z"></path></svg><span style="flex: 1">Přehled</span></a>
+<a href="CrossPlatform.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 3h3.5v10H2z M6.5 3H10v10H6.5z M11 3h3v10h-3z"></path></svg><span style="flex: 1">Funkce napříč platformami</span></a>
+<a href="NavGraph.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 3h4v4H2z M10 9h4v4h-4z M6 5h3a1 1 0 0 1 1 1v3"></path></svg><span style="flex: 1">Navigační graf</span><span style="font-size: 11px; color: #a3acba">Android</span></a>
+<a href="Modules.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 2l6 3-6 3-6-3z M2 8l6 3 6-3 M2 11l6 3 6-3"></path></svg><span style="flex: 1">Moduly a vrstvy</span><span style="font-size: 11px; color: #a3acba">iOS</span></a>
+<a href="ApiMap.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M5 4L1.5 8 5 12 M11 4l3.5 4L11 12 M9 3L7 13"></path></svg><span style="flex: 1">Controllery a akce</span><span style="font-size: 11px; color: #a3acba">.NET</span></a>
+<a href="Snapshots.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 3h12v10H2z M2 11l3.5-3.5 3 3 2-2L14 11"></path></svg><span style="flex: 1">Diff snapshotů</span><span style="font-size: 11px; color: #a3acba">iOS</span></a>
+</div>
+</sc-if>
+</div>
+
+<div style="position: relative">
+<button type="button" aria-expanded="{{ show.review }}" onClick="{{ m.review.toggle }}" style="padding: 12px 10px; border: 0; border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 20px; cursor: pointer; background: {{ m.review.bg }}; color: {{ m.review.fg }}">Review</button>
+<sc-if value="{{ show.review }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; top: 100%; z-index: 30; width: 290px; max-width: 86vw; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #232832; border: 1px solid #3b4352; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+<a href="PullRequests.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M4 5.5v5 M5.5 4a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0z M5.5 12a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0z M13.5 12a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0z M12 10.5V7a2 2 0 0 0-2-2H8"></path></svg><span style="flex: 1">Pull requesty</span></a>
+<a href="CodeReview.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"></path></svg><span style="flex: 1">Code review s AI</span></a>
+<a href="MyPr.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 3h12v8H7l-3 3v-3H2z"></path></svg><span style="flex: 1">Nálezy na mých PR</span></a>
+<a href="Review.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M3 4h10 M3 8h6 M3 12h8"></path></svg><span style="flex: 1">Diff po celcích</span><span style="font-size: 11px; color: #a3acba">Android</span></a>
+</div>
+</sc-if>
+</div>
+
+<div style="position: relative">
+<button type="button" aria-expanded="{{ show.l10n }}" onClick="{{ m.l10n.toggle }}" style="padding: 12px 10px; border: 0; border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 20px; cursor: pointer; background: {{ m.l10n.bg }}; color: {{ m.l10n.fg }}">Lokalizace</button>
+<sc-if value="{{ show.l10n }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; top: 100%; z-index: 30; width: 290px; max-width: 86vw; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #232832; border: 1px solid #3b4352; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+<a href="Localization.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M1.5 8h13 M8 1.5c-2.5 2-2.5 11 0 13 M8 1.5c2.5 2 2.5 11 0 13"></path></svg><span style="flex: 1">Klíče a překlady</span></a>
+<a href="LocalizationSync.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M13 5a5.5 5.5 0 0 0-10 1 M3 11a5.5 5.5 0 0 0 10-1 M13 2v3h-3 M3 14v-3h3"></path></svg><span style="flex: 1">Čekající změny a POEditor</span></a>
+</div>
+</sc-if>
+</div>
+
+<div style="position: relative">
+<button type="button" aria-expanded="{{ show.code }}" onClick="{{ m.code.toggle }}" style="padding: 12px 10px; border: 0; border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 20px; cursor: pointer; background: {{ m.code.bg }}; color: {{ m.code.fg }}">Kód</button>
+<sc-if value="{{ show.code }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; top: 100%; z-index: 30; width: 290px; max-width: 86vw; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #232832; border: 1px solid #3b4352; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+<a href="Health.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M1.5 8h3l1.5-4 3 8 1.5-4h4"></path></svg><span style="flex: 1">Zdraví kódu a metriky</span></a>
+</div>
+</sc-if>
+</div>
+
+<span style="flex: 1 1 8px"></span>
+<a href="Open.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 12px 8px; color: #c9cfda; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M5 2v12 M5 6a4 4 0 0 0 6 3.5 M11 4v5.5"></path></svg><span>Obchod · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px">feature/saved-cards</span></span></a>
+<a href="PullRequests.dc.html" aria-label="Pull requesty, 1 nový" style="position: relative; display: flex; align-items: center; padding: 12px 10px; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11z M6.5 14h3"></path></svg><span style="position: absolute; right: 2px; top: 6px; min-width: 16px; height: 16px; box-sizing: border-box; padding: 0 4px; border-radius: 8px; background: #f0a35e; color: #14171c; font-size: 11px; line-height: 16px; font-weight: 700; text-align: center">1</span></a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["main","platforms","l10n","l10nsync","health","review","prs","cr","mypr","nav","modules","snapshots","api","open"],"default":"main"},"$preview":{"width":1360,"height":45}}'>
+class Component extends DCLogic {
+state = { open: '' };
+renderVals() {
+const active = this.props.active ?? 'main';
+const o = this.state.open;
+const groups = { file: ['open'], view: ['main', 'platforms', 'nav', 'modules', 'api', 'snapshots'], review: ['prs', 'cr', 'mypr', 'review'], l10n: ['l10n', 'l10nsync'], code: ['health'] };
+const m = {}, show = {};
+Object.keys(groups).forEach((k) => {
+const here = groups[k].includes(active);
+show[k] = o === k;
+m[k] = { fg: o === k || here ? '#ffffff' : '#c9cfda', bg: o === k ? '#2f3848' : here ? '#262c38' : 'transparent', toggle: () => this.setState({ open: o === k ? '' : k }) };
+});
+return { m, show };
+}
+}
+</script>
+</body>
+</html>

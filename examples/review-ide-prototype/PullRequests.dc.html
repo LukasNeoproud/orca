@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Pull requesty</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="prs" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; max-width: 1320px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">Azure DevOps · všechny repozitáře projektu Obchod</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Pull requesty</h1>
+</div>
+<div role="group" aria-label="Filtr" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid {{ f.border }}; background: {{ f.bg }}; color: #e6e9ef">{{ f.label }} <b>{{ f.count }}</b></button>
+</sc-for>
+</div>
+</header>
+
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0 0 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">{{ g.title }}</h2>
+<sc-for list="{{ g.items }}" as="p" hint-placeholder-count="2">
+<div style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 14px; border-radius: 10px; background: #1b1f26; border: 1px solid {{ p.border }}">
+<span style="flex: none; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2f3848; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500">{{ p.badge }}</span>
+<div style="flex: 999 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600"><span style="color: #a3acba; font-weight: 400">#{{ p.id }}</span> {{ p.title }} <sc-if value="{{ p.isNew }}" hint-placeholder-val="{{ false }}"><span style="margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: #f0a35e; color: #14171c; font-size: 11px; font-weight: 700">nový</span></sc-if></span>
+<span style="font-size: 12.5px; color: #a3acba">{{ p.repo }} · {{ p.author }} · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px">{{ p.branch }}</span></span>
+</div>
+<div style="flex: 1 1 250px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px">
+<span style="display: flex; align-items: center; gap: 6px; color: {{ p.checkFg }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="{{ p.checkIcon }}"></path></svg>{{ p.check }}</span>
+<span style="display: flex; align-items: center; gap: 6px; color: #c9cfda"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 3h12v8H7l-3 3v-3H2z"></path></svg>{{ p.comments }}</span>
+<span style="color: {{ p.stateFg }}">{{ p.state }}</span>
+</div>
+<sc-if value="{{ p.action }}" hint-placeholder-val="{{ true }}">
+<a href="{{ p.href }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid {{ p.btnBorder }}; background: {{ p.btnBg }}; color: {{ p.btnFg }}; font-weight: 600; text-decoration: none">{{ p.action }}</a>
+</sc-if>
+</div>
+</sc-for>
+</section>
+</sc-for>
+
+<p style="margin: 0; font-size: 12.5px; color: #a3acba">Seznam a stav kontrol přebírá Lupa z existující integrace pull requestů v Orce. Nový PR od kolegy se ohlásí oznámením a zvonkem v menu.</p>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+state = { f: 'all' };
+renderVals() {
+const f = this.state.f;
+const ok = 'M3 8.5l3 3 7-7', bad = 'M4 4l8 8 M12 4l-8 8', run = 'M8 4v4l2.5 2';
+const P = [
+['todo', 'SW', 231, 'Správa karet v profilu', 'obchod-ios', 'Petra Nováková', 'feature/manage-cards', 'ok', 'bez komentářů', 'čeká na vaše review', 'Provést code review', 'CodeReview.dc.html', true],
+['todo', 'C#', 119, 'Stránkování objednávek', 'obchod-api', 'Tomáš Dvořák', 'feature/orders-paging', 'bad', '3 komentáře', 'review rozpracované, 2 drafty AI', 'Pokračovat v review', 'CodeReview.dc.html', false],
+['mine', 'KT', 482, 'Uložené karty při platbě', 'obchod-android', 'vy', 'feature/saved-cards', 'ok', '4 nevyřešené nálezy', 'čeká na vás', 'Odpovědět na nálezy', 'MyPr.dc.html', false],
+['mine', 'SW', 229, 'Uložené karty při platbě', 'obchod-ios', 'vy', 'feature/saved-cards', 'ok', '1 komentář', 'schváleno 1 ze 2', '', '', false],
+['mine', 'C#', 118, 'Endpointy pro uložené karty', 'obchod-api', 'vy', 'feature/saved-cards', 'bad', 'bez komentářů', 'build neprošel', 'Otevřít chybu', 'Health.dc.html', false],
+['other', 'KT', 480, 'Oprava pádu košíku', 'obchod-android', 'Jana Králová', 'fix/cart-crash', 'run', 'bez komentářů', 'rozpracovaný draft', '', '', false]
+];
+const G = [['todo', 'Čeká na moje review'], ['mine', 'Moje pull requesty'], ['other', 'Ostatní']];
+const item = (p) => ({ badge: p[1], id: p[2], title: p[3], repo: p[4], author: p[5], branch: p[6],
+check: p[7] === 'ok' ? 'kontroly prošly' : p[7] === 'bad' ? 'kontroly selhaly' : 'kontroly běží',
+checkIcon: p[7] === 'ok' ? ok : p[7] === 'bad' ? bad : run,
+checkFg: p[7] === 'ok' ? '#5fd0a0' : p[7] === 'bad' ? '#ff8a7a' : '#a3acba',
+comments: p[8], state: p[9], stateFg: p[0] === 'other' ? '#a3acba' : '#f2cc60',
+action: p[10], href: p[11], isNew: p[12],
+border: p[12] ? '#f0a35e' : '#2f3541',
+btnBg: p[12] ? '#f0a35e' : '#232832', btnFg: p[12] ? '#14171c' : '#e6e9ef', btnBorder: p[12] ? '#f0a35e' : '#3b4352' });
+const count = (k) => P.filter((p) => k === 'all' || p[0] === k).length;
+return {
+filters: [['all', 'Všechny'], ['todo', 'Čeká na mě'], ['mine', 'Moje']].map((x) => ({ label: x[1], count: count(x[0]), on: f === x[0],
+bg: f === x[0] ? '#2f3848' : '#1b1f26', border: f === x[0] ? '#7aa7ff' : '#2f3541', pick: () => this.setState({ f: x[0] }) })),
+groups: G.filter((g) => f === 'all' || f === g[0]).map((g) => ({ title: g[1], items: P.filter((p) => p[0] === g[0]).map(item) }))
+};
+}
+}
+</script>
+</body>
+</html>

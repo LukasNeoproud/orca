@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Čekající změny a POEditor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button,input{font:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 1000px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="l10nsync" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; max-width: 1320px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 420px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">Lokalizace · POEditor, projekt Obchod Mobile</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Čekající změny a synchronizace</h1>
+<p style="margin: 0; max-width: 760px; color: #a3acba">Úpravy v tabulce se ukládají jen lokálně. Na server odejdou až odsud, po kontrole. Ze serveru se stahuje také jen na pokyn.</p>
+</div>
+<a href="Localization.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #3b4352; border-radius: 8px; background: #232832; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M1.5 8h13 M8 1.5c-2.5 2-2.5 11 0 13 M8 1.5c2.5 2 2.5 11 0 13"></path></svg>Klíče a překlady</a>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: {{ srv.bg }}; border: 1px solid {{ srv.border }}">
+<span style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: {{ srv.fg }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 2v8 M4.5 7L8 10.5 11.5 7 M3 13.5h10"></path></svg>{{ srv.title }}</span>
+<span>{{ srv.text }}</span>
+<button type="button" onClick="{{ pull }}" style="align-self: flex-start; padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef; font-weight: 600">{{ srv.btn }}</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #f2cc60"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 2l6.5 11.5h-13z M8 6.5v3.5 M8 12v.5"></path></svg>2 stringy navíc v lokální kopii</span>
+<span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">debug_menu_title</span> a <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">cart_badge_new</span> jsou v souborech, ale na serveru ne a nejsou ani mezi čekajícími změnami. Nejspíš je někdo přidal ručně mimo IDE.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Přidat mezi čekající</button>
+<button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: transparent; color: #e6e9ef">Odebrat lokálně</button>
+</div>
+</div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 18px; line-height: 24px; font-weight: 500">Čeká na odeslání</h2>
+<sc-for list="{{ items }}" as="c" hint-placeholder-count="4">
+<div style="display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-start; padding: 14px; border-radius: 10px; background: #1b1f26; border: 1px solid {{ c.border }}">
+<input id="{{ c.id }}" type="checkbox" aria-label="{{ c.aria }}" checked="{{ c.on }}" onChange="{{ c.toggle }}" style="flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: #7aa7ff">
+<div style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center">
+<span style="padding: 1px 8px; border: 1px solid {{ c.kindFg }}; border-radius: 999px; color: {{ c.kindFg }}; font-size: 12px; font-weight: 600">{{ c.kind }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{ c.key }}</span>
+<span style="font-size: 12.5px; color: #a3acba">{{ c.scope }}</span>
+</div>
+<sc-if value="{{ c.before }}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 8px; border-radius: 6px; background: rgba(255,138,122,0.13); overflow-wrap: anywhere">{{ c.before }}</span></sc-if>
+<sc-if value="{{ c.after }}" hint-placeholder-val="{{ true }}"><span style="padding: 2px 8px; border-radius: 6px; background: rgba(95,208,160,0.12); overflow-wrap: anywhere">{{ c.after }}</span></sc-if>
+<sc-if value="{{ c.warn }}" hint-placeholder-val="{{ false }}"><span style="font-size: 12.5px; font-weight: 600; color: #f2cc60">{{ c.warn }}</span></sc-if>
+</div>
+<span style="flex: 1 1 140px; font-size: 12.5px; font-weight: 600; color: {{ c.stateFg }}">{{ c.state }}</span>
+<button type="button" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #3b4352; background: transparent; color: #e6e9ef">Vrátit změnu</button>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #7aa7ff">
+<span style="flex: 1 1 320px; min-width: 0">{{ note }}</span>
+<button type="button" onClick="{{ push }}" style="display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="M8 11V3 M4.5 6L8 2.5 11.5 6 M3 13.5h10"></path></svg>{{ pushLabel }}</button>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1000}}'>
+class Component extends DCLogic {
+state = { pulled: false, sent: false, on: { a: true, b: true, c: false, d: true } };
+renderVals() {
+const s = this.state;
+const C = [
+['a', 'upraveno', '#7aa7ff', 'card_remove_message', 'de', 'chybí', 'Die Karte %1$s kann nicht mehr verwendet werden.', ''],
+['b', 'nový klíč', '#5fd0a0', 'cards_empty_title', 'cs, en · tagy android, ios', '', 'Zatím nemáte uloženou kartu / No saved cards yet', 'Chybí de a sk. Na serveru vznikne termín bez těchto překladů.'],
+['c', 'upraveno', '#7aa7ff', 'pay_amount', 'de', '%2$s bezahlen', '%1$s bezahlen', s.pulled ? 'Konflikt: na serveru je od Petry „%1$s zahlen“. Vyberte v tabulce, která verze platí.' : 'Na serveru se tento text změnil také. Před odesláním stáhněte.'],
+['d', 'smazáno', '#ff8a7a', 'promo_banner_old', 'všechny jazyky · nepoužitý v kódu', 'Sleva 10 % na první nákup', '', '']
+];
+const n = C.filter((c) => s.on[c[0]]).length;
+return {
+srv: s.pulled
+? { title: 'Lokální kopie je aktuální', text: 'Staženo 5 změn ze serveru. Jedna se potkala s vaší čekající úpravou a je označená níže.', btn: 'Zkontrolovat znovu', fg: '#5fd0a0', bg: '#1b1f26', border: '#2f6b55' }
+: { title: 'Lokální kopie je zastaralá', text: 'Na serveru je 5 novějších změn, poslední stažení proběhlo před 6 dny. Doporučení: nejdřív stáhnout, jedna změna se týká klíče, který upravujete.', btn: 'Stáhnout ze serveru', fg: '#f2cc60', bg: '#2b2618', border: '#5a4d22' },
+pull: () => this.setState({ pulled: true }),
+items: C.map((c) => ({ id: 'zmena-' + c[0], aria: 'Odeslat ' + c[3], kind: c[1], kindFg: c[2], key: c[3], scope: c[4], before: c[5], after: c[6], warn: c[7], on: !!s.on[c[0]],
+border: c[7] && c[0] === 'c' ? '#5a4d22' : '#2f3541',
+state: s.sent && s.on[c[0]] ? 'odesláno' : s.on[c[0]] ? 'vybráno k odeslání' : 'zůstane lokálně',
+stateFg: s.sent && s.on[c[0]] ? '#5fd0a0' : s.on[c[0]] ? '#c9cfda' : '#a3acba',
+toggle: () => this.setState({ on: { ...s.on, [c[0]]: !s.on[c[0]] }, sent: false }) })),
+note: s.sent ? 'Odesláno do POEditoru. Soubory strings.xml, xcstrings a resx zůstávají beze změny.' : 'Odešle se ' + n + ' z 4 změn. Zápis do repozitářů se nemění, jde jen o server.',
+pushLabel: s.sent ? 'Odesláno' : 'Odeslat vybrané do POEditoru',
+push: () => this.setState({ sent: true })
+};
+}
+}
+</script>
+</body>
+</html>

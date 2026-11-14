@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Review PR po celcích</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 1080px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="review" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-start; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 520px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">obchod-android · PR #482 · feature/saved-cards → main</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Uložené karty při platbě</h1>
+<p style="margin: 0; max-width: 760px; color: #c9cfda"><b style="color: #f0a35e">Souhrn AI:</b> Na obrazovku Platba přibyl výběr uložené karty s předvybranou výchozí kartou a odebrání karty po potvrzení. 24 souborů, +612 −148. Šest souborů obsahuje jen importy, formátování a generovaný kód, proto jsou skryté.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-pressed="{{ hide }}" onClick="{{ toggleHide }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Nepodstatné změny: <b>{{ hideLabel }}</b></button>
+<button type="button" aria-pressed="{{ prov }}" onClick="{{ toggleProv }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Původ řádků: <b>{{ provLabel }}</b></button>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<nav aria-label="Celky změn" style="flex: 1 1 260px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Celky změn</h2>
+<sc-for list="{{ themes }}" as="t" hint-placeholder-count="4">
+<button type="button" onClick="{{ t.pick }}" style="text-align: left; display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 10px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: #e6e9ef">
+<span style="flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid {{ t.ring }}; background: {{ t.fill }}; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{ t.done }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#14171c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2 L4.2 7.4 L8 3"></path></svg></sc-if>
+</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-weight: 600">{{ t.name }}</span>
+<span style="font-size: 12px; color: #a3acba">{{ t.meta }}</span>
+</span>
+</button>
+</sc-for>
+<div style="padding: 12px; border-radius: 10px; border: 1px dashed #3b4352; color: #a3acba; font-size: 13px">
+<b style="color: #c9cfda">Nepodstatné změny</b><br>6 souborů · +31 −76 · importy, formátování, generovaný kód. {{ hiddenInfo }}
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 8px; font-size: 12px; color: #a3acba">
+<span style="display: flex; align-items: center; gap: 6px"><span style="padding: 0 6px; border: 1px solid #7aa7ff; border-radius: 4px; color: #7aa7ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AC1</span>plyne ze zadání</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="padding: 0 6px; border: 1px solid #c4a1ff; border-radius: 4px; color: #c4a1ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">Vývojář</span>rozhodl vývojář</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="padding: 0 6px; border: 1px solid #f0a35e; border-radius: 4px; color: #f0a35e; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AI</span>rozhodla AI</span>
+</div>
+</nav>
+
+<section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 20px; line-height: 26px; font-weight: 500">{{ cur.name }}</h2>
+<button type="button" aria-pressed="{{ cur.done }}" onClick="{{ toggleDone }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #7aa7ff; background: {{ doneBg }}; color: {{ doneFg }}; font-weight: 600">{{ doneLabel }}</button>
+</div>
+<div style="padding: 14px 16px; border-radius: 10px; background: #241f1a; border: 1px solid #4a3a28; color: #f1dcc6">
+<b style="color: #f0a35e">Komentář AI k celku.</b> {{ cur.ai }}
+</div>
+<sc-for list="{{ cur.files }}" as="f" hint-placeholder-count="2">
+<div style="border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26; overflow: hidden">
+<div style="display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #2f3541; background: #232832">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; overflow-wrap: anywhere">{{ f.path }}</span>
+<a href="#kod" style="font-size: 13px; padding: 4px 0">Otevřít v editoru</a>
+</div>
+<sc-if value="{{ f.note }}" hint-placeholder-val="{{ true }}">
+<div style="padding: 6px 12px; font-size: 12px; color: #8b95a5; border-bottom: 1px dashed #2f3541">{{ f.note }}</div>
+</sc-if>
+<div style="overflow-x: auto; padding: 6px 0">
+<sc-for list="{{ f.lines }}" as="ln" hint-placeholder-count="8">
+<div style="display: flex; align-items: center; gap: 8px; min-width: max-content; padding: 0 12px; background: {{ ln.bg }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 22px">
+<sc-if value="{{ ln.gutter }}" hint-placeholder-val="{{ true }}">
+<span style="flex: none; width: 68px; display: flex">
+<sc-if value="{{ ln.tag }}" hint-placeholder-val="{{ false }}"><span style="padding: 0 6px; border: 1px solid {{ ln.tagColor }}; border-radius: 4px; color: {{ ln.tagColor }}; font-size: 11px; line-height: 16px">{{ ln.tagText }}</span></sc-if>
+</span>
+</sc-if>
+<span style="flex: none; width: 10px; color: {{ ln.fg }}">{{ ln.sign }}</span>
+<span style="white-space: pre">{{ ln.code }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</section>
+
+<aside style="flex: 1 1 280px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Zadání SHOP-482</h2>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #7aa7ff; border-radius: 4px; color: #7aa7ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AC1</span><span>Na obrazovce Platba je seznam uložených karet.<br><span style="font-size: 12px; color: #5fd0a0">pokryto · 3 celky</span></span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #7aa7ff; border-radius: 4px; color: #7aa7ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AC2</span><span>Výchozí karta je předvybraná.<br><span style="font-size: 12px; color: #5fd0a0">pokryto · 3 celky</span></span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #7aa7ff; border-radius: 4px; color: #7aa7ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AC3</span><span>Kartu lze odebrat s potvrzením.<br><span style="font-size: 12px; color: #5fd0a0">pokryto · 2 celky</span></span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 10px; margin: 0 -10px; border-radius: 8px; background: #2a1d1c; border: 1px solid #5a3531"><span style="flex: none; padding: 0 6px; border: 1px solid #ff8a7a; border-radius: 4px; color: #ff8a7a; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AC4</span><span>Když se karty nenačtou, nabídne se platba novou kartou.<br><span style="font-size: 12px; color: #ff8a7a; font-weight: 600">nepokryto · žádná změna ani test</span></span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Rozhodnutí mimo zadání</h2>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #f0a35e; border-radius: 4px; color: #f0a35e; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AI</span><span>Načtení karet se při chybě dvakrát zopakuje.</span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #f0a35e; border-radius: 4px; color: #f0a35e; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">AI</span><span>Stav načítání karet je oddělený od stavu platby.</span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; padding: 0 6px; border: 1px solid #c4a1ff; border-radius: 4px; color: #c4a1ff; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px">Vývojář</span><span>Potvrzení odebrání je dialog, ne tlačítko Zpět ve snackbaru. Upřesněno v promptu.</span></div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1080}}'>
+class Component extends DCLogic {
+state = { t: 0, hide: true, prov: true, done: {} };
+renderVals() {
+const s = this.state;
+const P = { Z1: ['AC1', '#7aa7ff'], Z2: ['AC2', '#7aa7ff'], Z3: ['AC3', '#7aa7ff'], V: ['Vývojář', '#c4a1ff'], A: ['AI', '#f0a35e'] };
+const T = [
+{ name: 'Stav a intenty obrazovky Platba', meta: '4 soubory · +86 −12 · AC1, AC2',
+ai: 'PaymentState dostal seznam karet a vybranou kartu, přibyly tři intenty. Výchozí karta se předvybírá v reduceru hned po načtení. Stav načítání karet je oddělený od stavu platby, aby chyba karet nezablokovala platbu.',
+files: [
+{ path: 'feature/checkout/PaymentContract.kt', imp: ['import cz.obchod.core.LoadStatus', 'import cz.obchod.payments.SavedCard'], lines: [
+[' ', '', 'data class PaymentState('],
+[' ', '', '    val amount: Money,'],
+['-', '', '    val isLoading: Boolean = false,'],
+['+', 'Z1', '    val cards: List<SavedCard> = emptyList(),'],
+['+', 'Z2', '    val selectedCardId: String? = null,'],
+['+', 'A', '    val cardsStatus: LoadStatus = LoadStatus.Idle,'],
+['+', 'A', '    val isPaying: Boolean = false,'],
+[' ', '', ')'],
+[' ', '', 'sealed interface PaymentIntent {'],
+[' ', '', '    data object PayClicked : PaymentIntent'],
+['+', 'Z1', '    data class CardSelected(val id: String) : PaymentIntent'],
+['+', 'V', '    data class RemoveCardConfirmed(val id: String) : PaymentIntent'],
+['+', 'A', '    data object RetryCards : PaymentIntent'],
+[' ', '', '}']] },
+{ path: 'feature/checkout/PaymentViewModel.kt', imp: ['import cz.obchod.core.LoadStatus'], lines: [
+[' ', '', 'is CardsLoaded -> state.copy('],
+['+', 'Z1', '    cards = result.cards,'],
+['+', 'Z2', '    selectedCardId = result.cards.firstOrNull { it.isDefault }?.id,'],
+['+', 'A', '    cardsStatus = LoadStatus.Done,'],
+[' ', '', ')']] }] },
+{ name: 'Načtení karet z API', meta: '3 soubory · +74 −0 · AC1, AC3',
+ai: 'Nové volání GET payments/cards a DELETE payments/cards/{id} přes Retrofit. Při chybě načtení zkouším dotaz ještě dvakrát s odstupem 400 ms. Tohle v zadání není, zvažte, jestli to chcete.',
+files: [
+{ path: 'data/payments/PaymentApi.kt', imp: ['import retrofit2.http.DELETE', 'import retrofit2.http.Path'], lines: [
+['+', 'Z1', '@GET("payments/cards")'],
+['+', 'Z1', 'suspend fun getCards(): List<CardDto>'],
+['+', 'Z3', '@DELETE("payments/cards/{id}")'],
+['+', 'Z3', 'suspend fun deleteCard(@Path("id") id: String)']] },
+{ path: 'data/payments/CardsRepository.kt', imp: ['import cz.obchod.core.retry'], lines: [
+['+', 'Z1', 'suspend fun loadCards(): Result<List<SavedCard>> ='],
+['+', 'A', '    retry(times = 2, delayMs = 400) {'],
+['+', 'Z1', '        api.getCards().map { it.toDomain() }'],
+['+', 'A', '    }']] }] },
+{ name: 'UI seznamu a odebrání karty', meta: '6 souborů · +241 −38 · AC1, AC2, AC3',
+ai: 'Seznam karet je samostatný composable nad tlačítkem Zaplatit. Odebrání proběhne až po potvrzení v dialogu, jak upřesnil vývojář. Texty dialogu jsou nové klíče v lokalizaci.',
+files: [
+{ path: 'feature/checkout/ui/SavedCardsList.kt', imp: ['import androidx.compose.runtime.Composable', 'import cz.obchod.designsystem.CardRow'], lines: [
+['+', '', '@Composable'],
+['+', 'Z1', 'fun SavedCardsList(state: PaymentState, onIntent: (PaymentIntent) -> Unit) {'],
+['+', 'Z1', '    state.cards.forEach { card ->'],
+['+', 'Z2', '        CardRow(card, selected = card.id == state.selectedCardId,'],
+['+', 'Z1', '            onClick = { onIntent(CardSelected(card.id)) })'],
+['+', '', '    }'],
+['+', '', '}']] },
+{ path: 'feature/checkout/ui/RemoveCardDialog.kt', imp: ['import cz.obchod.designsystem.ConfirmDialog'], lines: [
+['+', 'V', 'ConfirmDialog('],
+['+', 'Z3', '    title = stringResource(R.string.card_remove_title),'],
+['+', 'V', '    onConfirm = { onIntent(RemoveCardConfirmed(card.id)) },'],
+['+', 'V', ')']] }] },
+{ name: 'Testy', meta: '5 souborů · +180 −22 · AC1 až AC3',
+ai: 'Testy pokrývají AC1 až AC3 a opakování dotazu. Pro AC4, tedy chybu načtení a platbu novou kartou, v PR není test ani implementace.',
+files: [
+{ path: 'feature/checkout/PaymentViewModelTest.kt', imp: ['import kotlinx.coroutines.test.runTest'], lines: [
+['+', 'Z2', '@Test fun `výchozí karta je předvybraná`() = runTest {'],
+['+', 'Z2', '    vm.dispatch(CardsLoaded(listOf(visa, mastercardDefault)))'],
+['+', 'Z2', '    assertEquals(mastercardDefault.id, vm.state.value.selectedCardId)'],
+['+', '', '}'],
+['+', 'A', '@Test fun `načtení karet se při chybě zopakuje dvakrát`() = runTest {'],
+['+', 'A', '    api.failTimes(2)'],
+['+', 'A', '    assertEquals(LoadStatus.Done, vm.state.value.cardsStatus)'],
+['+', '', '}']] }] }
+];
+const line = (l) => {
+const p = P[l[1]];
+return { sign: l[0], code: l[2], gutter: s.prov, tag: !!p, tagText: p ? p[0] : '', tagColor: p ? p[1] : 'transparent',
+bg: l[0] === '+' ? 'rgba(95,208,160,0.12)' : l[0] === '-' ? 'rgba(255,138,122,0.13)' : 'transparent',
+fg: l[0] === '+' ? '#5fd0a0' : l[0] === '-' ? '#ff8a7a' : '#8b95a5' };
+};
+const t = T[s.t];
+const isDone = !!s.done[s.t];
+const cur = { name: t.name, ai: t.ai, done: isDone, files: t.files.map((f) => ({
+path: f.path,
+note: s.hide ? 'Skryto: importy (' + f.imp.length + ')' : '',
+lines: (s.hide ? [] : f.imp.map((i) => ['+', '', i])).concat(f.lines).map(line) })) };
+return {
+cur,
+hide: s.hide, prov: s.prov,
+hideLabel: s.hide ? 'skryté' : 'zobrazené',
+provLabel: s.prov ? 'zobrazený' : 'skrytý',
+hiddenInfo: s.hide ? 'Teď skryté.' : 'Teď zobrazené u souborů.',
+doneLabel: isDone ? 'Zkontrolováno' : 'Označit celek jako zkontrolovaný',
+doneBg: isDone ? '#7aa7ff' : 'transparent',
+doneFg: isDone ? '#14171c' : '#a9c5ff',
+toggleHide: () => this.setState({ hide: !s.hide }),
+toggleProv: () => this.setState({ prov: !s.prov }),
+toggleDone: () => this.setState({ done: { ...s.done, [s.t]: !isDone } }),
+themes: T.map((x, i) => ({
+name: x.name, meta: x.meta, done: !!s.done[i],
+bg: i === s.t ? '#232832' : '#1b1f26',
+border: i === s.t ? '#7aa7ff' : '#2f3541',
+ring: s.done[i] ? '#5fd0a0' : '#8b95a5',
+fill: s.done[i] ? '#5fd0a0' : 'transparent',
+pick: () => this.setState({ t: i }) }))
+};
+}
+}
+</script>
+</body>
+</html>

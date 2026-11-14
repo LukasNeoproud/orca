@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Controllery a akce</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="api" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 480px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">obchod-api · Controllery a akce · porovnání s main</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">3 controllery, 10 akcí</h1>
+<p style="margin: 0; color: #a3acba">Trasy, autorizace, odpovědi a klienti, kteří akci volají. PR #482 přidal 2 akce a 1 změnil.</p>
+</div>
+<button type="button" aria-pressed="{{ only }}" onClick="{{ toggle }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Zobrazené akce: <b>{{ onlyLabel }}</b></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section style="flex: 999 1 560px; min-width: 0; overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26">
+<div style="min-width: 820px">
+<div style="display: grid; grid-template-columns: 72px 150px minmax(230px, 1fr) 110px 120px 96px; gap: 12px; padding: 10px 16px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">
+<span>Metoda</span><span>Cesta</span><span>Akce</span><span>Odpovědi</span><span>Klienti</span><span>Změna</span>
+</div>
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+<div style="display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 10px 16px; background: #232832; border-top: 1px solid #2f3541">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500">{{ g.name }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: #a3acba">{{ g.route }}</span>
+<span style="padding: 0 8px; border: 1px solid #3b4352; border-radius: 999px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #c9cfda">{{ g.auth }}</span>
+</div>
+<sc-for list="{{ g.actions }}" as="a" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: 72px 150px minmax(230px, 1fr) 110px 120px 96px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #2f3541; background: {{ a.bg }}; box-shadow: inset 3px 0 0 {{ a.bar }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">
+<span style="font-weight: 500">{{ a.verb }}</span>
+<span>{{ a.path }}</span>
+<span>{{ a.method }}</span>
+<span style="color: #a3acba">{{ a.codes }}</span>
+<span style="font-family: Inter, system-ui, sans-serif; font-size: 13px; color: {{ a.clientFg }}">{{ a.clients }}</span>
+<span style="font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; color: {{ a.changeFg }}">{{ a.change }}</span>
+</div>
+</sc-for>
+</sc-for>
+</div>
+</section>
+
+<aside style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Vybraná akce</span>
+<h2 style="margin: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; line-height: 24px; font-weight: 500">POST api/v1/payments</h2>
+<a href="#" style="padding: 4px 0">Otevřít PaymentsController.CreatePayment</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">Cesta požadavku</span>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px">
+<li>Autorizace, politika Customer</li>
+<li>Validace <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">CreatePaymentRequestValidator</span></li>
+<li>Handler <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">CreatePaymentHandler</span></li>
+<li>Služby <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">PaymentGateway, CardsRepository</span></li>
+<li>EF Core, tabulky Payments a SavedCards</li>
+</ol>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">Změna kontraktu v PR #482</span>
+<div style="overflow-x: auto; padding: 8px 0; border-radius: 8px; background: #14171c; border: 1px solid #2f3541">
+<sc-for list="{{ code }}" as="ln" hint-placeholder-count="6">
+<div style="min-width: max-content; padding: 0 12px; background: {{ ln.bg }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px; white-space: pre">{{ ln.text }}</div>
+</sc-for>
+</div>
+<span style="color: #c9cfda"><b style="color: #f0a35e">Komentář AI:</b> zpětně kompatibilní. Starší klienti dál posílají Card, validátor vyžaduje právě jedno z obou polí.</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">Volají ji</span>
+<span>Android · <a href="CrossPlatform.dc.html" style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">PaymentApi.createPayment</a></span>
+<span>iOS · <a href="CrossPlatform.dc.html" style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">PaymentsClient.createPayment</a></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 8px; background: #2b2618; border: 1px solid #5a4d22">
+<span style="font-size: 12px; font-weight: 600; color: #f2cc60">Nálezy v controlleru</span>
+<span>DeleteCard nemá test na odpověď 404.</span>
+<span>DeleteCard volá jen Android, v iOS volání chybí.</span>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+state = { only: false };
+renderVals() {
+const only = this.state.only;
+const add = 'rgba(95,208,160,0.12)', del = 'rgba(255,138,122,0.13)';
+const G = [
+{ name: 'PaymentsController', route: 'api/v1/payments', auth: '[Authorize]', actions: [
+['GET', '/cards', 'GetCards()', '200, 401', 'Android, iOS', 'new'],
+['DELETE', '/cards/{id}', 'DeleteCard(Guid id)', '204, 404', 'jen Android', 'new'],
+['POST', '/', 'CreatePayment(CreatePaymentRequest)', '201, 400, 402', 'Android, iOS', 'changed', true],
+['GET', '/{id}', 'GetPayment(Guid id)', '200, 404', 'Android, iOS', '']] },
+{ name: 'OrdersController', route: 'api/v1/orders', auth: '[Authorize]', actions: [
+['GET', '/', 'GetOrders(int page)', '200', 'Android, iOS', ''],
+['GET', '/{id}', 'GetOrder(Guid id)', '200, 404', 'Android, iOS', ''],
+['POST', '/', 'CreateOrder(CreateOrderRequest)', '201, 400', 'Android, iOS', ''],
+['POST', '/{id}/cancel', 'CancelOrder(Guid id)', '204, 409', 'nikdo', '']] },
+{ name: 'CatalogController', route: 'api/v1/products', auth: '[AllowAnonymous]', actions: [
+['GET', '/', 'GetProducts(string? q, int page)', '200', 'Android, iOS', ''],
+['GET', '/{id}', 'GetProduct(Guid id)', '200, 404', 'Android, iOS', '']] }
+];
+const row = (a) => ({ verb: a[0], path: a[1], method: a[2], codes: a[3], clients: a[4],
+clientFg: a[4] === 'Android, iOS' ? '#c9cfda' : '#f2cc60',
+change: a[5] === 'new' ? 'nová' : a[5] === 'changed' ? 'změněná' : '',
+changeFg: a[5] === 'new' ? '#5fd0a0' : '#f2cc60',
+bar: a[5] === 'new' ? '#5fd0a0' : a[5] === 'changed' ? '#f2cc60' : 'transparent',
+bg: a[6] ? '#2a3140' : 'transparent' });
+return {
+only,
+onlyLabel: only ? 'jen změněné v PR' : 'všechny',
+toggle: () => this.setState({ only: !only }),
+groups: G.map((g) => ({ name: g.name, route: g.route, auth: g.auth, actions: g.actions.filter((a) => !only || a[5]).map(row) })).filter((g) => g.actions.length),
+code: [
+{ text: 'public record CreatePaymentRequest(', bg: 'transparent' },
+{ text: '    Guid OrderId,', bg: 'transparent' },
+{ text: '-   CardInput Card', bg: del },
+{ text: '+   CardInput? Card,', bg: add },
+{ text: '+   Guid? SavedCardId', bg: add },
+{ text: ');', bg: 'transparent' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

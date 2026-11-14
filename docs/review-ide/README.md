@@ -16,6 +16,7 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 | [Editor](./02-editor.md) | Monaco s language servery, otevření v externím IDE, zamítnutý code-server |
 | [Rozložení](./03-rozlozeni.md) | Levý a pravý sidebar, režimy Workspaces a Projekt, Project view |
 | [Projekty a Funkce](./04-projekty-a-funkce.md) | Skupina projektů, Funkce jako sada odkazů do repozitářů, reference jen pro čtení |
+| [Popis funkcí](./05-funkce.md) | Účel, chování a pravidla všech funkcí z prototypu se snímky obrazovek |
 
 ## Přijatá rozhodnutí
 
@@ -35,6 +36,6 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 
 ## Podklady
 
-- Klikací prototyp (Claude, soukromý): <https://claude.ai/artifact/4W8rbrgX5ZwbU8gDJeDXZw>
+- Klikací prototyp: [`examples/review-ide-prototype`](../../examples/review-ide-prototype/) (původně Claude Design, soukromý: <https://claude.ai/artifact/4W8rbrgX5ZwbU8gDJeDXZw>)
 - Původní návrh integrace (Claude Docs): <https://claude.ai/artifact/Hf6441Qb4kwJPcbKpee99g>
 - Navazuje na [TASK-51](../../backlog/tasks/task-51%20-%20Integrovat-Azure-DevOps-pull-requesty-s-review-a-drafty-komentářů.md) (Azure DevOps review).

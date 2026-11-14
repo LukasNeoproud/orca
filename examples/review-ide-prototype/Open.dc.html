@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Otevřít projekt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button,input{font:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="open" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; max-width: 1320px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Otevřít projekt</h1>
+<p style="margin: 0; max-width: 760px; color: #a3acba">Projekt je sada repozitářů pro všechny platformy. Otevírá se vždy v jednom Orca workspace, tedy ve stejné větvi napříč repozitáři, každý ve vlastním git worktree.</p>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end">
+<div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+<label for="slozka" style="font-size: 12px; color: #a3acba">Složka projektu</label>
+<input id="slozka" type="text" value="{{ folder }}" onChange="{{ onFolder }}" style="box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #3b4352; background: #1b1f26; color: #e6e9ef; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M2 4h4l1.5 2H14v7H2z"></path></svg>Vybrat složku</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<section style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">1 · Platformy v projektu</h2>
+<sc-for list="{{ repos }}" as="r" hint-placeholder-count="4">
+<label for="{{ r.id }}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; background: #1b1f26; border: 1px solid {{ r.border }}; cursor: pointer">
+<input id="{{ r.id }}" type="checkbox" checked="{{ r.on }}" onChange="{{ r.toggle }}" style="flex: none; width: 20px; height: 20px; accent-color: #7aa7ff">
+<span style="flex: none; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2f3848; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500">{{ r.badge }}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500">{{ r.name }}</span><span style="font-size: 12.5px; color: #a3acba">{{ r.stack }}</span><span style="font-size: 12.5px; color: {{ r.noteFg }}">{{ r.note }}</span></span>
+</label>
+</sc-for>
+</section>
+
+<section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">2 · Orca workspace (git worktrees)</h2>
+<button type="button" style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 3v10 M3 8h10"></path></svg>Nový workspace pro vybrané platformy</button>
+</div>
+<div style="overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26">
+<div style="min-width: 700px">
+<div style="display: grid; grid-template-columns: minmax(0, 1.5fr) 52px 52px 52px minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; padding: 10px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">
+<span>Workspace</span><span style="text-align: center">KT</span><span style="text-align: center">SW</span><span style="text-align: center">C#</span><span>Agent</span><span>Pull requesty</span>
+</div>
+<sc-for list="{{ trees }}" as="w" hint-placeholder-count="4">
+<label for="{{ w.id }}" style="display: grid; grid-template-columns: minmax(0, 1.5fr) 52px 52px 52px minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 12px 14px; border-top: 1px solid #2f3541; background: {{ w.bg }}; cursor: pointer">
+<span style="display: flex; align-items: center; gap: 10px; min-width: 0"><input id="{{ w.id }}" type="radio" name="ws" checked="{{ w.on }}" onChange="{{ w.pick }}" style="flex: none; width: 18px; height: 18px; accent-color: #7aa7ff"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; overflow-wrap: anywhere">{{ w.name }}</span></span>
+<sc-for list="{{ w.cells }}" as="c" hint-placeholder-count="3"><span style="text-align: center; font-weight: 700; color: {{ c.fg }}">{{ c.t }}</span></sc-for>
+<span style="font-size: 13px; color: {{ w.agentFg }}">{{ w.agent }}</span>
+<span style="font-size: 13px; color: #c9cfda">{{ w.prs }}</span>
+</label>
+</sc-for>
+</div>
+</div>
+<span style="font-size: 12.5px; color: #a3acba">● worktree existuje · ○ vytvoří se při otevření · – platforma není vybraná</span>
+</section>
+
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="flex: 1 1 320px; min-width: 0">{{ summary }}</span>
+<a href="Main.dc.html" style="padding: 11px 18px; border-radius: 8px; background: #7aa7ff; color: #14171c; font-weight: 600; text-decoration: none">Otevřít</a>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+state = { folder: '~/dev/obchod', on: { a: true, i: true, n: true, w: false }, ws: 1 };
+renderVals() {
+const s = this.state;
+const R = [
+['a', 'KT', 'obchod-android', 'Kotlin · Jetpack Compose · MVI · Gradle', 'Rozpoznáno, všechny pohledy'],
+['i', 'SW', 'obchod-ios', 'Swift · SwiftUI · Swift Package Manager', 'Rozpoznáno, všechny pohledy'],
+['n', 'C#', 'obchod-api', 'C# · ASP.NET Core 9 · EF Core', 'Rozpoznáno, všechny pohledy'],
+['w', 'TS', 'obchod-admin', 'TypeScript · React', 'Nepodporovaná platforma, jen soubory a diff']
+];
+const W = [
+['main', 'eee', 'bez agenta', '', ''],
+['feature/saved-cards', 'eee', 'Claude Code · čeká na review', 'wait', '#482, #229, #118'],
+['review/pr-231', '.e.', 'vytvořený pro code review', '', '#231 od Petry N.'],
+['fix/cart-crash', 'e..', 'Claude Code · pracuje', 'run', 'zatím žádný']
+];
+const keys = ['a', 'i', 'n'];
+const chosen = R.filter((r) => s.on[r[0]]).map((r) => r[2]);
+return {
+folder: s.folder,
+onFolder: (e) => this.setState({ folder: e.target.value }),
+repos: R.map((r) => ({ id: 'repo-' + r[0], badge: r[1], name: r[2], stack: r[3], note: r[4], on: !!s.on[r[0]],
+border: s.on[r[0]] ? '#7aa7ff' : '#2f3541', noteFg: r[0] === 'w' ? '#f2cc60' : '#5fd0a0',
+toggle: () => this.setState({ on: { ...s.on, [r[0]]: !s.on[r[0]] } }) })),
+trees: W.map((w, i) => ({ id: 'ws-' + i, name: w[0], agent: w[2], prs: w[4], on: s.ws === i,
+bg: s.ws === i ? '#232832' : 'transparent',
+agentFg: w[3] === 'run' ? '#7aa7ff' : w[3] === 'wait' ? '#f2cc60' : '#a3acba',
+pick: () => this.setState({ ws: i }),
+cells: keys.map((k, j) => !s.on[k] ? { t: '–', fg: '#8b95a5' } : w[1][j] === 'e' ? { t: '●', fg: '#5fd0a0' } : { t: '○', fg: '#a3acba' }) })),
+summary: chosen.length ? 'Otevře se ' + chosen.join(', ') + ' ve workspace ' + W[s.ws][0] + '.' : 'Vyberte aspoň jednu platformu.'
+};
+}
+}
+</script>
+</body>
+</html>
