@@ -17,6 +17,7 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 | [Rozložení](./03-rozlozeni.md) | Levý a pravý sidebar, režimy Workspaces a Projekt, Project view |
 | [Projekty a Funkce](./04-projekty-a-funkce.md) | Skupina projektů, Funkce jako sada odkazů do repozitářů, reference jen pro čtení |
 | [Popis funkcí](./05-funkce.md) | Účel, chování a pravidla všech funkcí z prototypu se snímky obrazovek |
+| [AI a review](./06-ai-a-review.md) | Plán v pohledech, review během práce agenta, brány kvality, hodnocení nálezů, spustitelné review a další |
 
 ## Přijatá rozhodnutí
 
@@ -25,6 +26,8 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 - Ladění, build, Compose Preview a simulátory se předávají do Android Studia, Xcode nebo VS Code otevřením na konkrétním řádku.
 - Levý sidebar je navigace po celém projektu, pravý sidebar nástroje pro to, co je právě otevřené, hlavní plocha obsah.
 - Stejná větev napříč platformami není realistická. Ostatní platformy jsou reference jen pro čtení, svázané přes Funkci.
+- Agent dostává zpětnou vazbu z bran kvality a opravuje kód dřív, než práci ohlásí jako hotovou.
+- Nálezy mají závažnost, jistotu, četnost, dopad a prioritu; nálezy AI nesou důkaz.
 
 ## Otevřené otázky
 
