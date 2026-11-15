@@ -9,7 +9,7 @@ Funkce Android Studia, Rideru a Xcode, které přidáme do Orca Dev, seřazené 
 | 3 | Inspekce, rychlé opravy a chyby buildu | Alt+Enter, Fix-it, Build Analyzer | střední |
 | 4 | Local History | JetBrains | střední |
 | 5 | Annotate a historie výběru | Git Blame, Show History for Selection | snadná |
-| 6 | Logcat a konzole aplikace | Android Studio, Xcode | snadná pro Android, střední pro iOS |
+| 6 | Logcat a konzole aplikace s kartami | Android Studio, Xcode | snadná pro Android, střední pro iOS; karty střední |
 | 7 | Layout Inspector a View Debugger | Android Studio, Xcode | střední až náročná |
 | 8 | TODO okno | JetBrains | snadná |
 | 9 | HTTP klient a Endpoints | Rider | snadná |
@@ -53,11 +53,49 @@ Debugger, profilery a Instruments, Compose a SwiftUI Preview, podepisování a r
 - **AI:** „proč je ten kód takhle“ složené z commitů, PR, pracovních položek Azure DevOps a přepisů agentů. Navazuje na důvod u hunku.
 - **Realizace:** git log a blame s omezeným rozsahem (pravidla Git Scan Safety), API Azure DevOps z TASK-51.
 
-## 6. Logcat a konzole aplikace
+## 6. Logcat a konzole aplikace s kartami
 
 - Strukturované logy aplikace z emulátoru nebo zařízení s filtrem na balíček, úroveň a tag; zachycení pádů.
 - **AI:** vysvětlení stack trace, nalezení řádků v kódu a PR, který je naposledy měnil, a oprava agentem.
 - **Realizace:** Android má `main/emulator/android/android-logcat.ts`. iOS simulátor přes `xcrun simctl spawn <device> log stream`, fyzický iPhone přes `devicectl` nebo konzoli zařízení.
+
+### Typované zprávy a karty
+
+Řádky logu se rozpoznají podle typu a zobrazí jako karty na časové ose. Surový řádek zůstává vždy dostupný a jde přepnout na klasický výpis.
+
+| Typ karty | Co ukazuje | Propojení |
+| --- | --- | --- |
+| HTTP požadavek a odpověď | Spárovaný pár: metoda, URL, status, doba, hlavičky (tokeny maskované), tělo jako strom JSON | Endpoint v pohledu Controllery a akce, DTO v kódu, inspektor sítě |
+| Změna ViewState | Rozdíl polí mezi po sobě jdoucími stavy, intent, který změnu vyvolal | Obrazovka v navigačním grafu, reducer v kódu |
+| Navigace | Přechod mezi obrazovkami a jeho argumenty | Navigační graf |
+| Stav připojení | Online, offline, typ sítě; zvýrazněný předěl na časové ose | Scénáře MITM proxy |
+| Životní cyklus | Activity, Fragment, scéna; start, pauza, ukončení procesu | |
+| Chyba a výjimka | Typ, zpráva, sbalený stack trace s vlastními rámci zvýrazněnými a proklikatelnými | Kód, poslední PR měnící dané řádky, akce Vysvětlit a Opravit agentem |
+| ANR, StrictMode | Blokované vlákno, porušení pravidla | Kód |
+| Analytická událost | Název a parametry | Pohled analytických událostí |
+| Ostatní | Běžný řádek | |
+
+**Rozpoznání ve třech vrstvách:**
+
+1. **Známé formáty bez AI:** OkHttp `HttpLoggingInterceptor` (`-->` a `<--`), Ktor, `FATAL EXCEPTION`, ANR, StrictMode, systémové zprávy o připojení; na iOS `os_log` a `Logger` podle subsystému a kategorie; Serilog JSON na backendu.
+2. **Šablony z kódu:** analytické jádro najde volání logování (`Log`, `Timber`, `Logger`, `ILogger`) s tagem a šablonou zprávy. Řádek logu se spáruje se šablonou, takže je známé místo v kódu i význam proměnných.
+3. **AI pro neznámé šablony:** AI zařadí typ jednou pro každou novou šablonu, ne pro každý řádek, a navrhne pravidlo (vzor → typ karty a pole). Pravidlo se po potvrzení uloží do nastavení projektu. Běžné zpracování logu je tak rychlé a deterministické a AI nestojí nic při každém spuštění.
+
+Doporučení pro tým: debug logger nebo interceptor, který zapisuje strukturované řádky (např. JSON s typem). Orca ho umí navrhnout jako změnu v codebase; rozpoznávání je pak spolehlivé i bez šablon a AI.
+
+**Souvislosti mezi kartami:** intent → požadavek → odpověď → změna stavu se seskupí do jedné „události“, kterou jde sbalit. **AI:** shrnutí sezení nebo vybraného úseku („po klepnutí na Zaplatit vrátil požadavek 402 a stav přešel do Error“).
+
+### Počítadlo chyb a varování
+
+Opatření, aby chyba v proudu logů nezapadla.
+
+- Počet chyb a varování v hlavičce panelu a ve stavové liště; nová chyba krátce zvýrazní panel.
+- Seznam unikátních problémů seskupených podle podpisu (typ výjimky a první vlastní rámec, u varování šablona zprávy): počet výskytů, první a poslední výskyt.
+- Klik otevře kartu na časové ose a druhý klik místo v kódu.
+- Stavy: nové, viděné, vyřešené. Problém, který se objevil poprvé od posledního buildu, je označený jako nový.
+- Počítadlo se váže k běhu aplikace; historie běhů zůstává pro porovnání („po této změně zmizely 3 varování, přibyla 1 chyba“).
+- Pád aplikace volitelně vyvolá oznámení, včetně hlasového ([Zařízení, inspektory a hlas](./08-zarizeni-inspektory-hlas.md)).
+- Seznam problémů jde předat agentovi jako úlohu nebo přidat jako nálezy do review spustitelného PR.
 
 ## 7. Layout Inspector a View Debugger
 
