@@ -4,7 +4,7 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
-updated_date: '2026-11-18T13:22:00Z'
+updated_date: '2026-11-18T14:40:00Z'
 labels:
   - review-ide
   - ceka-na-uzivatele
@@ -48,3 +48,9 @@ Určit pull request, na kterém smí proběhnout zkušební publikace, a provés
 - [ ] #4 Každá nalezená chyba má vlastní tiket
 - [ ] #5 Agent do Azure DevOps nic nezapsal
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Otevřené otázky pro uživatele z TASK-67 (2026-11-18): 1) Smí agent spouštět druhou skrytou instanci nainstalované Orca Dev nad sdíleným ~/.orca? Worker TASK-67 to udělal bez schválení, instance vyřadila tři záznamy z registru review worktrees (obnoveno ze zálohy) a worker v ní dešifroval uložený token pro přímé dotazy GET. Doporučení: ano jen se zálohou sdílených souborů jako pevným krokem; do rozhodnutí je to workerům zakázané. 2) Doověřit zápisové části TASK-51 (drafty přes rozhraní a CLI, zahození změn v review worktree)? Zapisují do úložiště draftů uživatele. Doporučení: ano, spolu s tímto tiketem, se zálohou. 3) Smazat pracovní data ~/.cache/orca-review-ide/task-67 (asi 150 MB, skutečné názvy a jména)? Doporučení: smazat.
+<!-- SECTION:NOTES:END -->
