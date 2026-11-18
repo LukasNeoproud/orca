@@ -8,6 +8,7 @@ import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-labe
 import {
   sendStructuredConversationCommand,
   structuredConversationCommandHold,
+  structuredConversationCommandRunner,
   type StructuredConversationCommandCauses
 } from './structured-conversation-command-send'
 
@@ -378,5 +379,38 @@ describe('a refusal names what it waits on only while the chat shows it', () => 
     expect(
       await hostAnswers(hostResult('compact', COMPACTION_FAILED), shown('working'))
     ).not.toHaveProperty('refusedWhile')
+  })
+})
+
+describe('a command typed with arguments it does not take', () => {
+  it('is refused here in one sentence naming the command, and nothing is sent', async () => {
+    const send = vi.fn()
+    const { runConversationCommand } = structuredConversationCommandRunner({
+      agentName: 'Claude',
+      pending: { current: false },
+      commandsWait: false,
+      chat: {
+        turnId: null,
+        isWorking: false,
+        queueSendsNext: false,
+        backgroundTasks: { isMonitoring: false, show: false },
+        submissions: []
+      },
+      prompts: [],
+      rewindInFlight: { current: false },
+      sends: [],
+      items: () => [],
+      send,
+      compactTakesInstructions: false
+    })
+    await expect(runConversationCommand('clear', 'everything')).resolves.toEqual({
+      accepted: false,
+      error: 'Use /clear without arguments.'
+    })
+    await expect(runConversationCommand('compact', 'the tests')).resolves.toEqual({
+      accepted: false,
+      error: 'Use /compact without arguments.'
+    })
+    expect(send).not.toHaveBeenCalled()
   })
 })

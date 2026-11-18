@@ -220,7 +220,14 @@ export function structuredConversationCommandRunner(args: {
   }
   const run = (command: AgentSessionConversationCommand, instructions?: string) => {
     if (instructions && (command !== 'compact' || !args.compactTakesInstructions)) {
-      return Promise.resolve({ accepted: false, error: `Use /${command} without arguments.` })
+      return Promise.resolve({
+        accepted: false,
+        error: translate(
+          'components.native-chat.conversationCommand.noArguments',
+          'Use /{{command}} without arguments.',
+          { command }
+        )
+      })
     }
     const waitsInLine =
       command === 'compact' &&

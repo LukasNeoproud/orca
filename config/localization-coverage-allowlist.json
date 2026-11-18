@@ -138,5 +138,13 @@
     "text": "Backlog.md",
     "dynamic": false,
     "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/native-chat/NativeChatClaudePermissionsDialog.tsx",
+    "kind": "jsx-attribute:placeholder",
+    "text": "Bash(npm run test:*)",
+    "dynamic": false,
+    "count": 1,
+    "reason": "Example of Claude Code permission rule syntax; translating it would teach an invalid rule."
   }
 ]

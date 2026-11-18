@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import { readAzureDevOpsReviewOptions } from '@/store/azure-devops-review-options'
@@ -32,7 +33,13 @@ export async function runAzureDevOpsReviewAgentRequest(
       return draft ? [{ draft, instruction: item.instruction }] : []
     })
     if (items.length === 0) {
-      return { kind: 'failed', message: 'The chosen drafts were published or deleted meanwhile.' }
+      return {
+        kind: 'failed',
+        message: translate(
+          'azureDevOpsReview.agentRequestDraftsGone',
+          'The chosen drafts were published or deleted meanwhile.'
+        )
+      }
     }
     prompt = buildAzureDevOpsDraftReworkPrompt({
       pullRequest: detail.pullRequest,
@@ -77,7 +84,13 @@ export async function runAzureDevOpsReviewAgentRequest(
   )
   return launch
     ? { kind: 'started', worktreeId: opened.worktree.worktreeId }
-    : { kind: 'failed', message: 'The computer could not start the agent.' }
+    : {
+        kind: 'failed',
+        message: translate(
+          'azureDevOpsReview.agentRequestLaunchFailed',
+          'The computer could not start the agent.'
+        )
+      }
 }
 
 export function attachAzureDevOpsReviewAgentBridge(): () => void {

@@ -18725,7 +18725,8 @@
         "panelEmpty": "Nothing from this subagent is loaded yet."
       },
       "conversationCommand": {
-        "pendingWork": "Wait for pending work and messages to finish before using this command."
+        "pendingWork": "Wait for pending work and messages to finish before using this command.",
+        "noArguments": "Use /{{command}} without arguments."
       },
       "rewind": {
         "unsupported": "This chat can't go back to an earlier message.",
@@ -20667,7 +20668,9 @@
     "openOwnInWorkspaceHint": "Opens the workspace that has this pull request's branch checked out, or creates one on it.",
     "addressFeedbackWithAi": "Address feedback with AI",
     "addressFeedbackHint": "Starts your default agent in the workspace with this branch. It judges the open threads, fixes what holds and drafts a reply to each; nothing is committed or published.",
-    "addressFeedbackAgain": "Address feedback again"
+    "addressFeedbackAgain": "Address feedback again",
+    "agentRequestDraftsGone": "The chosen drafts were published or deleted meanwhile.",
+    "agentRequestLaunchFailed": "The computer could not start the agent."
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

@@ -101,8 +101,17 @@ describe('runAzureDevOpsReviewAgentRequest', () => {
 
   it('refuses drafts that are gone', async () => {
     mocks.detail.mockResolvedValue({ pullRequest, drafts: [] })
-    await expect(runAzureDevOpsReviewAgentRequest(rework)).resolves.toMatchObject({
-      kind: 'failed'
+    await expect(runAzureDevOpsReviewAgentRequest(rework)).resolves.toEqual({
+      kind: 'failed',
+      message: 'The chosen drafts were published or deleted meanwhile.'
+    })
+  })
+
+  it('says the agent could not start when the launch fails', async () => {
+    mocks.start.mockResolvedValue(null)
+    await expect(runAzureDevOpsReviewAgentRequest(rework)).resolves.toEqual({
+      kind: 'failed',
+      message: 'The computer could not start the agent.'
     })
   })
 })
