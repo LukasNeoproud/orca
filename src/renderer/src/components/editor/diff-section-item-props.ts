@@ -40,6 +40,8 @@ export type DiffSectionItemProps = {
   getCommentableLineNumbers?: (section: DiffSection) => readonly number[] | undefined
   /** The workspace file behind a section's modified side; enables Open in on its gutter. */
   getExternalEditorFile?: (section: DiffSection) => ExternalEditorFileAvailability | null
+  /** Inline view of an empty original shows only additions, without Monaco's removed blank line. */
+  hideEmptyOriginalLine?: boolean
   setSectionHeights: Dispatch<SetStateAction<Record<number, number>>>
   setSections: Dispatch<SetStateAction<DiffSection[]>>
   modifiedEditorsRef: MutableRefObject<Map<number, monacoEditor.IStandaloneCodeEditor>>

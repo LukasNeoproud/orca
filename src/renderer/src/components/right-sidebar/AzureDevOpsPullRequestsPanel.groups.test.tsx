@@ -11,7 +11,14 @@ import { DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS } from '../../../../shared/azure-de
 
 const { openMock, listMock } = vi.hoisted(() => ({ openMock: vi.fn(), listMock: vi.fn() }))
 
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
+vi.mock('@/store', () => ({
+  useAppStore: Object.assign(
+    <T,>(selector: (state: { repos: [] }) => T): T => selector({ repos: [] }),
+    {
+      getState: () => ({})
+    }
+  )
+}))
 vi.mock('@/lib/azure-devops-review-page', () => ({ openAzureDevOpsPullRequestPage: openMock }))
 vi.mock('@/lib/azure-devops-review-client', () => ({
   listAzureDevOpsReviewPullRequests: listMock

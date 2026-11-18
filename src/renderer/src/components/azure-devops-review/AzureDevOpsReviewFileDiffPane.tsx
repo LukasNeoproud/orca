@@ -188,6 +188,7 @@ export function AzureDevOpsReviewFileDiffPane({
               filePath={change.path}
               relativePath={change.path}
               sideBySide={sideBySide}
+              hideEmptyOriginalLine
               worktreeId={inline.scope}
               externalEditorFile={getExternalEditorAvailableFile(externalEditor)}
               externalEditorUnavailableReason={getExternalEditorUnavailableReason(externalEditor)}

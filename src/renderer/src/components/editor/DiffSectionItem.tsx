@@ -44,6 +44,7 @@ export function DiffSectionItem({
   inlineCommentActions,
   getCommentableLineNumbers,
   getExternalEditorFile,
+  hideEmptyOriginalLine,
   setSectionHeights,
   setSections,
   modifiedEditorsRef,
@@ -340,6 +341,7 @@ export function DiffSectionItem({
           diffWordWrap={settings?.diffWordWrap}
           diffShowWhitespace={settings?.diffShowWhitespace}
           editorFontFamily={resolveEditorFontFamily(settings)}
+          hideEmptyOriginalLine={hideEmptyOriginalLine}
           onRetrySection={retrySection}
           onLoadDeferredSection={loadDeferredSection ?? loadSection}
           onSaveLimitedDiff={() => void handleSectionSaveRef.current(index)}

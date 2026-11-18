@@ -17,6 +17,10 @@ type AzureDevOpsReviewState = {
   error: string | null
   /** Pull request shown on the workbench detail page. */
   openPullRequestKey: string | null
+  /** Orca projects the panel last saw; adding or removing one makes the list stale. */
+  projectsSignature: string | null
+  /** Records the current projects; true when they differ from ones seen before. */
+  noteProjects: (signature: string) => boolean
   setFilters: (patch: Partial<AzureDevOpsReviewFilters>) => void
   refresh: () => Promise<void>
   openPullRequest: (key: string) => void
@@ -67,12 +71,28 @@ function storeFilters(filters: AzureDevOpsReviewFilters): void {
 
 let refreshGeneration = 0
 
+export function azureDevOpsReviewProjectsSignature(repos: readonly { id: string }[]): string {
+  return repos
+    .map((repo) => repo.id)
+    .sort()
+    .join('\n')
+}
+
 export const useAzureDevOpsReviewStore = create<AzureDevOpsReviewState>((set, get) => ({
   filters: readStoredFilters(),
   list: null,
   loading: false,
   error: null,
   openPullRequestKey: null,
+  projectsSignature: null,
+  noteProjects: (signature) => {
+    const previous = get().projectsSignature
+    if (previous === signature) {
+      return false
+    }
+    set({ projectsSignature: signature })
+    return previous !== null
+  },
   setFilters: (patch) => {
     const previous = get().filters
     const filters = { ...previous, ...patch }

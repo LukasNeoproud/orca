@@ -1,7 +1,10 @@
 import { useEffect, useMemo } from 'react'
 import { RefreshCw, Search, Settings2 } from 'lucide-react'
 import { useAppStore } from '@/store'
-import { useAzureDevOpsReviewStore } from '@/store/azure-devops-review-store'
+import {
+  azureDevOpsReviewProjectsSignature,
+  useAzureDevOpsReviewStore
+} from '@/store/azure-devops-review-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -34,19 +37,23 @@ export default function AzureDevOpsPullRequestsPanel({
   const openKey = useAzureDevOpsReviewStore((s) => s.openPullRequestKey)
   const setFilters = useAzureDevOpsReviewStore((s) => s.setFilters)
   const refresh = useAzureDevOpsReviewStore((s) => s.refresh)
+  const projects = useAppStore((s) => azureDevOpsReviewProjectsSignature(s.repos))
 
   useEffect(() => {
     if (!isVisible) {
       return
     }
-    const fetchedAt = useAzureDevOpsReviewStore.getState().list?.fetchedAt ?? 0
-    if (Date.now() - fetchedAt > REFRESH_INTERVAL_MS) {
+    const state = useAzureDevOpsReviewStore.getState()
+    // Why: the list covers the projects it was loaded for; one added or removed since needs a reload.
+    const projectsChanged = state.noteProjects(projects)
+    const fetchedAt = state.list?.fetchedAt ?? 0
+    if (projectsChanged || Date.now() - fetchedAt > REFRESH_INTERVAL_MS) {
       void refresh()
     }
     // Why: poll only while the panel is on screen; ADO throttles chatty clients.
     const timer = window.setInterval(() => void refresh(), REFRESH_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [isVisible, refresh])
+  }, [isVisible, projects, refresh])
 
   const matching = useMemo(
     () => filterAzureDevOpsReviewPullRequests(list?.pullRequests ?? [], filters),

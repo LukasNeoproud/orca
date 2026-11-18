@@ -244,6 +244,7 @@ export function AzureDevOpsReviewAllChanges({
                     index={item.index}
                     isBranchMode={false}
                     sideBySide={sideBySide}
+                    hideEmptyOriginalLine
                     isDark={isDark}
                     settings={settings}
                     sectionHeight={sectionHeights[item.index]}

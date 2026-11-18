@@ -26,6 +26,7 @@ import {
   syncDiffEditorOriginalWordWrap
 } from './diff-editor-word-wrap-options'
 import { buildDiffEditorHideUnchangedOptions } from './diff-editor-hide-unchanged-options'
+import { buildDiffEditorEmptyOriginalOptions } from './diff-editor-empty-original-options'
 import { useDiffEditorRegistration } from './diff-navigation-context'
 import { preserveDiffViewStateAcrossModelSwaps } from './diff-model-swap-view-state'
 import { monacoFindOptions } from './monaco-find-options'
@@ -56,7 +57,8 @@ export default function DiffViewer({
   onContentChange,
   onSave,
   largeDiffRenderLimit,
-  largeDiffSaveContentAvailable
+  largeDiffSaveContentAvailable,
+  hideEmptyOriginalLine
 }: DiffViewerProps): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const isDark = useDocumentDarkTheme()
@@ -366,6 +368,7 @@ export default function DiffViewer({
               ...buildDiffEditorWordWrapOptions(settings?.diffWordWrap),
               ...buildDiffEditorWhitespaceOptions(settings?.diffShowWhitespace),
               ...buildDiffEditorHideUnchangedOptions(settings?.diffCollapseUnchangedRegions),
+              ...buildDiffEditorEmptyOriginalOptions(hideEmptyOriginalLine, originalContent),
               automaticLayout: true,
               renderOverviewRuler: true,
               scrollbar: diffEditorScrollbarOptions,

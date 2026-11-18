@@ -16,6 +16,7 @@ import {
   buildDiffEditorWordWrapOptions,
   syncDiffEditorOriginalWordWrap
 } from './diff-editor-word-wrap-options'
+import { buildDiffEditorEmptyOriginalOptions } from './diff-editor-empty-original-options'
 import { monacoFindOptions } from './monaco-find-options'
 import { installDiffEditorShiftWheelScroll } from './diff-editor-shift-wheel-scroll'
 
@@ -37,6 +38,7 @@ type DiffSectionBodyProps = {
   diffWordWrap?: boolean
   diffShowWhitespace?: boolean
   editorFontFamily?: string
+  hideEmptyOriginalLine?: boolean
   onRetrySection: (index: number) => void
   onLoadDeferredSection: (index: number) => void
   onSaveLimitedDiff: () => void
@@ -59,6 +61,7 @@ export function DiffSectionBody({
   diffWordWrap,
   diffShowWhitespace,
   editorFontFamily,
+  hideEmptyOriginalLine,
   onRetrySection,
   onLoadDeferredSection,
   onSaveLimitedDiff,
@@ -236,6 +239,7 @@ export function DiffSectionBody({
             renderOverviewRuler: false,
             scrollbar: combinedDiffSectionScrollbarOptions,
             hideUnchangedRegions: { enabled: true },
+            ...buildDiffEditorEmptyOriginalOptions(hideEmptyOriginalLine, section.originalContent),
             find: monacoFindOptions
           }}
         />
