@@ -3088,6 +3088,57 @@
         }
       }
     },
+    "right-sidebar": {
+      "gitGraph": {
+        "branches": {
+          "actions": "Branch actions",
+          "alsoDeleteRemote": "Also delete {{value0}}",
+          "cancel": "Cancel",
+          "delete": "Delete",
+          "deleteItem": "Delete…",
+          "deleteMerged": "Its changes are already merged.",
+          "deleteRemoteItem": "Delete on the remote…",
+          "deleteRemoteTitle": "Delete branch on the remote?",
+          "deleteRemoteWarning": "This removes the branch for everyone using the remote.",
+          "deleteTitle": "Delete branch?",
+          "deleteUnmerged": "Nothing shows this branch was merged. Commits only it has will be hard to find again.",
+          "filter": "Filter branches",
+          "gone": "gone",
+          "local": "Local",
+          "merged": "merged",
+          "newWorkspace": "New workspace from this branch…",
+          "openWorkspace": "Open its workspace",
+          "remote": "Remote",
+          "rename": "Rename",
+          "renameDescription": "Only the local branch is renamed; a branch it tracks on the remote keeps its name.",
+          "renameItem": "Rename…",
+          "renameTitle": "Rename branch",
+          "showInGraph": "Show in graph",
+          "workspaceUnknown": "Orca has no workspace at {{value0}}"
+        },
+        "cleanup": {
+          "cancel": "Cancel",
+          "categoryInWorkspace": "Open in a workspace — remove the workspace instead",
+          "categoryMerged": "Merged and pushed",
+          "categoryNeverPushed": "Never pushed — may be new branches with no work yet",
+          "delete": "Delete selected ({{value0}})",
+          "deleteRemote": "Also delete them on the remote ({{value0}})",
+          "deleted": "Deleted branches: {{value0}}",
+          "deletedLog": "Their last commits are recorded in .git/{{value0}}.",
+          "description": "Local branches whose changes are all in a long-lived branch on the remote. Long-lived branches such as main, develop and release/* are never listed.",
+          "empty": "No merged branches to clean up.",
+          "failed": "Branches that could not be deleted: {{value0}}",
+          "loading": "Fetching and looking for merged branches…",
+          "mergedInto": "Merged into",
+          "mergedIntoOne": "Merged into {{value0}}",
+          "noRemote": "This repository has no long-lived remote branch to compare with.",
+          "remoteDiffers": "remote branch differs",
+          "remoteExists": "also on {{value0}}",
+          "remoteGone": "remote branch deleted",
+          "remoteStale": "The remote could not be reached, so this uses what the last fetch knew."
+        }
+      }
+    },
     "workspace": {
       "cleanup": {
         "browse": {
@@ -3143,6 +3194,7 @@
     }
   },
   "menu": {
+    "pullRequests": "Pull requests",
     "quitApp": "Quit {{appName}}"
   },
   "runtimeRpc": {

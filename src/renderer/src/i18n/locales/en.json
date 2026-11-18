@@ -20656,7 +20656,18 @@
     "involvementMine": "Mine",
     "startReview": "Start review",
     "continueReview": "Continue review",
-    "newRequest": "New"
+    "newRequest": "New",
+    "feedbackTitle": "Address review feedback",
+    "feedbackDescription": "Your default agent works in the workspace with the branch {{value0}}. It judges each thread, fixes what holds and writes a reply draft with a proposed thread status. Nothing is committed, pushed or published.",
+    "feedbackEmpty": "No open threads wait for you.",
+    "feedbackInclude": "Address thread",
+    "feedbackInstruction": "Instructions for the agent",
+    "feedbackInstructionPlaceholder": "Optional. For example: keep the public API unchanged; run the unit tests of the touched projects.",
+    "feedbackStart": "Address {{value0}} threads",
+    "openOwnInWorkspaceHint": "Opens the workspace that has this pull request's branch checked out, or creates one on it.",
+    "addressFeedbackWithAi": "Address feedback with AI",
+    "addressFeedbackHint": "Starts your default agent in the workspace with this branch. It judges the open threads, fixes what holds and drafts a reply to each; nothing is committed or published.",
+    "addressFeedbackAgain": "Address feedback again"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",
