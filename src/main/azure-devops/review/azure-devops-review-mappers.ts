@@ -275,13 +275,16 @@ function mapChangeType(changeType: string | null | undefined): AzureDevOpsReview
 export function mapAzureDevOpsReviewChange(
   raw: RawIterationChange
 ): AzureDevOpsReviewChange | null {
-  const path = toRepoRelativePath(raw.item?.path)
+  const itemPath = toRepoRelativePath(raw.item?.path)
+  const previousPath = toRepoRelativePath(raw.originalPath ?? raw.sourceServerItem)
+  // Why: a deleted file has no item path; Azure DevOps names it only in originalPath.
+  const path = itemPath ?? previousPath
   if (!path) {
     return null
   }
   return {
     path,
-    originalPath: toRepoRelativePath(raw.originalPath ?? raw.sourceServerItem),
+    originalPath: itemPath ? previousPath : null,
     changeType: mapChangeType(raw.changeType),
     changeTrackingId: typeof raw.changeTrackingId === 'number' ? raw.changeTrackingId : null
   }

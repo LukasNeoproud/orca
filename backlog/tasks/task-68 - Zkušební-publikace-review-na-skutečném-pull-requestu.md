@@ -4,10 +4,11 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
+updated_date: '2026-11-18T13:22:00Z'
 labels:
   - review-ide
-  - effort-medium
   - ceka-na-uzivatele
+  - effort-high
 milestone: m-1
 dependencies:
   - TASK-67

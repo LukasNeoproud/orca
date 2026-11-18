@@ -136,6 +136,26 @@ describe('mapAzureDevOpsReviewChange', () => {
       })
     ).toEqual({ path: 'b.ts', originalPath: 'a.ts', changeType: 'rename', changeTrackingId: null })
   })
+
+  it('keeps a deleted file, which Azure DevOps names only in originalPath', () => {
+    expect(
+      mapAzureDevOpsReviewChange({
+        changeTrackingId: 7,
+        item: { path: null },
+        changeType: 'delete',
+        originalPath: '/src/gone.ts'
+      })
+    ).toEqual({
+      path: 'src/gone.ts',
+      originalPath: null,
+      changeType: 'delete',
+      changeTrackingId: 7
+    })
+  })
+
+  it('drops an entry with no path at all', () => {
+    expect(mapAzureDevOpsReviewChange({ item: {}, changeType: 'edit' })).toBeNull()
+  })
 })
 
 describe('buildAzureDevOpsThreadPayload', () => {
