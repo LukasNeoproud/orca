@@ -6,6 +6,11 @@ import { RuntimeGitCommands } from './orca-runtime-git'
 const RPC_TO_RUNTIME_COMMAND = {
   'git.branchManagementPreview': 'inspectRuntimeBranchManagement',
   'git.manageBranch': 'manageRuntimeBranch',
+  'git.mergedBranches': 'listRuntimeMergedBranches',
+  'git.branches': 'listRuntimeGitBranches',
+  'git.deleteBranch': 'deleteRuntimeGitBranch',
+  'git.renameBranch': 'renameRuntimeGitBranch',
+  'git.deleteMergedBranches': 'deleteRuntimeMergedBranches',
   'git.status': 'getRuntimeGitStatus',
   'git.checkIgnored': 'checkRuntimeGitIgnoredPaths',
   'git.submoduleStatus': 'getRuntimeGitSubmoduleStatus',

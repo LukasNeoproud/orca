@@ -9,6 +9,7 @@ import { GIT_HISTORY_MAX_LIMIT, type GitHistoryResult } from '../../../../../../
 import { isFolderRepo } from '../../../../../../shared/repo-kind'
 import { requireGitOwnerTarget, useWorktreeGitOwnerTarget } from '../../worktree-git-owner-target'
 import { GitGraphView } from './git-graph-view'
+import { useGitBranchList } from './use-git-branch-list'
 import { useGitHistoryCommitActions } from './use-git-history-commit-actions'
 
 const openInSameGroup = (): undefined => undefined
@@ -31,6 +32,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }): React.JSX.E
       activeRepoTarget: target,
       resolveSplitTargetGroupId: openInSameGroup
     })
+  const branchList = useGitBranchList(isFolder ? null : worktreeId)
   const loadHistory = useCallback(
     async (skip: number): Promise<GitHistoryResult> => {
       if (!worktreePath || isFolder) {
@@ -59,6 +61,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }): React.JSX.E
         onLoadCommitFiles={loadCommitFiles}
         onOpenCommitFile={openCommitFile}
         onCommitAction={handleCommitAction}
+        branchList={branchList}
         renderHeading={(title, description) => (
           <>
             <h2 className="text-sm font-semibold text-foreground">{title}</h2>

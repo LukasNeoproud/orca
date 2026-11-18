@@ -259,7 +259,13 @@ import {
   FolderWorkspaceSelector,
   FolderWorkspaceUpdate
 } from './folder-workspace-params'
-import { GitManageBranchParams } from './git-branch-management-params'
+import {
+  GitDeleteBranchParams,
+  GitDeleteMergedBranchesParams,
+  GitManageBranchParams,
+  GitMergedBranchesParams,
+  GitRenameBranchParams
+} from './git-branch-management-params'
 import {
   GitBranchCompare,
   GitBranchDiff,
@@ -967,6 +973,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'git.branchCompare': GitBranchCompare,
   'git.branchDiff': GitBranchDiff,
   'git.branchManagementPreview': WorktreeSelectorOfGitParams,
+  'git.branches': WorktreeSelectorOfGitParams,
   'git.bulkDiscard': GitBulkPaths,
   'git.bulkStage': GitBulkStage,
   'git.bulkUnstage': GitBulkPaths,
@@ -978,6 +985,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'git.commitCompare': GitCommitCompare,
   'git.commitDiff': GitCommitDiff,
   'git.conflictOperation': WorktreeSelectorOfGitParams,
+  'git.deleteBranch': GitDeleteBranchParams,
+  'git.deleteMergedBranches': GitDeleteMergedBranchesParams,
   'git.diff': GitDiff,
   'git.discard': GitFilePath,
   'git.discoverCommitMessageModels': GitDiscoverCommitMessageModels,
@@ -989,11 +998,13 @@ export const RPC_PARAMS_BY_METHOD = {
   'git.history': GitHistory,
   'git.localBranches': WorktreeSelectorOfGitParams,
   'git.manageBranch': GitManageBranchParams,
+  'git.mergedBranches': GitMergedBranchesParams,
   'git.pull': GitTargetedRemote,
   'git.push': GitPush,
   'git.rebaseFromBase': GitRebaseFromBase,
   'git.remoteCommitUrl': GitRemoteCommitUrl,
   'git.remoteFileUrl': GitRemoteFileUrl,
+  'git.renameBranch': GitRenameBranchParams,
   'git.stage': GitFilePath,
   'git.status': GitStatusParams,
   'git.submoduleStatus': GitSubmoduleStatus,

@@ -1,3 +1,4 @@
+import { RuntimeBranchListCommands } from './runtime-branch-list-commands'
 import { RuntimeBranchManagementCommands } from './runtime-branch-management-commands'
 import { RuntimeGitDiffCommands } from './runtime-git-diff-commands'
 import { RuntimeGitGenerationCommands } from './runtime-git-generation-commands'
@@ -14,6 +15,11 @@ export type {
 export class RuntimeGitCommands {
   readonly inspectRuntimeBranchManagement: RuntimeBranchManagementCommands['inspectRuntimeBranchManagement']
   readonly manageRuntimeBranch: RuntimeBranchManagementCommands['manageRuntimeBranch']
+  readonly listRuntimeGitBranches: RuntimeBranchListCommands['listRuntimeGitBranches']
+  readonly deleteRuntimeGitBranch: RuntimeBranchListCommands['deleteRuntimeGitBranch']
+  readonly renameRuntimeGitBranch: RuntimeBranchListCommands['renameRuntimeGitBranch']
+  readonly listRuntimeMergedBranches: RuntimeBranchManagementCommands['listRuntimeMergedBranches']
+  readonly deleteRuntimeMergedBranches: RuntimeBranchManagementCommands['deleteRuntimeMergedBranches']
   readonly getRuntimeGitStatus: RuntimeGitStatusCommands['getRuntimeGitStatus']
   readonly getRuntimeGitSubmoduleStatus: RuntimeGitStatusCommands['getRuntimeGitSubmoduleStatus']
   readonly checkRuntimeGitIgnoredPaths: RuntimeGitStatusCommands['checkRuntimeGitIgnoredPaths']
@@ -54,6 +60,12 @@ export class RuntimeGitCommands {
     const management = new RuntimeBranchManagementCommands(host)
     this.inspectRuntimeBranchManagement = management.inspectRuntimeBranchManagement.bind(management)
     this.manageRuntimeBranch = management.manageRuntimeBranch.bind(management)
+    this.listRuntimeMergedBranches = management.listRuntimeMergedBranches.bind(management)
+    this.deleteRuntimeMergedBranches = management.deleteRuntimeMergedBranches.bind(management)
+    const branchList = new RuntimeBranchListCommands(host)
+    this.listRuntimeGitBranches = branchList.listRuntimeGitBranches.bind(branchList)
+    this.deleteRuntimeGitBranch = branchList.deleteRuntimeGitBranch.bind(branchList)
+    this.renameRuntimeGitBranch = branchList.renameRuntimeGitBranch.bind(branchList)
     const status = new RuntimeGitStatusCommands(host)
     const diff = new RuntimeGitDiffCommands(host)
     const sync = new RuntimeGitSyncCommands(host)

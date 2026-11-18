@@ -4,7 +4,13 @@ import type {
   BranchManagementAction,
   BranchManagementPreview
 } from '../../shared/worktree/branch-management'
+import type {
+  GitDeleteMergedBranchRequest,
+  GitDeleteMergedBranchesResult,
+  GitMergedBranchesResult
+} from '../../shared/git-merged-branch-cleanup'
 import { inspectManagedBranches, mutateManagedBranch } from '../git/branch-management'
+import { deleteMergedBranches, listMergedBranches } from '../git/merged-branch-cleanup'
 import { runWithGitReadCacheInvalidation } from '../git/status'
 import {
   localGitOptionsForTarget,
@@ -101,6 +107,44 @@ export class RuntimeBranchManagementCommands {
       )
       await this.host.pinManagedBranchSidebarLabel?.(target)
       return { ok: true }
+    } finally {
+      activeMutations.delete(key)
+    }
+  }
+
+  async listRuntimeMergedBranches(
+    selector: string,
+    options: { target?: string; signal?: AbortSignal } = {}
+  ): Promise<GitMergedBranchesResult> {
+    const target = await this.host.resolveRuntimeGitTarget(selector)
+    // Refuses hosts this app does not serve; the cleanup runs this machine's Git.
+    requireRuntimeGitProvider(target)
+    return listMergedBranches(target.worktree.path, {
+      ...localGitOptionsForTarget(target),
+      ...(options.target ? { target: options.target } : {}),
+      ...(options.signal ? { signal: options.signal } : {})
+    })
+  }
+
+  async deleteRuntimeMergedBranches(
+    selector: string,
+    branches: readonly GitDeleteMergedBranchRequest[],
+    targetRef?: string
+  ): Promise<GitDeleteMergedBranchesResult> {
+    const target = await this.host.resolveRuntimeGitTarget(selector)
+    requireRuntimeGitProvider(target)
+    const key = `${target.executionHostId}\0${target.worktree.path}`
+    if (activeMutations.has(key)) {
+      throw new Error('A branch change is already in progress.')
+    }
+    activeMutations.add(key)
+    try {
+      return await runWithGitReadCacheInvalidation(() =>
+        deleteMergedBranches(target.worktree.path, branches, {
+          ...localGitOptionsForTarget(target),
+          ...(targetRef ? { target: targetRef } : {})
+        })
+      )
     } finally {
       activeMutations.delete(key)
     }

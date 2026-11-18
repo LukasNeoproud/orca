@@ -1,5 +1,6 @@
 import { GitManageBranchParams } from '../../../../shared/rpc-contract/git-branch-management-params'
 import { defineMethod } from '../core'
+import { GIT_BRANCH_LIST_METHODS } from './git-branch-list-methods'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
 import {
@@ -37,6 +38,7 @@ export const GIT_METHODS = [
     handler: async (params, { runtime }) =>
       runtime.manageRuntimeBranch(params.worktree, params.action, params.branch)
   }),
+  ...GIT_BRANCH_LIST_METHODS,
   defineMethod({
     name: 'git.status',
     permission: 'workspace',

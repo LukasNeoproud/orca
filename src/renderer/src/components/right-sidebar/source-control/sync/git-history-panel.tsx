@@ -1,3 +1,4 @@
+import type { GitBranchListActions } from './use-git-branch-list'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, CircleHelp, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -51,7 +52,8 @@ export function GitHistoryPanel({
   onOpenCommitFile,
   onCommitAction,
   onLoadAllRefsHistory,
-  onOpenGraphTab
+  onOpenGraphTab,
+  branchList
 }: {
   state: GitHistoryPanelState
   collapsed: boolean
@@ -69,6 +71,7 @@ export function GitHistoryPanel({
   onLoadAllRefsHistory?: (skip: number) => Promise<GitHistoryResult>
   /** Opens the graph of all branches as a workspace tab. */
   onOpenGraphTab?: () => void
+  branchList?: GitBranchListActions
 }): React.JSX.Element | null {
   const result = state.result
   const viewModels = useMemo(() => {
@@ -301,6 +304,7 @@ export function GitHistoryPanel({
               onOpenCommitFile={onOpenCommitFile}
               onCommitAction={onCommitAction}
               onOpenInTab={onOpenGraphTab}
+              branchList={branchList}
             />
           )}
           <Tooltip>

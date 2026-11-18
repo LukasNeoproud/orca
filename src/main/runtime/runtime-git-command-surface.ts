@@ -3,6 +3,11 @@ import type { RuntimeGitCommands } from './orca-runtime-git'
 type RuntimeGitCommandName =
   | 'inspectRuntimeBranchManagement'
   | 'manageRuntimeBranch'
+  | 'listRuntimeMergedBranches'
+  | 'listRuntimeGitBranches'
+  | 'deleteRuntimeGitBranch'
+  | 'renameRuntimeGitBranch'
+  | 'deleteRuntimeMergedBranches'
   | 'getRuntimeGitStatus'
   | 'getRuntimeGitSubmoduleStatus'
   | 'checkRuntimeGitIgnoredPaths'
@@ -48,6 +53,11 @@ export function installRuntimeGitCommandSurface(
   Object.assign(target, {
     inspectRuntimeBranchManagement: commands.inspectRuntimeBranchManagement.bind(commands),
     manageRuntimeBranch: commands.manageRuntimeBranch.bind(commands),
+    listRuntimeMergedBranches: commands.listRuntimeMergedBranches.bind(commands),
+    listRuntimeGitBranches: commands.listRuntimeGitBranches.bind(commands),
+    deleteRuntimeGitBranch: commands.deleteRuntimeGitBranch.bind(commands),
+    renameRuntimeGitBranch: commands.renameRuntimeGitBranch.bind(commands),
+    deleteRuntimeMergedBranches: commands.deleteRuntimeMergedBranches.bind(commands),
     getRuntimeGitStatus: commands.getRuntimeGitStatus.bind(commands),
     getRuntimeGitSubmoduleStatus: commands.getRuntimeGitSubmoduleStatus.bind(commands),
     checkRuntimeGitIgnoredPaths: commands.checkRuntimeGitIgnoredPaths.bind(commands),

@@ -1,5 +1,6 @@
 import { useAppStore } from '@/store'
 import { GitHistoryPanel } from '../sync/git-history-panel'
+import { useGitBranchList } from '../sync/use-git-branch-list'
 import { shouldShowSourceControlCompareUnavailableCard } from './header-toolbar'
 import { shouldRenderCommitArea } from '../commit/component-gates'
 import { SourceControlBranchSection } from '../listing/branch-section'
@@ -13,6 +14,7 @@ import type { SourceControlPanelReadyProps } from './panel-props'
 /** The scrolling surface: status, commit affordances, the file sections and the history dock. */
 export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
   const { activeWorktree, currentWorktreeId, model, worktreePath } = props
+  const branchList = useGitBranchList(currentWorktreeId)
   const {
     activeConnectionId,
     activeOpenRowKeys,
@@ -226,6 +228,7 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
             onOpenCommit={(item) => void openHistoryCommitDiff(item)}
             onLoadCommitFiles={loadCommitFiles}
             onLoadAllRefsHistory={loadAllRefsGitHistory}
+            branchList={branchList}
             onOpenGraphTab={
               currentWorktreeId
                 ? () => useAppStore.getState().openGitGraphTab(currentWorktreeId)

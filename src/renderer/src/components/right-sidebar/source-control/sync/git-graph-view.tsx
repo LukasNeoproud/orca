@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -22,6 +23,9 @@ import { GIT_HISTORY_SWIMLANE_HEIGHT, GIT_HISTORY_SWIMLANE_WIDTH } from './git-h
 import { GitGraphCommitDetails } from './git-graph-commit-details'
 import { GitGraphRow } from './git-graph-row'
 import { useAllRefsGitGraph } from './use-all-refs-git-graph'
+import { GitBranchList } from './git-branch-list'
+import type { GitBranchListActions } from './use-git-branch-list'
+import { useGitGraphCommitJump } from './use-git-graph-commit-jump'
 
 // Past this many lanes the graph is clipped so it cannot crowd out the commit subjects.
 const MAX_GRAPH_LANES = 24
@@ -43,6 +47,8 @@ export type GitGraphViewProps = {
   renderHeading: (title: string, description: string) => React.ReactNode
   headerClassName?: string
   headerActions?: React.ReactNode
+  /** Shows the branch list beside the graph; absent where the host cannot serve it. */
+  branchList?: GitBranchListActions
 }
 
 /** Every branch, remote branch and tag of the repository as one commit graph. */
@@ -55,7 +61,8 @@ export function GitGraphView({
   onLeave,
   renderHeading,
   headerClassName,
-  headerActions
+  headerActions,
+  branchList
 }: GitGraphViewProps): React.JSX.Element {
   const { state, refresh, loadMore } = useAllRefsGitGraph({ open: true, load: onLoadHistory })
   const head = state.head
@@ -192,6 +199,28 @@ export function GitGraphView({
   const title = translate('components.right-sidebar.gitGraph.title', 'Git graph')
   const refreshLabel = translate('components.right-sidebar.gitGraph.refresh', 'Refresh graph')
   const loading = state.status === 'loading'
+  const commitIds = useMemo(() => viewModels.map((row) => row.historyItem.id), [viewModels])
+  const jumpToCommit = useGitGraphCommitJump({
+    commitIds,
+    canLoadMore: state.hasMore && !state.error,
+    loading: state.status === 'loading' || state.loadingMore,
+    loadMore,
+    onFound: useCallback(
+      (index: number, commitId: string): void => {
+        setSelectedId(commitId)
+        virtualizer.scrollToIndex(index, { align: 'center' })
+      },
+      [virtualizer]
+    ),
+    onMissing: useCallback((): void => {
+      toast.info(
+        translate(
+          'components.right-sidebar.gitGraph.branches.notLoaded',
+          'That commit is older than the history the graph loads.'
+        )
+      )
+    }, [])
+  })
 
   return (
     <>
@@ -232,85 +261,94 @@ export function GitGraphView({
         </Tooltip>
         {headerActions}
       </div>
-
-      <div
-        ref={listRef}
-        role="listbox"
-        tabIndex={0}
-        aria-label={title}
-        aria-activedescendant={selectedItem ? `git-graph-row-${selectedItem.id}` : undefined}
-        className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto rounded-md border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        onKeyDown={handleListKeyDown}
-      >
-        {loading && viewModels.length === 0 && (
-          <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
-            <RefreshCw className="size-3 animate-spin" />
-            {translate(
-              'auto.components.right.sidebar.GitHistoryPanel.781a8bcf7b',
-              'Loading graph...'
-            )}
-          </div>
+      <div className="flex min-h-0 flex-1 gap-3">
+        {branchList && (
+          <GitBranchList
+            actions={branchList}
+            revision={head}
+            onSelectCommit={jumpToCommit}
+            onChanged={refresh}
+          />
         )}
-        {state.status === 'ready' && viewModels.length === 0 && (
-          <div className="p-3 text-xs text-muted-foreground">
-            {translate(
-              'auto.components.right.sidebar.GitHistoryPanel.cf7cad58d2',
-              'No commits yet'
-            )}
+        <div
+          ref={listRef}
+          role="listbox"
+          tabIndex={0}
+          aria-label={title}
+          aria-activedescendant={selectedItem ? `git-graph-row-${selectedItem.id}` : undefined}
+          className="scrollbar-sleek min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onKeyDown={handleListKeyDown}
+        >
+          {loading && viewModels.length === 0 && (
+            <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+              <RefreshCw className="size-3 animate-spin" />
+              {translate(
+                'auto.components.right.sidebar.GitHistoryPanel.781a8bcf7b',
+                'Loading graph...'
+              )}
+            </div>
+          )}
+          {state.status === 'ready' && viewModels.length === 0 && (
+            <div className="p-3 text-xs text-muted-foreground">
+              {translate(
+                'auto.components.right.sidebar.GitHistoryPanel.cf7cad58d2',
+                'No commits yet'
+              )}
+            </div>
+          )}
+          <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualRows.map((virtualRow) => {
+              const viewModel = viewModels[virtualRow.index]
+              if (!viewModel) {
+                return null
+              }
+              const item = viewModel.historyItem
+              const row = (
+                <GitGraphRow
+                  id={`git-graph-row-${item.id}`}
+                  viewModel={viewModel}
+                  graphWidth={graphWidth}
+                  selected={item.id === selectedId}
+                  preserveRefIds={head?.baseRef ? [head.baseRef.id] : undefined}
+                  className="absolute top-0 left-0"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                  aria-posinset={virtualRow.index + 1}
+                  aria-setsize={viewModels.length}
+                  onClick={() => setSelectedId(item.id)}
+                  onDoubleClick={() => openCommit(item)}
+                  onContextMenu={() => setSelectedId(item.id)}
+                />
+              )
+              return onCommitAction ? (
+                <ContextMenu key={virtualRow.key}>
+                  <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+                  <GitHistoryCommitContextMenu item={item} onAction={runCommitAction} />
+                </ContextMenu>
+              ) : (
+                <React.Fragment key={virtualRow.key}>{row}</React.Fragment>
+              )
+            })}
           </div>
-        )}
-        <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-          {virtualRows.map((virtualRow) => {
-            const viewModel = viewModels[virtualRow.index]
-            if (!viewModel) {
-              return null
-            }
-            const item = viewModel.historyItem
-            const row = (
-              <GitGraphRow
-                id={`git-graph-row-${item.id}`}
-                viewModel={viewModel}
-                graphWidth={graphWidth}
-                selected={item.id === selectedId}
-                preserveRefIds={head?.baseRef ? [head.baseRef.id] : undefined}
-                className="absolute top-0 left-0"
-                style={{ transform: `translateY(${virtualRow.start}px)` }}
-                aria-posinset={virtualRow.index + 1}
-                aria-setsize={viewModels.length}
-                onClick={() => setSelectedId(item.id)}
-                onDoubleClick={() => openCommit(item)}
-                onContextMenu={() => setSelectedId(item.id)}
-              />
-            )
-            return onCommitAction ? (
-              <ContextMenu key={virtualRow.key}>
-                <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
-                <GitHistoryCommitContextMenu item={item} onAction={runCommitAction} />
-              </ContextMenu>
-            ) : (
-              <React.Fragment key={virtualRow.key}>{row}</React.Fragment>
-            )
-          })}
+          {state.loadingMore && (
+            <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground">
+              <RefreshCw className="size-3 animate-spin" />
+              {translate('components.right-sidebar.gitGraph.loadingMore', 'Loading more commits…')}
+            </div>
+          )}
+          {state.error && (
+            <div className="flex items-center gap-2 p-2 text-xs text-destructive">
+              <span className="min-w-0 flex-1 break-words">{state.error}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={state.status === 'error' ? refresh : loadMore}
+              >
+                {translate('components.right-sidebar.gitGraph.retry', 'Retry')}
+              </Button>
+            </div>
+          )}
         </div>
-        {state.loadingMore && (
-          <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground">
-            <RefreshCw className="size-3 animate-spin" />
-            {translate('components.right-sidebar.gitGraph.loadingMore', 'Loading more commits…')}
-          </div>
-        )}
-        {state.error && (
-          <div className="flex items-center gap-2 p-2 text-xs text-destructive">
-            <span className="min-w-0 flex-1 break-words">{state.error}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={state.status === 'error' ? refresh : loadMore}
-            >
-              {translate('components.right-sidebar.gitGraph.retry', 'Retry')}
-            </Button>
-          </div>
-        )}
       </div>
 
       {selectedItem ? (
