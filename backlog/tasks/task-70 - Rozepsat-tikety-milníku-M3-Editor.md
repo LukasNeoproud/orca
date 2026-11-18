@@ -4,7 +4,7 @@ title: Rozepsat tikety milníku M3 Editor
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-18T17:25:00Z'
+updated_date: '2026-11-18T18:04:00Z'
 labels:
   - review-ide
   - planovani
@@ -34,7 +34,7 @@ Připravit tikety pro hostitele language serverů a most do Monaca v rozsahu, kt
 ### Podklady
 
 - `docs/review-ide/02-editor.md`; `docs/review-ide/07-funkce-z-ide.md`, body 1, 2, 3 a 10.
-- Záznamy rozhodnutí z TASK-53 až TASK-56 a prototyp na větvi `review-ide/pokus-lsp-most`.
+- Záznamy rozhodnutí z TASK-53 až TASK-56 a prototyp na větvi `review-ide-pokus-lsp-most`.
 
 ### Poznámky k rozsahu
 
@@ -62,4 +62,6 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 
 <!-- SECTION:NOTES:BEGIN -->
 Podklady z TASK-53 (2026-11-18): decision-1 navrhuje Kotlin v M3 bez language serveru. Pro hostitele language serverů počítat se signálem o stavu a selhání importu projektu (jinak prázdná odpověď vypadá jako soubor bez chyb) a s obsahem dokumentů mimo disk (workspace/textDocumentContent, URI jar:). Otázky pro uživatele: 1) přijmout návrh decision-1 (A bez language serveru, doporučeno; B experimentální režim za přepínačem; C odložit plánování Kotlinu); 2) nahlásit obě chyby JetBrains se smyšleným projektem (ven by šel jen smyšlený projekt a výpis chyby; doporučeno ano); 3) ponechat stažený server v ~/.cache/orca-review-ide/tools (1,1 GB) pro nový pokus.
+
+Podklady z TASK-54 (2026-11-18): decision-2 navrhuje vlastní tenký most. Navazující práce pro plán M3: hostitel language serverů v runtime (relace na stroj, kořen worktree a jazyk, fronta, požadavky serveru, pád a restart, uspání); most v rendereru do produkční kvality (rušení dotazů, soubor ve dvou oknech, didSave, testy); modely zavřených souborů pro náhledy (Peek dnes ukáže prázdný náhled); aplikace úprav přes více souborů; dokumenty mimo disk jako taby jen pro čtení; workspace/didChangeWatchedFiles; stav relace v rozhraní; language servery přes SSH (metody v orcad, stream diagnostiky, vyjednaná schopnost). Otázky pro uživatele: 1) přijmout decision-2 (vlastní most, doporučeno); 2) smí hostitel dostat závislosti vscode-languageserver-protocol a vscode-jsonrpc (obě MIT; rozhodne koordinátor, volná licence).
 <!-- SECTION:NOTES:END -->

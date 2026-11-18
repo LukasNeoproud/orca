@@ -14,19 +14,21 @@ Editor zůstává Monaco, které už fork používá. Doplníme mu language serv
 
 Dnes editor neregistruje žádné providery pro definice, nápovědu, doplňování ani diagnostiku, umí jen zvýrazňování syntaxe.
 
-- **Hostitel v hlavním procesu:** `main/language-servers/` spouští server pro dvojici worktree a jazyk přes `@orca/process-host`. Start při otevření prvního souboru daného jazyka, uspání po nečinnosti.
-- **Most do Monaca:** LSP na providery Monaca: definice, reference, hover, doplňování, přejmenování, diagnostika jako markery, code actions jako rychlé opravy, symboly souboru pro panel Struktura.
-- **Navigace mezi soubory:** definice v jiném souboru se otevře jako tab Orky přes vlastní editor opener.
-- **Úpravy zavřených souborů:** přejmenování a rychlé opravy aplikuje hlavní proces, ne Monaco.
+- **Hostitel na stroji, kde běží kód:** spouští server pro trojici stroj, kořen worktree (nebo folder workspace) a jazyk přes `@orca/process-host`: lokálně v hlavním procesu, u SSH worktree v `orcad`. Start při otevření prvního souboru daného jazyka, uspání po nečinnosti. Hostitel drží stav klienta LSP (otevřené dokumenty, schopnosti serveru, diagnostiku), aby ho sdílel editor, agenti i vzdálený stroj.
+- **Most do Monaca:** vlastní tenký most, LSP na providery Monaca: definice, reference, hover, doplňování, přejmenování, diagnostika jako markery, code actions jako rychlé opravy, symboly souboru pro panel Struktura. Renderer posílá události dokumentů a volá vyjmenované metody hostitele. Seznam metod a odpovídající API Monaca je v [decision-2](../../backlog/decisions/decision-2%20-%20Language-servery-v-editoru-vlastní-tenký-most-do-Monaca-ne-monaco-vscode-api.md).
+- **Stav relace:** server po startu chvíli vrací prázdné odpovědi (sourcekit-lsp zhruba 2 s, kotlin-lsp po selhání importu trvale). Hostitel proto hlásí stav relace zvlášť a editor ho ukazuje; prázdná odpověď není výsledek.
+- **Diagnostika:** servery ji buď posílají samy, nebo ji klient musí žádat. Hostitel obojí převádí na jednu událost s verzí dokumentu.
+- **Navigace mezi soubory:** definice v jiném souboru se otevře jako tab Orky přes vlastní editor opener. Náhledy (Peek) zavřených souborů potřebují, aby most Monacu dodal model cílového souboru. Dokumenty, které existují jen v serveru (rozhraní SDK, třídy z knihoven), se otevřou jako taby jen pro čtení s obsahem od hostitele.
+- **Úpravy zavřených souborů:** přejmenování a rychlé opravy aplikuje v zavřených souborech hostitel, v otevřených Monaco (zůstane krok zpět). Změny mimo editor hlásí hostitel serveru ze sledování souborů.
 - **Agenti:** stejný hostitel přes CLI a MCP (`orca lsp definition|references|diagnostics`).
 
 | Platforma | Server | Poznámka |
 | --- | --- | --- |
 | Android / Kotlin | kotlin-lsp (JetBrains) | Zdarma, alfa. Pokus TASK-53 (verze 271.2085.0): import běžné Android aplikace selže a třída `R` se v knihovních modulech nenajde; návrh je nechat Kotlin v M3 bez language serveru, viz [decision-1](../../backlog/decisions/decision-1%20-%20Kotlin-v-editoru-M3-kotlin-lsp-zatím-ne-jen-Otevřít-v-Android-Studiu.md). Stabilní „Java and Kotlin by IntelliJ IDEA“ vyžaduje po zkušební době licenci Ultimate |
-| iOS / Swift | sourcekit-lsp z toolchainu Xcode | Pro SPM přímo, pro `.xcodeproj` build server (např. xcode-build-server) |
+| iOS / Swift | sourcekit-lsp z toolchainu Xcode | Pro SPM přímo (ověřeno prototypem TASK-54: start 0,6 s, zapisuje do `.build/index-build`), pro `.xcodeproj` build server (např. xcode-build-server) |
 | .NET / C# | Roslyn language server, případně csharp-ls | |
 
-Mezistupeň, pokud by ruční most bobtnal: `@codingame/monaco-vscode-api` (služby VS Code bez workbenche). Zkusit nejdřív vlastní tenký most.
+Návrh je knihovnu `@codingame/monaco-vscode-api` (služby VS Code bez workbenche) nepoužít: nahrazuje balíček `monaco-editor` vlastním sestavením z VS Code, rozbije 15 z 19 hlubokých importů Orky, přidá 5,4 MB do rendereru a hostitele, SSH ani agenty neřeší. Návrh a podmínky, kdy se k ní vrátit, jsou v [decision-2](../../backlog/decisions/decision-2%20-%20Language-servery-v-editoru-vlastní-tenký-most-do-Monaca-ne-monaco-vscode-api.md).
 
 ## Otevřít v externím IDE
 
