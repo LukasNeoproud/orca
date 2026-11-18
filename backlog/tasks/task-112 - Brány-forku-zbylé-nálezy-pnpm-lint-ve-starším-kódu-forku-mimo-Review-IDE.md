@@ -4,6 +4,7 @@ title: 'Brány forku: zbylé nálezy pnpm lint ve starším kódu forku mimo Rev
 status: To Do
 assignee: []
 created_date: '2026-11-18T22:36:00Z'
+updated_date: '2026-11-18T23:22:00Z'
 labels:
   - review-ide
   - effort-high
@@ -51,3 +52,9 @@ Opravit starší kód forku mimo Review IDE, aby `pnpm lint` prošlo celé? Ano:
 - [ ] #2 Chování dotčených funkcí se nemění; jejich testy prochází
 - [ ] #3 Žádná baseline ratchetu se nezvyšuje a nepřibyla výjimka z pravidel
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-115 (2026-11-19): pnpm test v mobile/ má 4 selhání mimo Review IDE, která padají i samostatně: src/mock-server-key-pair.test.ts, src/tasks/mobile-agent-launch-architecture.test.ts a src/session/mobile-structured-composer-command.test.ts. Příčinu nikdo nezjišťoval; může jít o verzi Bunu jako u TASK-81.
+<!-- SECTION:NOTES:END -->
