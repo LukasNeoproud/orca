@@ -19518,7 +19518,8 @@
     "openInExternalEditor": {
       "openInApp": "Open in {{value0}}",
       "launchFailed": "Could not open the file in {{value0}}.",
-      "launchFailedDetail": "Check the command configured for this app in Settings."
+      "launchFailedDetail": "Check the command configured for this app in Settings.",
+      "unavailableDeleted": "This file is deleted, so there is nothing to open."
     }
   },
   "dashboardPopout": {
@@ -20456,6 +20457,8 @@
     "openCommit": "Open the whole commit"
   },
   "azureDevOpsReview": {
+    "openInIdeNoWorkspace": "Open this pull request in its review workspace first; IDEs open files from there.",
+    "openInIdeOtherPullRequest": "The review workspace has another pull request checked out. Open this one in the workspace first.",
     "lines": "Lines",
     "startLine": "Start line",
     "endLine": "End line",

@@ -18944,7 +18944,8 @@
     "openInExternalEditor": {
       "openInApp": "在 {{value0}} 中打开",
       "launchFailed": "无法在 {{value0}} 中打开文件。",
-      "launchFailedDetail": "请在设置中检查为此应用配置的命令。"
+      "launchFailedDetail": "请在设置中检查为此应用配置的命令。",
+      "unavailableDeleted": "此文件已删除，没有可打开的内容。"
     }
   },
   "dashboardPopout": {
@@ -19727,6 +19728,8 @@
     "openCommit": "打开完整提交"
   },
   "azureDevOpsReview": {
+    "openInIdeNoWorkspace": "请先在审查工作区中打开此拉取请求；IDE 会从那里打开文件。",
+    "openInIdeOtherPullRequest": "审查工作区中检出的是另一个拉取请求。请先在工作区中打开此拉取请求。",
     "groupAwaitingMyReview": "等待我审查",
     "groupMine": "我的 Pull Request",
     "groupOther": "其他",

@@ -21,6 +21,8 @@ export type DiffViewerProps = {
   worktreeId?: string
   /** The workspace file behind the modified side; enables Open in on its gutter lines. */
   externalEditorFile?: ExternalEditorFileSource | null
+  /** Shown in the gutter menu when there is no file to open. */
+  externalEditorUnavailableReason?: string | null
   onAddLineComment?: (args: {
     lineNumber: number
     startLine?: number

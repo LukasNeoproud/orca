@@ -25,6 +25,7 @@ import type {
 import { useAzureDevOpsReviewDiffSections } from './use-azure-devops-review-diff-sections'
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
+import { getAzureDevOpsReviewExternalEditorAvailability } from './azure-devops-review-external-editor-file'
 
 const OVERSCAN = 5
 const NO_VIEWED = new Set<string>()
@@ -137,6 +138,14 @@ export function AzureDevOpsReviewAllChanges({
       }
     },
     [detail.pullRequest.webUrl]
+  )
+
+  const getExternalEditorFile = useCallback(
+    (section: DiffSection) => {
+      const change = changeByPath.get(section.path)
+      return change ? getAzureDevOpsReviewExternalEditorAvailability(detail, change) : null
+    },
+    [changeByPath, detail]
   )
 
   const handleAddLineComment = useCallback(
@@ -262,6 +271,7 @@ export function AzureDevOpsReviewAllChanges({
                     setSections={setSections}
                     modifiedEditorsRef={modifiedEditorsRef}
                     handleSectionSaveRef={handleSectionSaveRef}
+                    getExternalEditorFile={getExternalEditorFile}
                   />
                 </div>
               )

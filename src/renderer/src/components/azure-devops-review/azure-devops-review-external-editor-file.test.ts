@@ -3,7 +3,7 @@ import type {
   AzureDevOpsReviewChange,
   AzureDevOpsReviewDetail
 } from '../../../../shared/azure-devops-review-types'
-import { getAzureDevOpsReviewExternalEditorFile } from './azure-devops-review-external-editor-file'
+import { getAzureDevOpsReviewExternalEditorAvailability } from './azure-devops-review-external-editor-file'
 
 const PULL_REQUEST_KEY = 'org+project+repo+42'
 
@@ -37,42 +37,56 @@ function reviewWorktree(
   }
 }
 
-describe('getAzureDevOpsReviewExternalEditorFile', () => {
+describe('getAzureDevOpsReviewExternalEditorAvailability', () => {
   it('points at the file inside the review worktree, not the main checkout', () => {
-    expect(getAzureDevOpsReviewExternalEditorFile(detail(reviewWorktree()), change())).toEqual({
-      filePath: '/work/repo-review-1/app/src/Main.kt',
-      worktreeId: 'repo-1::/work/repo-review-1'
+    expect(
+      getAzureDevOpsReviewExternalEditorAvailability(detail(reviewWorktree()), change())
+    ).toEqual({
+      file: {
+        filePath: '/work/repo-review-1/app/src/Main.kt',
+        worktreeId: 'repo-1::/work/repo-review-1'
+      }
     })
   })
 
   it('joins a Windows review worktree with its own separator', () => {
     expect(
-      getAzureDevOpsReviewExternalEditorFile(
+      getAzureDevOpsReviewExternalEditorAvailability(
         detail(reviewWorktree({ path: 'C:\\work\\repo-review-1' })),
         change()
-      )?.filePath
-    ).toBe('C:\\work\\repo-review-1\\app\\src\\Main.kt')
+      )
+    ).toEqual(
+      expect.objectContaining({
+        file: expect.objectContaining({ filePath: 'C:\\work\\repo-review-1\\app\\src\\Main.kt' })
+      })
+    )
   })
 
-  it('offers nothing without a review worktree', () => {
-    expect(getAzureDevOpsReviewExternalEditorFile(detail(null), change())).toBeNull()
+  it('explains that the pull request is not open in a review worktree yet', () => {
+    expect(getAzureDevOpsReviewExternalEditorAvailability(detail(null), change())).toEqual({
+      unavailableReason:
+        'Open this pull request in its review workspace first; IDEs open files from there.'
+    })
   })
 
-  it('offers nothing while the review worktree has another pull request checked out', () => {
+  it('explains that the review worktree has another pull request checked out', () => {
     expect(
-      getAzureDevOpsReviewExternalEditorFile(
+      getAzureDevOpsReviewExternalEditorAvailability(
         detail(reviewWorktree({ pullRequestKey: 'org+project+repo+7' })),
         change()
       )
-    ).toBeNull()
+    ).toEqual({
+      unavailableReason:
+        'The review workspace has another pull request checked out. Open this one in the workspace first.'
+    })
   })
 
-  it('offers nothing for a file the pull request deletes', () => {
+  it('explains that a file the pull request deletes has nothing to open', () => {
     expect(
-      getAzureDevOpsReviewExternalEditorFile(
+      getAzureDevOpsReviewExternalEditorAvailability(
         detail(reviewWorktree()),
         change({ changeType: 'delete' })
       )
-    ).toBeNull()
+    ).toEqual({ unavailableReason: 'This file is deleted, so there is nothing to open.' })
   })
 })

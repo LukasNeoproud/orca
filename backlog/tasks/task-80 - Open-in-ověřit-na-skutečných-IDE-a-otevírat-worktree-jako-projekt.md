@@ -4,6 +4,7 @@ title: 'Open in: ověřit na skutečných IDE a otevírat worktree jako projekt'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
+updated_date: '2026-11-18T22:10:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -46,3 +47,9 @@ Příkazy pro otevření souboru na řádku z TASK-61 jsou doložené jen testy 
 - [ ] #3 Podle rozhodnutí uživatele se soubor otevírá v okně svého worktree, nebo zůstává dnešní chování; dokumentace odpovídá
 - [ ] #4 Testy sestavení příkazu pokrývají každou změnu argumentů na macOS, Linuxu a Windows
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-79 (2026-11-18): v režimu commitu a porovnání větví otevírá Open in aktuální soubor ve workspace, ne zobrazenou verzi, takže čísla řádků se mohou lišit. Při ověřování na IDE rozhodnout, jestli akci v tomto režimu skrýt, nebo upozornit na posun řádků. U smazaného souboru v diffu jednoho souboru workspace menu jen nevznikne (v souhrnném diffu už vysvětlení je).
+<!-- SECTION:NOTES:END -->

@@ -9,17 +9,25 @@ import {
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import type { ExternalEditorFileTarget } from './external-editor-file-target'
 import { ExternalEditorFileOpenMenuItems } from './ExternalEditorFileOpenMenuItems'
+import { ExternalEditorFileUnavailableMenuItems } from './ExternalEditorFileUnavailableMenuItems'
 
-/** Line of the gutter row under the pointer, or null outside the gutter and off the text lines. */
+function isInGutter(
+  codeEditor: editor.ICodeEditor,
+  domNode: HTMLElement,
+  event: MouseEvent
+): boolean {
+  return (
+    event.clientX < domNode.getBoundingClientRect().left + codeEditor.getLayoutInfo().contentLeft
+  )
+}
+
+/** Line of the gutter row under the pointer, or null off the text lines. */
 function getGutterLineAtPoint(
   codeEditor: editor.ICodeEditor,
   domNode: HTMLElement,
   event: MouseEvent
 ): number | null {
   const contentLeft = domNode.getBoundingClientRect().left + codeEditor.getLayoutInfo().contentLeft
-  if (event.clientX >= contentLeft) {
-    return null
-  }
   // Why: probe the text beside the gutter; the diff "+" button covers the line numbers
   // and Monaco reports no position for a press on it.
   const target = codeEditor.getTargetAtClientPoint(contentLeft + 1, event.clientY)
@@ -34,18 +42,24 @@ function getGutterLineAtPoint(
     : null
 }
 
-type GutterMenuState = { x: number; y: number; line: number }
+type GutterMenuState = { x: number; y: number; line: number | null }
 
-/** Right-click on a diff gutter line: open that line of the workspace file in a native IDE. */
+/**
+ * Right-click on a diff gutter line: open that line of the workspace file in a native IDE.
+ * Without a target, an `unavailableReason` turns the menu into an explanation.
+ */
 export function ExternalEditorFileGutterMenu({
   editor: codeEditor,
-  target
+  target,
+  unavailableReason
 }: {
   editor: editor.ICodeEditor | null
   target: ExternalEditorFileTarget | null
+  unavailableReason?: string | null
 }): React.JSX.Element | null {
   const [menu, setMenu] = useState<GutterMenuState | null>(null)
-  const enabled = target !== null
+  const hasTarget = target !== null
+  const enabled = hasTarget || Boolean(unavailableReason)
 
   useEffect(() => {
     if (!codeEditor || !enabled) {
@@ -56,8 +70,12 @@ export function ExternalEditorFileGutterMenu({
       return
     }
     const onContextMenu = (event: MouseEvent): void => {
+      if (!isInGutter(codeEditor, domNode, event)) {
+        return
+      }
       const line = getGutterLineAtPoint(codeEditor, domNode, event)
-      if (line === null) {
+      // Why: the explanation needs no line, so it also shows over deleted-line zones.
+      if (line === null && hasTarget) {
         return
       }
       event.preventDefault()
@@ -68,7 +86,7 @@ export function ExternalEditorFileGutterMenu({
     // Why capture: the menu must win before Monaco's own context-menu handling runs.
     domNode.addEventListener('contextmenu', onContextMenu, true)
     return () => domNode.removeEventListener('contextmenu', onContextMenu, true)
-  }, [codeEditor, enabled])
+  }, [codeEditor, enabled, hasTarget])
 
   useEffect(() => {
     const closeMenu = (): void => setMenu(null)
@@ -76,7 +94,13 @@ export function ExternalEditorFileGutterMenu({
     return () => window.removeEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
   }, [])
 
-  if (!target || !menu) {
+  const content =
+    menu && target && menu.line !== null ? (
+      <ExternalEditorFileOpenMenuItems target={target} line={menu.line} />
+    ) : menu && unavailableReason ? (
+      <ExternalEditorFileUnavailableMenuItems reason={unavailableReason} />
+    ) : null
+  if (!menu || !content) {
     return null
   }
   return (
@@ -98,7 +122,7 @@ export function ExternalEditorFileGutterMenu({
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent sideOffset={0} align="start">
-        <ExternalEditorFileOpenMenuItems target={target} line={menu.line} />
+        {content}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -9,6 +9,7 @@ import type { DiffSectionItemProps } from '../../diff-section-item-props'
 import { DiffNotesSendMenu } from '../../DiffNotesSendMenu'
 import { canOpenDiffSectionPreviewToSide } from '../../diff-section-preview'
 import type { DiffSection } from '../../diff-section-types'
+import { getCombinedDiffSectionExternalEditorFile } from '../../../external-editor-file-open/combined-diff-section-external-editor-file'
 import type { CombinedDiffScrollThumb } from './use-combined-diff-scrollbar'
 
 export function CombinedDiffSectionList({
@@ -138,6 +139,9 @@ export function CombinedDiffSectionList({
                   setSections={setSections}
                   modifiedEditorsRef={modifiedEditorsRef}
                   handleSectionSaveRef={handleSectionSaveRef}
+                  getExternalEditorFile={(section) =>
+                    getCombinedDiffSectionExternalEditorFile(file, section)
+                  }
                   renderHeaderTrailingContent={(section) => {
                     const fileNoteCount = commentCountByFilePath.get(section.path) ?? 0
                     return fileNoteCount > 0 ? (

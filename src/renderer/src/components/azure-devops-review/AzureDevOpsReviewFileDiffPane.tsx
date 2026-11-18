@@ -17,7 +17,11 @@ import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-dif
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 import { azureDevOpsLoadedSectionFields } from './azure-devops-review-diff-sections'
-import { getAzureDevOpsReviewExternalEditorFile } from './azure-devops-review-external-editor-file'
+import { getAzureDevOpsReviewExternalEditorAvailability } from './azure-devops-review-external-editor-file'
+import {
+  getExternalEditorAvailableFile,
+  getExternalEditorUnavailableReason
+} from '../external-editor-file-open/external-editor-file-availability'
 
 const ImageDiffViewer = lazy(() => import('@/components/editor/ImageDiffViewer'))
 
@@ -46,6 +50,7 @@ export function AzureDevOpsReviewFileDiffPane({
   const inline = useAzureDevOpsReviewInlineComments(detail, onChanged)
   const [sideBySide, setSideBySide] = useState(true)
   const [fileComposer, setFileComposer] = useState(false)
+  const externalEditor = getAzureDevOpsReviewExternalEditorAvailability(detail, change)
   const result = diff ? azureDevOpsLoadedSectionFields(diff).diffResult : null
   const image = result?.kind === 'binary' && result.isImage ? result : null
   const unavailable =
@@ -184,7 +189,8 @@ export function AzureDevOpsReviewFileDiffPane({
               relativePath={change.path}
               sideBySide={sideBySide}
               worktreeId={inline.scope}
-              externalEditorFile={getAzureDevOpsReviewExternalEditorFile(detail, change)}
+              externalEditorFile={getExternalEditorAvailableFile(externalEditor)}
+              externalEditorUnavailableReason={getExternalEditorUnavailableReason(externalEditor)}
               inlineComments={inline.comments}
               inlineCommentActions={inline.actions}
               onAddLineComment={addLineComment}

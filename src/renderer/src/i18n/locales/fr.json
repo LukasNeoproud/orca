@@ -19032,7 +19032,8 @@
     "openInExternalEditor": {
       "openInApp": "Ouvrir dans {{value0}}",
       "launchFailed": "Impossible d’ouvrir le fichier dans {{value0}}.",
-      "launchFailedDetail": "Vérifiez la commande configurée pour cette application dans les paramètres."
+      "launchFailedDetail": "Vérifiez la commande configurée pour cette application dans les paramètres.",
+      "unavailableDeleted": "Ce fichier est supprimé, il n’y a donc rien à ouvrir."
     }
   },
   "dashboardPopout": {
@@ -19714,6 +19715,8 @@
     "openCommit": "Ouvrir le commit complet"
   },
   "azureDevOpsReview": {
+    "openInIdeNoWorkspace": "Ouvrez d’abord cette pull request dans son espace de travail de revue ; les IDE ouvrent les fichiers depuis celui-ci.",
+    "openInIdeOtherPullRequest": "L’espace de travail de revue contient une autre pull request. Ouvrez d’abord celle-ci dans l’espace de travail.",
     "groupAwaitingMyReview": "En attente de ma revue",
     "groupMine": "Mes pull requests",
     "groupOther": "Autres",

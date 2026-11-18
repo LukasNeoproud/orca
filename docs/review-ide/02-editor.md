@@ -45,10 +45,13 @@ Akce „Otevřít v…“ je v kontextovém menu editoru, diffu, grafů a nález
 
 Hotovo (TASK-61): pravé tlačítko na čísle řádku v editoru, v diffu souboru a v diffu pull requestu, a kontextové menu cesty v hlavičce editoru (řádek kurzoru). Grafy a nálezy přijdou se svými funkcemi.
 
+Hotovo (TASK-79): totéž v souhrnném diffu workspace a v pohledu All changes pull requestu Azure DevOps. Souhrnné diffy pull requestů GitHubu a GitLabu akci nenabízejí, protože ukazují kód mimo review worktree.
+
 - Rodinu editoru určuje název spouštěče (`src/main/external-editor-file-location.ts`): VS Code a odvozeniny dostanou `--goto soubor:N:S`, JetBrains `--line N soubor`, Xcode `xed -l N soubor` (jen macOS), Zed `soubor:N:S`. Neznámý příkaz dostane jen soubor.
 - JetBrains dostává jen řádek. Sloupec vynecháváme, dokud na skutečném IDE neověříme, jestli `--column` počítá od nuly.
 - Nabízí se aplikace z nastavení Open in. Výchozí je ta, kterou uživatel pro daný repozitář (nebo folder workspace) zvolil naposledy; výchozí IDE podle role repozitáře přijde s Funkcemi.
 - Diff pull requestu akci nabízí, jen když má review worktree vybraný právě tento pull request. Jiný checkout by otevřel jiný kód, než diff ukazuje.
+- Kde akce dostupná není, menu na čísle řádku ukáže vypnutou položku Open in s důvodem: pull request není otevřený v review worktree, review worktree má jiný pull request, nebo je soubor smazaný.
 - U SSH worktree otevírá jen VS Code přes Remote-SSH; ostatní aplikace jsou v nabídce vypnuté s označením „Local only“.
 
 Ladění, build, Compose Preview a simulátory v Orce nestavíme; zůstávají v nativních IDE.

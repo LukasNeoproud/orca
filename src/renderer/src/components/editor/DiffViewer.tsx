@@ -46,6 +46,7 @@ export default function DiffViewer({
   editable,
   worktreeId,
   externalEditorFile,
+  externalEditorUnavailableReason,
   onAddLineComment,
   commentableLineNumbers,
   addLineCommentLabel,
@@ -375,7 +376,11 @@ export default function DiffViewer({
         )}
       </div>
       {toastNode}
-      <ExternalEditorFileGutterMenu editor={modifiedEditor} target={externalEditorTarget} />
+      <ExternalEditorFileGutterMenu
+        editor={modifiedEditor}
+        target={externalEditorTarget}
+        unavailableReason={externalEditorUnavailableReason}
+      />
     </div>
   )
 }

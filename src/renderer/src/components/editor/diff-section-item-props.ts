@@ -4,6 +4,7 @@ import type {
   DecoratedDiffComment,
   InlineDiffCommentActions
 } from '../diff-comments/decorated-diff-comment'
+import type { ExternalEditorFileAvailability } from '../external-editor-file-open/external-editor-file-availability'
 import type { DiffSection } from './diff-section-types'
 
 export type DiffSectionItemProps = {
@@ -37,6 +38,8 @@ export type DiffSectionItemProps = {
   inlineComments?: readonly DecoratedDiffComment[]
   inlineCommentActions?: InlineDiffCommentActions
   getCommentableLineNumbers?: (section: DiffSection) => readonly number[] | undefined
+  /** The workspace file behind a section's modified side; enables Open in on its gutter. */
+  getExternalEditorFile?: (section: DiffSection) => ExternalEditorFileAvailability | null
   setSectionHeights: Dispatch<SetStateAction<Record<number, number>>>
   setSections: Dispatch<SetStateAction<DiffSection[]>>
   modifiedEditorsRef: MutableRefObject<Map<number, monacoEditor.IStandaloneCodeEditor>>

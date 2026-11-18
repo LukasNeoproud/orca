@@ -109,6 +109,33 @@ async function waitForMenuAnimation(page: Page): Promise<void> {
     .toBe(true)
 }
 
+// Why: the same seeded change set as the Source Control "View all changes" button, limited to `paths`.
+async function openCombinedDiff(
+  page: Page,
+  worktreeId: string,
+  worktreePath: string,
+  paths: string[]
+): Promise<void> {
+  await page.evaluate(
+    async ({ worktreeId, worktreePath, paths }) => {
+      const state = window.__store?.getState()
+      if (!state) {
+        throw new Error('window.__store is not available')
+      }
+      const status = await window.api.git.status({ worktreePath })
+      const entries = status.entries.filter(
+        (entry) => entry.area === 'unstaged' && paths.includes(entry.path)
+      )
+      if (entries.length !== paths.length) {
+        throw new Error(`expected ${paths.length} unstaged entries, received ${entries.length}`)
+      }
+      state.setGitStatus(worktreeId, status)
+      state.openAllDiffs(worktreeId, worktreePath, undefined, 'unstaged', entries)
+    },
+    { worktreeId, worktreePath, paths }
+  )
+}
+
 function numberedLines(): string {
   return `${Array.from({ length: LINE_COUNT }, (_, index) => `export const line${index + 1} = ${index + 1}`).join('\n')}\n`
 }
@@ -224,6 +251,69 @@ test.describe('Open file in external editor', () => {
       await openInApp.click()
 
       await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:11`])
+    } finally {
+      execFileSync('git', ['checkout', '--', relativePath], { cwd: worktreePath, stdio: 'pipe' })
+    }
+  })
+
+  test('the combined diff gutter menu opens the section file at the clicked line', async ({
+    orcaPage
+  }, testInfo) => {
+    const worktreeId = await waitForActiveWorktree(orcaPage)
+    const worktreePath = await readWorktreePath(orcaPage, worktreeId)
+    const relativePath = 'src/index.ts'
+    const filePath = path.join(worktreePath, relativePath)
+    writeFileSync(filePath, numberedLines())
+    try {
+      await openCombinedDiff(orcaPage, worktreeId, worktreePath, [relativePath])
+
+      await rightClickGutterLine(
+        orcaPage,
+        '.combined-diff-scroll-container .monaco-editor.modified-in-monaco-diff-editor',
+        9
+      )
+      const openInApp = orcaPage.getByRole('menuitem', { name: `Open in ${APP_LABEL}` })
+      await expect(openInApp).toBeVisible()
+      await waitForMenuAnimation(orcaPage)
+      await orcaPage.screenshot({ path: testInfo.outputPath('combined-diff-gutter-open-in.png') })
+      await openInApp.click()
+
+      await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:9`])
+    } finally {
+      execFileSync('git', ['checkout', '--', relativePath], { cwd: worktreePath, stdio: 'pipe' })
+    }
+  })
+
+  test('the combined diff says why a deleted file cannot be opened', async ({
+    orcaPage
+  }, testInfo) => {
+    const worktreeId = await waitForActiveWorktree(orcaPage)
+    const worktreePath = await readWorktreePath(orcaPage, worktreeId)
+    const relativePath = 'src/diff-note-layout.ts'
+    rmSync(path.join(worktreePath, relativePath))
+    try {
+      await openCombinedDiff(orcaPage, worktreeId, worktreePath, [relativePath])
+
+      const margin = orcaPage
+        .locator('.combined-diff-scroll-container .monaco-editor.modified-in-monaco-diff-editor')
+        .locator('.margin')
+        .first()
+      await expect(margin).toBeVisible({ timeout: 20_000 })
+      const box = await margin.boundingBox()
+      if (!box) {
+        throw new Error('modified gutter has no box')
+      }
+      await orcaPage.mouse.click(box.x + 8, box.y + 8, { button: 'right' })
+
+      const openIn = orcaPage.getByRole('menuitem', { name: 'Open in', exact: true })
+      await expect(openIn).toBeVisible()
+      await expect(openIn).toHaveAttribute('aria-disabled', 'true')
+      await expect(
+        orcaPage.getByText('This file is deleted, so there is nothing to open.')
+      ).toBeVisible()
+      await waitForMenuAnimation(orcaPage)
+      await orcaPage.screenshot({ path: testInfo.outputPath('combined-diff-deleted-open-in.png') })
+      expect(recorder.receipt()).toEqual([])
     } finally {
       execFileSync('git', ['checkout', '--', relativePath], { cwd: worktreePath, stdio: 'pipe' })
     }

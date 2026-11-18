@@ -18930,7 +18930,8 @@
     "openInExternalEditor": {
       "openInApp": "{{value0}} で開く",
       "launchFailed": "{{value0}} でファイルを開けませんでした。",
-      "launchFailedDetail": "設定でこのアプリのコマンドを確認してください。"
+      "launchFailedDetail": "設定でこのアプリのコマンドを確認してください。",
+      "unavailableDeleted": "このファイルは削除されているため、開くものがありません。"
     }
   },
   "dashboardPopout": {
@@ -19713,6 +19714,8 @@
     "openCommit": "コミット全体を開く"
   },
   "azureDevOpsReview": {
+    "openInIdeNoWorkspace": "まずこのプルリクエストをレビュー用ワークスペースで開いてください。IDE はそこからファイルを開きます。",
+    "openInIdeOtherPullRequest": "レビュー用ワークスペースには別のプルリクエストがチェックアウトされています。まずこのプルリクエストをワークスペースで開いてください。",
     "groupAwaitingMyReview": "自分のレビュー待ち",
     "groupMine": "自分の Pull Request",
     "groupOther": "その他",

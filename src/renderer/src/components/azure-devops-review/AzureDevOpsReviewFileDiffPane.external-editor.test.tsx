@@ -84,18 +84,23 @@ describe('AzureDevOpsReviewFileDiffPane Open in target', () => {
       filePath: '/work/repo-review-1/app/src/Main.kt',
       worktreeId: 'repo-1::/work/repo-review-1'
     })
+    expect(diffViewerProps.current?.externalEditorUnavailableReason).toBeNull()
   })
 
-  it('offers no file while the review worktree holds another pull request', () => {
+  it('offers no file while the review worktree holds another pull request, and says why', () => {
     renderPane('org+project+repo+7')
 
     expect(diffViewerProps.current).not.toBeNull()
     expect(diffViewerProps.current?.externalEditorFile).toBeNull()
+    expect(diffViewerProps.current?.externalEditorUnavailableReason).toContain(
+      'another pull request'
+    )
   })
 
-  it('offers no file before the pull request is checked out', () => {
+  it('offers no file before the pull request is checked out, and says why', () => {
     renderPane(null)
 
     expect(diffViewerProps.current?.externalEditorFile).toBeNull()
+    expect(diffViewerProps.current?.externalEditorUnavailableReason).toContain('review workspace')
   })
 })
