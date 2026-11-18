@@ -4,9 +4,11 @@ title: 'Pokus: limity a dávkové operace POEditor API'
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:42:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-medium
+  - model-opus
 milestone: m-0
 dependencies: []
 documentation:

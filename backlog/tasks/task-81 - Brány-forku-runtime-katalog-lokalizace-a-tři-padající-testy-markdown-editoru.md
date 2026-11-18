@@ -4,11 +4,12 @@ title: 'Brány forku: runtime katalog lokalizace a tři padající testy markdow
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-18T15:03:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-medium
   - ceka-na-uzivatele
+  - model-opus
 milestone: m-1
 dependencies: []
 priority: medium

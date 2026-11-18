@@ -4,9 +4,11 @@ title: Přehled TODO a FIXME ve workspace
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:43:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-medium
+  - model-opus
 milestone: m-1
 dependencies: []
 documentation:

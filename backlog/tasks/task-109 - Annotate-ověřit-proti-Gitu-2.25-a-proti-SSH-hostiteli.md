@@ -4,9 +4,11 @@ title: 'Annotate: ověřit proti Gitu 2.25 a proti SSH hostiteli'
 status: To Do
 assignee: []
 created_date: '2026-11-18T19:28:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-medium
+  - model-opus
 milestone: m-1
 dependencies: []
 documentation:

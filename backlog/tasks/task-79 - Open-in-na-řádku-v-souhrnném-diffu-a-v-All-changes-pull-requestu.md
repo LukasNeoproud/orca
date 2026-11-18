@@ -4,9 +4,11 @@ title: Open in na řádku v souhrnném diffu a v All changes pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-medium
+  - model-opus
 milestone: m-1
 dependencies: []
 documentation:

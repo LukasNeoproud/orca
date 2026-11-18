@@ -4,9 +4,11 @@ title: 'Change review: pohled Diff po celcích nad manifestem'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:19:00Z'
+updated_date: '2026-11-18T21:22:00Z'
 labels:
   - review-ide
   - effort-high
+  - model-opus
 milestone: m-2
 dependencies:
   - TASK-91
