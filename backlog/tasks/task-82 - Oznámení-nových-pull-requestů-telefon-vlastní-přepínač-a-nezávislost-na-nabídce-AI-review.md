@@ -6,10 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:03:00Z'
+updated_date: '2026-11-18T22:11:00Z'
 labels:
   - review-ide
   - effort-high
-  - ceka-na-uzivatele
 milestone: m-2
 dependencies: []
 documentation:
@@ -33,12 +33,11 @@ TASK-63 dodal oznámení nového pull requestu jen na desktopu a navázal ho na 
 - Nastavení oznámení: samostatný přepínač pro pull requesty.
 - Označení nového pull requestu i při obnově panelu (`src/renderer/src/store/azure-devops-auto-review.ts`).
 
-### Čeká na uživatele
+### Rozhodnuto uživatelem (2026-11-18, decision-5)
 
-1. Má oznámení při nepřítomnosti jít na telefon? Ne (dnes): nic neopouští počítač, o pull requestu se dozvíte až u počítače. Ano: název pull requestu, repozitář a autor půjdou přes push bránu provozovanou upstreamem a je potřeba upravit i mobilní aplikaci. Doporučení: ne, dokud nerozhodnete, že tato data smějí ven.
-2. Má být oznámení nezávislé na nabídce AI review? Ne (dnes): vypnutím nabídky přijdete i o oznámení a značku Nový. Ano: kontrola poběží vždy, tedy pravidelné dotazy na Azure DevOps i při vypnuté nabídce. Doporučení: ano.
-3. Co má dělat Provést review na řádku? Otevřít stránku pull requestu (dnes), nebo rovnou dialog AI review. Doporučení: nechat stránku.
-
+1. Oznámení na telefon neodchází; zůstává jen na počítači. Mobilní aplikace se nemění a nový zdroj oznámení se pro telefon nevyjednává.
+2. Oznámení a značka Nový jsou nezávislé na nabídce AI review: kontrola běží i při vypnuté nabídce.
+3. Provést review na řádku dál otevírá stránku pull requestu.
 ### Omezení
 
 - Bez rozhodnutí v bodě 1 nic neposílat mimo počítač.

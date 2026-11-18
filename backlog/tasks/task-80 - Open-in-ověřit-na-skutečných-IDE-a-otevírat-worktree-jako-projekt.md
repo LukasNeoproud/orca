@@ -4,11 +4,10 @@ title: 'Open in: ověřit na skutečných IDE a otevírat worktree jako projekt'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-18T22:10:00Z'
+updated_date: '2026-11-18T22:11:00Z'
 labels:
   - review-ide
   - effort-medium
-  - ceka-na-uzivatele
 milestone: m-1
 dependencies: []
 documentation:
@@ -30,11 +29,10 @@ Příkazy pro otevření souboru na řádku z TASK-61 jsou doložené jen testy 
 - `src/main/external-editor-file-location.ts` a `src/main/external-editor-launch.ts`: opravy syntaxe podle ověření, případně sloupec pro JetBrains.
 - Volitelně předat spolu se souborem i kořen worktree (`code <worktree> --goto …`, `studio <worktree> --line …`), aby se soubor neotevřel v okně jiného projektu.
 
-### Čeká na uživatele
+### Rozhodnuto uživatelem (2026-11-18, decision-5)
 
-1. Kdo IDE spustí: agent (okna IDE se uživateli otevřou do popředí), nebo uživatel ručně při akceptaci milníku podle připraveného seznamu. Doporučení: uživatel ručně při akceptaci.
-2. Otevírat s řádkem i celý worktree jako projekt? Ano: soubor skončí v okně správného worktree, ale IDE může otevřít nové okno a načítat projekt. Ne: IDE si okno vybere samo, u neotevřeného worktree třeba okno jiného projektu. Doporučení: ano, až po ověření na IDE.
-
+1. IDE spouští agent. Uživatel ví, že se okna IDE při ověřování otevřou do popředí; spouštěj je jen po dobu ověření, každé po sobě zavři a nezavírej okna, která měl uživatel otevřená předtím.
+2. Otevírat s řádkem i celý worktree jako projekt: ano, až když ověření na IDE ukáže, že to funguje.
 ### Omezení
 
 - Bez rozhodnutí uživatele žádné IDE nespouštět.

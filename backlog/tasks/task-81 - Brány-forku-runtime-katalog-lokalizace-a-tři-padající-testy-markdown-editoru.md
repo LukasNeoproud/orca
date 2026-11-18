@@ -4,11 +4,10 @@ title: 'Brány forku: runtime katalog lokalizace a tři padající testy markdow
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-18T21:22:00Z'
+updated_date: '2026-11-18T22:11:00Z'
 labels:
   - review-ide
   - effort-medium
-  - ceka-na-uzivatele
   - model-opus
 milestone: m-1
 dependencies: []
@@ -29,10 +28,9 @@ Akceptace milníku spouští celé brány (`pnpm tc`, `pnpm test`, `pnpm lint`).
 - `src/renderer/src/i18n/en-runtime-required.json` nepokrývá `en.json`: chybí 43 klíčů `components.right-sidebar.gitGraph.*` ze seznamu větví a úklidu sloučených větví. Oprava: `pnpm run sync:localization-runtime-catalog`. Worker TASK-61 hlásí i selhání `verify:localization-catalog`, `-coverage` a `-extraction` na klíčích `azureDevOpsReview.*` a `gitGraph.*`; zjistit příčinu u každého.
 - `src/renderer/src/components/editor/`: `markdown-preview-table-chunks.test.ts`, `rich-markdown-details-keyboard.test.ts`, `rich-markdown-escape-fidelity.test.ts` padají samostatně (například podtržítko mezi znaky mimo základní rovinu Unicode se escapuje). Soubory jsou z upstreamu a Review IDE je neměnilo; zjistit, jestli jde o chybu forku, upstreamu, nebo běhového prostředí testů.
 
-### Čeká na uživatele
+### Rozhodnuto uživatelem (2026-11-18, decision-5)
 
-Oprava je mimo zadání v `docs/review-ide`, týká se dřívější práce ve forku. Doporučení: opravit teď (odhadem jeden krátký běh), jinak akceptace M1 poběží s červenými branami.
-
+Opravit teď.
 ### Omezení
 
 - Katalogy nepřepisovat hromadně; po úpravě zkontrolovat `git diff`.

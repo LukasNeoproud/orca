@@ -4,11 +4,12 @@ title: 'Annotate: ověřit proti Gitu 2.25 a proti SSH hostiteli'
 status: To Do
 assignee: []
 created_date: '2026-11-18T19:28:00Z'
-updated_date: '2026-11-18T21:22:00Z'
+updated_date: '2026-11-18T22:11:00Z'
 labels:
   - review-ide
   - effort-medium
   - model-opus
+  - ceka-na-uzivatele
 milestone: m-1
 dependencies: []
 documentation:
@@ -39,6 +40,10 @@ TASK-66 dodal Annotate a historii bloku ověřené lokálně na Gitu 2.54. Běh 
 
 - Zdrojový archiv Gitu stahuj jen z oficiálního zdroje a jen do `~/.cache/orca-review-ide`; nic neinstaluj do systému.
 - Docker sám nespouštěj ani neinstaluj; když neběží, je to ruční krok uživatele.
+
+### Čeká na uživatele
+
+Jak získat Git 2.25: přeložit ze zdrojového archivu do `~/.cache/orca-review-ide` (postup CI, doporučeno), nebo použít kontejner s Ubuntu 20.04, které má Git 2.25.1. Uživatel se 2026-11-18 zeptal, proč Git sestavovat; odpověď dostal a volbu zatím neudělal. Docker pro SSH část už běží.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

@@ -4,7 +4,7 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
-updated_date: '2026-11-18T16:16:00Z'
+updated_date: '2026-11-18T22:11:00Z'
 labels:
   - review-ide
   - ceka-na-uzivatele
@@ -55,4 +55,6 @@ Určit pull request, na kterém smí proběhnout zkušební publikace, a provés
 Otevřené otázky pro uživatele z TASK-67 (2026-11-18): 1) Smí agent spouštět druhou skrytou instanci nainstalované Orca Dev nad sdíleným ~/.orca? Worker TASK-67 to udělal bez schválení, instance vyřadila tři záznamy z registru review worktrees (obnoveno ze zálohy) a worker v ní dešifroval uložený token pro přímé dotazy GET. Doporučení: ano jen se zálohou sdílených souborů jako pevným krokem; do rozhodnutí je to workerům zakázané. 2) Doověřit zápisové části TASK-51 (drafty přes rozhraní a CLI, zahození změn v review worktree)? Zapisují do úložiště draftů uživatele. Doporučení: ano, spolu s tímto tiketem, se zálohou. 3) Smazat pracovní data ~/.cache/orca-review-ide/task-67 (asi 150 MB, skutečné názvy a jména)? Doporučení: smazat.
 
 Přesunuto do M2 za TASK-83 (2026-11-18): zkušební publikace má obsahovat hlas a ten aplikace před TASK-83 odeslat neumí.
+
+Odpovědi uživatele (2026-11-18, decision-5): 1) druhá skrytá instance Orca Dev smí, jen se zálohou sdílených souborů jako pevným krokem; 2) zápisové části TASK-51 doověřit spolu s tímto tiketem, se zálohou; 3) pracovní data TASK-67 smazána. Pull request pro zkušební publikaci je určený; adresa je jen v CLAUDE.local.md. Tiket dál čeká na uživatele: publikaci provádí on a hlasování dodá až TASK-83.
 <!-- SECTION:NOTES:END -->
