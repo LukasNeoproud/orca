@@ -4,9 +4,11 @@ title: 'Zadání u pull requestu: navázané pracovní položky v přehledu a v 
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:25:00Z'
+updated_date: '2026-11-18T23:57:00Z'
 labels:
   - review-ide
   - effort-high
+  - ceka-na-uzivatele
 milestone: m-2
 dependencies: []
 documentation:
@@ -59,3 +61,9 @@ Review má vycházet ze zadání. Stránka pull requestu dnes pracovní položku
 - [ ] #7 Starší hostitel oddíl neukáže a stránka funguje jako dosud; starší mobilní klient detail dál načte
 - [ ] #8 Mapování má testy, oddíl je ověřený ve skrytém okně proti smyšlenému serveru a poznámky tiketu říkají, zda byla volání ověřena čtením proti skutečné organizaci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Čeká na uživatele (2026-11-19, z TASK-59 a decision-8): ve vzorku 455 dokončených pull requestů nemá navázanou pracovní položku žádný, takže funkce by u pull requestů týmu ukazovala jen prázdný stav. Otázka: odložit nebo zrušit (doporučeno, pokud tým položky Azure DevOps nepoužívá), nechat pro jiné týmy, nebo přesměrovat na systém, kde zadání skutečně je. Pokud se bude dělat: Azure DevOps vrací při chybějícím rozsahu Work Items (Read) stav 401 a Orca ho dnes hlásí jako odmítnuté přihlášení s výzvou k novému připojení, což je zavádějící; text u tokenu v Nastavení zmiňuje jen rozsah Code a má zmínit nepovinný Work Items (Read).
+<!-- SECTION:NOTES:END -->
