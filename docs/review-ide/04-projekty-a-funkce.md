@@ -52,5 +52,7 @@ Normální Orca workspace (worktree, agenti) přiřazený k Funkci; může jich 
 
 Agent workspace má vidět vlastní platformu i reference. Varianty:
 
-1. Složka Funkce se symbolickými odkazy (`android/`, `ios/`, `api/`) jako pracovní adresář agenta. Ověřit chování agentů přes symlinky.
+1. Složka Funkce se symbolickými odkazy (`android/`, `ios/`, `api/`) jako pracovní adresář agenta.
 2. Seznam cest referencí předaný agentovi v kontextu.
+
+Návrh po pokusu TASK-57 je varianta 2: agent běží ve worktree vlastní platformy, reference dostane jako přidané adresáře se skutečnými cestami (u Claude Code `--add-dir`), jako seznam v kontextu a se zákazem úprav. Složka odkazů nic neušetří: Claude Code přes odkaz čte a zapisuje, až když má skutečné cesty přidané, hledání bez cesty odkazy neprochází a Orca by zápisy, relace i spotřebu připsala složce místo worktree. Měření, Codex podle dokumentace a seznam úprav Orky jsou v [decision-7](../../backlog/decisions/decision-7%20-%20Funkce-a-agenti-reference-jako-přidané-adresáře-a-seznam-cest-ne-složka-se-symbolickými-odkazy.md).
