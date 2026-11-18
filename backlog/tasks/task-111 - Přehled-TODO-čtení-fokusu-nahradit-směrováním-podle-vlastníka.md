@@ -1,9 +1,10 @@
 ---
 id: TASK-111
 title: 'Přehled TODO: čtení fokusu nahradit směrováním podle vlastníka'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-18T22:36:00Z'
+updated_date: '2026-11-18T22:42:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -42,8 +43,22 @@ TASK-65 přidal přehled TODO a FIXME. Tři místa v něm čtou „aktivní“ w
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 pnpm run check:focus-read-ratchet nehlásí žádný soubor ve src/renderer/src/components/todo-overview
-- [ ] #2 Přehled TODO dál hledá ve workspace, ze kterého byl otevřen, i když uživatel mezitím přepne aktivní workspace; pokrývá to test
-- [ ] #3 Stávající testy přehledu TODO včetně e2e ve skrytém okně prochází
-- [ ] #4 Baseline ratchetu se nezvyšuje a nepřibyla výjimka
+- [x] #1 pnpm run check:focus-read-ratchet nehlásí žádný soubor ve src/renderer/src/components/todo-overview
+- [x] #2 Přehled TODO dál hledá ve workspace, ze kterého byl otevřen, i když uživatel mezitím přepne aktivní workspace; pokrývá to test
+- [x] #3 Stávající testy přehledu TODO včetně e2e ve skrytém okně prochází
+- [x] #4 Baseline ratchetu se nezvyšuje a nepřibyla výjimka
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plán: v use-todo-overview-search.ts nahradit getRuntimeEnvironmentIdForWorktree/getExecutionHostIdForWorktree (čtou fokus) vlastníkem průzkumníka getFileExplorerOperationOwnerFromState (owner-routed, ratchet ho nepočítá) a z něj odvodit target, connectionId a executionHostId přes getFileExplorerOperationRoute/getFileExplorerOperationExecutionHostId; nerozřešený vlastník = chyba jako ve stromu průzkumníka. use-todo-overview.ts tím přestane volat čtenáře. Test: přepnutí aktivního workspace a Active Server nespustí hledání znovu ani ho nepřesměruje. FileExplorer.tsx beze změny.
+
+Hotovo: use-todo-overview-search.ts směruje podle getFileExplorerOperationOwnerFromState (target, connectionId, executionHostId z vlastníka); nerozřešený vlastník nehledá a ukáže hlášku průzkumníka. Ratchet už todo-overview nehlásí, baseline beze změny. Testy: 9/9 vitest, e2e todo-overview ve skrytém okně prošlo, snímky v ~/.cache/orca-review-ide/task-111/screenshots. Zbývá: nic.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Přehled TODO už nečte hostitele workspace z fokusu: bere vlastníka workspace stejným resolverem jako strom průzkumníka a podle něj určí prostředí, připojení a hostitele hledání. Ratchet check:focus-read-ratchet nehlásí žádný soubor v todo-overview; baseline ani výjimky se neměnily. Skutečná změna chování je jediná: u workspace, o jehož vlastníkovi katalog zatím nic neví, se dřív hledalo lokálně a výsledky se označily hostitelem, na kterém byl fokus; teď se nehledá a ukáže se stejná hláška jako ve stromu průzkumníka. Pro workspace s výslovným vlastníkem se chování nezměnilo (test přepnutí fokusu prochází i se starým kódem a hlídá to do budoucna). Ověřeno testy a e2e ve skrytém okně. Zpracoval worker na Opusu 5.5.
+<!-- SECTION:FINAL_SUMMARY:END -->

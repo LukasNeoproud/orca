@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
 import { readIpcErrorDetail } from '@/lib/ipc-error'
 import { translate } from '@/i18n/i18n'
-import { getConnectionId } from '@/lib/connection-context'
 import {
   createFileSearchResultOwner,
   isFileSearchResultOwnerCurrent,
   type FileSearchResultOwner
 } from '@/lib/file-search-result-owner'
-import {
-  getExecutionHostIdForWorktree,
-  getRuntimeEnvironmentIdForWorktree
-} from '@/lib/worktree-runtime-owner'
 import { isRuntimeFileSearchTextWithinLimit } from '@/runtime/runtime-file-search-bounds'
 import { searchRuntimeFiles } from '@/runtime/runtime-file-search-client'
 import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
+import {
+  getFileExplorerOperationExecutionHostId,
+  getFileExplorerOperationOwnerFromState,
+  getFileExplorerOperationRoute,
+  getFileExplorerOwnerUnresolvedMessage
+} from '../right-sidebar/file-explorer-operation-owner'
 import type { SearchResult } from '../../../../shared/code-search-types'
 import { collectTodoChangedFiles, type TodoChangedFiles } from './todo-changed-files'
 import {
@@ -66,8 +68,14 @@ export function useTodoOverviewSearch({
   changedFiles: TodoChangedFiles | null
   refresh: () => void
 } {
-  const runtimeEnvironmentId = useAppStore((s) => getRuntimeEnvironmentIdForWorktree(s, worktreeId))
-  const executionHostId = useAppStore((s) => getExecutionHostIdForWorktree(s, worktreeId))
+  // Why: route by the workspace's own host, like the explorer tree, never by the focused server.
+  const hostOwner = useAppStore(
+    useShallow((s) => getFileExplorerOperationOwnerFromState(s, worktreeId))
+  )
+  const runtimeEnvironmentId = hostOwner.kind === 'runtime' ? hostOwner.environmentId : null
+  const executionHostId = getFileExplorerOperationExecutionHostId(hostOwner)
+  const route = getFileExplorerOperationRoute(hostOwner)
+  const connectionId = route?.connectionId
   const changedFiles = useTodoChangedFiles(worktreeId, supportsGit)
   const filterPaths = changedOnly && changedFiles ? changedFiles.paths : null
   // Why: git status polling hands out new arrays; only a different set of files is a new search.
@@ -78,6 +86,10 @@ export function useTodoOverviewSearch({
 
   useEffect(() => {
     if (!active) {
+      return
+    }
+    if (executionHostId === null) {
+      setState({ ...IDLE, error: getFileExplorerOwnerUnresolvedMessage() })
       return
     }
     const owner = createFileSearchResultOwner(worktreeId, runtimeEnvironmentId, {
@@ -117,7 +129,7 @@ export function useTodoOverviewSearch({
         target: runtimeTargetForOwnerEnvironment(runtimeEnvironmentId),
         worktreeId,
         worktreePath,
-        connectionId: getConnectionId(worktreeId) ?? undefined
+        connectionId
       },
       {
         query: TODO_COMMENT_QUERY,
@@ -155,6 +167,7 @@ export function useTodoOverviewSearch({
     worktreePath,
     runtimeEnvironmentId,
     executionHostId,
+    connectionId,
     filterKey,
     refreshToken
   ])

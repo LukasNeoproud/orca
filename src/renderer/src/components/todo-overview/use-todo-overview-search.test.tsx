@@ -10,12 +10,10 @@ import {
 import { useTodoOverviewSearch } from './use-todo-overview-search'
 
 const mocks = vi.hoisted(() => ({
-  getConnectionId: vi.fn(),
   getState: vi.fn(),
   searchRuntimeFiles: vi.fn()
 }))
 
-vi.mock('@/lib/connection-context', () => ({ getConnectionId: mocks.getConnectionId }))
 vi.mock('@/runtime/runtime-file-search-client', () => ({
   searchRuntimeFiles: mocks.searchRuntimeFiles
 }))
@@ -54,9 +52,10 @@ function stateFor(hostId: string, extra: Record<string, unknown> = {}): Record<s
 }
 
 function render(state: Record<string, unknown>, changedOnly = false, active = true) {
-  mocks.getState.mockImplementation(() => state)
+  let current = state
+  mocks.getState.mockImplementation(() => current)
   mocks.searchRuntimeFiles.mockResolvedValue(FOUND)
-  return renderHook(() =>
+  const hook = renderHook(() =>
     useTodoOverviewSearch({
       worktreeId: WORKTREE_ID,
       worktreePath: '/repo',
@@ -65,6 +64,13 @@ function render(state: Record<string, unknown>, changedOnly = false, active = tr
       active
     })
   )
+  return {
+    ...hook,
+    switchTo: (next: Record<string, unknown>) => {
+      current = next
+      hook.rerender()
+    }
+  }
 }
 
 describe('useTodoOverviewSearch', () => {
@@ -73,7 +79,6 @@ describe('useTodoOverviewSearch', () => {
   })
 
   it('searches the workspace on the runtime host that owns it, with the TODO query and cap', async () => {
-    mocks.getConnectionId.mockReturnValue(null)
     const hook = render(stateFor('runtime:ssh-host-runtime'))
     await waitFor(() => expect(hook.result.current.state.results?.totalMatches).toBe(1))
     expect(mocks.searchRuntimeFiles).toHaveBeenCalledWith(
@@ -99,7 +104,6 @@ describe('useTodoOverviewSearch', () => {
   })
 
   it('names the changed files as an anchored include pattern', async () => {
-    mocks.getConnectionId.mockReturnValue(null)
     const hook = render(
       stateFor('local', {
         gitStatusByWorktree: {
@@ -126,6 +130,59 @@ describe('useTodoOverviewSearch', () => {
       })
     )
     render(stateFor('local'), false, false)
+    expect(mocks.searchRuntimeFiles).not.toHaveBeenCalled()
+  })
+
+  it('keeps searching the workspace it was opened for after the focus moves elsewhere', async () => {
+    const opened = stateFor('runtime:owner-runtime', {
+      activeWorktreeId: WORKTREE_ID,
+      activeWorkspaceExecutionHostId: 'runtime:owner-runtime'
+    })
+    const hook = render(opened)
+    await waitFor(() => expect(hook.result.current.state.results?.totalMatches).toBe(1))
+    const ownerBefore = hook.result.current.state.owner
+
+    hook.switchTo({
+      ...opened,
+      settings: { activeRuntimeEnvironmentId: 'other-runtime' },
+      activeWorktreeId: 'repo-b::/other',
+      activeWorkspaceExecutionHostId: 'runtime:other-runtime'
+    })
+
+    expect(mocks.searchRuntimeFiles).toHaveBeenCalledTimes(1)
+    expect(mocks.searchRuntimeFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: { kind: 'environment', environmentId: 'owner-runtime' },
+        worktreeId: WORKTREE_ID
+      }),
+      expect.anything(),
+      expect.any(AbortSignal)
+    )
+    expect(hook.result.current.state.owner).toBe(ownerBefore)
+    expect(hook.result.current.state.results?.totalMatches).toBe(1)
+  })
+
+  it('searches an SSH workspace through its own connection', async () => {
+    const hook = render(
+      stateFor('ssh:target-a', {
+        repos: [{ id: 'repo-a', connectionId: 'target-a', executionHostId: 'ssh:target-a' }]
+      })
+    )
+    await waitFor(() => expect(hook.result.current.state.results?.totalMatches).toBe(1))
+    expect(mocks.searchRuntimeFiles).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { kind: 'local' }, connectionId: 'target-a' }),
+      expect.anything(),
+      expect.any(AbortSignal)
+    )
+    expect(hook.result.current.state.owner).toMatchObject({
+      runtimeEnvironmentId: null,
+      executionHostId: 'ssh:target-a'
+    })
+  })
+
+  it('does not fall back to the focused server when no row names the owner', async () => {
+    const hook = render(stateFor('local', { repos: [], worktreesByRepo: {} }))
+    await waitFor(() => expect(hook.result.current.state.error).toBeTruthy())
     expect(mocks.searchRuntimeFiles).not.toHaveBeenCalled()
   })
 })
