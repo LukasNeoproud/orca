@@ -10,6 +10,10 @@ import {
   stripMatchingQuotes
 } from './editor-launcher-name'
 import {
+  buildExternalEditorTargetArgs,
+  type ExternalEditorFileLocation
+} from './external-editor-file-location'
+import {
   isJetBrainsConsoleShim,
   resolveColocatedJetBrainsGuiExecutable
 } from './jetbrains-windows-gui-launchers'
@@ -96,27 +100,35 @@ function shouldShowWindowsConsole(
 function buildExecutableArgs(
   editorCommand: string,
   pathValue: string,
-  platform: NodeJS.Platform
+  platform: NodeJS.Platform,
+  location: ExternalEditorFileLocation | undefined
 ): string[] {
   const isCursor = getLauncherBaseName(editorCommand) === 'cursor'
-  const targetArgs = buildWslRemoteTargetArgs(editorCommand, pathValue, platform, isCursor)
+  const target = resolveWslRemoteTarget(editorCommand, pathValue, platform, isCursor)
+  const targetArgs = [
+    ...target.remoteArgs,
+    ...buildExternalEditorTargetArgs(editorCommand, target.path, platform, location)
+  ]
   // Why: Cursor can route bare folder launches through the last active
-  // workbench. A new window keeps "Open in Cursor" scoped to this worktree.
-  return isCursor ? ['--new-window', ...targetArgs] : targetArgs
+  // workbench. A new window keeps "Open in Cursor" scoped to this worktree;
+  // a jump to a line belongs in the window that already has the file.
+  return isCursor && !location ? ['--new-window', ...targetArgs] : targetArgs
 }
 
-function buildWslRemoteTargetArgs(
+function resolveWslRemoteTarget(
   editorCommand: string,
   pathValue: string,
   platform: NodeJS.Platform,
   isCursor: boolean
-): string[] {
+): { remoteArgs: string[]; path: string } {
   if (platform !== 'win32' || !(isCursor || isVsCodeLauncherExecutable(editorCommand))) {
-    return [pathValue]
+    return { remoteArgs: [], path: pathValue }
   }
   const wslPath = parseWslUncPath(pathValue)
   // Why: both editors otherwise treat a WSL UNC path as a local Windows folder.
-  return wslPath ? ['--remote', `wsl+${wslPath.distro}`, wslPath.linuxPath] : [pathValue]
+  return wslPath
+    ? { remoteArgs: ['--remote', `wsl+${wslPath.distro}`], path: wslPath.linuxPath }
+    : { remoteArgs: [], path: pathValue }
 }
 
 function isCompoundShellCommand(command: string): boolean {
@@ -149,13 +161,14 @@ function resolveSimpleEditorCommand(
 function buildExecutableLaunchSpec(
   editorCommand: string,
   pathValue: string,
-  platform: NodeJS.Platform
+  platform: NodeJS.Platform,
+  location: ExternalEditorFileLocation | undefined
 ): ExternalEditorExecutableLaunchSpec {
   const spec: ExternalEditorExecutableLaunchSpec = {
     kind: 'executable',
     hideWindowsConsole: !shouldShowWindowsConsole(editorCommand, platform),
     spawnCmd: editorCommand,
-    spawnArgs: buildExecutableArgs(editorCommand, pathValue, platform)
+    spawnArgs: buildExecutableArgs(editorCommand, pathValue, platform, location)
   }
   if (spec.hideWindowsConsole && isJetBrainsConsoleShim(editorCommand, platform)) {
     spec.detachedGui = true
@@ -166,9 +179,17 @@ function buildExecutableLaunchSpec(
 function buildShellLaunchSpec(
   command: string,
   pathValue: string,
-  platform: NodeJS.Platform
+  platform: NodeJS.Platform,
+  location: ExternalEditorFileLocation | undefined
 ): ExternalEditorLaunchSpec {
-  const shellCommand = `${command} ${escapePathForShell(pathValue, platform)}`
+  // Why: the leading token names the editor, so `code --reuse-window` still gets `--goto`.
+  const targetArgs = buildExternalEditorTargetArgs(command, pathValue, platform, location, {
+    shellCommand: true
+  })
+  const shellCommand = [
+    command,
+    ...targetArgs.map((arg) => escapePathForShell(arg, platform))
+  ].join(' ')
   if (platform === 'win32') {
     // Why: no `start` wrap here. `start` re-parses the line — it swallows the
     // first quoted operand as a window title and mangles remote paths with
@@ -190,13 +211,21 @@ function buildShellLaunchSpec(
   }
 }
 
+type ExternalEditorLaunchOptions = {
+  platform?: NodeJS.Platform
+  fileExists?: (path: string) => boolean
+  /** Set when `pathValue` is a file to open at a line instead of a folder. */
+  location?: ExternalEditorFileLocation
+}
+
 export function resolveExternalEditorLaunchSpec(
   command: string | undefined,
   pathValue: string,
-  options: { platform?: NodeJS.Platform; fileExists?: (path: string) => boolean } = {}
+  options: ExternalEditorLaunchOptions = {}
 ): ExternalEditorLaunchSpec {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
+  const { location } = options
   const trimmed = command?.trim() || EXTERNAL_EDITOR_CLI_COMMAND
 
   if (isDirectExecutablePath(trimmed, platform, fileExists)) {
@@ -205,18 +234,20 @@ export function resolveExternalEditorLaunchSpec(
     return buildExecutableLaunchSpec(
       preferJetBrainsGuiExecutable(stripMatchingQuotes(trimmed), platform, fileExists),
       pathValue,
-      platform
+      platform,
+      location
     )
   }
 
   if (isCompoundShellCommand(trimmed)) {
-    return buildShellLaunchSpec(trimmed, pathValue, platform)
+    return buildShellLaunchSpec(trimmed, pathValue, platform, location)
   }
 
   return buildExecutableLaunchSpec(
     resolveSimpleEditorCommand(trimmed, platform, fileExists),
     pathValue,
-    platform
+    platform,
+    location
   )
 }
 
@@ -224,7 +255,7 @@ export function resolveVsCodeRemoteSshLaunchSpec(
   command: string | undefined,
   pathValue: string,
   authority: string,
-  options: { platform?: NodeJS.Platform; fileExists?: (path: string) => boolean } = {}
+  options: ExternalEditorLaunchOptions = {}
 ): ExternalEditorLaunchSpec | null {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
@@ -247,7 +278,11 @@ export function resolveVsCodeRemoteSshLaunchSpec(
     kind: 'executable',
     hideWindowsConsole: true,
     spawnCmd: editorCommand,
-    spawnArgs: ['--remote', `ssh-remote+${authority}`, pathValue]
+    spawnArgs: [
+      '--remote',
+      `ssh-remote+${authority}`,
+      ...buildExternalEditorTargetArgs(editorCommand, pathValue, platform, options.location)
+    ]
   }
 }
 

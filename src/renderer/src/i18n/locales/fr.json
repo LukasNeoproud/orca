@@ -19025,6 +19025,11 @@
       "thisWorkspace": "{{value0}} (cet espace de travail)",
       "followsConversation": "La conversation de cet onglet travaille dans ce worktree.",
       "showOutput": "Afficher la sortie"
+    },
+    "openInExternalEditor": {
+      "openInApp": "Ouvrir dans {{value0}}",
+      "launchFailed": "Impossible d’ouvrir le fichier dans {{value0}}.",
+      "launchFailedDetail": "Vérifiez la commande configurée pour cette application dans les paramètres."
     }
   },
   "dashboardPopout": {

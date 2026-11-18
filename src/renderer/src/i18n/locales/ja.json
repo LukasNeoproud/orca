@@ -18923,6 +18923,11 @@
       "thisWorkspace": "{{value0}}（このワークスペース）",
       "followsConversation": "このタブの会話はこのワークツリーで作業しています。",
       "showOutput": "出力を表示"
+    },
+    "openInExternalEditor": {
+      "openInApp": "{{value0}} で開く",
+      "launchFailed": "{{value0}} でファイルを開けませんでした。",
+      "launchFailedDetail": "設定でこのアプリのコマンドを確認してください。"
     }
   },
   "dashboardPopout": {

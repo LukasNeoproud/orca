@@ -11,6 +11,7 @@ import { useAppStore } from '@/store'
 import { getConnectionId } from '@/lib/connection-context'
 import { findWorktreeById } from '@/store/slices/worktree-helpers'
 import { getRuntimeGitRemoteFileUrl } from '@/runtime/runtime-git-working-tree-client'
+import { ExternalEditorOpenFileMenuSection } from '../external-editor-file-open/ExternalEditorOpenFileMenuSection'
 import { formatPathLineReference } from './line-copy-path'
 import { translate } from '@/i18n/i18n'
 
@@ -102,6 +103,7 @@ export function MonacoGutterContextMenu({
             'Copy Remote URL'
           )}
         </DropdownMenuItem>
+        <ExternalEditorOpenFileMenuSection filePath={filePath} line={line} leadingSeparator />
       </DropdownMenuContent>
     </DropdownMenu>
   )

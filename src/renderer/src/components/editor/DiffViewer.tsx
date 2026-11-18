@@ -30,6 +30,8 @@ import { useDiffEditorRegistration } from './diff-navigation-context'
 import { preserveDiffViewStateAcrossModelSwaps } from './diff-model-swap-view-state'
 import { monacoFindOptions } from './monaco-find-options'
 import { useDocumentDarkTheme } from '@/hooks/use-document-dark-theme'
+import { useExternalEditorFileTarget } from '../external-editor-file-open/external-editor-file-target'
+import { ExternalEditorFileGutterMenu } from '../external-editor-file-open/ExternalEditorFileGutterMenu'
 
 export default function DiffViewer({
   modelKey,
@@ -43,6 +45,7 @@ export default function DiffViewer({
   sideBySide,
   editable,
   worktreeId,
+  externalEditorFile,
   onAddLineComment,
   commentableLineNumbers,
   addLineCommentLabel,
@@ -56,6 +59,7 @@ export default function DiffViewer({
 }: DiffViewerProps): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const isDark = useDocumentDarkTheme()
+  const externalEditorTarget = useExternalEditorFileTarget(externalEditorFile ?? null)
   const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
   const addDiffComment = useAppStore((s) => s.addDiffComment)
   const deleteDiffComment = useAppStore((s) => s.deleteDiffComment)
@@ -371,6 +375,7 @@ export default function DiffViewer({
         )}
       </div>
       {toastNode}
+      <ExternalEditorFileGutterMenu editor={modifiedEditor} target={externalEditorTarget} />
     </div>
   )
 }

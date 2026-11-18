@@ -16,6 +16,7 @@ import {
   resolveExternalEditorLaunchSpec,
   resolveVsCodeRemoteSshLaunchSpec
 } from '../external-editor-launch'
+import { normalizeExternalEditorFileLocation } from '../external-editor-file-location'
 import { resolveVsCodeSshAuthority } from '../ssh/vscode-ssh-authority'
 import { parseRoutableExecutionHostId, toSshExecutionHostId } from '../../shared/execution-host'
 
@@ -80,6 +81,7 @@ async function openInExternalEditor(
   request: ShellOpenExternalEditorRequest
 ): Promise<ShellOpenExternalEditorResult> {
   const connectionId = request.connectionId?.trim()
+  const location = normalizeExternalEditorFileLocation(request.line, request.column)
   if (connectionId) {
     if (request.ownerHostId !== toSshExecutionHostId(connectionId)) {
       return { ok: false, reason: 'remote-runtime-unsupported' }
@@ -101,7 +103,8 @@ async function openInExternalEditor(
     const launchSpec = resolveVsCodeRemoteSshLaunchSpec(
       request.command,
       request.path,
-      authority.authority
+      authority.authority,
+      { location }
     )
     if (!launchSpec) {
       return { ok: false, reason: 'remote-editor-unsupported' }
@@ -122,7 +125,9 @@ async function openInExternalEditor(
     return target
   }
   try {
-    await launchExternalEditor(resolveExternalEditorLaunchSpec(request.command, target.path))
+    await launchExternalEditor(
+      resolveExternalEditorLaunchSpec(request.command, target.path, { location })
+    )
     return { ok: true }
   } catch {
     return { ok: false, reason: 'launch-failed' }

@@ -530,3 +530,169 @@ describe('resolveVsCodeRemoteSshLaunchSpec', () => {
     }
   )
 })
+
+describe('opening a file at a line', () => {
+  beforeEach(() => {
+    resolveCliCommandMock.mockReset()
+    resolveCliCommandMock.mockImplementation((command: string) => command)
+  })
+
+  const platforms = [
+    { platform: 'darwin', file: '/Users/ada/repo/src/App.kt' },
+    { platform: 'linux', file: '/home/ada/repo/src/App.kt' },
+    { platform: 'win32', file: 'C:\\Users\\Ada Lovelace\\repo\\src\\App.kt' }
+  ] as const
+  const location = { line: 42, column: 7 }
+
+  function argsFor(
+    command: string,
+    file: string,
+    platform: NodeJS.Platform,
+    target: { line: number; column?: number } = location
+  ): string[] {
+    return resolveExternalEditorLaunchSpec(command, file, {
+      platform,
+      location: target,
+      fileExists: () => false
+    }).spawnArgs
+  }
+
+  describe.each(platforms)('on $platform', ({ platform, file }) => {
+    it.each(['code', 'code-insiders', 'codium', 'cursor', 'windsurf'])(
+      'gives the VS Code family launcher %s the file with line and column',
+      (command) => {
+        expect(argsFor(command, file, platform)).toEqual(['--goto', `${file}:42:7`])
+      }
+    )
+
+    it('omits the column a VS Code family launcher was not given', () => {
+      expect(argsFor('code', file, platform, { line: 42 })).toEqual(['--goto', `${file}:42`])
+    })
+
+    it.each(['idea', 'studio', 'rider', 'webstorm', 'android-studio'])(
+      'gives the JetBrains launcher %s the line through --line',
+      (command) => {
+        expect(argsFor(command, file, platform)).toEqual(['--line', '42', file])
+      }
+    )
+
+    it.each(['zed', 'zeditor'])('gives %s the file with line and column', (command) => {
+      expect(argsFor(command, file, platform)).toEqual([`${file}:42:7`])
+    })
+
+    it.each(['nvim', 'subl', 'my-editor'])(
+      'opens the bare file for the unknown launcher %s',
+      (command) => {
+        expect(argsFor(command, file, platform)).toEqual([file])
+      }
+    )
+
+    it('opens the bare file through an unknown compound command', () => {
+      const spec = resolveExternalEditorLaunchSpec('open -a Xcode', file, { platform, location })
+      expect(spec.kind).toBe('shell')
+      expect(spec.spawnArgs.at(-1)).toBe(
+        platform === 'win32' ? `open -a Xcode "${file}"` : `open -a Xcode ${file}`
+      )
+    })
+
+    it('reads the editor family from the leading token of a compound command', () => {
+      const spec = resolveExternalEditorLaunchSpec('code --reuse-window', file, {
+        platform,
+        location
+      })
+      expect(spec.kind).toBe('shell')
+      expect(spec.spawnArgs.at(-1)).toBe(
+        platform === 'win32'
+          ? `code --reuse-window --goto "${file}:42:7"`
+          : `code --reuse-window --goto ${file}:42:7`
+      )
+    })
+  })
+
+  it('opens Xcode through xed on macOS', () => {
+    expect(argsFor('xed', '/Users/ada/repo/App.swift', 'darwin')).toEqual([
+      '-l',
+      '42',
+      '/Users/ada/repo/App.swift'
+    ])
+    expect(argsFor('/usr/bin/xed', '/Users/ada/repo/App.swift', 'darwin')).toEqual([
+      '-l',
+      '42',
+      '/Users/ada/repo/App.swift'
+    ])
+  })
+
+  it.each(['linux', 'win32'] as const)('treats xed as an unknown editor on %s', (platform) => {
+    expect(argsFor('xed', '/home/ada/repo/App.swift', platform)).toEqual([
+      '/home/ada/repo/App.swift'
+    ])
+  })
+
+  it('recognizes JetBrains launchers by their direct paths', () => {
+    const studio = '/Applications/Android Studio.app/Contents/MacOS/studio'
+    expect(
+      resolveExternalEditorLaunchSpec(studio, '/Users/ada/repo/App.kt', {
+        platform: 'darwin',
+        location,
+        fileExists: (candidate) => candidate === studio
+      })
+    ).toMatchObject({ spawnCmd: studio, spawnArgs: ['--line', '42', '/Users/ada/repo/App.kt'] })
+    expect(argsFor('/opt/idea/bin/idea.sh', '/home/ada/repo/App.kt', 'linux')).toEqual([
+      '--line',
+      '42',
+      '/home/ada/repo/App.kt'
+    ])
+    expect(
+      argsFor(
+        'C:\\Program Files\\JetBrains\\Rider\\bin\\rider64.exe',
+        'C:\\repo\\Program.cs',
+        'win32'
+      )
+    ).toEqual(['--line', '42', 'C:\\repo\\Program.cs'])
+  })
+
+  it('keeps the WSL remote for a VS Code file on Windows', () => {
+    expect(argsFor('code', '\\\\wsl.localhost\\Ubuntu\\home\\ada\\repo\\App.kt', 'win32')).toEqual([
+      '--remote',
+      'wsl+Ubuntu',
+      '--goto',
+      '/home/ada/repo/App.kt:42:7'
+    ])
+  })
+
+  it('quotes a POSIX file path with spaces in a compound command', () => {
+    expect(
+      resolveExternalEditorLaunchSpec('idea nosplash', '/home/Ada Lovelace/App.kt', {
+        platform: 'linux',
+        location
+      }).spawnArgs
+    ).toEqual(['-c', "idea nosplash --line 42 '/home/Ada Lovelace/App.kt'"])
+  })
+
+  it('still opens a folder in a new Cursor window when no line is given', () => {
+    expect(
+      resolveExternalEditorLaunchSpec('cursor', '/tmp/workspace', { platform: 'darwin' }).spawnArgs
+    ).toEqual(['--new-window', '/tmp/workspace'])
+  })
+
+  it.each(['code', 'code-insiders'])(
+    'opens a remote file at its line through %s over SSH',
+    (command) => {
+      expect(
+        resolveVsCodeRemoteSshLaunchSpec(command, '/srv/repo/Makefile', 'builder', {
+          platform: 'linux',
+          location
+        })?.spawnArgs
+      ).toEqual(['--remote', 'ssh-remote+builder', '--goto', '/srv/repo/Makefile:42:7'])
+    }
+  )
+
+  it('still refuses editors without remote SSH support when a line is given', () => {
+    expect(
+      resolveVsCodeRemoteSshLaunchSpec('idea', '/srv/repo/App.kt', 'builder', {
+        platform: 'linux',
+        location
+      })
+    ).toBeNull()
+  })
+})

@@ -2,6 +2,10 @@ import type { ExecutionHostId } from './execution-host'
 
 export type ShellOpenExternalEditorRequest = {
   path: string
+  /** 1-based line of the file at `path`; main ignores it for editors it cannot place a cursor in. */
+  line?: number
+  /** 1-based column on `line`; only honored together with `line`. */
+  column?: number
   command?: string
   connectionId?: string | null
   /** Host that owns `path`; main refuses unless it is `local` or, with `connectionId`, that SSH host. */

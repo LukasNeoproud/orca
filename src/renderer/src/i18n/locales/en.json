@@ -19511,6 +19511,11 @@
       "thisWorkspace": "{{value0}} (this workspace)",
       "followsConversation": "The conversation in this tab is working in this worktree.",
       "showOutput": "Show output"
+    },
+    "openInExternalEditor": {
+      "openInApp": "Open in {{value0}}",
+      "launchFailed": "Could not open the file in {{value0}}.",
+      "launchFailedDetail": "Check the command configured for this app in Settings."
     }
   },
   "dashboardPopout": {

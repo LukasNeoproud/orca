@@ -34,6 +34,11 @@ function getGuiExecutableName(launcherBaseName: string): string | null {
   return JETBRAINS_WINDOWS_CONSOLE_TO_GUI[launcherBaseName] ?? null
 }
 
+/** True for a JetBrains IDE launcher name, console or GUI: `idea`, `studio64`. */
+export function isJetBrainsLauncherName(launcherBaseName: string): boolean {
+  return getGuiExecutableName(launcherBaseName) !== null
+}
+
 /**
  * The GUI `*64.exe` beside an already-resolved console entry point, or null.
  *

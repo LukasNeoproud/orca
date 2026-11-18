@@ -2,6 +2,7 @@ import type {
   DecoratedDiffComment,
   InlineDiffCommentActions
 } from '../diff-comments/decorated-diff-comment'
+import type { ExternalEditorFileSource } from '../external-editor-file-open/external-editor-file-target'
 import type { LargeDiffRenderLimit } from './large-diff-render-limit'
 
 export type DiffViewerProps = {
@@ -18,6 +19,8 @@ export type DiffViewerProps = {
   // Why: optional because DiffViewer is also used by GitHubItemDialog for PR
   // review, where there is no local worktree to attach comments to.
   worktreeId?: string
+  /** The workspace file behind the modified side; enables Open in on its gutter lines. */
+  externalEditorFile?: ExternalEditorFileSource | null
   onAddLineComment?: (args: {
     lineNumber: number
     startLine?: number

@@ -24,6 +24,7 @@ import { useAppStore } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
 import { isVirtualEditorFile } from '@/store/slices/editor/tabs/editor-tab-content-type'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
+import { ExternalEditorOpenFileMenuSection } from '../external-editor-file-open/ExternalEditorOpenFileMenuSection'
 import { useEditorHeaderFileRename } from './editor-header-file-rename'
 import { getEditorHeaderCopyState } from './editor-header'
 import { splitPathForDisplay } from './editor-path-display'
@@ -59,6 +60,7 @@ export function EditorPanelHeaderPath({
     })
   )
   const revealBlocked = isLocalPathOpenBlocked(revealOwner)
+  const cursorLine = useAppStore((s) => s.editorCursorLine[activeFile.id])
   const markdownPreviewShortcutLabel = useShortcutLabel('editor.markdownPreview')
   const {
     canRename,
@@ -224,6 +226,7 @@ export function EditorPanelHeaderPath({
               {revealBlocked ? <LocalOnlyMenuHint /> : null}
             </DropdownMenuItem>
           )}
+          <ExternalEditorOpenFileMenuSection filePath={activeFile.filePath} line={cursorLine} />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

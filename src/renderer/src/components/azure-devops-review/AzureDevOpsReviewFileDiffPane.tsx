@@ -17,6 +17,7 @@ import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-dif
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 import { azureDevOpsLoadedSectionFields } from './azure-devops-review-diff-sections'
+import { getAzureDevOpsReviewExternalEditorFile } from './azure-devops-review-external-editor-file'
 
 const ImageDiffViewer = lazy(() => import('@/components/editor/ImageDiffViewer'))
 
@@ -183,6 +184,7 @@ export function AzureDevOpsReviewFileDiffPane({
               relativePath={change.path}
               sideBySide={sideBySide}
               worktreeId={inline.scope}
+              externalEditorFile={getAzureDevOpsReviewExternalEditorFile(detail, change)}
               inlineComments={inline.comments}
               inlineCommentActions={inline.actions}
               onAddLineComment={addLineComment}

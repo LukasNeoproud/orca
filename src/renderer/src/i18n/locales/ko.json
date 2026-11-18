@@ -18923,6 +18923,11 @@
       "thisWorkspace": "{{value0}} (이 워크스페이스)",
       "followsConversation": "이 탭의 대화는 이 워크트리에서 작업 중입니다.",
       "showOutput": "출력 보기"
+    },
+    "openInExternalEditor": {
+      "openInApp": "{{value0}}에서 열기",
+      "launchFailed": "{{value0}}에서 파일을 열 수 없습니다.",
+      "launchFailedDetail": "설정에서 이 앱의 명령을 확인하세요."
     }
   },
   "dashboardPopout": {

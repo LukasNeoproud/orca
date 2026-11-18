@@ -98,6 +98,7 @@ export function ChangesModeView({
           sideBySide={sideBySide}
           editable={true}
           worktreeId={activeFile.worktreeId}
+          externalEditorFile={activeFile}
           onContentChange={onContentChange}
           onSave={onSave}
         />

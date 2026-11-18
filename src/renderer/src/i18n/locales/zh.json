@@ -18937,6 +18937,11 @@
       "thisWorkspace": "{{value0}}（此工作区）",
       "followsConversation": "此标签页中的对话正在该工作树中工作。",
       "showOutput": "显示输出"
+    },
+    "openInExternalEditor": {
+      "openInApp": "在 {{value0}} 中打开",
+      "launchFailed": "无法在 {{value0}} 中打开文件。",
+      "launchFailedDetail": "请在设置中检查为此应用配置的命令。"
     }
   },
   "dashboardPopout": {
