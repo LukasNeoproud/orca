@@ -15,7 +15,7 @@ documentation:
   - docs/review-ide/01-integrace.md
 priority: low
 type: bug
-ordinal: 200700
+ordinal: 228000
 ---
 
 ## Description

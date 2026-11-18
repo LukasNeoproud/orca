@@ -16,7 +16,7 @@ documentation:
   - docs/review-ide/05-funkce.md
 priority: low
 type: feature
-ordinal: 200800
+ordinal: 229000
 ---
 
 ## Description

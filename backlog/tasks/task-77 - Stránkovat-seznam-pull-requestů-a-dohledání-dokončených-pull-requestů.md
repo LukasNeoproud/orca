@@ -13,7 +13,7 @@ documentation:
   - docs/review-ide/01-integrace.md
 priority: medium
 type: bug
-ordinal: 200600
+ordinal: 203000
 ---
 
 ## Description
