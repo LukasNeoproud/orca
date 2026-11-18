@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Diff snapshotů</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="snapshots" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 480px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">obchod-ios · Diff snapshotů · PR #482 proti main</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">3 očekávané změny, 1 nečekaná</h1>
+<p style="margin: 0; color: #a3acba">18 snapshotů, 14 beze změny. Každá změněná oblast vede na kód, který ji způsobil.</p>
+</div>
+<button type="button" aria-pressed="{{ mark }}" onClick="{{ toggle }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Oblasti změn: <b>{{ markLabel }}</b></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<nav aria-label="Snapshoty" style="flex: 1 1 240px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{ items }}" as="it" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid {{ it.border }}; background: {{ it.bg }}">
+<span style="font-weight: 600">{{ it.name }}</span>
+<span style="font-size: 12px; font-weight: 600; color: {{ it.fg }}">{{ it.state }}</span>
+</div>
+</sc-for>
+<span style="padding: 8px 12px; font-size: 13px; color: #a3acba">14 dalších beze změny</span>
+</nav>
+
+<section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<span style="color: #a3acba">PaymentView · výchozí stav · iPhone 15, světlý režim, čeština</span>
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Před · main</span>
+<div style="width: 220px; height: 400px; box-sizing: border-box; padding: 14px; border-radius: 14px; background: #f6f7f9; color: #1b1f26; display: flex; flex-direction: column; gap: 10px; font-size: 13px">
+<span style="font-size: 17px; line-height: 22px; font-weight: 700">Platba</span>
+<span style="color: #4a5261">K úhradě 1 290 Kč</span>
+<span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #4a5261">Nová karta</span>
+<span style="height: 44px; box-sizing: border-box; padding: 11px 12px; border: 1px solid #c5cad3; border-radius: 8px; background: #ffffff; color: #6b7382">Číslo karty</span>
+<div style="display: flex; gap: 8px">
+<span style="flex: 1; height: 44px; box-sizing: border-box; padding: 11px 12px; border: 1px solid #c5cad3; border-radius: 8px; background: #ffffff; color: #6b7382">MM/RR</span>
+<span style="flex: 1; height: 44px; box-sizing: border-box; padding: 11px 12px; border: 1px solid #c5cad3; border-radius: 8px; background: #ffffff; color: #6b7382">CVC</span>
+</div>
+<span style="margin-top: auto; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f4fd8; color: #ffffff; font-weight: 600">Zaplatit</span>
+</div>
+</div>
+
+<sc-for list="{{ shots }}" as="s" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">{{ s.label }}</span>
+<div style="position: relative; width: 220px; height: 400px; border-radius: 14px; background: #f6f7f9; overflow: hidden">
+<div style="width: 220px; height: 400px; box-sizing: border-box; padding: 14px; color: #1b1f26; display: flex; flex-direction: column; gap: 10px; font-size: 13px; opacity: {{ s.op }}">
+<span style="font-size: 17px; line-height: 22px; font-weight: 700">Platba</span>
+<span style="color: #4a5261">K úhradě 1 290 Kč</span>
+<span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #4a5261">Uložené karty</span>
+<span style="height: 44px; box-sizing: border-box; padding: 11px 12px; border: 1px solid #c5cad3; border-radius: 8px; background: #ffffff; display: flex; justify-content: space-between">Visa ·· 4417<span style="width: 16px; height: 16px; box-sizing: border-box; border: 1.5px solid #6b7382; border-radius: 50%"></span></span>
+<span style="height: 44px; box-sizing: border-box; padding: 11px 12px; border: 2px solid #1f4fd8; border-radius: 8px; background: #ffffff; display: flex; justify-content: space-between">Mastercard ·· 0926<span style="width: 16px; height: 16px; box-sizing: border-box; border: 5px solid #1f4fd8; border-radius: 50%"></span></span>
+<span style="color: #1f4fd8; font-weight: 600">Spravovat karty</span>
+<span style="margin-top: auto; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f4fd8; color: #ffffff; font-weight: 600">Zaplatit</span>
+</div>
+<sc-if value="{{ s.mark }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 6px; top: 70px; width: 208px; height: 136px; box-sizing: border-box; border: 2px solid #d9480f; border-radius: 8px; background: rgba(217,72,15,0.14)"></div>
+<span style="position: absolute; left: 6px; top: 70px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 8px 0 8px 0; background: #d9480f; color: #ffffff; font-size: 12px; font-weight: 700">1</span>
+<div style="position: absolute; left: 6px; top: 210px; width: 132px; height: 28px; box-sizing: border-box; border: 2px solid #d9480f; border-radius: 8px; background: rgba(217,72,15,0.14)"></div>
+<span style="position: absolute; left: 118px; top: 210px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 0 8px 0 8px; background: #d9480f; color: #ffffff; font-size: 12px; font-weight: 700">2</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Co oblast způsobilo</span>
+<span><b style="color: #f0a35e">1</b> Seznam karet místo formuláře · <a href="Review.dc.html">celek UI seznamu a odebrání karty</a> · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">SavedCardsList.swift</span></span>
+<span><b style="color: #f0a35e">2</b> Nový odkaz Spravovat karty · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">PaymentView.swift:58</span></span>
+</div>
+</section>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="font-size: 12px; font-weight: 600; color: #5fd0a0">Očekávaná změna</span>
+<span>Odpovídá zadání SHOP-482, kritériím AC1 a AC2.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600">Přijmout jako nový základ</button>
+<button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Odmítnout</button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 10px; background: #2b2618; border: 1px solid #5a4d22">
+<span style="font-size: 12px; font-weight: 600; color: #f2cc60">Nečekaná změna jinde</span>
+<span style="font-weight: 600">ProfileView · výchozí stav</span>
+<span>Obsah se posunul o 4 body dolů. PR se této obrazovky netýká.</span>
+<span style="color: #c9cfda"><b style="color: #f0a35e">Příčina podle AI:</b> změna hodnoty Spacing.medium v modulu DesignSystem, kterou potřeboval řádek karty.</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">DesignSystem/Spacing.swift:12</span>
+<a href="#" style="padding: 6px 0">Otevřít řádek</a>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+state = { mark: true };
+renderVals() {
+const on = this.state.mark;
+const item = (name, state, kind, sel) => ({ name, state,
+fg: kind === 'bad' ? '#f2cc60' : '#5fd0a0',
+bg: sel ? '#232832' : '#1b1f26', border: sel ? '#7aa7ff' : '#2f3541' });
+return {
+mark: on,
+markLabel: on ? 'zvýrazněné' : 'skryté',
+toggle: () => this.setState({ mark: !on }),
+items: [
+item('PaymentView · výchozí stav', 'očekávaná změna', 'ok', true),
+item('PaymentView · bez uložené karty', 'očekávaná změna', 'ok', false),
+item('PaymentView · tmavý režim', 'očekávaná změna', 'ok', false),
+item('ProfileView · výchozí stav', 'nečekaná změna', 'bad', false)
+],
+shots: [
+{ label: 'Po · PR #482', op: 1, mark: false },
+{ label: 'Rozdíl', op: on ? 0.35 : 1, mark: on }
+]
+};
+}
+}
+</script>
+</body>
+</html>

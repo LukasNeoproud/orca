@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Code review s AI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 1100px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="cr" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 480px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">obchod-ios · PR #231 · Petra Nováková · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace">feature/manage-cards → main</span></span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Správa karet v profilu</h1>
+<span style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px"><span style="color: #5fd0a0">kontroly prošly</span><span style="color: #c9cfda">6 souborů · +333 −3</span><span style="color: #c9cfda">revieweři: vy, Tomáš Dvořák</span></span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="Open.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #3b4352; border-radius: 8px; background: #232832; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M5 2v12 M5 6a4 4 0 0 0 6 3.5 M11 4v5.5"></path></svg>Workspace review/pr-231</a>
+<a href="Review.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #3b4352; border-radius: 8px; background: #232832; color: #e6e9ef; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M3 4h10 M3 8h6 M3 12h8"></path></svg>Diff po celcích</a>
+</div>
+</header>
+
+<div role="tablist" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #2f3541">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{ t.on }}" onClick="{{ t.pick }}" style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 0; border-bottom: 2px solid {{ t.line }}; background: transparent; color: {{ t.fg }}; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="{{ t.icon }}"></path></svg>{{ t.label }}</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<nav aria-label="Seznam změn" style="flex: 1 1 260px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Seznam změn</h2>
+<sc-for list="{{ files }}" as="f" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; background: {{ f.bg }}">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: #8b95a5; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M4 2h5l3 3v9H4z M9 2v3h3"></path></svg>
+<span style="flex: 1; min-width: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere">{{ f.path }}</span>
+<span style="flex: none; font-size: 11.5px; color: #a3acba; font-variant-numeric: tabular-nums">{{ f.stat }}</span>
+<sc-if value="{{ f.ai }}" hint-placeholder-val="{{ false }}"><span title="Draft nálezu AI" style="flex: none; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 9px; background: #f0a35e; color: #14171c; font-size: 11px; font-weight: 700">1</span></sc-if>
+</div>
+</sc-for>
+</nav>
+
+<section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+
+<sc-if value="{{ isDesc }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Popis</h2>
+<p style="margin: 0; max-width: 720px; color: #c9cfda">V profilu přibyla obrazovka Správa karet: seznam uložených karet, nastavení výchozí karty a odebrání. Navazuje na endpointy z PR #118. Pracovní položka SHOP-490.</p>
+<p style="margin: 0; max-width: 720px; color: #c9cfda">Jak otestovat: Profil, Platební karty, odebrat kartu a ověřit, že po obnovení zůstane odebraná.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Komentáře</h2>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12.5px; color: #a3acba">Tomáš Dvořák · včera</span><span>Chybí snapshot pro prázdný seznam karet.</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding-left: 16px; border-left: 2px solid #2f3541"><span style="font-size: 12.5px; color: #a3acba">Petra Nováková · včera</span><span>Doplním do zítřka.</span></div>
+<label for="komentar" style="font-size: 12px; color: #a3acba">Nový komentář</label>
+<textarea id="komentar" rows="2" value="{{ note }}" onChange="{{ onNote }}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #3b4352; background: #14171c; color: #e6e9ef; resize: vertical"></textarea>
+<button type="button" style="align-self: flex-start; padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Přidat komentář</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+<div style="border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26; overflow: hidden">
+<div style="padding: 8px 12px; border-bottom: 1px solid #2f3541; background: #232832; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">ManageCards/ManageCardsReducer.swift</div>
+<div style="overflow-x: auto; padding: 6px 0">
+<sc-for list="{{ code }}" as="ln" hint-placeholder-count="8">
+<div style="display: flex; gap: 12px; min-width: max-content; padding: 0 12px; background: {{ ln.bg }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 22px"><span style="flex: none; width: 22px; text-align: right; color: #8b95a5">{{ ln.n }}</span><span style="white-space: pre">{{ ln.text }}</span></div>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #2f3541; background: #20242c">
+<label for="radek" style="font-size: 12px; color: #a3acba">Komentář k řádku 44</label>
+<input id="radek" type="text" value="{{ lineNote }}" onChange="{{ onLineNote }}" style="box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #3b4352; background: #14171c; color: #e6e9ef">
+<div style="display: flex; flex-wrap: wrap; gap: 8px"><button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Přidat komentář</button><button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #f0a35e; background: transparent; color: #f0a35e">Zeptat se AI na tento řádek</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAi }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 10px; background: #241f1a; border: 1px solid #4a3a28; color: #f1dcc6">
+<span style="flex: 1 1 360px; min-width: 0"><b style="color: #f0a35e">AI review.</b> Kontrola prošla 6 souborů proti zadání SHOP-490 a pravidlům projektu. Níže jsou 3 drafty nálezů. Dokud je nepublikujete, vidíte je jen vy.</span>
+<button type="button" style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-radius: 8px; border: 1px solid #f0a35e; background: transparent; color: #f0a35e"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"></path></svg>Spustit AI review znovu</button>
+</div>
+
+<sc-for list="{{ drafts }}" as="d" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 10px; background: #1b1f26; border: 1px solid {{ d.border }}; opacity: {{ d.op }}">
+<div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center">
+<span style="padding: 1px 8px; border: 1px solid {{ d.sevFg }}; border-radius: 999px; color: {{ d.sevFg }}; font-size: 12px; font-weight: 600">{{ d.sev }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">{{ d.where }}</span>
+<span style="margin-left: auto; font-size: 12px; font-weight: 600; color: {{ d.statusFg }}">{{ d.status }}</span>
+</div>
+<div style="overflow-x: auto; padding: 8px 12px; border-radius: 8px; background: #14171c; border: 1px solid #2f3541; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px; white-space: pre">{{ d.code }}</div>
+<sc-if value="{{ d.editing }}" hint-placeholder-val="{{ false }}">
+<label for="{{ d.tid }}" style="font-size: 12px; color: #a3acba">Text komentáře</label>
+<textarea id="{{ d.tid }}" rows="3" value="{{ d.text }}" onChange="{{ d.onText }}" style="box-sizing: border-box; width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #7aa7ff; background: #14171c; color: #e6e9ef; resize: vertical"></textarea>
+</sc-if>
+<sc-if value="{{ d.reading }}" hint-placeholder-val="{{ true }}"><span>{{ d.text }}</span></sc-if>
+<sc-if value="{{ d.asked }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: #241f1a; border: 1px solid #4a3a28"><span style="font-size: 12.5px; color: #a3acba">Vy: {{ d.q }}</span><span style="color: #f1dcc6"><b style="color: #f0a35e">AI:</b> {{ d.a }}</span></div>
+</sc-if>
+<sc-if value="{{ d.open }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center">
+<label for="{{ d.cid }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer"><input id="{{ d.cid }}" type="checkbox" checked="{{ d.include }}" onChange="{{ d.toggle }}" style="width: 18px; height: 18px; accent-color: #7aa7ff">Publikovat</label>
+<button type="button" onClick="{{ d.edit }}" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">{{ d.editLabel }}</button>
+<button type="button" onClick="{{ d.ask }}" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #f0a35e; background: transparent; color: #f0a35e">Zeptat se AI</button>
+<button type="button" onClick="{{ d.drop }}" style="padding: 10px 14px; border-radius: 8px; border: 1px solid #3b4352; background: transparent; color: #ffb4a8">Zahodit</button>
+</div>
+</sc-if>
+</div>
+</sc-for>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; padding: 14px 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #7aa7ff">
+<div style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 4px">
+<label for="verdikt" style="font-size: 12px; color: #a3acba">Hlasování</label>
+<select id="verdikt" value="{{ verdict }}" onChange="{{ onVerdict }}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #3b4352; background: #14171c; color: #e6e9ef">
+<option value="wait">Čekat na autora</option>
+<option value="suggest">Schválit s připomínkami</option>
+<option value="ok">Schválit</option>
+<option value="no">Zamítnout</option>
+</select>
+</div>
+<button type="button" onClick="{{ publish }}" style="padding: 11px 18px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600">{{ publishLabel }}</button>
+<span style="flex: 1 1 100%; font-size: 12.5px; color: #a3acba">{{ publishNote }}</span>
+</div>
+</sc-if>
+
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1100}}'>
+class Component extends DCLogic {
+state = { tab: 'ai', note: '', lineNote: '', verdict: 'wait', d: {
+a: { text: 'Odebrání nečeká na odpověď serveru. Když DELETE selže, karta ze seznamu zmizí a už se nevrátí. Doplň prosím větev pro chybu, která kartu vrátí a ukáže hlášku.', include: true },
+b: { text: 'Model nemá pole isDefault, i když ho backend posílá. Bez něj nejde označit výchozí kartu a obrazovka předvybere první.', include: true },
+c: { text: 'Text tlačítka Odebrat je v kódu natvrdo. Patří do lokalizace jako klíč card_remove_action.', include: false } } };
+renderVals() {
+const s = this.state;
+const set = (id, patch) => this.setState({ d: { ...s.d, [id]: { ...s.d[id], ...patch } } });
+const D = [
+['a', 'chyba', '#ff8a7a', 'ManageCardsReducer.swift:44', 'state.cards.removeAll { $0.id == id }\nreturn .run { _ in try await client.deleteCard(id) }', 'Není to záměrná optimistická aktualizace?', 'Optimistická aktualizace by při chybě kartu vracela. Reducer žádnou akci pro selhání deleteCard nemá, takže jde o chybu.'],
+['b', 'návrh', '#f2cc60', 'SavedCard.swift:9', 'struct SavedCard: Decodable, Identifiable {\n    let id: String, brand: String, last4: String\n}', 'Posílá backend isDefault vždy?', 'Ano, CardDto.IsDefault je nenulové pole a vrací ho GET i odpověď po změně výchozí karty.'],
+['c', 'drobnost', '#a3acba', 'ManageCardsView.swift:27', 'Button("Odebrat") { store.send(.removeTapped(card.id)) }', 'Existuje už podobný klíč?', 'V Androidu je card_remove_title a card_remove_message. Klíč pro samotné tlačítko zatím není na žádné platformě.']
+];
+const drafts = D.map((x) => {
+const st = s.d[x[0]];
+const status = st.status || 'draft';
+return { tid: 'text-' + x[0], cid: 'pub-' + x[0], sev: x[1], sevFg: x[2], where: x[3], code: x[4], q: x[5], a: x[6],
+text: st.text, include: !!st.include, editing: !!st.editing && status === 'draft', reading: !(st.editing && status === 'draft'), asked: !!st.asked, open: status === 'draft',
+status: status === 'draft' ? 'draft, vidíte jen vy' : status === 'published' ? 'publikováno' : 'zahozeno',
+statusFg: status === 'published' ? '#5fd0a0' : '#a3acba',
+border: status === 'published' ? '#2f6b55' : st.include ? '#3b4352' : '#2f3541', op: status === 'dropped' ? 0.5 : 1,
+editLabel: st.editing ? 'Hotovo' : 'Upravit ručně',
+onText: (e) => set(x[0], { text: e.target.value }),
+toggle: () => set(x[0], { include: !st.include }),
+edit: () => set(x[0], { editing: !st.editing }),
+ask: () => set(x[0], { asked: !st.asked }),
+drop: () => set(x[0], { status: 'dropped', include: false }) };
+});
+const ready = D.filter((x) => s.d[x[0]].include && !s.d[x[0]].status).length;
+const done = D.filter((x) => s.d[x[0]].status === 'published').length;
+const I = { desc: 'M2 3h12v8H7l-3 3v-3H2z', files: 'M3 4h10 M3 8h6 M3 12h8', ai: 'M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z' };
+const add = 'rgba(95,208,160,0.12)';
+return {
+isDesc: s.tab === 'desc', isFiles: s.tab === 'files', isAi: s.tab === 'ai',
+tabs: [['desc', 'Popis a komentáře'], ['files', 'Změny'], ['ai', 'AI review · 3 drafty']].map((t) => ({ label: t[1], icon: I[t[0]], on: s.tab === t[0],
+fg: s.tab === t[0] ? '#ffffff' : '#a3acba', line: s.tab === t[0] ? '#7aa7ff' : 'transparent', pick: () => this.setState({ tab: t[0] }) })),
+files: [['ManageCardsReducer.swift', '+84', true], ['ManageCardsView.swift', '+120', true], ['SavedCard.swift', '+6 −2', true], ['PaymentsClient.swift', '+18', false], ['ProfileView.swift', '+9 −1', false], ['ManageCardsReducerTests.swift', '+96', false]]
+.map((f, i) => ({ path: f[0], stat: f[1], ai: f[2], bg: i === 0 ? '#232832' : 'transparent' })),
+code: [[41, 'case let .removeConfirmed(id):'], [42, '    guard let card = state.cards[id: id] else { return .none }'], [43, '    state.pendingRemoval = nil'], [44, '    state.cards.removeAll { $0.id == id }'], [45, '    return .run { _ in'], [46, '        try await client.deleteCard(card.id)'], [47, '    }']]
+.map((l) => ({ n: l[0], text: '+ ' + l[1], bg: l[0] === 44 ? 'rgba(240,163,94,0.22)' : add })),
+drafts,
+note: s.note, onNote: (e) => this.setState({ note: e.target.value }),
+lineNote: s.lineNote, onLineNote: (e) => this.setState({ lineNote: e.target.value }),
+verdict: s.verdict, onVerdict: (e) => this.setState({ verdict: e.target.value }),
+publishLabel: ready ? 'Publikovat ' + ready + (ready === 1 ? ' komentář' : ' komentáře') + ' a hlasování' : 'Publikovat jen hlasování',
+publishNote: done ? 'Publikováno do Azure DevOps: ' + done + (done === 1 ? ' komentář' : ' komentáře') + '. Autorce přijde oznámení.' : 'Komentáře se odešlou do Azure DevOps pod vaším jménem. Nezaškrtnuté drafty zůstanou uložené lokálně.',
+publish: () => { const d = { ...s.d }; D.forEach((x) => { if (d[x[0]].include && !d[x[0]].status) d[x[0]] = { ...d[x[0]], status: 'published', editing: false }; }); this.setState({ d }); }
+};
+}
+}
+</script>
+</body>
+</html>

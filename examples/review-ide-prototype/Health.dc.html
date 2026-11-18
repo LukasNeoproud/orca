@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Zdraví kódu a metriky</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 1320px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="health" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">Workspace Obchod · Zdraví kódu a metriky</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">{{ headline }}</h1>
+<p style="margin: 0; max-width: 820px; color: #a3acba">Lupa spouští lint, který už projekt má, a přidává vlastní kontroly a metriky. Kde lint chybí nebo pravidlo dává smysl natrvalo, navrhne ho přidat přímo do codebase.</p>
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Odkud kontroly jsou</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{ sources }}" as="p" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #1b1f26; border: 1px solid {{ p.border }}; border-radius: 10px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="flex: none; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2f3848; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500">{{ p.badge }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500">{{ p.name }}</span>
+</div>
+<span style="display: flex; align-items: center; gap: 8px; color: {{ p.lintFg }}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round"><path d="{{ p.lintIcon }}"></path></svg>{{ p.lint }}</span>
+<span style="display: flex; align-items: center; gap: 8px; color: #c9cfda"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" style="flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round"><path d="M1.5 8h3l1.5-4 3 8 1.5-4h4"></path></svg>{{ p.own }}</span>
+<span style="color: #f1dcc6"><b style="color: #f0a35e">Návrh:</b> {{ p.tip }}</span>
+<button type="button" style="align-self: flex-start; padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">{{ p.btn }}</button>
+</div>
+</sc-for>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 18px; line-height: 24px; font-weight: 500">Nálezy s připravenou opravou</h2>
+<button type="button" onClick="{{ applySafe }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600">Použít opravy podle pravidel</button>
+</div>
+<sc-for list="{{ findings }}" as="f" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 10px; background: #1b1f26; border: 1px solid {{ f.border }}">
+<div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center">
+<span style="padding: 1px 8px; border: 1px solid {{ f.kindFg }}; border-radius: 999px; color: {{ f.kindFg }}; font-size: 12px; font-weight: 600">{{ f.kind }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">{{ f.rule }}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: #a3acba">{{ f.where }}</span>
+</div>
+<span>{{ f.msg }}</span>
+<sc-if value="{{ f.hasDiff }}" hint-placeholder-val="{{ true }}">
+<div style="overflow-x: auto; padding: 6px 0; border-radius: 8px; background: #14171c; border: 1px solid #2f3541">
+<sc-for list="{{ f.diff }}" as="ln" hint-placeholder-count="3">
+<div style="min-width: max-content; padding: 0 12px; background: {{ ln.bg }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px; white-space: pre">{{ ln.text }}</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center">
+<button type="button" aria-pressed="{{ f.applied }}" onClick="{{ f.apply }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid {{ f.btnBorder }}; background: {{ f.btnBg }}; color: {{ f.btnFg }}; font-weight: 600">{{ f.btn }}</button>
+<sc-if value="{{ f.own }}" hint-placeholder-val="{{ false }}"><button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Přidat jako pravidlo do detekt.yml</button></sc-if>
+<a href="#" style="padding: 11px 0">Otevřít kód</a>
+<span style="font-size: 12.5px; color: {{ f.srcFg }}">{{ f.src }}</span>
+</div>
+</div>
+</sc-for>
+</section>
+
+<aside style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 18px; line-height: 24px; font-weight: 500">Metriky souborů</h2>
+<span style="font-size: 12.5px; color: #a3acba">Limity: 400 řádků, cyklomatická složitost 15, pokrytí 50 %. Řadit lze kliknutím na sloupec.</span>
+<div style="overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26">
+<div style="min-width: 440px">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 68px 82px 68px 72px; align-items: center; padding: 0 8px 0 14px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Soubor</span>
+<sc-for list="{{ cols }}" as="c" hint-placeholder-count="4"><button type="button" aria-pressed="{{ c.on }}" onClick="{{ c.pick }}" style="padding: 12px 6px; border: 0; background: transparent; text-align: right; font-size: 12px; font-weight: 600; color: {{ c.fg }}">{{ c.label }}</button></sc-for>
+</div>
+<sc-for list="{{ files }}" as="m" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 68px 82px 68px 72px; align-items: center; padding: 10px 8px 10px 14px; border-top: 1px solid #2f3541; font-variant-numeric: tabular-nums">
+<a href="#" style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; text-decoration: none">{{ m.file }}</a>
+<span style="padding: 0 6px; text-align: right; color: {{ m.locFg }}">{{ m.loc }}</span>
+<span style="padding: 0 6px; text-align: right; color: {{ m.ccFg }}">{{ m.cc }}</span>
+<span style="padding: 0 6px; text-align: right">{{ m.churn }}</span>
+<span style="padding: 0 6px; text-align: right; color: {{ m.covFg }}">{{ m.cov }} %</span>
+</div>
+</sc-for>
+</div>
+</div>
+<span style="font-size: 12.5px; color: #a3acba">Žlutě jsou hodnoty za limitem. Další metriky: hloubka zanoření, počet parametrů, duplicity, vazby mezi moduly.</span>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1320}}'>
+class Component extends DCLogic {
+state = { done: {}, sort: 'cc' };
+renderVals() {
+const done = this.state.done, sort = this.state.sort;
+const add = 'rgba(95,208,160,0.12)', del = 'rgba(255,138,122,0.13)';
+const ok = 'M3 8.5l3 3 7-7', no = 'M4 4l8 8 M12 4l-8 8';
+const F = [
+{ id: 'cs', kind: 'chyba kompilace', bad: true, rule: 'CS8602', where: 'obchod-api · PaymentsController.cs:48', src: 'Kompilace. Opravu navrhla AI, zkontrolujte ji.', ai: true, n: 1,
+msg: 'Proměnná card může být null, když uložená karta neexistuje.',
+diff: [[' ', 'var card = await cards.FindAsync(request.SavedCardId);'], ['+', 'if (card is null) return NotFound();'], [' ', 'return Ok(await gateway.Charge(card.Token, order));']] },
+{ id: 'own', kind: 'kontrola IDE', own: true, rule: 'ViewModel volá API napřímo', where: 'obchod-android · PaymentViewModel.kt:88', src: 'Vlastní kontrola Lupy. Lint projektu ji nemá.', ai: true, n: 1,
+msg: 'ViewModel obchází repozitář a volá PaymentApi. Vrstva Data tak prosakuje do Feature.',
+diff: [['-', 'val cards = api.getCards()'], ['+', 'val cards = cardsRepository.loadCards()']] },
+{ id: 'kt', kind: 'lint projektu', rule: 'detekt MagicNumber', where: 'obchod-android · CardsRepository.kt:21', src: 'Z konfigurace detekt.yml v repozitáři.', n: 1,
+msg: 'Čísla 2 a 400 patří do pojmenovaných konstant.',
+diff: [['-', 'retry(times = 2, delayMs = 400) {'], ['+', 'retry(times = RETRY_COUNT, delayMs = RETRY_DELAY_MS) {']] },
+{ id: 'sw', kind: 'lint projektu', rule: 'SwiftLint force_unwrapping', where: 'obchod-ios · PaymentView.swift:58', src: 'Z konfigurace .swiftlint.yml v repozitáři.', n: 1,
+msg: 'Vynucené rozbalení spadne, když karta nemá značku.',
+diff: [['-', 'Text(card.brand!)'], ['+', 'Text(card.brand ?? "")']] },
+{ id: 'imp', kind: 'lint projektu', rule: 'ktlint no-unused-imports', where: 'obchod-android · 4 soubory', src: 'Z konfigurace ktlint v repozitáři.', n: 4,
+msg: '4 nepoužité importy po úpravách z PR #482.', diff: [] }
+];
+const left = F.filter((f) => !done[f.id]);
+const errs = left.filter((f) => f.bad).length;
+const rest = left.filter((f) => !f.bad).reduce((a, f) => a + f.n, 0);
+const M = [['PaymentViewModel.kt', 412, 18, 14, 68], ['CheckoutCoordinator.swift', 612, 16, 11, 41], ['OrdersController.cs', 288, 12, 9, 77], ['CartReducer.swift', 354, 11, 12, 83], ['PaymentGateway.cs', 196, 9, 7, 90], ['CatalogRepository.kt', 143, 8, 5, 72]];
+const idx = { loc: 1, cc: 2, churn: 3, cov: 4 };
+const sorted = M.slice().sort((a, b) => sort === 'cov' ? a[4] - b[4] : b[idx[sort]] - a[idx[sort]]);
+const yel = '#f2cc60', txt = '#e6e9ef';
+return {
+headline: (errs ? '1 chyba kompilace' : 'Kompilace projde') + ', ' + (rest ? rest + (rest === 1 ? ' nález' : rest < 5 ? ' nálezy' : ' nálezů') + ' k opravě' : 'žádný další nález'),
+applySafe: () => this.setState({ done: { ...done, kt: true, sw: true, imp: true } }),
+sources: [
+{ badge: 'KT', name: 'obchod-android', lint: 'detekt a ktlint z projektu', lintIcon: ok, lintFg: '#5fd0a0', own: '6 vlastních kontrol a metriky', tip: 'kontrolu vrstev přenést do detekt.yml, ať ji hlídá i CI.', btn: 'Připravit změnu konfigurace', border: '#2f3541' },
+{ badge: 'SW', name: 'obchod-ios', lint: 'SwiftLint z projektu', lintIcon: ok, lintFg: '#5fd0a0', own: '5 vlastních kontrol a metriky', tip: 'zapnout pravidla file_length a cyclomatic_complexity se stejnými limity jako tady.', btn: 'Přidat pravidla do .swiftlint.yml', border: '#2f3541' },
+{ badge: 'C#', name: 'obchod-api', lint: 'projekt nemá žádný lint', lintIcon: no, lintFg: '#f2cc60', own: '7 vlastních kontrol a metriky', tip: 'přidat .editorconfig a analyzátory Roslyn. Začít jen s pravidly, která dnes procházejí.', btn: 'Připravit PR s integrací', border: '#5a4d22' }
+],
+findings: F.map((f) => {
+const done1 = !!done[f.id];
+return { kind: f.kind, rule: f.rule, where: f.where, msg: f.msg, applied: done1, own: !!f.own, src: f.src,
+kindFg: f.bad ? '#ff8a7a' : f.own ? '#7aa7ff' : '#f2cc60',
+border: done1 ? '#2f6b55' : f.bad ? '#5a3531' : '#2f3541',
+hasDiff: f.diff.length > 0,
+diff: f.diff.map((l) => ({ text: l[0] + '  ' + l[1], bg: l[0] === '+' ? add : l[0] === '-' ? del : 'transparent' })),
+btn: done1 ? 'Opraveno' : 'Použít opravu',
+btnBg: done1 ? 'transparent' : '#232832', btnFg: done1 ? '#5fd0a0' : '#e6e9ef', btnBorder: done1 ? '#5fd0a0' : '#3b4352',
+srcFg: f.ai ? '#f0a35e' : '#a3acba',
+apply: () => this.setState({ done: { ...done, [f.id]: !done1 } }) };
+}),
+cols: [['loc', 'Řádky'], ['cc', 'Složitost'], ['churn', 'Změny'], ['cov', 'Pokrytí']].map((c) => ({ label: c[1] + (sort === c[0] ? ' ↓' : ''), on: sort === c[0], fg: sort === c[0] ? '#ffffff' : '#a3acba', pick: () => this.setState({ sort: c[0] }) })),
+files: sorted.map((m) => ({ file: m[0], loc: m[1], cc: m[2], churn: m[3], cov: m[4], locFg: m[1] > 400 ? yel : txt, ccFg: m[2] > 15 ? yel : txt, covFg: m[4] < 50 ? yel : txt }))
+};
+}
+}
+</script>
+</body>
+</html>

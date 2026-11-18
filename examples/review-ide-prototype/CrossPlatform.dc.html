@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Funkce napříč platformami</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 960px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="platforms" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 480px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">Workspace Obchod · Funkce napříč platformami</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Platba: uložené karty</h1>
+<p style="margin: 0; color: #a3acba">Odpovídající části obou aplikací vedle sebe a místa, kde se napojují na backend. Mezi platformami jsou 2 rozdíly.</p>
+</div>
+<button type="button" aria-pressed="{{ only }}" onClick="{{ toggle }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Zobrazené řádky: <b>{{ onlyLabel }}</b></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section style="flex: 999 1 560px; min-width: 0; overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26">
+<div style="min-width: 860px">
+<div style="display: grid; grid-template-columns: 130px repeat(3, minmax(0, 1fr)); gap: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">
+<span style="padding: 12px 16px">Část</span>
+<span style="padding: 12px 16px">Android · Kotlin</span>
+<span style="padding: 12px 16px">iOS · Swift</span>
+<span style="padding: 12px 16px">Backend · C#</span>
+</div>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+<div style="display: grid; grid-template-columns: 130px repeat(3, minmax(0, 1fr)); border-top: 1px solid #2f3541">
+<span style="padding: 12px 16px; font-weight: 600">{{ r.part }}</span>
+<sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="3">
+<div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; background: {{ c.bg }}; border-left: 1px solid #2f3541">
+<a href="#" style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; overflow-wrap: anywhere; text-decoration: none; color: {{ c.fg }}">{{ c.main }}</a>
+<span style="font-size: 12.5px; color: {{ c.noteFg }}; overflow-wrap: anywhere">{{ c.note }}</span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #2a1d1c; border: 1px solid #5a3531">
+<span style="font-size: 12px; font-weight: 600; color: #ff8a7a">Rozdíl 1 · iOS neumí odebrat kartu</span>
+<span>Android má intent RemoveCardConfirmed a volá DELETE. V iOS chybí akce, volání klienta i text dialogu. Kritérium AC3 tak platí jen na Androidu.</span>
+<button type="button" style="align-self: flex-start; padding: 11px 14px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600">Připravit změnu pro iOS podle Androidu</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #2b2618; border: 1px solid #5a4d22">
+<span style="font-size: 12px; font-weight: 600; color: #f2cc60">Rozdíl 2 · iOS model nemá isDefault</span>
+<span>Backend pole IsDefault posílá, iOS ho při dekódování zahazuje a předvybere první kartu. Android předvybere výchozí.</span>
+<a href="#" style="padding: 6px 0">Otevřít SavedCard.swift</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Jak se části párují</h2>
+<span style="color: #c9cfda">Podle volaných endpointů, názvů modelů a lokalizačních klíčů. Dvojici jde ručně opravit a IDE si ji zapamatuje.</span>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":960}}'>
+class Component extends DCLogic {
+state = { only: false };
+renderVals() {
+const only = this.state.only;
+const R = [
+['Obrazovka', ['PaymentScreen.kt', 'Compose'], ['PaymentView.swift', 'SwiftUI'], null],
+['Stav', ['PaymentState', 'cards, selectedCardId, cardsStatus'], ['PaymentReducer.State', 'cards, selectedCardID, cardsStatus'], null],
+['Akce uživatele', ['PaymentIntent', 'CardSelected, RemoveCardConfirmed, RetryCards, PayClicked'], ['PaymentReducer.Action', 'cardSelected, retryCards, payTapped. Odebrání karty chybí.', 'bad'], null],
+['Načtení karet', ['PaymentApi.getCards()', ''], ['PaymentsClient.fetchCards()', ''], ['GET api/v1/payments/cards', 'PaymentsController.GetCards']],
+['Odebrání karty', ['PaymentApi.deleteCard(id)', ''], ['chybí', 'Žádné volání endpointu.', 'bad'], ['DELETE api/v1/payments/cards/{id}', 'PaymentsController.DeleteCard']],
+['Platba', ['PaymentApi.createPayment()', 'posílá savedCardId'], ['PaymentsClient.createPayment()', 'posílá savedCardId'], ['POST api/v1/payments', 'PaymentsController.CreatePayment']],
+['Model karty', ['SavedCard', 'id, brand, last4, isDefault'], ['SavedCard', 'id, brand, last4. Pole isDefault chybí.', 'warn'], ['CardDto', 'Id, Brand, Last4, IsDefault']],
+['Texty', ['strings.xml', '12 klíčů'], ['Localizable.xcstrings', '11 klíčů, chybí card_remove_title', 'bad'], null],
+['Testy', ['PaymentViewModelTest', '9 testů'], ['PaymentReducerTests', '6 testů'], ['PaymentsControllerTests', '7 testů']]
+];
+const cell = (c) => {
+if (!c) return { main: '', note: 'netýká se', fg: '#8b95a5', noteFg: '#8b95a5', bg: 'transparent' };
+const k = c[2];
+return { main: c[0], note: c[1],
+fg: k === 'bad' ? '#ff8a7a' : '#a9c5ff',
+noteFg: k === 'bad' ? '#ffb4a8' : k === 'warn' ? '#f2cc60' : '#a3acba',
+bg: k === 'bad' ? '#2a1d1c' : k === 'warn' ? '#2b2618' : 'transparent' };
+};
+return {
+only,
+onlyLabel: only ? 'jen rozdíly' : 'všechny',
+toggle: () => this.setState({ only: !only }),
+rows: R.filter((r) => !only || r.slice(1).some((c) => c && c[2])).map((r) => ({ part: r[0], cells: r.slice(1).map(cell) }))
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+# AI a review
+
+Vylepšení, která těsněji propojují agenty, IDE a review. Navazují na hooky agentů (`agent-hook-listener`), drafty review z TASK-51, panel emulátoru a analytické jádro (viz [Integrace do forku](./01-integrace.md)).
+
+## Přehled
+
+| # | Vylepšení | Oblast | Stav |
+| --- | --- | --- | --- |
+| 1 | Plán změny v grafických pohledech | vývoj | přijato |
+| 2 | Review během práce agenta | vývoj | přijato |
+| 3 | Brány kvality jako zpětná vazba agentovi | vývoj | přijato, priorita |
+| 4 | Rozdělení velké změny | vývoj | přijato, nízká priorita |
+| 5 | Důvod u každého hunku | vývoj, review | přijato |
+| 6 | Hodnocení celků a nálezů | review | přijato |
+| 7 | Nálezy AI s důkazem | review | přijato, priorita |
+| 8 | Inkrementální re-review | review | přijato, priorita |
+| 9 | Spustitelné review s průvodcem | review | přijato |
+| 10 | Naučené konvence týmu | review | přijato |
+| 11 | Dopad na ostatní platformy | review | přijato |
+| – | Kritéria zadání jako testy | review | zamítnuto, viz konec |
+
+Pořadí realizace: nejdřív 3, 7 a 8. Navazují přímo na hooky a drafty z TASK-51 a nepotřebují analytické jádro.
+
+## Během vývoje
+
+### 1. Plán změny v grafických pohledech
+
+Agent před implementací navrhne plán a Orca ho zobrazí ve stejných pohledech jako hotový kód, ale v hrubším měřítku. Plán je z principu kratší a implementace je v něm jen v náznacích, takže se neporovnává řádkový diff.
+
+- **Co plán zobrazí:** dotčené moduly a vrstvy, nové nebo změněné obrazovky a přechody, nové a změněné endpointy, nové vazby mezi moduly, lokalizační klíče.
+- **Granularita:** úroveň modulů, obrazovek, intentů a endpointů. Ne soubory a řádky.
+- **Schválení:** plán schvaluje uživatel před začátkem implementace; může ho upravit nebo vrátit agentovi s připomínkou.
+- **Porovnání po dokončení:** Orca porovná plán s modelem hotového kódu na stejné úrovni a ukáže odchylky, např. „nová vazba Feature → Data nebyla v plánu“ nebo „obrazovka Správa karet přibyla navíc“. Review začíná u odchylek.
+- **Uložení:** plán se ukládá k workspace a k PR, aby ho reviewer viděl jako kontext.
+
+### 2. Review během práce agenta
+
+Diff po celcích se staví průběžně, jak agent upravuje soubory, a uživatel ho může komentovat ještě před dokončením.
+
+- Zápisy agenta zachycené v hookách (Edit, Write) se průběžně řadí do celků.
+- Komentář k hunku nebo celku během běhu se pošle agentovi jako pokyn do kontextu („tohle dej do repozitáře, ne do ViewModelu“).
+- Komentáře se zobrazí jako vlákna, která agent po zapracování označí jako vyřešená; uživatel je potvrdí.
+- Chyby se opraví dřív, než vznikne PR, a review hotového PR je kratší.
+
+### 3. Brány kvality jako zpětná vazba agentovi
+
+Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepšit dřív, než práci ohlásí jako hotovou.
+
+- **Spouštění:** při ukončení kroku agenta (hook Stop) a volitelně po každém zápisu do souboru.
+- **Kontroly:** diagnostika language serveru, lint projektu, vlastní kontroly IDE, pravidla vrstev, build a testy změněných modulů.
+- **Smyčka:** nálezy se agentovi vrátí automaticky jako zpráva, agent je opraví a kontroly proběhnou znovu.
+- **Limit opakování:** po nastaveném počtu kol bez zlepšení se smyčka zastaví a nálezy zůstanou uživateli.
+- **Výsledek:** stav bran je vidět u workspace a v PR; review nedostává chyby kompilace ani lintu.
+- **Nastavení:** které brány jsou povinné, je v nastavení projektu v Orce.
+
+### 4. Rozdělení velké změny
+
+Velikost PR se dnes neřeší, ale menší celky jsou pro reviewera přehlednější. Funkce je proto volitelná.
+
+- Když diff přeroste nastavenou velikost, Orca navrhne rozdělení podle celků na navazující PR (stacked PR).
+- Rozdělení je návrh; uživatel ho může upravit nebo ignorovat.
+- Nízká priorita, dokud se neukáže potřeba v týmu.
+
+### 5. Důvod u každého hunku
+
+Kromě původu změny (zadání, vývojář, AI) se ukládá i důvod.
+
+- Ke každému hunku od agenta se uloží odkaz na místo v přepisu agenta, kde změnu zdůvodnil.
+- Reviewer klikne na řádek a uvidí krátké zdůvodnění a odkaz na celý kontext v konverzaci.
+- U hunků od vývojáře lze důvod doplnit ručně (komentář v PR).
+
+## Review
+
+### 6. Hodnocení celků a nálezů
+
+Celky i nálezy dostanou strukturované hodnocení, podle kterého se řadí a filtrují.
+
+**Celky diffu (riziko):**
+
+| Faktor | Zdroj |
+| --- | --- |
+| Složitost | metriky z analytického jádra |
+| Četnost změn | historie souborů |
+| Pokrytí testy | výsledky testů a pokrytí |
+| Podíl kódu od AI | původ řádků |
+| Citlivost oblasti | nastavení projektu (platby, migrace, oprávnění, bezpečnost) |
+
+- Review začíná nejrizikovějším celkem.
+- Bezpečné celky (přejmenování, generovaný kód, formátování) jde schválit hromadně.
+
+**Nálezy (AI review, lint, kontroly IDE):**
+
+| Atribut | Hodnoty |
+| --- | --- |
+| Závažnost | chyba, varování, návrh, drobnost |
+| Jistota | ověřeno důkazem, pravděpodobné, nejisté (viz bod 7) |
+| Četnost | kolikrát se stejný problém v PR nebo projektu opakuje |
+| Dopad | rozsah (řádek, soubor, modul, platforma) a citlivost oblasti |
+| Priorita | odvozená ze závažnosti, jistoty, dopadu a četnosti; jde ručně přepsat |
+
+- Nálezy jsou seřazené podle priority, opakované nálezy jsou seskupené do jednoho s výčtem míst.
+- Publikovat jde s filtrem, např. jen chyby a varování s jistotou ověřeno.
+
+### 7. Nálezy AI s důkazem
+
+Každý draft nálezu od AI nese ověření, aby bylo méně falešných nálezů.
+
+- **Druhy důkazu:** reference a typy z language serveru, výsledek spuštěného testu, reprodukce v emulátoru, porovnání s kontraktem v referenci jiné platformy.
+- Nález bez důkazu má jistotu „nejisté“ a je tak označený.
+- Reviewer vidí důkaz u nálezu a může ho otevřít (reference, výstup testu, snímek).
+
+### 8. Inkrementální re-review
+
+Po pushi autora reviewer vidí jen to, co se změnilo od jeho posledního review.
+
+- Orca si pamatuje commit, u kterého reviewer review dokončil.
+- Diff od tohoto commitu je rozdělený na celky stejně jako první review.
+- U každého otevřeného vlákna AI posoudí, jestli nová změna připomínku řeší, a navrhne vlákno uzavřít; uzavírá uživatel.
+- Změny mimo vlákna jsou zvýrazněné jako nové.
+
+### 9. Spustitelné review s průvodcem
+
+Reviewer si může aplikaci ve stavu PR skutečně projít, nejen prohlédnout snímky.
+
+- **Sestavení:** Orca sestaví aplikaci z review worktree a spustí ji v panelu emulátoru (Android emulátor, iOS simulátor).
+- **Interaktivní průchod:** reviewer aplikaci normálně ovládá; navigační graf ukazuje, kde se nachází, a zvýrazňuje změněné obrazovky.
+- **Průvodce od AI:** z diffu, zadání a navigačního grafu AI připraví návod, na co se zaměřit, např. „Platba: vyber jinou než výchozí kartu“, „Správa karet: odeber kartu a vypni síť“. Kroky jde odškrtávat.
+- **Rychlý přechod:** AI umí aplikaci dovést na konkrétní obrazovku přes strom přístupnosti emulátoru (deep link nebo automatický průchod).
+- **Záznam nálezu:** z emulátoru jde vytvořit komentář k PR se snímkem a krokem průvodce.
+- **Snímky:** automatické snímky změněných obrazovek zůstávají jako rychlý náhled.
+
+### 10. Naučené konvence týmu
+
+Review se učí z rozhodnutí týmu, ale jen se souhlasem.
+
+- Orca sleduje, které typy draftů se přijímají a které zahazují.
+- Opakovaně přijímaný typ nálezu navrhne jako pravidlo projektu; opakovaně zahazovaný navrhne potlačit.
+- Pravidla se mění jen se souhlasem uživatele a ukládají se do repozitáře, aby je sdílel tým.
+
+### 11. Dopad na ostatní platformy
+
+Změna v jedné platformě se propíše jako upozornění vývojářům ostatních platforem.
+
+- Když PR backendu změní kontrakt, Orca přes Funkci a reference najde volání v Android a iOS kódu.
+- Vývojář dotčené platformy dostane upozornění se seznamem míst a s popisem změny kontraktu.
+- Funguje i obráceně: mobilní PR, který začne volat nový nebo změněný endpoint, ukáže, zda ho backend v referenci Funkce už má.
+
+## Zamítnuté
+
+- **Kritéria zadání jako testy** (AI navrhne test pro nepokryté kritérium jako draft nálezu): přínos není přesvědčivý. Pokrytí kritérií zůstává jen jako upozornění v diffu po celcích.

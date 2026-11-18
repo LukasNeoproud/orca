@@ -139,6 +139,8 @@ docs/**
 # Fork-only reference docs.
 !docs/reference/
 !docs/reference/backlog-integration.md
+!docs/review-ide/
+!docs/review-ide/**
 
 # Stably CLI (only docs/ are tracked)
 .stably/*

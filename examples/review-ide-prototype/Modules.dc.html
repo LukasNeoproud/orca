@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Moduly a vrstvy</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="modules" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">obchod-ios · Moduly a vrstvy · porovnání s main</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">10 modulů, 2 nevhodné vazby</h1>
+<p style="margin: 0; color: #a3acba">Vrstvy jsou odvozené z balíčků Swift Package Manager. Jedna nevhodná vazba přibyla v PR #482.</p>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Vrstvy · závislosti smí vést jen dolů</h2>
+<sc-for list="{{ layers }}" as="l" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="font-size: 12px; color: #a3acba">{{ l.name }}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ l.mods }}" as="m" hint-placeholder-count="2">
+<span style="padding: 4px 8px; border-radius: 6px; border: 1px solid {{ m.border }}; background: #232832; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px">{{ m.label }}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</section>
+
+<section style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0 0 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Matice závislostí · řádek závisí na sloupci</h2>
+<div style="overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #1b1f26; padding: 8px">
+<div style="display: flex; min-width: max-content; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #a3acba">
+<span style="width: 200px; flex: none"></span>
+<sc-for list="{{ nums }}" as="n" hint-placeholder-count="10"><span style="width: 32px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center">{{ n }}</span></sc-for>
+</div>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+<div style="display: flex; min-width: max-content; border-top: 1px solid #232832">
+<span style="width: 200px; flex: none; display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: {{ r.fg }}"><span style="width: 18px; text-align: right; color: #8b95a5">{{ r.n }}</span>{{ r.name }}</span>
+<sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="10"><span title="{{ c.title }}" style="width: 32px; height: 32px; flex: none; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-left: 1px solid #232832; background: {{ c.bg }}; color: {{ c.fg }}; font-size: 13px; font-weight: 700">{{ c.t }}</span></sc-for>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: #a3acba">
+<span><b style="color: #a3acba">●</b> povolená vazba</span>
+<span><b style="color: #5fd0a0">+</b> nová povolená vazba v PR</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; background: #3a2422; color: #ff8a7a; font-weight: 700">!</span>nevhodná vazba</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; background: #ff8a7a; color: #14171c; font-weight: 700">!</span>nevhodná vazba, nová v PR</span>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #2a1d1c; border: 1px solid #5a3531">
+<span style="font-size: 12px; font-weight: 600; color: #ff8a7a">Nová v PR #482</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">CheckoutFeature → NetworkingData</span>
+<span>Feature nesmí záviset na vrstvě Data.</span>
+<div style="overflow-x: auto; padding: 8px 12px; border-radius: 8px; background: #14171c; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px; white-space: pre"><span style="color: #8b95a5">PaymentReducer.swift</span>
+ 3  import NetworkingData
+41  let cards = try await CardsClient.live.fetch()</div>
+<span style="color: #c9cfda"><b style="color: #f0a35e">Návrh AI:</b> použít protokol CardsRepository z PaymentsDomain a implementaci předat při sestavení v modulu App.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #7aa7ff; background: #7aa7ff; color: #14171c; font-weight: 600">Připravit opravu</button>
+<a href="#" style="padding: 11px 4px">Otevřít import</a>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<span style="font-size: 12px; font-weight: 600; color: #a3acba">Existovala už před PR</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">CartFeature → CheckoutFeature</span>
+<span>Feature nesmí záviset na jiné Feature. 3 importy.</span>
+<a href="#" style="padding: 6px 0">Otevřít importy</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<h2 style="margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Pravidla vrstev</h2>
+<span>Features → Domain, Core</span>
+<span>Data → Domain, Core</span>
+<span>Domain → Core</span>
+<span>Feature nezávisí na jiné Feature</span>
+<span style="font-size: 12px; color: #a3acba; padding-top: 4px">Pravidla žijí v IDE. Do projektu se nic neinstaluje.</span>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const names = ['App', 'CheckoutFeature', 'CartFeature', 'ProfileFeature', 'PaymentsDomain', 'CatalogDomain', 'NetworkingData', 'PersistenceData', 'DesignSystem', 'CoreKit'];
+const deps = ['-ooo....oo', '.-..o.X.oo', '.x-..o..oo', '...-o...oo', '....-....o', '.....-...o', '....no-..o', '....oo.-.o', '........-o', '.........-'];
+const cell = {
+'-': { t: '', bg: '#232832', fg: '#232832', w: '' },
+'.': { t: '', bg: 'transparent', fg: '#a3acba', w: '' },
+'o': { t: '●', bg: 'transparent', fg: '#a3acba', w: 'povolená vazba' },
+'n': { t: '+', bg: 'rgba(95,208,160,0.14)', fg: '#5fd0a0', w: 'nová povolená vazba' },
+'x': { t: '!', bg: '#3a2422', fg: '#ff8a7a', w: 'nevhodná vazba' },
+'X': { t: '!', bg: '#ff8a7a', fg: '#14171c', w: 'nevhodná vazba, nová v PR' }
+};
+const bad = { 1: true, 2: true };
+const rows = names.map((name, i) => ({
+n: i + 1, name, fg: bad[i] ? '#ff8a7a' : '#e6e9ef',
+cells: deps[i].split('').map((ch, j) => ({ t: cell[ch].t, bg: cell[ch].bg, fg: cell[ch].fg, title: cell[ch].w ? name + ' → ' + names[j] + ': ' + cell[ch].w : '' }))
+}));
+const layer = (name, idx) => ({ name, mods: idx.map((i) => ({ label: (i + 1) + ' ' + names[i], border: bad[i] ? '#ff8a7a' : '#3b4352' })) });
+return {
+nums: names.map((_, i) => i + 1),
+rows,
+layers: [layer('App', [0]), layer('Features', [1, 2, 3]), layer('Domain', [4, 5]), layer('Data', [6, 7]), layer('Core', [8, 9])]
+};
+}
+}
+</script>
+</body>
+</html>

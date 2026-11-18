@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Navigační graf (MVI)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14171c}
+a{color:#7aa7ff}a:hover{color:#a9c5ff}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 1100px; background: #14171c; color: #e6e9ef; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px">
+<dc-import name="TopBar" active="nav" hint-size="100%,45px"></dc-import>
+<div style="box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 480px; min-width: 0">
+<span style="font-size: 12px; color: #a3acba">obchod-android · Navigační graf</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 700">Nákupní tok</h1>
+<p style="margin: 0; color: #a3acba">Rozpoznáno: MVI. Obrazovka je Screen, ViewModel a Contract, přechody jsou z Compose Navigation. V kartě jsou intenty obrazovky.</p>
+</div>
+<button type="button" aria-pressed="{{ diff }}" onClick="{{ toggle }}" style="padding: 11px 14px; border-radius: 8px; border: 1px solid #3b4352; background: #232832; color: #e6e9ef">Změny z PR #482: <b>{{ diffLabel }}</b></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<div style="overflow-x: auto; border: 1px solid #2f3541; border-radius: 10px; background: #171a20">
+<div style="position: relative; width: 952px; height: 712px">
+<svg width="71" height="8" viewBox="0 0 71 8" preserveAspectRatio="none" style="position: absolute; left: 192px; top: 228px; width: 71px; height: 8px; overflow: visible; fill: none; stroke: #8b95a5; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-1" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b95a5" stroke="none" style="stroke: none; fill: #8b95a5; fill: context-stroke"/></marker></defs><path d="M 0 4 L 67 4" marker-end="url(#dc-arrow-head-filled-1)"></path></svg>
+<svg width="71" height="8" viewBox="0 0 71 8" preserveAspectRatio="none" style="position: absolute; left: 440px; top: 228px; width: 71px; height: 8px; overflow: visible; fill: none; stroke: #8b95a5; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-2" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b95a5" stroke="none" style="stroke: none; fill: #8b95a5; fill: context-stroke"/></marker></defs><path d="M 0 4 L 67 4" marker-end="url(#dc-arrow-head-filled-2)"></path></svg>
+<svg width="71" height="8" viewBox="0 0 71 8" preserveAspectRatio="none" style="position: absolute; left: 688px; top: 228px; width: 71px; height: 8px; overflow: visible; fill: none; stroke: #8b95a5; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-3" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#8b95a5" stroke="none" style="stroke: none; fill: #8b95a5; fill: context-stroke"/></marker></defs><path d="M 0 4 L 67 4" marker-end="url(#dc-arrow-head-filled-3)"></path></svg>
+<svg width="8" height="95" viewBox="0 0 8 95" preserveAspectRatio="none" style="position: absolute; left: 567px; top: 316px; width: 8px; height: 95px; overflow: visible; fill: none; stroke: {{ d.arrow }}; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-4" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="{{ d.arrow }}" stroke="none" style="stroke: none; fill: {{ d.arrow }}; fill: context-stroke"/></marker></defs><path d="M 4 0 L 4 91" marker-end="url(#dc-arrow-head-filled-4)"></path></svg>
+<svg width="8" height="95" viewBox="0 0 8 95" preserveAspectRatio="none" style="position: absolute; left: 625px; top: 317px; width: 8px; height: 95px; overflow: visible; fill: none; stroke: {{ d.arrow }}; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-5" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="{{ d.arrow }}" stroke="none" style="stroke: none; fill: {{ d.arrow }}; fill: context-stroke"/></marker></defs><path d="M 4 95 L 4 4" marker-end="url(#dc-arrow-head-filled-5)"></path></svg>
+<svg width="71" height="8" viewBox="0 0 71 8" preserveAspectRatio="none" style="position: absolute; left: 688px; top: 484px; width: 71px; height: 8px; overflow: visible; fill: none; stroke: {{ d.arrow }}; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-6" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="{{ d.arrow }}" stroke="none" style="stroke: none; fill: {{ d.arrow }}; fill: context-stroke"/></marker></defs><path d="M 0 4 L 67 4" marker-end="url(#dc-arrow-head-filled-6)"></path></svg>
+<div style="position: absolute; left: 16px; top: 148px; width: 176px; height: 168px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #1b1f26; border: 1px solid #3b4352; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Košík</b><br><span style="color: #8b95a5">CartScreen</span><br>QuantityChanged<br>ItemRemoved<br>ContinueClicked →</span></div>
+<div style="position: absolute; left: 264px; top: 148px; width: 176px; height: 168px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #1b1f26; border: 1px solid #3b4352; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Doprava</b><br><span style="color: #8b95a5">ShippingScreen</span><br>MethodSelected<br>AddressEntered<br>ContinueClicked →<br>BackClicked ←</span></div>
+<div style="position: absolute; left: 512px; top: 148px; width: 176px; height: 168px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #232832; border: 2px solid {{ d.changed }}; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Platba</b><br><span style="color: #8b95a5">PaymentScreen</span><br><span style="color: {{ d.plus }}">{{ d.plusText }}CardSelected</span><br><span style="color: {{ d.plus }}">{{ d.plusText }}RemoveCardConfirmed</span><br><span style="color: {{ d.plus }}">{{ d.plusText }}RetryCards</span><br><span style="color: {{ d.plus }}">{{ d.plusText }}ManageCardsClicked →</span><br>PayClicked →</span></div>
+<div style="position: absolute; left: 760px; top: 148px; width: 176px; height: 168px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #1b1f26; border: 1px solid #3b4352; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Potvrzení</b><br><span style="color: #8b95a5">ConfirmationScreen</span><br>OrderOpened<br>BackToShopClicked</span></div>
+<div style="position: absolute; left: 512px; top: 412px; width: 176px; height: 152px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #1b1f26; border: 2px solid {{ d.added }}; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Správa karet</b><br><span style="color: #8b95a5">ManageCardsScreen</span><br>DefaultChanged<br>RemoveCardConfirmed<br>AddCardClicked →<br>BackClicked ←</span></div>
+<div style="position: absolute; left: 760px; top: 412px; width: 176px; height: 152px; box-sizing: border-box; padding: 12px; display: flex; align-items: flex-start; background: #1b1f26; border: 2px solid {{ d.added }}; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 20px; color: #c9cfda"><span><b style="font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #e6e9ef">Přidat kartu</b><br><span style="color: #8b95a5">AddCardScreen</span><br>FieldChanged<br>SaveClicked ←<br>CancelClicked ←</span></div>
+<div role="img" aria-label="Náhled obrazovky Košík" style="position: absolute; left: 16px; top: 16px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="width: 28px; height: 5px; border-radius: 2px; background: #1b1f26"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="margin-top: auto; height: 12px; border-radius: 4px; background: #1f4fd8"></span></div>
+<div role="img" aria-label="Náhled obrazovky Doprava" style="position: absolute; left: 264px; top: 16px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="width: 28px; height: 5px; border-radius: 2px; background: #1b1f26"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 2px solid #1f4fd8"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="width: 36px; height: 4px; border-radius: 2px; background: #9aa3b2"></span><span style="margin-top: auto; height: 12px; border-radius: 4px; background: #1f4fd8"></span></div>
+<div role="img" aria-label="Náhled obrazovky Platba" style="position: absolute; left: 512px; top: 16px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="width: 28px; height: 5px; border-radius: 2px; background: #1b1f26"></span><span style="width: 36px; height: 4px; border-radius: 2px; background: #9aa3b2"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 2px solid #1f4fd8"></span><span style="width: 30px; height: 4px; border-radius: 2px; background: #1f4fd8"></span><span style="margin-top: auto; height: 12px; border-radius: 4px; background: #1f4fd8"></span></div>
+<div role="img" aria-label="Náhled obrazovky Potvrzení" style="position: absolute; left: 760px; top: 16px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="align-self: center; margin-top: 12px; width: 26px; height: 26px; border-radius: 50%; background: #1f8a5b"></span><span style="align-self: center; width: 36px; height: 4px; border-radius: 2px; background: #1b1f26"></span><span style="align-self: center; width: 26px; height: 4px; border-radius: 2px; background: #9aa3b2"></span><span style="margin-top: auto; height: 12px; box-sizing: border-box; border-radius: 4px; border: 1px solid #1f4fd8"></span></div>
+<div role="img" aria-label="Náhled obrazovky Správa karet" style="position: absolute; left: 512px; top: 576px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="width: 28px; height: 5px; border-radius: 2px; background: #1b1f26"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; border: 1px dashed #6b7382"></span></div>
+<div role="img" aria-label="Náhled obrazovky Přidat kartu" style="position: absolute; left: 760px; top: 576px; width: 68px; height: 120px; box-sizing: border-box; padding: 7px 6px; border-radius: 8px; background: #f6f7f9; display: flex; flex-direction: column; gap: 5px"><span style="width: 28px; height: 5px; border-radius: 2px; background: #1b1f26"></span><span style="height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="display: flex; gap: 4px"><span style="flex: 1; height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span><span style="flex: 1; height: 14px; box-sizing: border-box; border-radius: 3px; background: #ffffff; border: 1px solid #c5cad3"></span></span><span style="margin-top: auto; height: 12px; border-radius: 4px; background: #1f4fd8"></span></div>
+<sc-if value="{{ diff }}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 592px; top: 20px; width: 96px; font-size: 12px; line-height: 16px; font-weight: 600; color: #f2cc60">změněno<br>4 nové intenty</div>
+<div style="position: absolute; left: 592px; top: 580px; width: 96px; font-size: 12px; line-height: 16px; font-weight: 600; color: #5fd0a0">nová obrazovka</div>
+<div style="position: absolute; left: 840px; top: 580px; width: 96px; font-size: 12px; line-height: 16px; font-weight: 600; color: #5fd0a0">nová obrazovka</div>
+</sc-if>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 12px; color: #a3acba">
+<span>Náhledy jsou z posledních snapshot testů, bez snapshotu z Compose Preview.</span>
+<span>→ intent vede na jinou obrazovku</span>
+<span>← intent vrací zpět</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 10px; border: 2px solid #5fd0a0; border-radius: 3px"></span>přidáno v PR</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 10px; border: 2px solid #f2cc60; border-radius: 3px"></span>změněno v PR</span>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 10px; background: #1b1f26; border: 1px solid #2f3541">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8b95a5">Vybraná obrazovka</span>
+<h2 style="margin: 0; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-size: 20px; line-height: 26px; font-weight: 500">Platba</h2>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; color: #a3acba">Otevřít kód</span>
+<div style="display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px">
+<a href="#kod" style="padding: 6px 0">PaymentScreen.kt</a>
+<a href="#kod" style="padding: 6px 0">PaymentViewModel.kt</a>
+<a href="#kod" style="padding: 6px 0">PaymentContract.kt</a>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; color: #a3acba">Stav (PaymentState)</span>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 22px">amount: Money<br><span style="color: #5fd0a0">+ cards: List&lt;SavedCard&gt;</span><br><span style="color: #5fd0a0">+ selectedCardId: String?</span><br><span style="color: #5fd0a0">+ cardsStatus: LoadStatus</span><br><span style="color: #ff8a7a">− isLoading: Boolean</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; color: #a3acba">Efekty</span>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 22px">NavigateToConfirmation<br><span style="color: #5fd0a0">+ NavigateToManageCards</span><br>ShowError</div>
+</div>
+<div id="kod" style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #a3acba">PaymentViewModel.kt · zpracování intentu CardSelected</span>
+<div style="overflow-x: auto; padding: 8px 0; border-radius: 8px; background: #14171c; border: 1px solid #2f3541">
+<sc-for list="{{ code }}" as="ln" hint-placeholder-count="7">
+<div style="min-width: max-content; padding: 0 12px; background: {{ ln.bg }}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px; white-space: pre">{{ ln.text }}</div>
+</sc-for>
+</div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1100}}'>
+class Component extends DCLogic {
+state = { diff: true };
+renderVals() {
+const on = this.state.diff;
+const add = on ? 'rgba(95,208,160,0.12)' : 'transparent';
+return {
+diff: on,
+diffLabel: on ? 'zobrazené' : 'skryté',
+toggle: () => this.setState({ diff: !on }),
+d: { added: on ? '#5fd0a0' : '#3b4352', changed: on ? '#f2cc60' : '#7aa7ff', arrow: on ? '#5fd0a0' : '#8b95a5', plus: on ? '#5fd0a0' : '#c9cfda', plusText: on ? '+ ' : '' },
+code: [
+{ text: 'override fun reduce(state: PaymentState, intent: PaymentIntent) =', bg: 'transparent' },
+{ text: '    when (intent) {', bg: 'transparent' },
+{ text: '        is CardSelected ->', bg: add },
+{ text: '            state.copy(selectedCardId = intent.id)', bg: add },
+{ text: '        ManageCardsClicked ->', bg: add },
+{ text: '            state.also { emit(NavigateToManageCards) }', bg: add },
+{ text: '        PayClicked -> pay(state)', bg: 'transparent' },
+{ text: '    }', bg: 'transparent' }
+]
+};
+}
+}
+</script>
+</body>
+</html>
