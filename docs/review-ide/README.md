@@ -34,7 +34,7 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 ## Otevřené otázky
 
 - [ ] Linkuje tým PR na pracovní položky Azure DevOps konzistentně? Rozhoduje o automatickém zakládání Funkcí.
-- [ ] Zvládne kotlin-lsp Android projekt s Gradle variantami?
+- [x] Zvládne kotlin-lsp Android projekt s Gradle variantami? Zatím ne: import běžné Android aplikace selže a třída `R` se v knihovních modulech nenajde. Návrh je nechat Kotlin v M3 bez language serveru, viz [decision-1](../../backlog/decisions/decision-1%20-%20Kotlin-v-editoru-M3-kotlin-lsp-zatím-ne-jen-Otevřít-v-Android-Studiu.md).
 - [ ] Vlastní most LSP → Monaco, nebo `@codingame/monaco-vscode-api`?
 - [ ] Pracují Claude Code a ostatní agenti správně ve složce se symbolickými odkazy na více worktrees?
 - [ ] Limity POEditor API pro dávkové odesílání.

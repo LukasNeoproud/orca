@@ -4,6 +4,7 @@ title: Rozepsat tikety milníku M3 Editor
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
+updated_date: '2026-11-18T17:25:00Z'
 labels:
   - review-ide
   - planovani
@@ -56,3 +57,9 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 - [ ] #5 Otázky pro uživatele k rozsahu, placeným službám a chování navenek jsou v poznámkách tiketu, každá s možnostmi a doporučením
 - [ ] #6 Popis milníku v backlog/milestones odpovídá naplánovanému rozsahu
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Podklady z TASK-53 (2026-11-18): decision-1 navrhuje Kotlin v M3 bez language serveru. Pro hostitele language serverů počítat se signálem o stavu a selhání importu projektu (jinak prázdná odpověď vypadá jako soubor bez chyb) a s obsahem dokumentů mimo disk (workspace/textDocumentContent, URI jar:). Otázky pro uživatele: 1) přijmout návrh decision-1 (A bez language serveru, doporučeno; B experimentální režim za přepínačem; C odložit plánování Kotlinu); 2) nahlásit obě chyby JetBrains se smyšleným projektem (ven by šel jen smyšlený projekt a výpis chyby; doporučeno ano); 3) ponechat stažený server v ~/.cache/orca-review-ide/tools (1,1 GB) pro nový pokus.
+<!-- SECTION:NOTES:END -->

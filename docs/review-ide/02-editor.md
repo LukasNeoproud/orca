@@ -22,7 +22,7 @@ Dnes editor neregistruje žádné providery pro definice, nápovědu, doplňová
 
 | Platforma | Server | Poznámka |
 | --- | --- | --- |
-| Android / Kotlin | kotlin-lsp (JetBrains) | Zdarma, alfa; ověřit na projektu s Gradle variantami. Stabilní „Java and Kotlin by IntelliJ IDEA“ vyžaduje po zkušební době licenci Ultimate |
+| Android / Kotlin | kotlin-lsp (JetBrains) | Zdarma, alfa. Pokus TASK-53 (verze 271.2085.0): import běžné Android aplikace selže a třída `R` se v knihovních modulech nenajde; návrh je nechat Kotlin v M3 bez language serveru, viz [decision-1](../../backlog/decisions/decision-1%20-%20Kotlin-v-editoru-M3-kotlin-lsp-zatím-ne-jen-Otevřít-v-Android-Studiu.md). Stabilní „Java and Kotlin by IntelliJ IDEA“ vyžaduje po zkušební době licenci Ultimate |
 | iOS / Swift | sourcekit-lsp z toolchainu Xcode | Pro SPM přímo, pro `.xcodeproj` build server (např. xcode-build-server) |
 | .NET / C# | Roslyn language server, případně csharp-ls | |
 
