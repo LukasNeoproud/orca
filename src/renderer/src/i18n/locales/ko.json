@@ -19725,6 +19725,8 @@
     "involvementMine": "내 것",
     "startReview": "검토 시작",
     "continueReview": "검토 계속",
-    "newRequest": "신규"
+    "newRequest": "신규",
+    "originalSideUnavailable": "차이점을 로드하지 못했습니다. 이 파일의 원래 버전을 로드할 수 없습니다.",
+    "modifiedSideUnavailable": "차이점을 로드하지 못했습니다. 이 파일의 변경된 버전을 로드할 수 없습니다."
   }
 }

@@ -6,6 +6,7 @@ import type { ElectronApplication, Locator, Page } from '@stablyai/playwright-te
 import { test as base, expect } from './helpers/orca-app'
 import { createSeededTestRepo } from './helpers/seeded-test-repo'
 import { waitForSessionReady } from './helpers/store'
+import { serveFakeAzureDevOpsPullRequest } from './helpers/fake-azure-devops-pull-request'
 import { cleanupTestRepository } from './global-teardown'
 
 /**
@@ -60,87 +61,19 @@ test.use({
   minimumSeededWorktreeCount: 1
 })
 
-/** Answers the REST calls of one pull request's detail and of its files' text. */
 async function serveFakePullRequest(electronApp: ElectronApplication): Promise<void> {
-  await electronApp.evaluate(
-    (_electron, fake) => {
-      const realFetch = globalThis.fetch
-      const json = (body: unknown, status = 200): Response =>
-        new Response(JSON.stringify(body), {
-          status,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      const pullRequestPath = `/_apis/git/repositories/${fake.repositoryId}/pullrequests/${fake.pullRequestId}`
-      globalThis.fetch = async (input, init) => {
-        const url = new URL(input instanceof Request ? input.url : String(input))
-        if (url.hostname !== 'ado.invalid') {
-          return realFetch(input, init)
-        }
-        const apiPath = url.pathname.toLowerCase()
-        if (apiPath.endsWith('/_apis/connectiondata')) {
-          return json({ authenticatedUser: { id: 'me-guid-1', providerDisplayName: 'Me Example' } })
-        }
-        if (apiPath.endsWith('/_apis/git/repositories/app')) {
-          return json({ id: fake.repositoryId })
-        }
-        if (apiPath.endsWith(pullRequestPath)) {
-          return json({
-            pullRequestId: fake.pullRequestId,
-            title: 'Simplify the cart total',
-            description: 'Reduce instead of a loop, and a coupon constant.',
-            status: 'active',
-            isDraft: false,
-            creationDate: '2026-11-17T09:00:00Z',
-            sourceRefName: 'refs/heads/feature/cart-total',
-            targetRefName: 'refs/heads/main',
-            createdBy: { id: 'ada-guid', displayName: 'Ada Example' },
-            reviewers: [{ id: 'me-guid-1', vote: 0 }]
-          })
-        }
-        if (apiPath.endsWith(`${pullRequestPath}/iterations`)) {
-          return json({
-            value: [
-              {
-                id: 1,
-                sourceRefCommit: { commitId: fake.sourceCommit },
-                commonRefCommit: { commitId: fake.baseCommit },
-                targetRefCommit: { commitId: fake.baseCommit }
-              }
-            ]
-          })
-        }
-        if (apiPath.endsWith(`${pullRequestPath}/iterations/1/changes`)) {
-          return json({
-            changeEntries: [
-              { changeTrackingId: 1, changeType: 'edit', item: { path: `/${fake.changedPath}` } },
-              { changeTrackingId: 2, changeType: 'add', item: { path: `/${fake.addedPath}` } }
-            ]
-          })
-        }
-        if (apiPath.endsWith(`${pullRequestPath}/threads`)) {
-          return json({ value: [] })
-        }
-        if (apiPath.endsWith(`/_apis/git/repositories/${fake.repositoryId}/items`)) {
-          const side = url.searchParams.get('versionDescriptor.version') ?? ''
-          const itemPath = url.searchParams.get('path') ?? ''
-          const content = fake.files[`${side}:${itemPath}`]
-          return content === undefined
-            ? json({ message: 'not found' }, 404)
-            : json({ path: itemPath, content, contentMetadata: { isBinary: false } })
-        }
-        return json({ message: 'not served by the test' }, 404)
-      }
-    },
-    {
-      repositoryId: REPOSITORY_ID,
-      pullRequestId: PULL_REQUEST_ID,
-      changedPath: CHANGED_PATH,
-      addedPath: ADDED_PATH,
-      baseCommit: BASE_COMMIT,
-      sourceCommit: SOURCE_COMMIT,
-      files: FILES
-    }
-  )
+  await serveFakeAzureDevOpsPullRequest(electronApp, {
+    repositoryId: REPOSITORY_ID,
+    pullRequestId: PULL_REQUEST_ID,
+    baseCommit: BASE_COMMIT,
+    sourceCommit: SOURCE_COMMIT,
+    title: 'Simplify the cart total',
+    changes: [
+      { changeTrackingId: 1, changeType: 'edit', item: { path: `/${CHANGED_PATH}` } },
+      { changeTrackingId: 2, changeType: 'add', item: { path: `/${ADDED_PATH}` } }
+    ],
+    files: FILES
+  })
 }
 
 /** Text of each removed-lines zone Monaco paints inline, in the modified editor. */

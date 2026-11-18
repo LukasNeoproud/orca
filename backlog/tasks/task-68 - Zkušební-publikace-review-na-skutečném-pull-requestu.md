@@ -4,7 +4,7 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
-updated_date: '2026-11-18T22:11:00Z'
+updated_date: '2026-11-18T23:17:00Z'
 labels:
   - review-ide
   - ceka-na-uzivatele
@@ -57,4 +57,6 @@ Otevřené otázky pro uživatele z TASK-67 (2026-11-18): 1) Smí agent spoušt�
 Přesunuto do M2 za TASK-83 (2026-11-18): zkušební publikace má obsahovat hlas a ten aplikace před TASK-83 odeslat neumí.
 
 Odpovědi uživatele (2026-11-18, decision-5): 1) druhá skrytá instance Orca Dev smí, jen se zálohou sdílených souborů jako pevným krokem; 2) zápisové části TASK-51 doověřit spolu s tímto tiketem, se zálohou; 3) pracovní data TASK-67 smazána. Pull request pro zkušební publikaci je určený; adresa je jen v CLAUDE.local.md. Tiket dál čeká na uživatele: publikaci provádí on a hlasování dodá až TASK-83.
+
+Z TASK-114 (2026-11-19): při ověřování proti skutečné organizaci zkontrolovat, jestli items API může u neprázdného souboru vrátit HTTP 200 bez pole content. Dnes se taková odpověď bere jako prázdný text a od opravdu prázdného souboru ji nejde rozlišit.
 <!-- SECTION:NOTES:END -->

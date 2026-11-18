@@ -20524,6 +20524,8 @@
     "inlineView": "Inline view",
     "sideBySideView": "Side-by-side view",
     "loadingDiff": "Loading diff…",
+    "originalSideUnavailable": "Failed to load diff: the original version of this file could not be loaded.",
+    "modifiedSideUnavailable": "Failed to load diff: the changed version of this file could not be loaded.",
     "addDraft": "Add draft comment",
     "noChanges": "This pull request has no file changes.",
     "tabChipStale": "Open pull request !{{id}} (the review workspace now has another pull request checked out)",

@@ -19725,6 +19725,8 @@
     "involvementMine": "Mías",
     "startReview": "Iniciar revisión",
     "continueReview": "Continuar revisión",
-    "newRequest": "Nueva"
+    "newRequest": "Nueva",
+    "originalSideUnavailable": "No se pudo cargar el diff: no se pudo cargar la versión original de este archivo.",
+    "modifiedSideUnavailable": "No se pudo cargar el diff: no se pudo cargar la versión modificada de este archivo."
   }
 }

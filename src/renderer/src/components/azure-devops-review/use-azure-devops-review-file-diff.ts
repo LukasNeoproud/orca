@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAzureDevOpsReviewFileDiff } from '@/lib/azure-devops-review-client'
+import { translate } from '@/i18n/i18n'
+import { azureDevOpsReviewUnloadedSide } from '../../../../shared/azure-devops-review-unloaded-side'
 import type {
   AzureDevOpsReviewChange,
   AzureDevOpsReviewFileDiff
@@ -12,6 +14,30 @@ const inFlight = new Map<string, Promise<AzureDevOpsReviewFileDiff>>()
 
 function cacheKey(pullRequestKey: string, iterationId: number | null, path: string): string {
   return `${pullRequestKey}\0${iterationId ?? 'none'}\0${path}`
+}
+
+// Why: a side the host could not find would otherwise render as an added or deleted file.
+function assertBothSidesLoaded(
+  change: AzureDevOpsReviewChange,
+  diff: AzureDevOpsReviewFileDiff
+): void {
+  const side = azureDevOpsReviewUnloadedSide(change.changeType, diff)
+  if (side === 'original') {
+    throw new Error(
+      translate(
+        'azureDevOpsReview.originalSideUnavailable',
+        'Failed to load diff: the original version of this file could not be loaded.'
+      )
+    )
+  }
+  if (side === 'modified') {
+    throw new Error(
+      translate(
+        'azureDevOpsReview.modifiedSideUnavailable',
+        'Failed to load diff: the changed version of this file could not be loaded.'
+      )
+    )
+  }
 }
 
 /** Both sides of one changed file, shared by the single-file and all-changes views. */
@@ -35,6 +61,7 @@ export function loadAzureDevOpsReviewFileDiff(
     originalPath: change.originalPath
   })
     .then((diff) => {
+      assertBothSidesLoaded(change, diff)
       if (fileDiffCache.size >= CACHE_LIMIT) {
         const oldest = fileDiffCache.keys().next().value
         if (oldest !== undefined) {

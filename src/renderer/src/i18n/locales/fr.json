@@ -19726,6 +19726,8 @@
     "involvementMine": "Les miennes",
     "startReview": "Commencer la revue",
     "continueReview": "Poursuivre la revue",
-    "newRequest": "Nouvelle"
+    "newRequest": "Nouvelle",
+    "originalSideUnavailable": "Échec du chargement du diff : impossible de charger la version d'origine de ce fichier.",
+    "modifiedSideUnavailable": "Échec du chargement du diff : impossible de charger la version modifiée de ce fichier."
   }
 }

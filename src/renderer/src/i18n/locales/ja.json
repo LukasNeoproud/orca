@@ -19725,6 +19725,8 @@
     "involvementMine": "自分の",
     "startReview": "レビューを開始",
     "continueReview": "レビューを続ける",
-    "newRequest": "新着"
+    "newRequest": "新着",
+    "originalSideUnavailable": "差分の読み込みに失敗しました。このファイルの元のバージョンを読み込めませんでした。",
+    "modifiedSideUnavailable": "差分の読み込みに失敗しました。このファイルの変更後のバージョンを読み込めませんでした。"
   }
 }

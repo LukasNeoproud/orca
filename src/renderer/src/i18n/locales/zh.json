@@ -19739,6 +19739,8 @@
     "involvementMine": "我的",
     "startReview": "开始审查",
     "continueReview": "继续审查",
-    "newRequest": "新"
+    "newRequest": "新",
+    "originalSideUnavailable": "无法加载差异：无法加载此文件的原始版本。",
+    "modifiedSideUnavailable": "无法加载差异：无法加载此文件的修改后版本。"
   }
 }
