@@ -3,6 +3,7 @@ import { defineMethod } from '../core'
 import { GIT_BRANCH_LIST_METHODS } from './git-branch-list-methods'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
+import { GIT_ANNOTATE_METHODS } from './git-annotate-methods'
 import {
   GitBranchCompare,
   GitBulkPaths,
@@ -39,6 +40,7 @@ export const GIT_METHODS = [
       runtime.manageRuntimeBranch(params.worktree, params.action, params.branch)
   }),
   ...GIT_BRANCH_LIST_METHODS,
+  ...GIT_ANNOTATE_METHODS,
   defineMethod({
     name: 'git.status',
     permission: 'workspace',

@@ -53,7 +53,8 @@ export function GitHistoryPanel({
   onCommitAction,
   onLoadAllRefsHistory,
   onOpenGraphTab,
-  branchList
+  branchList,
+  renderExpandedCommit
 }: {
   state: GitHistoryPanelState
   collapsed: boolean
@@ -72,6 +73,8 @@ export function GitHistoryPanel({
   /** Opens the graph of all branches as a workspace tab. */
   onOpenGraphTab?: () => void
   branchList?: GitBranchListActions
+  /** Shown under an expanded commit in place of its file list. */
+  renderExpandedCommit?: (item: GitHistoryItem) => React.ReactNode
 }): React.JSX.Element | null {
   const result = state.result
   const viewModels = useMemo(() => {
@@ -400,15 +403,16 @@ export function GitHistoryPanel({
                 ) : (
                   row
                 )}
-                {isExpanded && (
-                  <GitHistoryCommitFiles
-                    state={filesByCommit[item.id] ?? { status: 'loading' }}
-                    author={item.author}
-                    timestamp={item.timestamp}
-                    onOpenFile={(entry, event) => onOpenCommitFile?.(item, entry, event)}
-                    onOpenAll={onOpenCommit ? () => onOpenCommit(item) : undefined}
-                  />
-                )}
+                {isExpanded &&
+                  (renderExpandedCommit?.(item) ?? (
+                    <GitHistoryCommitFiles
+                      state={filesByCommit[item.id] ?? { status: 'loading' }}
+                      author={item.author}
+                      timestamp={item.timestamp}
+                      onOpenFile={(entry, event) => onOpenCommitFile?.(item, entry, event)}
+                      onOpenAll={onOpenCommit ? () => onOpenCommit(item) : undefined}
+                    />
+                  ))}
               </React.Fragment>
             )
           })}

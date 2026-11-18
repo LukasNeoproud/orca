@@ -1,5 +1,6 @@
 import { RuntimeBranchListCommands } from './runtime-branch-list-commands'
 import { RuntimeBranchManagementCommands } from './runtime-branch-management-commands'
+import { RuntimeGitAnnotateCommands } from './runtime-git-annotate-commands'
 import { RuntimeGitDiffCommands } from './runtime-git-diff-commands'
 import { RuntimeGitGenerationCommands } from './runtime-git-generation-commands'
 import { RuntimeGitStagingCommands } from './runtime-git-staging-commands'
@@ -24,6 +25,8 @@ export class RuntimeGitCommands {
   readonly getRuntimeGitSubmoduleStatus: RuntimeGitStatusCommands['getRuntimeGitSubmoduleStatus']
   readonly checkRuntimeGitIgnoredPaths: RuntimeGitStatusCommands['checkRuntimeGitIgnoredPaths']
   readonly getRuntimeGitHistory: RuntimeGitStatusCommands['getRuntimeGitHistory']
+  readonly getRuntimeGitBlame: RuntimeGitAnnotateCommands['getRuntimeGitBlame']
+  readonly getRuntimeGitLineHistory: RuntimeGitAnnotateCommands['getRuntimeGitLineHistory']
   readonly getRuntimeGitConflictOperation: RuntimeGitStatusCommands['getRuntimeGitConflictOperation']
   readonly checkoutRuntimeGitBranch: RuntimeGitStatusCommands['checkoutRuntimeGitBranch']
   readonly listRuntimeGitLocalBranches: RuntimeGitStatusCommands['listRuntimeGitLocalBranches']
@@ -71,11 +74,14 @@ export class RuntimeGitCommands {
     const sync = new RuntimeGitSyncCommands(host)
     const generation = new RuntimeGitGenerationCommands(host)
     const staging = new RuntimeGitStagingCommands(host)
+    const annotate = new RuntimeGitAnnotateCommands(host)
 
     this.getRuntimeGitStatus = status.getRuntimeGitStatus.bind(status)
     this.getRuntimeGitSubmoduleStatus = status.getRuntimeGitSubmoduleStatus.bind(status)
     this.checkRuntimeGitIgnoredPaths = status.checkRuntimeGitIgnoredPaths.bind(status)
     this.getRuntimeGitHistory = status.getRuntimeGitHistory.bind(status)
+    this.getRuntimeGitBlame = annotate.getRuntimeGitBlame.bind(annotate)
+    this.getRuntimeGitLineHistory = annotate.getRuntimeGitLineHistory.bind(annotate)
     this.getRuntimeGitConflictOperation = status.getRuntimeGitConflictOperation.bind(status)
     this.checkoutRuntimeGitBranch = status.checkoutRuntimeGitBranch.bind(status)
     this.listRuntimeGitLocalBranches = status.listRuntimeGitLocalBranches.bind(status)

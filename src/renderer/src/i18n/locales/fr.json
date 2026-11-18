@@ -19679,6 +19679,26 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Les snapshots nécessitent une comparaison de cette branche avec sa base, et aucune n’est disponible."
   },
+  "gitAnnotate": {
+    "toggle": "Annoter avec Git Blame",
+    "showSelectionHistory": "Afficher l’historique de la sélection",
+    "showLineHistory": "Afficher l’historique de la ligne {{value0}}",
+    "uncommitted": "Non commité",
+    "uncommittedHover": "Pas encore commité",
+    "hoverHint": "Cliquez pour afficher le commit dans le graphe Git",
+    "olderHost": "Cet hôte exécute une version plus ancienne d’Orca. Mettez-la à jour pour annoter.",
+    "saveFirst": "Enregistrez le fichier pour voir l’historique de ses lignes.",
+    "tooLarge": "Ce fichier est trop volumineux pour être annoté.",
+    "failed": "Impossible de charger les annotations Git",
+    "historyTitle": "Historique de {{file}}, lignes {{start}}–{{end}}",
+    "historyTitleLine": "Historique de {{file}}, ligne {{start}}",
+    "historyClear": "Afficher tous les commits",
+    "historyUncommitted": "Ces lignes ne sont pas encore commitées.",
+    "historyUntracked": "Ce fichier n’est pas encore commité.",
+    "historyNoCommits": "Ce dépôt n’a pas encore de commit.",
+    "patchTruncated": "Modification réduite à ses {{value0}} premières lignes.",
+    "openCommit": "Ouvrir le commit complet"
+  },
   "azureDevOpsReview": {
     "groupAwaitingMyReview": "En attente de ma revue",
     "groupMine": "Mes pull requests",

@@ -259,6 +259,7 @@ import {
   FolderWorkspaceSelector,
   FolderWorkspaceUpdate
 } from './folder-workspace-params'
+import { GitBlame, GitLineHistory } from './git-annotate-params'
 import {
   GitDeleteBranchParams,
   GitDeleteMergedBranchesParams,
@@ -970,6 +971,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'folderWorkspace.update': FolderWorkspaceUpdate,
   'git.abortMerge': WorktreeSelectorOfGitParams,
   'git.abortRebase': WorktreeSelectorOfGitParams,
+  'git.blame': GitBlame,
   'git.branchCompare': GitBranchCompare,
   'git.branchDiff': GitBranchDiff,
   'git.branchManagementPreview': WorktreeSelectorOfGitParams,
@@ -996,6 +998,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'git.generateCommitMessage': GitGenerateCommitMessage,
   'git.generatePullRequestFields': GitGeneratePullRequestFields,
   'git.history': GitHistory,
+  'git.lineHistory': GitLineHistory,
   'git.localBranches': WorktreeSelectorOfGitParams,
   'git.manageBranch': GitManageBranchParams,
   'git.mergedBranches': GitMergedBranchesParams,

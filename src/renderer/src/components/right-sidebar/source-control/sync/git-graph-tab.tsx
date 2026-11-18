@@ -11,6 +11,7 @@ import { requireGitOwnerTarget, useWorktreeGitOwnerTarget } from '../../worktree
 import { GitGraphView } from './git-graph-view'
 import { useGitBranchList } from './use-git-branch-list'
 import { useGitHistoryCommitActions } from './use-git-history-commit-actions'
+import { useGitAnnotateStore } from '@/components/git-annotate/git-annotate-store'
 
 const openInSameGroup = (): undefined => undefined
 
@@ -33,6 +34,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }): React.JSX.E
       resolveSplitTargetGroupId: openInSameGroup
     })
   const branchList = useGitBranchList(isFolder ? null : worktreeId)
+  const focusCommit = useGitAnnotateStore((state) => state.graphFocusByWorktree[worktreeId])
   const loadHistory = useCallback(
     async (skip: number): Promise<GitHistoryResult> => {
       if (!worktreePath || isFolder) {
@@ -62,6 +64,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }): React.JSX.E
         onOpenCommitFile={openCommitFile}
         onCommitAction={handleCommitAction}
         branchList={branchList}
+        focusCommit={focusCommit}
         renderHeading={(title, description) => (
           <>
             <h2 className="text-sm font-semibold text-foreground">{title}</h2>

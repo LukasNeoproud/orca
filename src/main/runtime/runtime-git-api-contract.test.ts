@@ -15,6 +15,8 @@ const RPC_TO_RUNTIME_COMMAND = {
   'git.checkIgnored': 'checkRuntimeGitIgnoredPaths',
   'git.submoduleStatus': 'getRuntimeGitSubmoduleStatus',
   'git.history': 'getRuntimeGitHistory',
+  'git.blame': 'getRuntimeGitBlame',
+  'git.lineHistory': 'getRuntimeGitLineHistory',
   'git.conflictOperation': 'getRuntimeGitConflictOperation',
   'git.abortMerge': 'abortRuntimeGitMerge',
   'git.abortRebase': 'abortRuntimeGitRebase',

@@ -49,6 +49,8 @@ export type GitGraphViewProps = {
   headerActions?: React.ReactNode
   /** Shows the branch list beside the graph; absent where the host cannot serve it. */
   branchList?: GitBranchListActions
+  /** A commit to select and scroll to; a new `requestId` asks again for the same commit. */
+  focusCommit?: { commitId: string; requestId: number }
 }
 
 /** Every branch, remote branch and tag of the repository as one commit graph. */
@@ -62,7 +64,8 @@ export function GitGraphView({
   renderHeading,
   headerClassName,
   headerActions,
-  branchList
+  branchList,
+  focusCommit
 }: GitGraphViewProps): React.JSX.Element {
   const { state, refresh, loadMore } = useAllRefsGitGraph({ open: true, load: onLoadHistory })
   const head = state.head
@@ -221,6 +224,13 @@ export function GitGraphView({
       )
     }, [])
   })
+  const focusedRequestRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (focusCommit && focusedRequestRef.current !== focusCommit.requestId) {
+      focusedRequestRef.current = focusCommit.requestId
+      jumpToCommit(focusCommit.commitId)
+    }
+  }, [focusCommit, jumpToCommit])
 
   return (
     <>

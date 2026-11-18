@@ -32,6 +32,7 @@ import type { EmulatorApi } from './api/emulator-api'
 import type { AndroidAppRunApi } from './api/android-app-run-api'
 import type { EphemeralVmApi } from './api/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
+import type { GitAnnotateApi } from './api/git-annotate-bridge'
 import type { GitInspectionApi } from './api/git-inspection-api'
 import type { GitOperationApi } from './api/git-operation-api'
 import type { GithubAccountApi } from './api/github-account-api'
@@ -148,6 +149,7 @@ export type PreloadApi = {
   nativeChat: NativeChatApi
   fs: FilesystemApi['fs']
   git: Merged<GitInspectionApi & GitOperationApi>
+  gitAnnotate: GitAnnotateApi
   ui: Merged<UiCommandEventApi & UiWindowApi>
   runtime: RuntimeApi['runtime']
   runtimeEnvironments: RuntimeApi['runtimeEnvironments']

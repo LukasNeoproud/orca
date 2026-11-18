@@ -12,6 +12,8 @@ import { getConnectionId } from '@/lib/connection-context'
 import { findWorktreeById } from '@/store/slices/worktree-helpers'
 import { getRuntimeGitRemoteFileUrl } from '@/runtime/runtime-git-working-tree-client'
 import { ExternalEditorOpenFileMenuSection } from '../external-editor-file-open/ExternalEditorOpenFileMenuSection'
+import { GitAnnotateGutterMenuItems } from '../git-annotate/GitAnnotateGutterMenuItems'
+import type { GitAnnotateMenu } from '../git-annotate/use-monaco-git-annotate'
 import { formatPathLineReference } from './line-copy-path'
 import { translate } from '@/i18n/i18n'
 
@@ -22,6 +24,7 @@ type MonacoGutterContextMenuProps = {
   line: number
   filePath: string
   relativePath: string
+  gitAnnotate: GitAnnotateMenu | null
 }
 
 export function MonacoGutterContextMenu({
@@ -30,7 +33,8 @@ export function MonacoGutterContextMenu({
   point,
   line,
   filePath,
-  relativePath
+  relativePath,
+  gitAnnotate
 }: MonacoGutterContextMenuProps): React.JSX.Element {
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
@@ -103,6 +107,7 @@ export function MonacoGutterContextMenu({
             'Copy Remote URL'
           )}
         </DropdownMenuItem>
+        <GitAnnotateGutterMenuItems menu={gitAnnotate} line={line} />
         <ExternalEditorOpenFileMenuSection filePath={filePath} line={line} leadingSeparator />
       </DropdownMenuContent>
     </DropdownMenu>

@@ -6,6 +6,8 @@ const { git } = vi.hoisted(() => ({
     getSubmoduleStatus: vi.fn(),
     checkIgnoredPaths: vi.fn(),
     getHistory: vi.fn(),
+    getBlame: vi.fn(),
+    getLineHistory: vi.fn(),
     commitChanges: vi.fn(),
     getStagedCommitContext: vi.fn(),
     getDiff: vi.fn(),
@@ -47,6 +49,10 @@ vi.mock('../git/checkout', () => ({
   listLocalBranches: git.listLocalBranches
 }))
 vi.mock('../git/history', () => ({ getHistory: git.getHistory }))
+vi.mock('../git/annotate', () => ({
+  getBlame: git.getBlame,
+  getLineHistory: git.getLineHistory
+}))
 vi.mock('../git/remote', () => git)
 vi.mock('../git/fork-sync', () => ({ gitSyncForkDefaultBranch: git.gitSyncForkDefaultBranch }))
 vi.mock('../git/upstream', () => ({ getUpstreamStatus: git.getUpstreamStatus }))
@@ -93,6 +99,18 @@ const cases: ParityCase[] = [
     (p) => p.getHistory(WT, { limit: 5 }),
     'getHistory',
     [WT, { limit: 5, ...interactive }]
+  ],
+  [
+    'getBlame',
+    (p) => p.getBlame(WT, { relativePath: 'a', contents: 'x' }),
+    'getBlame',
+    [WT, { relativePath: 'a', contents: 'x', ...interactive }]
+  ],
+  [
+    'getLineHistory',
+    (p) => p.getLineHistory(WT, { relativePath: 'a', startLine: 2, endLine: 4 }),
+    'getLineHistory',
+    [WT, { relativePath: 'a', startLine: 2, endLine: 4, ...interactive }]
   ],
   ['commit', (p) => p.commit(WT, 'msg'), 'commitChanges', [WT, 'msg', interactive]],
   [

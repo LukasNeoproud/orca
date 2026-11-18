@@ -19678,6 +19678,26 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Los snapshots necesitan una comparación de esta rama con su base, y no hay ninguna disponible."
   },
+  "gitAnnotate": {
+    "toggle": "Anotar con Git Blame",
+    "showSelectionHistory": "Mostrar historial de la selección",
+    "showLineHistory": "Mostrar historial de la línea {{value0}}",
+    "uncommitted": "Sin confirmar",
+    "uncommittedHover": "Aún sin confirmar",
+    "hoverHint": "Haz clic para mostrar el commit en el gráfico de Git",
+    "olderHost": "Este host ejecuta una versión anterior de Orca. Actualízala para anotar.",
+    "saveFirst": "Guarda el archivo para ver el historial de sus líneas.",
+    "tooLarge": "Este archivo es demasiado grande para anotarlo.",
+    "failed": "No se pudieron cargar las anotaciones de Git",
+    "historyTitle": "Historial de {{file}}, líneas {{start}}–{{end}}",
+    "historyTitleLine": "Historial de {{file}}, línea {{start}}",
+    "historyClear": "Mostrar todos los commits",
+    "historyUncommitted": "Estas líneas aún no están confirmadas.",
+    "historyUntracked": "Este archivo aún no está confirmado.",
+    "historyNoCommits": "Este repositorio aún no tiene commits.",
+    "patchTruncated": "Cambio acortado a sus primeras {{value0}} líneas.",
+    "openCommit": "Abrir el commit completo"
+  },
   "azureDevOpsReview": {
     "groupAwaitingMyReview": "Esperan mi revisión",
     "groupMine": "Mis pull requests",

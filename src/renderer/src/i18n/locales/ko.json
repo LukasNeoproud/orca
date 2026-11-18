@@ -19678,6 +19678,26 @@
     "openCount": "스냅샷 ({{value0}})",
     "compareUnavailable": "스냅샷을 보려면 이 브랜치와 베이스의 비교가 필요하지만 사용할 수 있는 비교가 없습니다."
   },
+  "gitAnnotate": {
+    "toggle": "Git Blame으로 주석 표시",
+    "showSelectionHistory": "선택 영역의 기록 표시",
+    "showLineHistory": "{{value0}}번째 줄의 기록 표시",
+    "uncommitted": "커밋되지 않음",
+    "uncommittedHover": "아직 커밋되지 않았습니다",
+    "hoverHint": "클릭하면 Git 그래프에서 커밋을 표시합니다",
+    "olderHost": "이 호스트는 이전 버전의 Orca를 실행 중입니다. 주석을 표시하려면 업데이트하세요.",
+    "saveFirst": "줄의 기록을 보려면 파일을 저장하세요.",
+    "tooLarge": "이 파일은 너무 커서 주석을 표시할 수 없습니다.",
+    "failed": "Git 주석을 불러오지 못했습니다",
+    "historyTitle": "{{file}}의 {{start}}–{{end}}번째 줄 기록",
+    "historyTitleLine": "{{file}}의 {{start}}번째 줄 기록",
+    "historyClear": "모든 커밋 표시",
+    "historyUncommitted": "이 줄들은 아직 커밋되지 않았습니다.",
+    "historyUntracked": "이 파일은 아직 커밋되지 않았습니다.",
+    "historyNoCommits": "이 저장소에는 아직 커밋이 없습니다.",
+    "patchTruncated": "변경 내용이 처음 {{value0}}줄로 줄여졌습니다.",
+    "openCommit": "전체 커밋 열기"
+  },
   "azureDevOpsReview": {
     "groupAwaitingMyReview": "내 검토 대기 중",
     "groupMine": "내 Pull Request",

@@ -19678,6 +19678,26 @@
     "openCount": "スナップショット ({{value0}})",
     "compareUnavailable": "スナップショットにはこのブランチとベースの比較が必要ですが、利用できる比較がありません。"
   },
+  "gitAnnotate": {
+    "toggle": "Git Blame で注釈を表示",
+    "showSelectionHistory": "選択範囲の履歴を表示",
+    "showLineHistory": "{{value0}} 行目の履歴を表示",
+    "uncommitted": "未コミット",
+    "uncommittedHover": "まだコミットされていません",
+    "hoverHint": "クリックすると Git グラフでコミットを表示します",
+    "olderHost": "このホストの Orca は古いバージョンです。注釈を表示するには更新してください。",
+    "saveFirst": "行の履歴を表示するにはファイルを保存してください。",
+    "tooLarge": "このファイルは大きすぎるため注釈を表示できません。",
+    "failed": "Git の注釈を読み込めませんでした",
+    "historyTitle": "{{file}} の {{start}}～{{end}} 行目の履歴",
+    "historyTitleLine": "{{file}} の {{start}} 行目の履歴",
+    "historyClear": "すべてのコミットを表示",
+    "historyUncommitted": "これらの行はまだコミットされていません。",
+    "historyUntracked": "このファイルはまだコミットされていません。",
+    "historyNoCommits": "このリポジトリにはまだコミットがありません。",
+    "patchTruncated": "変更は最初の {{value0}} 行に短縮されています。",
+    "openCommit": "コミット全体を開く"
+  },
   "azureDevOpsReview": {
     "groupAwaitingMyReview": "自分のレビュー待ち",
     "groupMine": "自分の Pull Request",

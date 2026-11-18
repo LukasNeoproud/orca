@@ -1,5 +1,5 @@
 import { useAppStore } from '@/store'
-import { GitHistoryPanel } from '../sync/git-history-panel'
+import { SourceControlCommitList } from '@/components/git-annotate/SourceControlCommitList'
 import { useGitBranchList } from '../sync/use-git-branch-list'
 import { shouldShowSourceControlCompareUnavailableCard } from './header-toolbar'
 import { shouldRenderCommitArea } from '../commit/component-gates'
@@ -220,7 +220,8 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
       {isGitHistoryVisible && (
         // Why: the graph is reference context, so keep it docked at the bottom as the pane scrolls.
         <div className="sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border bg-sidebar/95 backdrop-blur-sm">
-          <GitHistoryPanel
+          <SourceControlCommitList
+            worktreeId={currentWorktreeId}
             state={gitHistoryState}
             collapsed={collapsedSections.has('history')}
             onToggle={() => toggleSection('history')}

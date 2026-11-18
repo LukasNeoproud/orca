@@ -40,6 +40,9 @@ vi.mock('../diff-comments/useDiffCommentDecorator', () => ({
 vi.mock('./useContextualCopySetup', () => ({
   useContextualCopySetup: () => ({ setupCopy: vi.fn(), toastNode: null })
 }))
+vi.mock('../git-annotate/use-monaco-git-annotate', () => ({
+  useMonacoGitAnnotate: () => ({ menu: null, lineNumbers: null, lineNumbersMinChars: null })
+}))
 
 import MonacoEditor from './MonacoEditor'
 

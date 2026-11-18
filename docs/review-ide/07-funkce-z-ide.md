@@ -53,6 +53,13 @@ Debugger, profilery a Instruments, Compose a SwiftUI Preview, podepisování a r
 - **AI:** „proč je ten kód takhle“ složené z commitů, PR, pracovních položek Azure DevOps a přepisů agentů. Navazuje na důvod u hunku.
 - **Realizace:** git log a blame s omezeným rozsahem (pravidla Git Scan Safety), API Azure DevOps z TASK-51.
 
+Hotovo (TASK-66): Annotate v editoru a historie bloku v seznamu commitů panelu Source Control. Vysvětlení od AI zatím chybí.
+
+- Zapíná se pravým tlačítkem na čísle řádku nebo z kontextového menu editoru. Anotace (krátký hash, datum, autor) stojí v okraji u prvního řádku každé skupiny, najetí ukáže předmět commitu a klik commit otevře v Git grafu.
+- Git anotuje text editoru, ne soubor na disku (`git blame --contents -`), takže neuložené řádky jsou „Uncommitted“. Další úpravy se dopočítávají lokálně; nový dotaz na git přijde po uložení, po změně HEAD a po načtení souboru z disku. Soubor nad 2 MB nebo 50 000 řádků se neanotuje.
+- Historie bloku (`git log -L` od HEAD, posledních 50 commitů, změna jednoho commitu nejvýš 400 řádků) se čte z uloženého souboru; u neuloženého souboru akce požádá o uložení. Rozbalený commit ukáže svou změnu bloku.
+- Dotazy `git.blame` a `git.lineHistory` běží na hostiteli, který workspace vlastní. Hostitel se starší Orkou je nezná: akce v menu okraje jsou vypnuté s vysvětlením a z menu editoru zmizí. Folder workspace je nenabízí.
+
 ## 6. Logcat a konzole aplikace s kartami
 
 - Strukturované logy aplikace z emulátoru nebo zařízení s filtrem na balíček, úroveň a tag; zachycení pádů.

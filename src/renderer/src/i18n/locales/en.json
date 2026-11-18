@@ -20421,6 +20421,26 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Snapshots need a comparison of this branch with its base, and none is available."
   },
+  "gitAnnotate": {
+    "toggle": "Annotate with Git Blame",
+    "showSelectionHistory": "Show History for Selection",
+    "showLineHistory": "Show History for Line {{value0}}",
+    "uncommitted": "Uncommitted",
+    "uncommittedHover": "Not committed yet",
+    "hoverHint": "Click to show the commit in the Git graph",
+    "olderHost": "This host runs an older Orca. Update it to annotate.",
+    "saveFirst": "Save the file to see the history of its lines.",
+    "tooLarge": "This file is too large to annotate.",
+    "failed": "Could not load Git annotations",
+    "historyTitle": "History of {{file}}, lines {{start}}–{{end}}",
+    "historyTitleLine": "History of {{file}}, line {{start}}",
+    "historyClear": "Show all commits",
+    "historyUncommitted": "These lines are not committed yet.",
+    "historyUntracked": "This file is not committed yet.",
+    "historyNoCommits": "This repository has no commits yet.",
+    "patchTruncated": "Change shortened to its first {{value0}} lines.",
+    "openCommit": "Open the whole commit"
+  },
   "azureDevOpsReview": {
     "lines": "Lines",
     "startLine": "Start line",

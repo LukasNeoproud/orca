@@ -19,6 +19,7 @@ import { createWebDiagnosticsApi } from './preload-api/web-diagnostics-api'
 import { withFallback } from './preload-api/web-fallback-api'
 import { createFileApi } from './preload-api/web-filesystem-api'
 import { createGitApi } from './preload-api/web-git-api'
+import { createGitAnnotateApi } from './preload-api/web-git-annotate-api'
 import { createWebGithubCacheApi } from './preload-api/web-github-cache-api'
 import { createGitHubApi } from './preload-api/web-github-api'
 import { createGitLabApi } from './preload-api/web-gitlab-api'
@@ -86,6 +87,7 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     worktrees: createWorktreesApi(),
     fs: createFileApi(),
     git: createGitApi(),
+    gitAnnotate: createGitAnnotateApi(),
     browser: createBrowserApi(),
     emulator: createEmulatorApi(),
     gh: createGitHubApi(),

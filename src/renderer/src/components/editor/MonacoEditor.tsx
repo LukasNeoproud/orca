@@ -25,6 +25,7 @@ import { useMonacoEditorMount } from './use-monaco-editor-mount'
 import { useDocumentDarkTheme } from '@/hooks/use-document-dark-theme'
 import { snapshotMonacoViewState } from './monaco-view-state-persistence'
 import { MonacoMarkdownAnnotationOverlay } from './MonacoMarkdownAnnotationOverlay'
+import { useMonacoGitAnnotate } from '../git-annotate/use-monaco-git-annotate'
 
 type MonacoEditorProps = {
   fileId: string
@@ -150,6 +151,8 @@ export default function MonacoEditor({
     markdownAnnotationsEnabled
   })
 
+  const gitAnnotate = useMonacoGitAnnotate({ mountedEditor, fileId, modelUri })
+
   // Why useLayoutEffect: cleanup runs before @monaco-editor/react disposes the editor, so getScrollTop() still reads valid state on unmount.
   useLayoutEffect(() => {
     return () => {
@@ -264,7 +267,8 @@ export default function MonacoEditor({
           ...buildFileEditorWordWrapOptions(editorWordWrap),
           fontSize: editorFontSize,
           fontFamily: editorFontFamily,
-          lineNumbers: 'on',
+          lineNumbers: gitAnnotate.lineNumbers ?? 'on',
+          lineNumbersMinChars: gitAnnotate.lineNumbersMinChars ?? 5,
           renderLineHighlight: 'line',
           automaticLayout: true,
           tabSize: 2,
@@ -297,6 +301,7 @@ export default function MonacoEditor({
         line={gutterMenuLine}
         filePath={filePath}
         relativePath={relativePath}
+        gitAnnotate={gitAnnotate.menu}
       />
     </div>
   )

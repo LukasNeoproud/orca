@@ -63,6 +63,7 @@ import { docPreviewApi } from './api/doc-preview-bridge'
 import { notebookApi } from './api/notebook-bridge'
 import { fsApi } from './api/fs-bridge'
 import { gitApi } from './api/git-bridge'
+import { gitAnnotateApi } from './api/git-annotate-bridge'
 import { uiApi } from './api/ui-bridge'
 import { statsApi } from './api/stats-bridge'
 import { memoryApi } from './api/memory-bridge'
@@ -167,6 +168,7 @@ const api = {
   notebook: notebookApi,
   fs: fsApi,
   git: gitApi,
+  gitAnnotate: gitAnnotateApi,
   ui: uiApi,
   stats: statsApi,
   memory: memoryApi,

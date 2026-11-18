@@ -19692,6 +19692,26 @@
     "openCount": "快照 ({{value0}})",
     "compareUnavailable": "快照需要此分支与其基准的比较，但目前没有可用的比较。"
   },
+  "gitAnnotate": {
+    "toggle": "使用 Git Blame 显示注释",
+    "showSelectionHistory": "显示所选内容的历史记录",
+    "showLineHistory": "显示第 {{value0}} 行的历史记录",
+    "uncommitted": "未提交",
+    "uncommittedHover": "尚未提交",
+    "hoverHint": "点击以在 Git 图中显示该提交",
+    "olderHost": "此主机运行的是旧版 Orca。请更新后再使用注释。",
+    "saveFirst": "请先保存文件，才能查看其行的历史记录。",
+    "tooLarge": "此文件过大，无法显示注释。",
+    "failed": "无法加载 Git 注释",
+    "historyTitle": "{{file}} 第 {{start}}–{{end}} 行的历史记录",
+    "historyTitleLine": "{{file}} 第 {{start}} 行的历史记录",
+    "historyClear": "显示所有提交",
+    "historyUncommitted": "这些行尚未提交。",
+    "historyUntracked": "此文件尚未提交。",
+    "historyNoCommits": "此仓库还没有提交。",
+    "patchTruncated": "更改已缩短为前 {{value0}} 行。",
+    "openCommit": "打开完整提交"
+  },
   "azureDevOpsReview": {
     "groupAwaitingMyReview": "等待我审查",
     "groupMine": "我的 Pull Request",
