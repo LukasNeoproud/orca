@@ -39,7 +39,7 @@ Dokumentace k rozšíření Orca Dev o bohaté pohledy na codebase a review kód
 - [x] Funguje sourcekit-lsp na iOS projektu s `.xcodeproj`? Ano, přes build server a jen nad sestaveným worktree: po buildu fungují všechny funkce bez falešných chyb, bez něj dostane každý soubor falešnou chybu. Návrh: lehkou část přípravy udělá Orca, build spustí uživatel nebo agent, viz [decision-3](../../backlog/decisions/decision-3%20-%20Swift-v-editoru-M3-sourcekit-lsp-přes-build-server-jen-nad-sestaveným-worktree.md).
 - [x] Který language server pro C#, Roslyn language server, nebo csharp-ls? Návrh: Roslyn language server, stažený z nuget.org na počítači uživatele a jen nad worktree s obnovenými balíčky. Po `dotnet restore` fungují všechny funkce bez falešných chyb i bez buildu, bez něj má chybu 47 ze 60 souborů. Oba servery jsou pod MIT a aplikace mimo produkty Microsoftu je používat smí; csharp-ls zůstává zálohou, viz [decision-4](../../backlog/decisions/decision-4%20-%20C-v-editoru-M3-Roslyn-language-server-nad-obnoveným-worktree-csharp-ls-jako-záloha.md).
 - [ ] Pracují Claude Code a ostatní agenti správně ve složce se symbolickými odkazy na více worktrees?
-- [ ] Limity POEditor API pro dávkové odesílání.
+- [x] Limity POEditor API pro dávkové odesílání. Podle dokumentace (neověřeno proti živému API): Free 100 požadavků za minutu a 2 000 za hodinu, upload 1 za 20 s, strop dávky neuvedený. Návrh: JSON metody API místo nahrávání souborů, jeden požadavek za druhým, nejvýš 1 za sekundu a 100 položek v dávce, viz [decision-6](../../backlog/decisions/decision-6%20-%20POEditor-v-M6-synchronizace-přes-JSON-metody-API-jeden-požadavek-za-druhým-pod-limity-tarifu-Free.md).
 
 ## Podklady
 
