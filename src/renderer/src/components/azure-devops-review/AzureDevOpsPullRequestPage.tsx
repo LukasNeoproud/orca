@@ -34,6 +34,10 @@ import { AzureDevOpsReviewOptionsDialog } from './AzureDevOpsReviewOptionsDialog
 import { AzureDevOpsDraftsAiDialog } from './AzureDevOpsDraftsAiDialog'
 import { AzureDevOpsFeedbackDialog } from './AzureDevOpsFeedbackDialog'
 import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
+import {
+  AzureDevOpsSnapshotsTabContent,
+  AzureDevOpsSnapshotsTabTrigger
+} from '../snapshot-diff/AzureDevOpsSnapshotsTab'
 
 type ReviewMode = 'workspace' | 'agent'
 
@@ -277,6 +281,7 @@ export function AzureDevOpsPullRequestPage({
               <TabsTrigger value="files">
                 {translate('azureDevOpsReview.tabFiles', 'Files')} ({detail.changes.length})
               </TabsTrigger>
+              <AzureDevOpsSnapshotsTabTrigger detail={detail} />
               <TabsTrigger value="threads">
                 {translate('azureDevOpsReview.tabThreads', 'Threads')} ({detail.threads.length})
               </TabsTrigger>
@@ -289,6 +294,7 @@ export function AzureDevOpsPullRequestPage({
           <TabsContent value="files" className="min-h-0 flex-1">
             <AzureDevOpsReviewFiles detail={detail} onChanged={reload} />
           </TabsContent>
+          <AzureDevOpsSnapshotsTabContent detail={detail} />
           <TabsContent value="overview" className={SCROLLING_TAB_CLASS}>
             <div className="mx-auto w-full max-w-4xl px-4 py-4">
               {detail.pullRequest.description.trim() ? (

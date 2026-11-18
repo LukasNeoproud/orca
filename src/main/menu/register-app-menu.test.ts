@@ -658,7 +658,7 @@ describe('registerAppMenu', () => {
 
       const viewSubmenu = getSubmenu(getTemplate(), 'View')
       const first = viewSubmenu.findIndex((item) => labelOf(item) === 'Explorer')
-      expect(viewSubmenu.slice(first, first + 10).map((item) => item.label ?? item.type)).toEqual([
+      expect(viewSubmenu.slice(first, first + 11).map((item) => item.label ?? item.type)).toEqual([
         `Explorer\t${mod ? '⌘⇧E' : 'Ctrl+Shift+E'}`,
         `Search\t${mod ? '⌘⇧F' : 'Ctrl+Shift+F'}`,
         `Source Control\t${mod ? '⌘⇧G' : 'Ctrl+Shift+G'}`,
@@ -669,6 +669,7 @@ describe('registerAppMenu', () => {
         'Backlog.md',
         'Attached worktrees',
         'PR Checks',
+        'Snapshots',
         'separator'
       ])
     })

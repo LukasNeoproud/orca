@@ -5,7 +5,8 @@ import {
   useRef,
   useState,
   type JSX,
-  type PointerEvent as ReactPointerEvent
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode
 } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -38,6 +39,8 @@ type Props = {
   annotating: boolean
   region: ImageReviewRegion | null
   savedRegions: readonly ImageReviewRegion[]
+  /** Drawn over the image in its own box, so percent positions track zoom. */
+  overlay?: ReactNode
   onRegion: (region: ImageReviewRegion) => void
   onScroll: (surface: HTMLDivElement) => void
   onSurface: (surface: HTMLDivElement | null) => void
@@ -53,6 +56,7 @@ export function ImageDiffPane({
   annotating,
   region,
   savedRegions,
+  overlay,
   onRegion,
   onScroll,
   onSurface
@@ -290,6 +294,7 @@ export function ImageDiffPane({
                   }}
                 />
               )}
+              {overlay}
             </div>
           </div>
         </div>

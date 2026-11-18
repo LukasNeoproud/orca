@@ -1,6 +1,8 @@
 // Path-only test heuristic for branch line-total buckets. Conservative and
 // anchored on the raw path (no lowercasing/splitting per file).
 
+import { isSnapshotImagePath } from './snapshot-image-path'
+
 // Whole path segments only, so `src/latest/x.ts` and `contest/` don't count.
 // The trailing separator is what keeps a *file* named `test.ts` out of here.
 // `spec/` is RSpec's; plural `specs/` is left out because it far more often
@@ -38,6 +40,7 @@ export function isTestCodePath(filePath: string): boolean {
   return (
     TEST_DIRECTORY.test(filePath) ||
     TEST_BASENAME.test(filePath) ||
-    TEST_TYPE_NAME_SUFFIX.test(filePath)
+    TEST_TYPE_NAME_SUFFIX.test(filePath) ||
+    isSnapshotImagePath(filePath)
   )
 }

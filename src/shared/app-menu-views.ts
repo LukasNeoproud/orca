@@ -8,6 +8,7 @@ export type AppMenuViewTarget =
   | { kind: 'right-sidebar-tab'; tab: ActiveRightSidebarTab; requires?: AppMenuViewRequirement }
   | { kind: 'right-sidebar-search' }
   | { kind: 'git-graph' }
+  | { kind: 'snapshot-diff' }
 
 export type AppMenuViewItem = {
   id: string
@@ -89,6 +90,13 @@ export const APP_MENU_VIEW_ITEMS: readonly AppMenuViewItem[] = [
     labelKey: 'auto.components.right.sidebar.index.parentPrChecks',
     label: 'PR Checks',
     target: { kind: 'right-sidebar-tab', tab: 'pr-checks', requires: 'folder-workspace' }
+  },
+  {
+    id: 'snapshots',
+    menu: 'view',
+    labelKey: 'snapshotDiff.title',
+    label: 'Snapshots',
+    target: { kind: 'snapshot-diff' }
   },
   {
     id: 'pull-requests',

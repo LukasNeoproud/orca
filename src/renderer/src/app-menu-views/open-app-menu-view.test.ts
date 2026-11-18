@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APP_MENU_VIEW_ITEMS } from '../../../shared/app-menu-views'
 import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 
-const { state, toastInfo, reachesSshHost } = vi.hoisted(() => {
+const { state, toastInfo, reachesSshHost, openWorktreeSnapshotDiff } = vi.hoisted(() => {
   const workspace: {
     activeView: string
     activeWorktreeId: string | null
@@ -20,12 +20,16 @@ const { state, toastInfo, reachesSshHost } = vi.hoisted(() => {
       openGitGraphTab: vi.fn()
     },
     toastInfo: vi.fn(),
-    reachesSshHost: vi.fn(() => false)
+    reachesSshHost: vi.fn(() => false),
+    openWorktreeSnapshotDiff: vi.fn()
   }
 })
 
 vi.mock('@/store', () => ({ useAppStore: { getState: () => state } }))
 vi.mock('sonner', () => ({ toast: { info: toastInfo } }))
+vi.mock('@/components/snapshot-diff/open-worktree-snapshot-diff', () => ({
+  openWorktreeSnapshotDiff
+}))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, options?: { view?: string }) =>
     fallback.replace('{{view}}', options?.view ?? '')
@@ -82,6 +86,11 @@ describe('openAppMenuView', () => {
     expect(state.openGitGraphTab).toHaveBeenCalledWith(GIT_WORKTREE)
   })
 
+  it('opens Snapshots for the active worktree', () => {
+    expect(openAppMenuView('snapshots')).toBe(true)
+    expect(openWorktreeSnapshotDiff).toHaveBeenCalledWith(GIT_WORKTREE)
+  })
+
   it('returns to the workspace when a full page hides it', () => {
     state.activeView = 'settings'
 
@@ -96,6 +105,8 @@ describe('openAppMenuView', () => {
     ['checks', folderWorkspaceKey('fw-1'), 'Checks'],
     ['git-graph', FOLDER_REPO_WORKTREE, 'Git graph'],
     ['git-graph', null, 'Git graph'],
+    ['snapshots', folderWorkspaceKey('fw-1'), 'Snapshots'],
+    ['snapshots', FOLDER_REPO_WORKTREE, 'Snapshots'],
     ['ports', GIT_WORKTREE, 'Ports'],
     ['attached-worktrees', GIT_WORKTREE, 'Attached worktrees'],
     ['pr-checks', GIT_WORKTREE, 'PR Checks']
@@ -109,6 +120,7 @@ describe('openAppMenuView', () => {
       expect(toastInfo).toHaveBeenCalledWith(`${label} is not available in this workspace`)
       expect(state.setRightSidebarOpen).not.toHaveBeenCalled()
       expect(state.openGitGraphTab).not.toHaveBeenCalled()
+      expect(openWorktreeSnapshotDiff).not.toHaveBeenCalled()
       expect(state.setActiveView).not.toHaveBeenCalled()
     }
   )
@@ -131,7 +143,7 @@ describe('openAppMenuView', () => {
   it('has a target for every registered item and ignores unknown ids', () => {
     state.activeWorktreeId = folderWorkspaceKey('fw-1')
     reachesSshHost.mockReturnValue(true)
-    const gitOnly = new Set(['source-control', 'checks', 'git-graph'])
+    const gitOnly = new Set(['source-control', 'checks', 'git-graph', 'snapshots'])
     for (const item of APP_MENU_VIEW_ITEMS.filter((entry) => !gitOnly.has(entry.id))) {
       expect(openAppMenuView(item.id), item.id).toBe(true)
     }

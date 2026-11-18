@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import { buildImageDataUri } from '../../../../shared/image-data-uri'
 import { MAX_RASTER_IMAGE_PREVIEW_PIXELS } from '../../../../shared/raster-image-preview-limits'
 import { ImageDiffPane } from './ImageDiffPane'
-import { imagePixelDifference } from './image-pixel-difference'
+import { formatChangedPixelPercent, imagePixelDifference } from './image-pixel-difference'
 
 type Difference =
   | { kind: 'loading' }
@@ -59,10 +59,6 @@ async function computeDifference(
   }
 }
 
-function formatPercent(percent: number): string {
-  return percent > 0 && percent < 0.1 ? '<0.1' : percent.toFixed(1)
-}
-
 /** One pane that shows where the two versions of an image differ. */
 export function ImageDifferencePane({
   originalContent,
@@ -110,7 +106,7 @@ export function ImageDifferencePane({
   return (
     <ImageDiffPane
       label={translate('image.review.differenceLabel', 'Changed pixels: {{value0}} %', {
-        value0: formatPercent(difference.changedPercent)
+        value0: formatChangedPixelPercent(difference.changedPercent)
       })}
       content={difference.content}
       filePath={filePath}

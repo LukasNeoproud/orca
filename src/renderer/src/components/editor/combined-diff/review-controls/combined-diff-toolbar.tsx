@@ -7,6 +7,7 @@ import { translate } from '@/i18n/i18n'
 import type { OpenFile } from '@/store/slices/editor'
 import type { DiffComment } from '../../../../../../shared/diff-comment-types'
 import { DiffNotesSendMenu } from '../../DiffNotesSendMenu'
+import { CombinedDiffSnapshotsButton } from '../../../snapshot-diff/CombinedDiffSnapshotsButton'
 import { DiffNotesPreviewPopover } from './combined-diff-notes-popover'
 
 export function CombinedDiffToolbar({
@@ -147,6 +148,7 @@ export function CombinedDiffToolbar({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <CombinedDiffSnapshotsButton file={file} />
         {file.combinedAlternate && (
           <button
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"

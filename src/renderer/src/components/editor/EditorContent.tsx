@@ -7,6 +7,7 @@ import { NativeChatVisualTab } from '../native-chat/NativeChatVisualTab'
 import { GitGraphTab } from '../right-sidebar/source-control/sync/git-graph-tab'
 import { NativeChatVisualUnavailable } from '../native-chat/NativeChatInlineVisual'
 import { CombinedDiffViewer, MarkdownPreview } from './editor-lazy-views'
+import { CombinedDiffSnapshotSwitch } from '../snapshot-diff/CombinedDiffSnapshotSwitch'
 import { EditorConflictReviewSurface } from './EditorConflictReviewSurface'
 import { EditorDiffFileSurface } from './EditorDiffFileSurface'
 import { EditorEditFileSurface } from './EditorEditFileSurface'
@@ -188,11 +189,13 @@ export function EditorContent({
 
   if (isCombinedDiff) {
     return (
-      <CombinedDiffViewer
-        key={viewStateScopeId}
-        file={activeFile}
-        viewStateKey={diffViewStateKey}
-      />
+      <CombinedDiffSnapshotSwitch file={activeFile}>
+        <CombinedDiffViewer
+          key={viewStateScopeId}
+          file={activeFile}
+          viewStateKey={diffViewStateKey}
+        />
+      </CombinedDiffSnapshotSwitch>
     )
   }
 

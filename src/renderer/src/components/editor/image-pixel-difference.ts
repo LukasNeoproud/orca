@@ -3,6 +3,13 @@ const CHANNEL_TOLERANCE = 16
 const CHANGED_RGBA = [255, 45, 85, 255] as const
 const UNCHANGED_ALPHA = 0.3
 
+export type ImagePixelDifferenceOptions = {
+  /** Highlight for changed pixels, for callers that resolve it from a theme token. */
+  changedRgba?: readonly [number, number, number, number]
+  /** One byte per pixel, set to 1 where the pixel changed; must be zeroed by the caller. */
+  changedMask?: Uint8Array
+}
+
 export type ImagePixelDifference = {
   /** RGBA: changed pixels in a solid highlight, unchanged ones as a faint grey of the new image. */
   pixels: Uint8ClampedArray<ArrayBuffer>
@@ -12,11 +19,14 @@ export type ImagePixelDifference = {
 /** Compares two RGBA buffers of the same size, pixel by pixel. */
 export function imagePixelDifference(
   original: Uint8ClampedArray,
-  modified: Uint8ClampedArray
+  modified: Uint8ClampedArray,
+  options: ImagePixelDifferenceOptions = {}
 ): ImagePixelDifference {
   if (original.length !== modified.length) {
     throw new Error('Both images must be drawn at the same size before comparing.')
   }
+  const changedRgba = options.changedRgba ?? CHANGED_RGBA
+  const changedMask = options.changedMask
   const pixels = new Uint8ClampedArray(modified.length)
   let changedPixels = 0
   // Why hand-rolled: this runs per pixel of multi-megapixel screenshots on the UI thread.
@@ -39,10 +49,13 @@ export function imagePixelDifference(
       da > CHANNEL_TOLERANCE ||
       da < -CHANNEL_TOLERANCE
     ) {
-      pixels[index] = CHANGED_RGBA[0]
-      pixels[index + 1] = CHANGED_RGBA[1]
-      pixels[index + 2] = CHANGED_RGBA[2]
-      pixels[index + 3] = CHANGED_RGBA[3]
+      pixels[index] = changedRgba[0]
+      pixels[index + 1] = changedRgba[1]
+      pixels[index + 2] = changedRgba[2]
+      pixels[index + 3] = changedRgba[3]
+      if (changedMask) {
+        changedMask[index >> 2] = 1
+      }
       changedPixels += 1
       continue
     }
@@ -54,4 +67,9 @@ export function imagePixelDifference(
     pixels[index + 3] = alpha * UNCHANGED_ALPHA
   }
   return { pixels, changedPixels }
+}
+
+/** Share of changed pixels for a label; a trace below one decimal reads as "<0.1", not "0.0". */
+export function formatChangedPixelPercent(percent: number): string {
+  return percent > 0 && percent < 0.1 ? '<0.1' : percent.toFixed(1)
 }

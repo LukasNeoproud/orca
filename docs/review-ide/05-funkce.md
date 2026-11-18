@@ -224,6 +224,15 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 
 ![Diff snapshotů](./prototyp/10-diff-snapshotu.png)
 
+**Stav implementace (TASK-64, milník M1):**
+
+- Hotovo: seznam změněných, přidaných a odebraných snapshotů; před, po a rozdíl; očíslované oblasti změn se skokem na oblast; přepínač zvýraznění.
+- Pohled je režim záložky kombinovaného diffu (tlačítko Snapshots v její liště, View > Snapshots v hlavním menu), ne samostatná záložka. Funguje proto ve všech režimech kombinovaného diffu: větev proti základu, všechny změny, necommitnuté změny i jeden commit. Na stránce pull requestu Azure DevOps je to záložka Snapshots; stránka pull requestu GitHubu a GitLabu obsah obrázků nevrací, takže tam pohled zatím není.
+- Snapshot se pozná jen podle cesty, vzory jsou v `src/shared/snapshot-image-path.ts`: Paparazzi `src/<sourceSet>/snapshots/images/`, swift-snapshot-testing `__Snapshots__/`, Roborazzi adresář `roborazzi/` nebo `src/[<sourceSet>/]screenshots/` (výstupy `_actual` a `_compare` se nepočítají). Projekt s vlastní výstupní cestou Roborazzi se nepozná, dokud nepřibude nastavení.
+- Rozdíl se počítá ve workeru. Nad 8 megapixelů (plátno, které pokryje oba obrázky) se nepočítá a pohled to řekne; před a po se zobrazí dál.
+- Oblast je souvislá skupina změněných pixelů v mřížce 8 px; nad 24 oblastí se sousední slučují.
+- Odloženo do M2 (potřebuje Diff po celcích): dělení na očekávané a nečekané, počet nezměněných, celek a soubor u oblasti, příčina podle AI, Přijmout jako nový základ a Odmítnout.
+
 ## 11. Controllery a akce
 
 **Účel:** přehled API backendu a jeho změn v kontextu klientů, kteří ho volají.

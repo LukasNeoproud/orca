@@ -21,6 +21,7 @@ import { ImageDiffNotesPanel } from './ImageDiffNotesPanel'
 import { ImageDiffModeToggle } from './ImageDiffModeToggle'
 import { ImageDifferencePane } from './ImageDifferencePane'
 import { getDiffContentSignature } from './diff-content-signature'
+import { syncImageSurfaceScroll } from './image-surface-scroll-sync'
 
 type ImageDiffViewerProps = {
   originalContent: string
@@ -84,26 +85,8 @@ function ImageDiffViewerContent({
     setScrollToDiffCommentId(null)
   }, [comments, scrollToDiffCommentId, setScrollToDiffCommentId])
 
-  const syncScroll = (source: HTMLDivElement): void => {
-    const other = surfacesRef.current.find((surface) => surface && surface !== source)
-    if (!other) {
-      return
-    }
-    const horizontal = source.scrollWidth - source.clientWidth
-    const vertical = source.scrollHeight - source.clientHeight
-    const nextLeft =
-      horizontal > 0
-        ? (source.scrollLeft / horizontal) * (other.scrollWidth - other.clientWidth)
-        : 0
-    const nextTop =
-      vertical > 0 ? (source.scrollTop / vertical) * (other.scrollHeight - other.clientHeight) : 0
-    if (Math.abs(other.scrollLeft - nextLeft) > 1) {
-      other.scrollLeft = nextLeft
-    }
-    if (Math.abs(other.scrollTop - nextTop) > 1) {
-      other.scrollTop = nextTop
-    }
-  }
+  const syncScroll = (source: HTMLDivElement): void =>
+    syncImageSurfaceScroll(source, surfacesRef.current)
 
   const changeZoom = (
     getNext: (current: number) => number,

@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { canShowRightSidebarForView } from '@/lib/right-sidebar-visibility'
 import { useAppStore } from '@/store'
+import { openWorktreeSnapshotDiff } from '@/components/snapshot-diff/open-worktree-snapshot-diff'
 import type { AppState } from '@/store/types'
 import { getIndexedRepoMap } from '@/store/worktree-repo-index'
 import {
@@ -44,6 +45,7 @@ function isAvailable(state: AppState, target: AppMenuViewTarget): boolean {
     case 'right-sidebar-search':
       return true
     case 'git-graph':
+    case 'snapshot-diff':
       return Boolean(state.activeWorktreeId) && meetsRequirement(state, 'git')
   }
 }
@@ -79,6 +81,11 @@ export function openAppMenuView(viewId: unknown): boolean {
     case 'git-graph':
       if (state.activeWorktreeId) {
         state.openGitGraphTab(state.activeWorktreeId)
+      }
+      return true
+    case 'snapshot-diff':
+      if (state.activeWorktreeId) {
+        openWorktreeSnapshotDiff(state.activeWorktreeId)
       }
       return true
   }
