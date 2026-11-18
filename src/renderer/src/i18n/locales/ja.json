@@ -19678,6 +19678,20 @@
     "openCount": "スナップショット ({{value0}})",
     "compareUnavailable": "スナップショットにはこのブランチとベースの比較が必要ですが、利用できる比較がありません。"
   },
+  "todoOverview": {
+    "title": "TODO と FIXME",
+    "open": "TODO と FIXME のコメントを表示",
+    "refresh": "再検索",
+    "close": "テキスト検索に戻る",
+    "changedOnly": "このブランチで変更されたファイルのみ",
+    "againstBase": "{{value0}} との差分と未コミットの変更。",
+    "uncommittedOnly": "ブランチのベースとの比較が読み込まれていないため、未コミットの変更のみが対象です。",
+    "openSourceControl": "ソース管理で比較",
+    "truncated": "最初の {{value0}} 件のコメントを表示しています。残りは省略されています。",
+    "noChangedFiles": "変更されたファイルはありません。",
+    "emptyChanged": "変更されたファイルに TODO や FIXME のコメントはありません。",
+    "empty": "TODO や FIXME のコメントはありません。"
+  },
   "gitAnnotate": {
     "toggle": "Git Blame で注釈を表示",
     "showSelectionHistory": "選択範囲の履歴を表示",

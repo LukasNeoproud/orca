@@ -19678,6 +19678,20 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Los snapshots necesitan una comparación de esta rama con su base, y no hay ninguna disponible."
   },
+  "todoOverview": {
+    "title": "TODO y FIXME",
+    "open": "Mostrar comentarios TODO y FIXME",
+    "refresh": "Buscar de nuevo",
+    "close": "Volver a la búsqueda de texto",
+    "changedOnly": "Solo archivos cambiados en esta rama",
+    "againstBase": "Cambios respecto a {{value0}} más los cambios sin confirmar.",
+    "uncommittedOnly": "No hay una comparación con la base de la rama cargada, así que solo cuentan los cambios sin confirmar.",
+    "openSourceControl": "Comparar en Control de código fuente",
+    "truncated": "Se muestran los primeros {{value0}} comentarios; el resto se omite.",
+    "noChangedFiles": "No hay archivos cambiados.",
+    "emptyChanged": "No hay comentarios TODO ni FIXME en los archivos cambiados.",
+    "empty": "No hay comentarios TODO ni FIXME."
+  },
   "gitAnnotate": {
     "toggle": "Anotar con Git Blame",
     "showSelectionHistory": "Mostrar historial de la selección",

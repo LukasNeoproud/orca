@@ -19678,6 +19678,20 @@
     "openCount": "스냅샷 ({{value0}})",
     "compareUnavailable": "스냅샷을 보려면 이 브랜치와 베이스의 비교가 필요하지만 사용할 수 있는 비교가 없습니다."
   },
+  "todoOverview": {
+    "title": "TODO 및 FIXME",
+    "open": "TODO 및 FIXME 주석 표시",
+    "refresh": "다시 검색",
+    "close": "텍스트 검색으로 돌아가기",
+    "changedOnly": "이 브랜치에서 변경된 파일만",
+    "againstBase": "{{value0}} 대비 변경 사항과 커밋되지 않은 변경 사항.",
+    "uncommittedOnly": "브랜치 기준과의 비교가 로드되지 않아 커밋되지 않은 변경 사항만 포함됩니다.",
+    "openSourceControl": "소스 제어에서 비교",
+    "truncated": "처음 {{value0}}개의 주석만 표시합니다. 나머지는 생략되었습니다.",
+    "noChangedFiles": "변경된 파일이 없습니다.",
+    "emptyChanged": "변경된 파일에 TODO 또는 FIXME 주석이 없습니다.",
+    "empty": "TODO 또는 FIXME 주석이 없습니다."
+  },
   "gitAnnotate": {
     "toggle": "Git Blame으로 주석 표시",
     "showSelectionHistory": "선택 영역의 기록 표시",

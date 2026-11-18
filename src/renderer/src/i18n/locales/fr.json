@@ -19679,6 +19679,20 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Les snapshots nécessitent une comparaison de cette branche avec sa base, et aucune n’est disponible."
   },
+  "todoOverview": {
+    "title": "TODO et FIXME",
+    "open": "Afficher les commentaires TODO et FIXME",
+    "refresh": "Relancer la recherche",
+    "close": "Revenir à la recherche de texte",
+    "changedOnly": "Uniquement les fichiers modifiés sur cette branche",
+    "againstBase": "Modifications par rapport à {{value0}}, plus les modifications non validées.",
+    "uncommittedOnly": "Aucune comparaison avec la base de la branche n’est chargée : seules les modifications non validées comptent.",
+    "openSourceControl": "Comparer dans Contrôle de code source",
+    "truncated": "Affichage des {{value0}} premiers commentaires ; les autres sont omis.",
+    "noChangedFiles": "Aucun fichier modifié.",
+    "emptyChanged": "Aucun commentaire TODO ou FIXME dans les fichiers modifiés.",
+    "empty": "Aucun commentaire TODO ou FIXME."
+  },
   "gitAnnotate": {
     "toggle": "Annoter avec Git Blame",
     "showSelectionHistory": "Afficher l’historique de la sélection",

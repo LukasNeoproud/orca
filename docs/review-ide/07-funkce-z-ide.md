@@ -116,6 +116,12 @@ Opatření, aby chyba v proudu logů nezapadla.
 - **AI:** TODO, která nechal agent, jsou zvýrazněná a v review se ukáží jako nedodělky.
 - **Realizace:** hledání přes bundlovaný `rg`; původ z hooků agenta.
 
+Hotovo (TASK-65): pohled TODO a FIXME v průzkumníku, režim Contents. Zvýraznění TODO od agenta zatím chybí.
+
+- Otevírá se tlačítkem pod filtry hledání a nahradí pole dotazu a výsledky; křížek vrátí textové hledání. Stav platí pro workspace po dobu běhu aplikace a do perzistence ani ke spárovaným klientům nejde, takže seznam tabů pravého sidebaru se nemění.
+- Značka se hledá jen za otevřením komentáře (`//`, `/*`, `#`, `<!--`, `--`, řádek bloku začínající `*`), rozlišuje velikost písmen a výpis končí na 1000 položkách s upozorněním. Hledání jde stejnou cestou jako Contents, tedy bundlovaný `rg` na hostiteli, který workspace vlastní, a respektuje `.gitignore`.
+- Filtr změněných souborů bere porovnání větve s bází z panelu Source Control a k němu necommitnuté změny z git status. Dokud porovnání nikdo nespustil, počítají se jen necommitnuté změny a pohled nabídne otevřít Source Control. Folder workspace filtr nenabízí.
+
 ## 9. HTTP klient a Endpoints
 
 - Z pohledu Controllery a akce poslat požadavek na endpoint lokálního nebo testovacího backendu; historie požadavků.

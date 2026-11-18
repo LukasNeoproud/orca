@@ -20421,6 +20421,20 @@
     "openCount": "Snapshots ({{value0}})",
     "compareUnavailable": "Snapshots need a comparison of this branch with its base, and none is available."
   },
+  "todoOverview": {
+    "title": "TODO and FIXME",
+    "open": "Show TODO and FIXME comments",
+    "refresh": "Search again",
+    "close": "Back to text search",
+    "changedOnly": "Only files changed on this branch",
+    "againstBase": "Changes against {{value0}} plus uncommitted changes.",
+    "uncommittedOnly": "No comparison with the branch base is loaded, so only uncommitted changes count.",
+    "openSourceControl": "Compare in Source Control",
+    "truncated": "Showing the first {{value0}} comments; the rest are left out.",
+    "noChangedFiles": "No changed files.",
+    "emptyChanged": "No TODO or FIXME comments in changed files.",
+    "empty": "No TODO or FIXME comments."
+  },
   "gitAnnotate": {
     "toggle": "Annotate with Git Blame",
     "showSelectionHistory": "Show History for Selection",

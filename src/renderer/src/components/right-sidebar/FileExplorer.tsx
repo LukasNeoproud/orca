@@ -40,6 +40,9 @@ import { useFileExplorerBackgroundMenu } from './use-file-explorer-background-me
 import { useFileExplorerNameFilter } from './use-file-explorer-name-filter'
 import { useFileExplorerTreePaneState } from './use-file-explorer-tree-pane-state'
 import { translate } from '@/i18n/i18n'
+import { useTodoOverview } from '../todo-overview/use-todo-overview'
+import { TodoOverviewHeader, TodoOverviewOpenButton } from '../todo-overview/TodoOverviewHeader'
+import { TodoOverviewPanel } from '../todo-overview/TodoOverviewPanel'
 import type { RightSidebarExplorerView } from '../../../../shared/ui-chrome-types'
 
 /** Coordinates scoped navigation while retaining the actual worktree root for file operations and runtime routing. */
@@ -88,6 +91,13 @@ function FileExplorerFiles(): React.JSX.Element {
   })
   const repoName = activeRepo?.displayName ?? (worktreePath ? basename(worktreePath) : '')
   const activeRepoSupportsGit = activeRepo ? isGitRepoKind(activeRepo) : false
+  const todoOverview = useTodoOverview({
+    worktreeId: activeWorktreeId,
+    worktreePath,
+    supportsGit: activeRepoSupportsGit,
+    searchViewActive: explorerView === 'search' && rightSidebarOpen
+  })
+  const showTodoOverview = explorerView === 'search' && todoOverview.open
 
   const expanded = useMemo(
     () =>
@@ -315,22 +325,24 @@ function FileExplorerFiles(): React.JSX.Element {
             </div>
             <div
               className={cn(
-                explorerView !== 'search' &&
+                (explorerView !== 'search' || showTodoOverview) &&
                   'pointer-events-none invisible absolute inset-x-0 top-0'
               )}
             >
               <SearchQueryRow {...searchPanel.queryRowProps} />
             </div>
+            {showTodoOverview && <TodoOverviewHeader todo={todoOverview} />}
           </div>
         </FileExplorerQueryStrip>
         <div
           className={cn(
             'border-b border-border px-2 pb-1.5',
-            explorerView !== 'search' &&
+            (explorerView !== 'search' || showTodoOverview) &&
               'pointer-events-none invisible h-0 overflow-hidden border-b-0 p-0'
           )}
         >
           <SearchFilters {...searchPanel.filtersProps} />
+          <TodoOverviewOpenButton todo={todoOverview} />
         </div>
         {/* Why: the Files and Contents views share one body slot; layering them
            avoids remounting heavy virtualized panes while preserving full height. */}
@@ -361,7 +373,9 @@ function FileExplorerFiles(): React.JSX.Element {
               explorerView !== 'search' && 'pointer-events-none invisible'
             )}
           >
-            {searchPanel.activeWorktreeId ? (
+            {showTodoOverview ? (
+              <TodoOverviewPanel todo={todoOverview} />
+            ) : searchPanel.activeWorktreeId ? (
               <SearchResultsPane {...searchPanel.resultsProps} />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">

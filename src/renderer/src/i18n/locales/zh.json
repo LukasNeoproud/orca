@@ -19692,6 +19692,20 @@
     "openCount": "快照 ({{value0}})",
     "compareUnavailable": "快照需要此分支与其基准的比较，但目前没有可用的比较。"
   },
+  "todoOverview": {
+    "title": "TODO 和 FIXME",
+    "open": "显示 TODO 和 FIXME 注释",
+    "refresh": "重新搜索",
+    "close": "返回文本搜索",
+    "changedOnly": "仅显示此分支中更改的文件",
+    "againstBase": "相对于 {{value0}} 的更改以及未提交的更改。",
+    "uncommittedOnly": "尚未加载与分支基准的比较，因此仅计入未提交的更改。",
+    "openSourceControl": "在源代码管理中比较",
+    "truncated": "仅显示前 {{value0}} 条注释，其余已省略。",
+    "noChangedFiles": "没有更改的文件。",
+    "emptyChanged": "更改的文件中没有 TODO 或 FIXME 注释。",
+    "empty": "没有 TODO 或 FIXME 注释。"
+  },
   "gitAnnotate": {
     "toggle": "使用 Git Blame 显示注释",
     "showSelectionHistory": "显示所选内容的历史记录",
