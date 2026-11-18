@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { useAzureDevOpsAutoReview } from '@/store/azure-devops-auto-review'
 import { useAzureDevOpsReviewStore } from '@/store/azure-devops-review-store'
 import type { WorktreeNavHistoryPullRequestEntry } from '@/store/slices/worktree-nav-history'
 import { closeIndependentTerminalsView } from './independent-terminals-view'
@@ -28,6 +29,7 @@ function showAzureDevOpsPullRequestPage(pullRequestKey: string): void {
     app.setActiveView('terminal')
   }
   useAzureDevOpsReviewStore.getState().openPullRequest(pullRequestKey)
+  useAzureDevOpsAutoReview.getState().markOpened(pullRequestKey)
 }
 
 export function closeAzureDevOpsPullRequestPage(): void {

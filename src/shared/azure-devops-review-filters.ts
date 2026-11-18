@@ -3,6 +3,7 @@ import type {
   AzureDevOpsReviewPullRequest,
   AzureDevOpsReviewRepo
 } from './azure-devops-review-types'
+import type { ReviewInvolvementFilter } from './azure-devops-review-groups'
 
 export const AZURE_DEVOPS_REVIEW_ALL = 'all'
 
@@ -13,13 +14,16 @@ export type AzureDevOpsReviewFilters = {
   repo: string
   status: AzureDevOpsPullRequestStatusFilter
   query: string
+  /** Narrows the grouped list to one group; absent from filters stored before it existed. */
+  involvement?: ReviewInvolvementFilter
 }
 
 export const DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS: AzureDevOpsReviewFilters = {
   project: AZURE_DEVOPS_REVIEW_ALL,
   repo: AZURE_DEVOPS_REVIEW_ALL,
   status: 'active',
-  query: ''
+  query: '',
+  involvement: 'all'
 }
 
 export function azureDevOpsReviewProjectKey(organizationKey: string, project: string): string {
@@ -113,6 +117,7 @@ export function isDefaultAzureDevOpsReviewFilters(filters: AzureDevOpsReviewFilt
     filters.project === DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS.project &&
     filters.repo === DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS.repo &&
     filters.status === DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS.status &&
+    (filters.involvement ?? 'all') === 'all' &&
     !filters.query.trim()
   )
 }

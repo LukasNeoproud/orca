@@ -19642,5 +19642,17 @@
   "settings.agents.readFailed": "No se pudo leer la configuración de agentes. Comprueba la conexión con el host e inténtalo de nuevo.",
   "settings.agents.saveFailed": "No se pudo guardar la configuración de agentes. Comprueba la conexión con el host e inténtalo de nuevo.",
   "settings.agents.hostDefaults": "Valores predeterminados para nuevos agentes en el host seleccionado.",
-  "settings.agents.save": "Guardar"
+  "settings.agents.save": "Guardar",
+  "azureDevOpsReview": {
+    "groupAwaitingMyReview": "Esperan mi revisión",
+    "groupMine": "Mis pull requests",
+    "groupOther": "Otras",
+    "involvementFilter": "Filtrar por mi participación",
+    "involvementAll": "Todas",
+    "involvementAwaitingMe": "Me esperan",
+    "involvementMine": "Mías",
+    "startReview": "Iniciar revisión",
+    "continueReview": "Continuar revisión",
+    "newRequest": "Nueva"
+  }
 }

@@ -26,7 +26,21 @@ export type NotificationSettings = {
   mutedNotificationSourceIds: NotificationSourceId[]
 }
 
-export type NotificationEventSource = 'agent-task-complete' | 'terminal-bell' | 'test'
+export type NotificationEventSource =
+  | 'agent-task-complete'
+  | 'terminal-bell'
+  | 'test'
+  | 'review-request'
+
+/** A pull or merge request newly waiting for the user's review; the sender words it. */
+export type ReviewRequestNotification = {
+  /** What the renderer opens when the notification is clicked. */
+  key: string
+  title: string
+  body: string
+  /** Button that opens the review, on platforms that show notification buttons. */
+  actionLabel?: string
+}
 
 export type StructuredNotificationRead = StructuredAttentionRead & {
   paneKey: string
@@ -67,6 +81,10 @@ export type NotificationDispatchRequest = {
   structuredOrigin?: StructuredAttentionOrigin
   /** The execution host already pushed this to its paired phones, so main must not fan it out again. */
   mobileDeliveredByHost?: boolean
+  /** Required when `source` is 'review-request'. */
+  reviewRequest?: ReviewRequestNotification
+  /** The sender also shows this inside the app, so a focused window needs no banner. */
+  shownInApp?: boolean
 }
 
 export type NotificationDispatchResult = {

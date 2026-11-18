@@ -1,3 +1,4 @@
+import { isAwaitingMyReview } from './azure-devops-review-groups'
 import type { AzureDevOpsReviewListResult } from './azure-devops-review-types'
 
 export type AzureDevOpsAutoReviewSettings = {
@@ -34,22 +35,22 @@ export function normalizeAzureDevOpsAutoReviewSettings(
 }
 
 /**
- * Pull requests worth offering a review for: open, naming the user as a reviewer, not the user's
- * own, not yet voted on or drafted, and not already handled (`seenKeys`).
+ * Review requests new to this desktop: open, naming the user as a reviewer, not the user's own,
+ * not yet voted on or drafted, and not already handled (`seenKeys`).
  */
-export function azureDevOpsAutoReviewCandidates(
+export function azureDevOpsNewReviewRequests(
   list: Pick<AzureDevOpsReviewListResult, 'pullRequests' | 'draftCounts'>,
   seenKeys: ReadonlySet<string>
 ): AzureDevOpsReviewListResult['pullRequests'] {
   return list.pullRequests.filter(
-    (pr) =>
-      pr.status === 'active' &&
-      pr.reviewRequested === true &&
-      !pr.isDraft &&
-      !pr.isFork &&
-      pr.createdByMe !== true &&
-      pr.myVote === 'none' &&
-      !(list.draftCounts[pr.key] > 0) &&
-      !seenKeys.has(pr.key)
+    (pr) => isAwaitingMyReview(pr) && !(list.draftCounts[pr.key] > 0) && !seenKeys.has(pr.key)
   )
+}
+
+/** New review requests worth offering an AI review for; a fork has no branch to check out. */
+export function azureDevOpsAutoReviewCandidates(
+  list: Pick<AzureDevOpsReviewListResult, 'pullRequests' | 'draftCounts'>,
+  seenKeys: ReadonlySet<string>
+): AzureDevOpsReviewListResult['pullRequests'] {
+  return azureDevOpsNewReviewRequests(list, seenKeys).filter((pr) => !pr.isFork)
 }

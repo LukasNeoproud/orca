@@ -20574,7 +20574,17 @@
     "autoReviewSetting": "Offer AI reviews of new pull requests",
     "autoReviewSettingHint": "Orca checks for pull requests you have not authored, voted on or reviewed, and offers a review that runs in the background.",
     "autoReviewInterval": "Check every",
-    "autoReviewMinutes": "minutes"
+    "autoReviewMinutes": "minutes",
+    "groupAwaitingMyReview": "Waiting for my review",
+    "groupMine": "My pull requests",
+    "groupOther": "Other",
+    "involvementFilter": "Filter by my involvement",
+    "involvementAll": "All",
+    "involvementAwaitingMe": "Waiting for me",
+    "involvementMine": "Mine",
+    "startReview": "Start review",
+    "continueReview": "Continue review",
+    "newRequest": "New"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

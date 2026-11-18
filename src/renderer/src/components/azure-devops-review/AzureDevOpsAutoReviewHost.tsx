@@ -6,6 +6,7 @@ import {
   offerAzureDevOpsReview
 } from '@/lib/azure-devops-auto-review-check'
 import { runAzureDevOpsReviewInBackground } from '@/lib/azure-devops-review-background-run'
+import { openAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import { useAzureDevOpsAutoReview } from '@/store/azure-devops-auto-review'
 import {
   readAzureDevOpsReviewOptions,
@@ -37,6 +38,12 @@ export function AzureDevOpsAutoReviewHost({ ready }: { ready: boolean }): React.
       clearInterval(interval)
     }
   }, [ready, enabled, intervalMinutes])
+
+  useEffect(
+    // A clicked system notification of a new review request opens that pull request.
+    () => window.api.reviewRequests?.onOpen(({ key }) => openAzureDevOpsPullRequestPage(key)),
+    []
+  )
 
   if (!choosingOptionsFor) {
     return null

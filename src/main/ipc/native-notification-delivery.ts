@@ -18,6 +18,10 @@ import {
 } from './native-notification-lifecycle'
 import { recordNotificationDeliveryOutcome } from './notification-permission-probe'
 import { getTrustedUIRendererWindow } from './ui'
+import {
+  REVIEW_REQUEST_OPEN_CHANNEL,
+  reviewRequestOpenKey
+} from '../notifications/review-request-notification'
 
 export function deliverNativeNotification(
   args: NotificationDispatchRequest,
@@ -48,6 +52,7 @@ export function deliverNativeNotification(
   const release = retainNotificationUntilRelease(notification, () => {
     if (clickHandler) {
       notification.removeListener('click', clickHandler)
+      notification.removeListener('action', clickHandler)
       clickHandler = null
     }
     if (failedHandler) {
@@ -118,6 +123,25 @@ export function deliverNativeNotification(
       })
     }
     notification.on('click', clickHandler)
+  }
+  const reviewRequestKey =
+    args.source === 'review-request' ? reviewRequestOpenKey(args.reviewRequest) : null
+  if (reviewRequestKey !== null) {
+    clickHandler = () => {
+      release()
+      const win = getTrustedUIRendererWindow()
+      if (!win || win.isDestroyed()) {
+        return
+      }
+      if (process.platform === 'darwin' && !isBackgroundLaunch()) {
+        app.focus({ steal: true })
+      }
+      safelyRevealWindow(win)
+      win.webContents.send(REVIEW_REQUEST_OPEN_CHANNEL, { key: reviewRequestKey })
+    }
+    notification.on('click', clickHandler)
+    // The banner and its button both open the review.
+    notification.on('action', clickHandler)
   }
 
   const displayConfirmation = args.requireDisplayConfirmation

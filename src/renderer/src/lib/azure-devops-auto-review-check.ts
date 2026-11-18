@@ -2,7 +2,11 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { useAzureDevOpsAutoReview } from '@/store/azure-devops-auto-review'
 import { listAzureDevOpsReviewPullRequests } from './azure-devops-review-client'
-import { azureDevOpsAutoReviewCandidates } from '../../../shared/azure-devops-auto-review'
+import { announceNewReviewRequests } from './azure-devops-review-request-notification'
+import {
+  azureDevOpsAutoReviewCandidates,
+  azureDevOpsNewReviewRequests
+} from '../../../shared/azure-devops-auto-review'
 import type { AzureDevOpsReviewPullRequest } from '../../../shared/azure-devops-review-types'
 
 /** Offers whose notification is showing, so a PR that closed meanwhile can take its offer back. */
@@ -45,7 +49,7 @@ export function offerAzureDevOpsReview(pullRequest: AzureDevOpsReviewPullRequest
 
 let checking = false
 
-/** Lists open pull requests and offers a review for each new one. */
+/** Lists open pull requests, announces each new review request once and offers an AI review. */
 export async function checkAzureDevOpsReviewOffers(): Promise<void> {
   if (checking) {
     return
@@ -62,6 +66,11 @@ export async function checkAzureDevOpsReviewOffers(): Promise<void> {
       }
       return
     }
+    const newRequests = azureDevOpsNewReviewRequests(list, store.handledKeys)
+    store.markUnopened(
+      newRequests.filter((pr) => !store.announcedKeys.has(pr.key)).map((pr) => pr.key)
+    )
+    void announceNewReviewRequests(newRequests)
     const candidates = azureDevOpsAutoReviewCandidates(list, store.handledKeys)
     const candidateKeys = new Set(candidates.map((pr) => pr.key))
     for (const key of offeredKeys) {

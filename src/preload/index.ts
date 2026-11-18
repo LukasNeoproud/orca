@@ -33,6 +33,7 @@ import { settingsApi } from './api/settings-bridge'
 import { agentAwakeApi } from './api/agent-awake-bridge'
 import { powerModeSetupApi } from './api/power-mode-setup-bridge'
 import { azureDevOpsConnectionsApi } from './api/azure-devops-connections-bridge'
+import { reviewRequestsApi } from './api/review-request-bridge'
 import { localhostWorktreeLabelsApi } from './api/localhost-worktree-labels-bridge'
 import { keybindingsApi } from './api/keybindings-bridge'
 import { codexAccountsApi } from './api/codex-accounts-bridge'
@@ -136,6 +137,7 @@ const api = {
   agentAwake: agentAwakeApi,
   powerModeSetup: powerModeSetupApi,
   azureDevOpsConnections: azureDevOpsConnectionsApi,
+  reviewRequests: reviewRequestsApi,
   localhostWorktreeLabels: localhostWorktreeLabelsApi,
   keybindings: keybindingsApi,
   codexAccounts: codexAccountsApi,

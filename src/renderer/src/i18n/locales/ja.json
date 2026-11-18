@@ -19642,5 +19642,17 @@
   "settings.agents.readFailed": "Agent設定を読み込めませんでした。ホストへの接続を確認して再試行してください。",
   "settings.agents.saveFailed": "Agent設定を保存できませんでした。ホストへの接続を確認して再試行してください。",
   "settings.agents.hostDefaults": "選択したホストで起動する新しいAgentの既定値。",
-  "settings.agents.save": "保存"
+  "settings.agents.save": "保存",
+  "azureDevOpsReview": {
+    "groupAwaitingMyReview": "自分のレビュー待ち",
+    "groupMine": "自分の Pull Request",
+    "groupOther": "その他",
+    "involvementFilter": "自分との関わりで絞り込む",
+    "involvementAll": "すべて",
+    "involvementAwaitingMe": "自分待ち",
+    "involvementMine": "自分の",
+    "startReview": "レビューを開始",
+    "continueReview": "レビューを続ける",
+    "newRequest": "新着"
+  }
 }

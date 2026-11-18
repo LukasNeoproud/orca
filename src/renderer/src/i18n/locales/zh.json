@@ -19656,5 +19656,17 @@
   "settings.agents.readFailed": "无法读取代理设置。请检查主机连接并重试。",
   "settings.agents.saveFailed": "无法保存代理设置。请检查主机连接并重试。",
   "settings.agents.hostDefaults": "所选主机上新代理的默认设置。",
-  "settings.agents.save": "保存"
+  "settings.agents.save": "保存",
+  "azureDevOpsReview": {
+    "groupAwaitingMyReview": "等待我审查",
+    "groupMine": "我的 Pull Request",
+    "groupOther": "其他",
+    "involvementFilter": "按与我的关系筛选",
+    "involvementAll": "全部",
+    "involvementAwaitingMe": "等待我",
+    "involvementMine": "我的",
+    "startReview": "开始审查",
+    "continueReview": "继续审查",
+    "newRequest": "新"
+  }
 }

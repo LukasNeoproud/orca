@@ -1,4 +1,5 @@
 import type { NotificationDispatchRequest } from '../../shared/notification-settings-types'
+import { buildReviewRequestNotificationOptions } from '../notifications/review-request-notification'
 
 type NotificationStatusTranslator = (key: string, fallback: string) => string
 
@@ -32,7 +33,12 @@ export function buildNotificationOptions(
   body: string
   silent?: boolean
   sound?: string
+  actions?: { type: 'button'; text: string }[]
 } {
+  if (args.source === 'review-request') {
+    return buildReviewRequestNotificationOptions(args.reviewRequest)
+  }
+
   if (args.source === 'terminal-bell') {
     return {
       title: `Bell in ${args.worktreeLabel ?? 'workspace'}`,

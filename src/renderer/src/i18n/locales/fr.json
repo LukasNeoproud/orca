@@ -19643,5 +19643,17 @@
   "settings.agents.readFailed": "Impossible de lire les paramètres des agents. Vérifiez la connexion à l’hôte et réessayez.",
   "settings.agents.saveFailed": "Impossible d’enregistrer les paramètres des agents. Vérifiez la connexion à l’hôte et réessayez.",
   "settings.agents.hostDefaults": "Paramètres par défaut des nouveaux agents sur l’hôte sélectionné.",
-  "settings.agents.save": "Enregistrer"
+  "settings.agents.save": "Enregistrer",
+  "azureDevOpsReview": {
+    "groupAwaitingMyReview": "En attente de ma revue",
+    "groupMine": "Mes pull requests",
+    "groupOther": "Autres",
+    "involvementFilter": "Filtrer selon mon implication",
+    "involvementAll": "Toutes",
+    "involvementAwaitingMe": "En attente de moi",
+    "involvementMine": "Les miennes",
+    "startReview": "Commencer la revue",
+    "continueReview": "Poursuivre la revue",
+    "newRequest": "Nouvelle"
+  }
 }

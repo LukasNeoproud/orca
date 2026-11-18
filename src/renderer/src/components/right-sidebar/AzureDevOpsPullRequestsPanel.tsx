@@ -12,9 +12,13 @@ import {
   filterAzureDevOpsReviewPullRequests,
   isDefaultAzureDevOpsReviewFilters
 } from '../../../../shared/azure-devops-review-filters'
+import {
+  REVIEW_INVOLVEMENTS,
+  groupByReviewInvolvement
+} from '../../../../shared/azure-devops-review-groups'
 import { AzureDevOpsPullRequestFilters } from './AzureDevOpsPullRequestFilters'
-import { AzureDevOpsPullRequestRow } from './AzureDevOpsPullRequestRow'
-import { openAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
+import { AzureDevOpsPullRequestGroups } from './AzureDevOpsPullRequestGroups'
+import { AzureDevOpsPullRequestInvolvementToggle } from './AzureDevOpsPullRequestInvolvementToggle'
 
 const REFRESH_INTERVAL_MS = 3 * 60_000
 
@@ -44,10 +48,21 @@ export default function AzureDevOpsPullRequestsPanel({
     return () => window.clearInterval(timer)
   }, [isVisible, refresh])
 
-  const pullRequests = useMemo(
+  const matching = useMemo(
     () => filterAzureDevOpsReviewPullRequests(list?.pullRequests ?? [], filters),
     [list, filters]
   )
+  const groups = useMemo(() => groupByReviewInvolvement(matching), [matching])
+  const involvement = filters.involvement ?? 'all'
+  const visibleGroups = REVIEW_INVOLVEMENTS.filter(
+    (group) => involvement === 'all' || group === involvement
+  )
+  const involvementCounts = {
+    all: matching.length,
+    'awaiting-my-review': groups['awaiting-my-review'].length,
+    mine: groups.mine.length
+  }
+  const visibleCount = involvementCounts[involvement]
   const openSettings = (): void => {
     const store = useAppStore.getState()
     store.openSettingsTarget({ pane: 'integrations', repoId: null })
@@ -73,7 +88,7 @@ export default function AzureDevOpsPullRequestsPanel({
         {list && total > 0 ? (
           <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
             {translate('azureDevOpsReview.count', '{{value0}} of {{value1}}', {
-              value0: pullRequests.length,
+              value0: visibleCount,
               value1: total
             })}
           </span>
@@ -128,6 +143,11 @@ export default function AzureDevOpsPullRequestsPanel({
               className="h-8 pl-7 text-xs"
             />
           </div>
+          <AzureDevOpsPullRequestInvolvementToggle
+            value={involvement}
+            counts={involvementCounts}
+            onChange={(next) => setFilters({ involvement: next })}
+          />
           <AzureDevOpsPullRequestFilters
             filters={filters}
             repos={list?.repos ?? []}
@@ -169,7 +189,7 @@ export default function AzureDevOpsPullRequestsPanel({
               'Add a project whose origin is an Azure Repos repository to see its pull requests here.'
             )}
           </p>
-        ) : pullRequests.length === 0 ? (
+        ) : visibleCount === 0 ? (
           <div className="space-y-2 px-3 py-4 text-xs text-muted-foreground">
             <p>
               {total === 0
@@ -190,19 +210,13 @@ export default function AzureDevOpsPullRequestsPanel({
             ) : null}
           </div>
         ) : (
-          <ul className="flex flex-col gap-px p-1">
-            {pullRequests.map((pr) => (
-              <li key={pr.key}>
-                <AzureDevOpsPullRequestRow
-                  pullRequest={pr}
-                  draftCount={list.draftCounts[pr.key] ?? 0}
-                  showOrganization={showOrganization}
-                  selected={openKey === pr.key}
-                  onOpen={() => openAzureDevOpsPullRequestPage(pr.key)}
-                />
-              </li>
-            ))}
-          </ul>
+          <AzureDevOpsPullRequestGroups
+            groups={groups}
+            visibleGroups={visibleGroups}
+            draftCounts={list.draftCounts}
+            showOrganization={showOrganization}
+            openKey={openKey}
+          />
         )}
       </div>
     </section>

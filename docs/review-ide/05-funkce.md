@@ -92,6 +92,14 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 
 **Pravidla:** oznámení jen jednou za PR. Seznam je nezávislý na aktivním workspace. Navazuje na TASK-51 (seznam, filtry, nabídka AI review nových PR).
 
+**Stav po TASK-63:**
+
+- Čeká na moje review je otevřený PR, který není draft ani můj, jsem v něm reviewer jménem a ještě jsem nehlasoval. Moje jsou PR, které jsem založil, v jakémkoli stavu. Ostatní je zbytek, včetně PR, kde už jsem hlasoval.
+- Rychlý filtr se kombinuje s filtry projektu, repozitáře, stavu a s hledáním; jeho počty platí pro aktuální výběr těchto filtrů.
+- Řádek nabízí Provést review (čeká na mě, bez draftů) a Pokračovat v review (mám nepublikované drafty). Obě akce otevřou stránku PR; AI review se dál spouští z ní nebo z nabídky v aplikaci. Odpovědět na nálezy a Otevřít chybu přijdou v M2, stejně jako stav kontrol a počet komentářů na řádku.
+- Značka Nový zůstává, dokud PR neotevřu. Nové PR hledá stávající pravidelná kontrola, bez dalších dotazů na Azure DevOps.
+- Systémové oznámení přijde jednou za PR a po restartu se neopakuje. Řídí se nastavením oznámení včetně potlačení při aktivním okně; když u počítače nejsem, počká na návrat. Klik otevře PR. Na spárovaný telefon se neposílá.
+
 ![Pull requesty](./prototyp/04-pull-requesty.png)
 
 ## 5. Code review s AI

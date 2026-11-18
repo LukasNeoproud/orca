@@ -4,6 +4,7 @@ import {
   reconcileAzureDevOpsReviewFilters,
   type AzureDevOpsReviewFilters
 } from '../../../shared/azure-devops-review-filters'
+import { isReviewInvolvementFilter } from '../../../shared/azure-devops-review-groups'
 import type { AzureDevOpsReviewListResult } from '../../../shared/azure-devops-review-types'
 import { listAzureDevOpsReviewPullRequests } from '@/lib/azure-devops-review-client'
 
@@ -40,7 +41,8 @@ function readStoredFilters(): AzureDevOpsReviewFilters {
           ? parsed.status
           : 'active',
       // Why: a search is a momentary lookup, not a remembered preference.
-      query: ''
+      query: '',
+      involvement: isReviewInvolvementFilter(parsed.involvement) ? parsed.involvement : 'all'
     }
   } catch {
     return DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS
@@ -51,7 +53,12 @@ function storeFilters(filters: AzureDevOpsReviewFilters): void {
   try {
     localStorage.setItem(
       FILTERS_STORAGE_KEY,
-      JSON.stringify({ project: filters.project, repo: filters.repo, status: filters.status })
+      JSON.stringify({
+        project: filters.project,
+        repo: filters.repo,
+        status: filters.status,
+        involvement: filters.involvement
+      })
     )
   } catch {
     // Remembering filters is a convenience only.

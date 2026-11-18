@@ -98,7 +98,9 @@ export function createNotificationDeliveryService(
       if (
         !request.mobileDeliveredByHost &&
         deps.dispatchMobileNotification &&
-        request.source !== 'test'
+        request.source !== 'test' &&
+        // Why: phones and the push gateway accept a closed set of sources; a review request stays on this desktop.
+        request.source !== 'review-request'
       ) {
         if (
           reserveNotificationCooldown(
@@ -141,7 +143,7 @@ export function createNotificationDeliveryService(
       const browserWindow = deps.findActiveWindow()
       if (
         settings.suppressWhenFocused &&
-        request.isActiveWorktree &&
+        (request.isActiveWorktree || request.shownInApp) &&
         browserWindow &&
         browserWindow.isFocused()
       ) {

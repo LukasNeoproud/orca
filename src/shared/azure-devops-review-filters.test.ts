@@ -3,8 +3,10 @@ import {
   DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS,
   azureDevOpsReviewFilterOptions,
   filterAzureDevOpsReviewPullRequests,
+  isDefaultAzureDevOpsReviewFilters,
   reconcileAzureDevOpsReviewFilters
 } from './azure-devops-review-filters'
+import { groupByReviewInvolvement } from './azure-devops-review-groups'
 import {
   azureDevOpsPullRequestKey,
   parseAzureDevOpsPullRequestKey,
@@ -123,5 +125,30 @@ describe('reconcileAzureDevOpsReviewFilters', () => {
     })
     const kept = { ...DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS, repo: web.key }
     expect(reconcileAzureDevOpsReviewFilters(kept, [web])).toBe(kept)
+  })
+})
+
+describe('involvement filter', () => {
+  it('counts groups within the project, repo and status filters', () => {
+    const prs = [
+      pr(1, web, { reviewRequested: true }),
+      pr(2, web, { createdByMe: true }),
+      pr(3, api, { reviewRequested: true }),
+      pr(4, api, { reviewRequested: true, status: 'completed' })
+    ]
+    const inApi = filterAzureDevOpsReviewPullRequests(prs, {
+      ...DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS,
+      involvement: 'awaiting-my-review',
+      repo: api.key
+    })
+    const groups = groupByReviewInvolvement(inApi)
+    expect(groups['awaiting-my-review'].map((entry) => entry.pullRequestId)).toEqual([3])
+    expect(groups.mine).toEqual([])
+  })
+
+  it('is a filter Reset clears, and is absent from filters stored before it existed', () => {
+    const { involvement: _involvement, ...stored } = DEFAULT_AZURE_DEVOPS_REVIEW_FILTERS
+    expect(isDefaultAzureDevOpsReviewFilters(stored)).toBe(true)
+    expect(isDefaultAzureDevOpsReviewFilters({ ...stored, involvement: 'mine' })).toBe(false)
   })
 })

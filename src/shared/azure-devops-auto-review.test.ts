@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   azureDevOpsAutoReviewCandidates,
+  azureDevOpsNewReviewRequests,
   normalizeAzureDevOpsAutoReviewSettings
 } from './azure-devops-auto-review'
 import type { AzureDevOpsReviewPullRequest } from './azure-devops-review-types'
@@ -36,6 +37,24 @@ function pullRequest(
     ...overrides
   }
 }
+
+describe('azureDevOpsNewReviewRequests', () => {
+  it('counts a fork as a new review request although no AI review is offered for it', () => {
+    const list = {
+      pullRequests: [
+        pullRequest('new'),
+        pullRequest('fork', { isFork: true }),
+        pullRequest('handled'),
+        pullRequest('drafted'),
+        pullRequest('voted', { myVote: 'rejected' })
+      ],
+      draftCounts: { drafted: 1 }
+    }
+    const handled = new Set(['handled'])
+    expect(azureDevOpsNewReviewRequests(list, handled).map((pr) => pr.key)).toEqual(['new', 'fork'])
+    expect(azureDevOpsAutoReviewCandidates(list, handled).map((pr) => pr.key)).toEqual(['new'])
+  })
+})
 
 describe('azureDevOpsAutoReviewCandidates', () => {
   it('offers only open, unseen review requests the user has not authored, voted on or drafted', () => {

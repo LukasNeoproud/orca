@@ -12,6 +12,7 @@ import type { SkillsApi } from './api/agent-skill-api'
 import type { AgentAwakeApi, AgentStatusApi } from './api/agent-status-api'
 import type { PowerModeSetupApi } from './api/power-mode-setup-bridge'
 import type { AzureDevOpsConnectionsApi } from './api/azure-devops-connections-bridge'
+import type { ReviewRequestsApi } from './api/review-request-bridge'
 import type {
   ClaudeUsageApi,
   CodexUsageApi,
@@ -108,6 +109,8 @@ export type PreloadApi = {
   /** Local macOS desktop only; web clients have no privileged host access. */
   powerModeSetup?: PowerModeSetupApi
   azureDevOpsConnections?: AzureDevOpsConnectionsApi
+  /** Desktop only: a web client shows no system notifications to click. */
+  reviewRequests?: ReviewRequestsApi
   localhostWorktreeLabels: LocalhostWorktreeLabelsApi
   keybindings: KeybindingsApi
   codexAccounts: CodexAccountsApi
