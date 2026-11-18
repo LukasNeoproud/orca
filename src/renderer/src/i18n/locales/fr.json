@@ -290,7 +290,10 @@
     "help": "Aide",
     "paste": "Coller",
     "copy": "Copier",
-    "selectAll": "Tout sélectionner"
+    "selectAll": "Tout sélectionner",
+    "review": "Revue",
+    "pullRequests": "Pull requests",
+    "viewUnavailable": "{{view}} n’est pas disponible dans cet espace de travail"
   },
   "tray": {
     "openOrca": "Ouvrir Orca",

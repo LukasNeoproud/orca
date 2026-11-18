@@ -368,7 +368,10 @@
     "help": "Help",
     "paste": "Paste",
     "copy": "Copy",
-    "selectAll": "Select All"
+    "selectAll": "Select All",
+    "review": "Review",
+    "pullRequests": "Pull requests",
+    "viewUnavailable": "{{view}} is not available in this workspace"
   },
   "tray": {
     "openOrca": "Open Orca",

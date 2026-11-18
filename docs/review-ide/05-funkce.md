@@ -60,7 +60,14 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 - U položky omezené na jednu platformu je uveden její název.
 - Vpravo aktuální projekt a větev (vede na správu workspaces) a zvonek s počtem nových PR.
 
-**Oproti prototypu:** v Orce jde o nativní menu aplikace (`main/menu/register-app-menu.ts`) se zkratkami `CmdOrCtrl`, ne o lištu v okně. Projekt, větev a zvonek patří do titulkového pruhu nebo levého sidebaru.
+**Oproti prototypu:** v Orce jde o nativní menu aplikace (`main/menu/register-app-menu.ts`), ne o lištu v okně. Projekt, větev a zvonek patří do titulkového pruhu nebo levého sidebaru.
+
+**Stav implementace:**
+
+- Položky pohledů jsou záznamy v registru `shared/app-menu-views.ts`; nový pohled přidá jeden záznam (nabídka, popisek, nápověda zkratky, cíl) a menu ani `register-app-menu.ts` se nemění. Nový druh cíle navíc přidá větev v `renderer/src/app-menu-views/open-app-menu-view.ts`.
+- Nabídka Review má Pull requesty a Git graph. Nabídka Zobrazit má panely pravého sidebaru: Explorer, Search, Source Control, Checks, Ports, Agents, Backlog.md, Attached worktrees a PR Checks. Ostatní položky z tabulky přibudou se svými pohledy.
+- Zkratka u položky je jen zobrazená nápověda z registru klávesových zkratek, ne akcelerátor menu: ten by klávesu zachytil v hlavním procesu dřív než renderer.
+- Menu je pro všechny workspaces stejné. Panel, který aktuální workspace nemá (Git pohledy ve složce, Ports mimo SSH, panely folder workspace jinde), se neotevře a aplikace to oznámí. Z celostránkových pohledů (nastavení, úkoly) položka nejdřív vrátí zobrazení workspace.
 
 ![Hlavní menu](./prototyp/02-hlavni-menu.png)
 

@@ -189,7 +189,10 @@
     "help": "Ayuda",
     "paste": "Pegar",
     "copy": "Copiar",
-    "selectAll": "Seleccionar todo"
+    "selectAll": "Seleccionar todo",
+    "review": "Revisión",
+    "pullRequests": "Pull requests",
+    "viewUnavailable": "{{view}} no está disponible en este workspace"
   },
   "tray": {
     "openOrca": "Abrir Orca",

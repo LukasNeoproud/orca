@@ -189,7 +189,10 @@
     "help": "帮助",
     "paste": "粘贴",
     "copy": "复制",
-    "selectAll": "全选"
+    "selectAll": "全选",
+    "review": "审查",
+    "pullRequests": "拉取请求",
+    "viewUnavailable": "{{view}} 在此工作区中不可用"
   },
   "tray": {
     "openOrca": "打开 Orca",

@@ -12,6 +12,7 @@ import {
   openSettingsFromSystemMenu,
   quitFromUserCommand,
   runUserInitiatedUpdateCheck,
+  sendOpenAppMenuView,
   sendOpenCrashReport,
   sendOpenFeatureTour,
   sendOpenSetupGuide
@@ -73,6 +74,8 @@ export async function initializeMainProcessI18nAndMenu(): Promise<void> {
     },
     onToggleLeftSidebar: () => state.mainWindow?.webContents.send('ui:toggleLeftSidebar'),
     onToggleRightSidebar: () => state.mainWindow?.webContents.send('ui:toggleRightSidebar'),
+    onOpenView: (viewId, targetWindow) =>
+      sendOpenAppMenuView(viewId, targetWindow instanceof BrowserWindow ? targetWindow : null),
     onToggleAppearance: (key) => {
       if (key === 'statusBarVisible') {
         // Why: status bar visibility lives in persisted UI state (not settings) and the renderer owns the toggle — forward the event, let it flip + store.

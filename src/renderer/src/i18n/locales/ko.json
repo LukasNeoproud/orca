@@ -189,7 +189,10 @@
     "help": "도움말",
     "paste": "붙여넣기",
     "copy": "복사",
-    "selectAll": "모두 선택"
+    "selectAll": "모두 선택",
+    "review": "리뷰",
+    "pullRequests": "풀 리퀘스트",
+    "viewUnavailable": "이 워크스페이스에서는 {{view}}을(를) 사용할 수 없습니다"
   },
   "tray": {
     "openOrca": "Orca 열기",

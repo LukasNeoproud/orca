@@ -32,6 +32,8 @@ vi.mock('electron', () => ({
 }))
 
 import { getNextDefaultOnAppearanceSettingValue, registerAppMenu } from './register-app-menu'
+import { createAppMenuViewItems, createAppReviewMenu } from './app-menu-view-items'
+import { APP_MENU_VIEW_ITEMS } from '../../shared/app-menu-views'
 
 const isMac = process.platform === 'darwin'
 
@@ -48,6 +50,7 @@ function buildMenuOptions() {
     onZoomReset: vi.fn(),
     onToggleLeftSidebar: vi.fn(),
     onToggleRightSidebar: vi.fn(),
+    onOpenView: vi.fn(),
     onToggleAppearance: vi.fn(),
     getAppearanceState: vi.fn(() => ({
       showTasksButton: true,
@@ -69,6 +72,17 @@ function getSubmenu(
 ): Electron.MenuItemConstructorOptions[] {
   const item = template.find((entry) => entry.label === label)
   return (item?.submenu ?? []) as Electron.MenuItemConstructorOptions[]
+}
+
+// Why untyped: these handlers read only the source window, which a test stands in for with a plain object.
+function clickFromWindow(
+  item: Electron.MenuItemConstructorOptions | undefined,
+  window: unknown
+): void {
+  const click: unknown = item?.click
+  if (typeof click === 'function') {
+    click({}, window, {})
+  }
 }
 
 describe('registerAppMenu', () => {
@@ -613,4 +627,101 @@ describe('registerAppMenu', () => {
       expect(onQuit).toHaveBeenCalledOnce()
     }
   )
+
+  // Why every platform: Windows and Linux reach these through the same in-window menu bar as File and View.
+  describe.each(['darwin', 'linux', 'win32'] as const)('registered views on %s', (platform) => {
+    const mod = platform === 'darwin'
+    const labelOf = (item: Electron.MenuItemConstructorOptions): string =>
+      (item.label ?? '').split('\t')[0]
+
+    beforeEach(() => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+    })
+
+    it('puts Review between View and Window with Pull requests and Git graph', () => {
+      registerAppMenu(buildMenuOptions())
+
+      const labels = getTemplate().map((item) => item.label)
+      expect(labels.slice(labels.indexOf('View'), labels.indexOf('View') + 3)).toEqual([
+        'View',
+        'Review',
+        'Window'
+      ])
+      expect(getSubmenu(getTemplate(), 'Review').map((item) => item.label)).toEqual([
+        'Pull requests',
+        'Git graph'
+      ])
+    })
+
+    it('lists the right sidebar panels in View with display-only shortcut hints', () => {
+      registerAppMenu(buildMenuOptions())
+
+      const viewSubmenu = getSubmenu(getTemplate(), 'View')
+      const first = viewSubmenu.findIndex((item) => labelOf(item) === 'Explorer')
+      expect(viewSubmenu.slice(first, first + 10).map((item) => item.label ?? item.type)).toEqual([
+        `Explorer\t${mod ? '⌘⇧E' : 'Ctrl+Shift+E'}`,
+        `Search\t${mod ? '⌘⇧F' : 'Ctrl+Shift+F'}`,
+        `Source Control\t${mod ? '⌘⇧G' : 'Ctrl+Shift+G'}`,
+        // Unbound actions show no hint at all.
+        'Checks',
+        mod ? 'Ports\t⌘⇧I' : 'Ports',
+        'Agents',
+        'Backlog.md',
+        'Attached worktrees',
+        'PR Checks',
+        'separator'
+      ])
+    })
+
+    it('opens every registered view in the window the click came from, without accelerators', () => {
+      const options = buildMenuOptions()
+      registerAppMenu(options)
+      const sourceWindow = { id: 7 }
+
+      const items = [...getSubmenu(getTemplate(), 'View'), ...getSubmenu(getTemplate(), 'Review')]
+      for (const view of APP_MENU_VIEW_ITEMS) {
+        const item = items.find((entry) => labelOf(entry) === view.label)
+        expect(item, view.id).toBeDefined()
+        expect(item?.accelerator).toBeUndefined()
+        expect(item?.role).toBeUndefined()
+        clickFromWindow(item, sourceWindow)
+        expect(options.onOpenView).toHaveBeenLastCalledWith(view.id, sourceWindow)
+      }
+      expect(options.onOpenView).toHaveBeenCalledTimes(APP_MENU_VIEW_ITEMS.length)
+    })
+
+    it('follows the user keybinding for a hint', () => {
+      registerAppMenu({
+        ...buildMenuOptions(),
+        getKeybindings: () => ({ 'sidebar.checks.toggle': ['Mod+Shift+K'] })
+      })
+
+      const labels = getSubmenu(getTemplate(), 'View').map((item) => item.label)
+      expect(labels).toContain(`Checks\t${mod ? '⌘⇧K' : 'Ctrl+Shift+K'}`)
+    })
+  })
+
+  it('adds a view from one registry record', () => {
+    const onOpenView = vi.fn()
+    const items = [
+      ...APP_MENU_VIEW_ITEMS,
+      {
+        id: 'snapshot-diff',
+        menu: 'review',
+        labelKey: 'menu.snapshotDiff',
+        label: 'Snapshot diff',
+        target: { kind: 'git-graph' }
+      } as const
+    ]
+
+    const added = createAppMenuViewItems('review', { onOpenView, items }).at(-1)
+    expect(added?.label).toBe('Snapshot diff')
+    clickFromWindow(added, undefined)
+    expect(onOpenView).toHaveBeenCalledWith('snapshot-diff', undefined)
+  })
+
+  it('omits the Review menu while no review view is registered', () => {
+    const items = APP_MENU_VIEW_ITEMS.filter((item) => item.menu !== 'review')
+    expect(createAppReviewMenu({ onOpenView: vi.fn(), items })).toEqual([])
+  })
 })

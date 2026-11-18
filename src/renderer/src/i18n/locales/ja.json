@@ -189,7 +189,10 @@
     "help": "ヘルプ",
     "paste": "貼り付け",
     "copy": "コピー",
-    "selectAll": "すべて選択"
+    "selectAll": "すべて選択",
+    "review": "レビュー",
+    "pullRequests": "プルリクエスト",
+    "viewUnavailable": "このワークスペースでは {{view}} を利用できません"
   },
   "tray": {
     "openOrca": "Orca を開く",

@@ -5,6 +5,7 @@ import { subscribeToUnpairedDeviceAuthNotification } from '../unpaired-device-au
 import { translate } from '@/i18n/i18n'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store'
+import { registerAppMenuViewIpcBridge } from '../../app-menu-views/open-app-menu-view'
 
 function getShortcutPlatform(): NodeJS.Platform {
   if (navigator.userAgent.includes('Mac')) {
@@ -158,6 +159,8 @@ export function registerSettingsAndSidebarIpcBridge(unsubs: (() => void)[]): voi
       store.toggleRightSidebar()
     })
   )
+
+  registerAppMenuViewIpcBridge(unsubs)
 
   unsubs.push(
     window.api.ui.onToggleWorktreePalette(() => {

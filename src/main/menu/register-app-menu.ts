@@ -1,15 +1,12 @@
 import { BrowserWindow, Menu, app } from 'electron'
-import {
-  formatKeybindingList,
-  getEffectiveKeybindingsForAction,
-  type KeybindingActionId,
-  type KeybindingOverrides
-} from '../../shared/keybindings'
+import type { KeybindingActionId, KeybindingOverrides } from '../../shared/keybindings'
 import type { UpdateCheckOptions } from '../../shared/update-status-types'
 import { translateMain } from '../i18n/main-i18n'
 import { createAppMenuSelectionItem } from './app-menu-selection-item'
 import { createAppMenuQuitItem } from './app-menu-quit-item'
 import { createAppWindowMenu } from './app-menu-window'
+import { appMenuShortcutHint, appMenuShortcutLabel } from './app-menu-shortcut-hint'
+import { createAppReviewMenu, createAppViewMenuPanelItems } from './app-menu-view-items'
 
 export type AppearanceMenuState = {
   showTasksButton: boolean
@@ -37,6 +34,7 @@ type RegisterAppMenuOptions = {
   onZoomReset: () => void
   onToggleLeftSidebar: () => void
   onToggleRightSidebar: () => void
+  onOpenView: (viewId: string, window?: Electron.BaseWindow | null) => void
   onToggleAppearance: (key: AppearanceMenuKey) => void
   getAppearanceState: () => AppearanceMenuState
   getKeybindings?: () => KeybindingOverrides | undefined
@@ -59,6 +57,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     onZoomReset,
     onToggleLeftSidebar,
     onToggleRightSidebar,
+    onOpenView,
     onToggleAppearance,
     getAppearanceState,
     getKeybindings
@@ -66,14 +65,8 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
 
   const isMac = process.platform === 'darwin'
   const appearance = getAppearanceState()
-  const shortcutLabel = (actionId: KeybindingActionId): string => {
-    const bindings = getEffectiveKeybindingsForAction(
-      actionId,
-      process.platform,
-      getKeybindings?.()
-    )
-    return formatKeybindingList(bindings, process.platform)
-  }
+  const shortcutLabel = (actionId: KeybindingActionId): string =>
+    appMenuShortcutLabel(actionId, getKeybindings?.())
 
   const reloadFocusedWindow = (ignoreCache: boolean): void => {
     const webContents = BrowserWindow.getFocusedWindow()?.webContents
@@ -116,16 +109,9 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     click: checkForUpdatesClick
   }
 
-  const settingsBindings = getEffectiveKeybindingsForAction(
-    'app.settings',
-    process.platform,
-    getKeybindings?.()
-  )
-  const settingsShortcut = settingsBindings.length
-    ? `\t${formatKeybindingList(settingsBindings, process.platform)}`
-    : ''
+  const settingsHint = appMenuShortcutHint('app.settings', getKeybindings?.())
   const settingsItem: Electron.MenuItemConstructorOptions = {
-    label: `${translateMain('menu.settings', 'Settings')}${settingsShortcut}`,
+    label: `${translateMain('menu.settings', 'Settings')}${settingsHint ? `\t${settingsHint}` : ''}`,
     click: () => onOpenSettings()
   }
 
@@ -311,6 +297,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         label: `${translateMain('menu.openWorktreePalette', 'Open Worktree Palette')}\t${shortcutLabel('worktree.palette')}`
       },
       { type: 'separator' },
+      ...createAppViewMenuPanelItems({ onOpenView, getKeybindings }),
       { role: 'togglefullscreen' },
       { type: 'separator' },
       appearanceSubmenu
@@ -341,6 +328,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     ...(isMac ? [] : [fileMenu]),
     editMenu,
     viewMenu,
+    ...createAppReviewMenu({ onOpenView, getKeybindings }),
     windowMenu,
     helpMenu
   ]

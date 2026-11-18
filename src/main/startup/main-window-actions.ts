@@ -157,6 +157,14 @@ export function sendOpenFeatureTour(targetWindow?: BrowserWindow | null): void {
   webContents?.send('ui:openFeatureTour')
 }
 
+export function sendOpenAppMenuView(viewId: string, targetWindow?: BrowserWindow | null): void {
+  const webContents =
+    targetWindow && !targetWindow.isDestroyed()
+      ? targetWindow.webContents
+      : state.mainWindow?.webContents
+  webContents?.send('ui:openAppMenuView', viewId)
+}
+
 export function sendOpenSetupGuide(targetWindow?: BrowserWindow | null): void {
   const webContents =
     targetWindow && !targetWindow.isDestroyed()

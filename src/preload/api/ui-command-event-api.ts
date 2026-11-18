@@ -76,6 +76,8 @@ export type UiCommandEventApi = {
   onOpenCrashReport: (callback: () => void) => () => void
   onToggleLeftSidebar: (callback: () => void) => () => void
   onToggleRightSidebar: (callback: () => void) => () => void
+  /** A view picked from the native app menu; ids come from `APP_MENU_VIEW_ITEMS`. */
+  onOpenAppMenuView?: (callback: (viewId: string) => void) => () => void
   onToggleWorktreePalette: (callback: () => void) => () => void
   onToggleFloatingTerminal: (callback: () => void) => () => void
   onTerminalShortcutCaptured: (
