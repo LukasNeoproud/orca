@@ -4,6 +4,7 @@ title: 'Brány forku: runtime katalog lokalizace a tři padající testy markdow
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
+updated_date: '2026-11-18T15:03:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -43,3 +44,9 @@ Oprava je mimo zadání v `docs/review-ide`, týká se dřívější práce ve f
 - [ ] #2 Testy markdown-preview-table-chunks, rich-markdown-details-keyboard a rich-markdown-escape-fidelity prochází, nebo je doloženo, že padají i na upstreamu, a je zapsané proč
 - [ ] #3 Změna se netýká textů ani chování mimo chybějící klíče a opravené testy; git diff katalogů obsahuje jen doplněné klíče
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Doplněno z TASK-63 (2026-11-18): verify:localization-catalogs hlásí i chybějící klíče azureDevOpsReview.feedback*, addressFeedback* a openOwnInWorkspaceHint v en.json; jazyky es, fr, ja, ko a zh neměly blok azureDevOpsReview vůbec (TASK-63 do něj přidal jen svých 10 klíčů). Mimo brány: config/tsconfig.e2e.json hlásí stovky starších typových chyb a není součástí pnpm tc; jen zaznamenat, neopravovat bez rozhodnutí.
+<!-- SECTION:NOTES:END -->
