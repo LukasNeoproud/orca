@@ -1,13 +1,13 @@
 ---
 id: TASK-113
 title: 'Pokus: změřit limity POEditor API s tokenem testovacího projektu'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-18T22:50:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-medium
-  - ceka-na-uzivatele
 milestone: m-6
 dependencies: []
 documentation:
@@ -52,3 +52,15 @@ TASK-58 navrhl synchronizaci s POEditorem jen podle dokumentace, která neuvád�
 - [ ] #3 Měření zapisovalo jen do testovacího projektu určeného uživatelem a po sobě uklidilo; žádný jiný projekt účtu se nezměnil
 - [ ] #4 Token není v repozitáři, v záznamu ani ve zprávě
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): token nebude, M6 se plánuje podle dokumentace. Tým má placený tarif Plus.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Zrušeno rozhodnutím uživatele (decision-12): bez tokenu testovacího projektu se neměří. decision-6 platí pro tarif Plus s limity podle dokumentace.
+<!-- SECTION:FINAL_SUMMARY:END -->

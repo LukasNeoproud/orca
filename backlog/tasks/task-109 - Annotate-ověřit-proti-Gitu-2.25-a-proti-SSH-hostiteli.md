@@ -4,12 +4,11 @@ title: 'Annotate: ověřit proti Gitu 2.25 a proti SSH hostiteli'
 status: To Do
 assignee: []
 created_date: '2026-11-18T19:28:00Z'
-updated_date: '2026-11-18T22:11:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-medium
   - model-opus
-  - ceka-na-uzivatele
 milestone: m-1
 dependencies: []
 documentation:
@@ -53,3 +52,9 @@ Jak získat Git 2.25: přeložit ze zdrojového archivu do `~/.cache/orca-review
 - [ ] #3 Každá nalezená odchylka je opravená v tomto tiketu nebo má vlastní tiket
 - [ ] #4 V repozitáři nepřibyl žádný stažený nástroj ani binárka
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): Git 2.25 sestavit ze zdrojového archivu do ~/.cache/orca-review-ide. Docker běží.
+<!-- SECTION:NOTES:END -->

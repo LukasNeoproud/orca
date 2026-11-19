@@ -4,7 +4,7 @@ title: 'Open in: ověřit na skutečných IDE a otevírat worktree jako projekt'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-19T01:25:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -57,4 +57,6 @@ Plán (worker 2026-11-19): 1) smyšlený projekt se dvěma worktrees v ~/.cache/
 Stav (worker 2026-11-19): hotovo: sloupec pro JetBrains (--column S-1, doloženo z bytecode CommandLineProcessor nainstalovaného Android Studia, platforma 262), volba projectRoot v sestavení příkazu pro code/code-insiders, testy pro tři platformy, tabulka ověření v 02-editor.md. Ověřeno živě: VS Code (řádek, sloupec, varianta se složkou worktree). Zčásti: Android Studio (příkaz přijat, soubor otevřen, poloha kurzoru nepřečtena kvůli zamčené obrazovce), Xcode (spuštěn, řádek nepřečten, chybí Automatizace). Neověřeno: Rider a Zed (nejsou nainstalované). Zbývá: předat kořen worktree z rendereru přes shell:openInExternalEditor (soubory mimo rozsah tiketu), doověřit polohu kurzoru v Android Studiu a Xcode při odemčené obrazovce, varianta se složkou pro JetBrains. Zápis: ~/.cache/orca-review-ide/task-80/vysledky.md.
 
 Stav 2026-11-19 (koordinátor): commitnuto je sloupec pro JetBrains (--line N --column S-1, doloženo z bytecode platformy IntelliJ v nainstalovaném Android Studiu: řádek od jedné, sloupec od nuly) a volba projectRoot v sestavení příkazu pro VS Code; zapojení z rozhraní je TASK-116. Živě ověřen jen VS Code 1.140 (řádek i sloupec, okno worktree). Zbývá a potřebuje přítomného uživatele s odemčenou obrazovkou: poloha kurzoru v Android Studiu (po studio --line 17 --column 3 má být ve stavu IDE caret line 16, column 3) a v Xcode, složka worktree u JetBrains (dialogy o důvěře a o okně). Rider a Zed nejsou nainstalované. Čeká na uživatele: doověřit ručně při akceptaci M1 (doporučeno), nebo udělit agentovi oprávnění Automatizace a Zpřístupnění; a jestli Rider a Zed nainstalovat, nebo nechat neověřené.
+
+Odpověď uživatele 2026-11-19 (decision-12): doověří agent; uživatel mu udělí oprávnění Automatizace a Zpřístupnění (čeká se na potvrzení, že je udělil). Rider a Zed zůstávají neověřené; zapsat do dokumentace.
 <!-- SECTION:NOTES:END -->

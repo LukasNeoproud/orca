@@ -4,6 +4,7 @@ title: 'Brány kvality: stav u pull requestu a před jeho založením'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:25:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
@@ -52,3 +53,9 @@ Stav bran kvality má být vidět i tam, kde se rozhoduje o pull requestu: autor
 - [ ] #5 Do Azure DevOps ani jiné služby se stav bran neodesílá; pokrývá to test, že tok nevolá žádný zápis
 - [ ] #6 Komponenty mají testy a obě místa jsou ověřená ve skrytém okně se snímkem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): stav bran se do Azure DevOps nezapisuje, je jen v Orce.
+<!-- SECTION:NOTES:END -->

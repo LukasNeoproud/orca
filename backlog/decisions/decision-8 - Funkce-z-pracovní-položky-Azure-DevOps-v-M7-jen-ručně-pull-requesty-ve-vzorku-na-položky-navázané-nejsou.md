@@ -4,7 +4,7 @@ title: >-
   Funkce z pracovní položky Azure DevOps: v M7 jen ručně, pull requesty ve
   vzorku na položky navázané nejsou
 date: '2026-11-18T23:54:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

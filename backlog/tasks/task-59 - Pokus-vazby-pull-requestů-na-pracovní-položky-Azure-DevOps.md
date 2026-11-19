@@ -1,14 +1,13 @@
 ---
 id: TASK-59
 title: 'Pokus: vazby pull requestů na pracovní položky Azure DevOps'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-18T12:42:00Z'
-updated_date: '2026-11-18T23:57:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-medium
-  - ceka-na-uzivatele
 milestone: m-0
 dependencies: []
 documentation:
@@ -56,4 +55,12 @@ Plán (worker): 1) záloha sdílených souborů ~/.orca a nastavení hooků agen
 Výsledek (worker, 2026-11-19): měřeno ve druhé skryté instanci Orca Dev s izolovaným profilem, 474 požadavků GET funkcí Orky pro požadavky na Azure DevOps (467 úspěšných, 7 se stavem 401). Směr PR → položky: 0 ze 455 dokončených pull requestů pěti repozitářů (dva produkty, dvě organizace; backend jednoho produktu není v Azure DevOps). Žádná zásada vyžadující vazbu, žádný commit s položkou. Token uložený v Orce pracovní položky číst nesmí (401 na všech voláních _apis/wit), proto kritérium 2 není splněné: ve vzorku není žádná navázaná položka a směr položka → PR nejde přečíst. Záznam: decision-8 (proposed), návrh Funkce v M7 jen ručně. Úklid: instance ukončená, její úloha launchd odebraná, surová data a záloha smazané, otisky SHA-256 sdílených souborů před během a po něm shodné (19 souborů). Zbývá: odpověď uživatele, jestli tým položky Azure DevOps používá; při ano zopakovat měření s tokenem s Work Items (Read), skripty jsou v ~/.cache/orca-review-ide/task-59/scripts.
 
 Stav 2026-11-19 (koordinátor): záznam decision-8 (proposed) je commitnutý, kritéria 1, 3 až 6 splněna. Kritérium 2 nejde změřit: ve vzorku není žádná navázaná položka a token uložený v Orce nesmí pracovní položky číst (401). Čeká na uživatele: eviduje tým práci v pracovních položkách Azure DevOps, nebo jinde? Když jinde, tiket se uzavře s kritériem 2 jako neměřitelným. Když v Azure DevOps, uživatel přidá tokenu rozsah Work Items (Read) a měření se zopakuje skripty v ~/.cache/orca-review-ide/task-59/scripts. Při měření se shodovaly otisky všech 19 zálohovaných sdílených souborů; worker po své skryté instanci odebral její úlohu launchd.
+
+Odpověď uživatele 2026-11-19 (decision-12): tým eviduje tikety v Jiře. Kritérium 2 zůstává neměřitelné; měření se neopakuje.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Záznam decision-8: pull requesty ve vzorku na pracovní položky Azure DevOps navázané nejsou, tým eviduje práci v Jiře. Funkce se zakládají ručně (přijato v decision-12). Kritérium 2 neměřitelné: token nesmí číst pracovní položky a tým je nepoužívá.
+<!-- SECTION:FINAL_SUMMARY:END -->

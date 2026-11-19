@@ -4,10 +4,10 @@ title: 'Change review: příprava celků na pozadí při příchodu pull request
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:27:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
-  - ceka-na-uzivatele
 milestone: m-2
 dependencies:
   - TASK-96
@@ -52,11 +52,17 @@ Tiket spouští AI bez pokynu u každého příchozího pull requestu, a tím sp
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Podle rozhodnutí uživatele se pro nový pull request, kde jsem reviewer, celky připraví na pozadí samy, nebo se nabídnou jedním kliknutím; bez zapnutí v nastavení se žádný běh AI sám nespustí
+- [ ] #1 U nového pull requestu, kde jsem reviewer, se příprava celků nabídne jedním kliknutím; žádný běh AI se sám nespustí
 - [ ] #2 Běh na pozadí založí nebo použije review worktree pull requestu, nepřepne aktivní workspace a nevezme fokus
 - [ ] #3 Při otevření pohledu Change review pro commit, pro který celky existují, jsou vidět hned; pro novější commit je nabídnuté obnovení
-- [ ] #4 Nastavení má denní strop počtu běhů a strop velikosti diffu; pull request nad stropem se jen nabídne
-- [ ] #5 Pro jeden commit pull requestu se běh nespustí dvakrát ani po restartu; draft pull request, vlastní pull request a pull request z forku se nezpracovávají
+- [ ] #4 Nabídka se pro pull request nad stropem velikosti diffu neukáže jako jedno kliknutí, jen s upozorněním na velikost
+- [ ] #5 Pro jeden commit pull requestu se běh nespustí dvakrát ani po restartu; draft pull request, vlastní pull request a pull request z forku se nenabízejí
 - [ ] #6 Běžící přípravu jde zrušit a její stav je vidět u pull requestu
-- [ ] #7 Testy pokrývají rozhodování o spuštění, stropy a opakování; průchod je ověřený ve skrytém okně se smyšleným agentem a smyšleným serverem
+- [ ] #7 Testy pokrývají rozhodování o nabídce, strop a opakování; průchod je ověřený ve skrytém okně se smyšleným agentem a smyšleným serverem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): jen nabídka jedním kliknutím u nového pull requestu; automatika ani její nastavení se nestaví. Kritéria upravena.
+<!-- SECTION:NOTES:END -->

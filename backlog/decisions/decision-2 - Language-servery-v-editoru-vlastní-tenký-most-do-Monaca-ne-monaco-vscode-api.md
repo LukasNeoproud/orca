@@ -2,7 +2,7 @@
 id: decision-2
 title: 'Language servery v editoru: vlastní tenký most do Monaca, ne monaco-vscode-api'
 date: '2026-11-18T17:59:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

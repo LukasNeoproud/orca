@@ -4,7 +4,7 @@ title: >-
   Swift v editoru M3: sourcekit-lsp přes build server, jen nad sestaveným
   worktree
 date: '2026-11-18T20:11:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

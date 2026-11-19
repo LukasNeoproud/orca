@@ -4,6 +4,7 @@ title: 'Brány kvality: spuštění po kroku agenta a smyčka zpětné vazby'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:17:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
@@ -60,3 +61,9 @@ Agent se má o chybách kompilace, lintu a testů dozvědět sám a opravit je d
 - [ ] #7 Dokončení kroku podagenta ani druhý agent ve stejném worktree nespustí druhou smyčku ani souběžný běh téže brány
 - [ ] #8 Testy pokrývají průchod, selhání s opravou, limit kol, kolo bez zlepšení a zásah uživatele; jeden průchod je ověřený ve skrytém okně se smyšleným agentem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): smyčka vypnutá, zapíná se na repozitář, nejvýš tři kola (jak je tiket napsaný).
+<!-- SECTION:NOTES:END -->

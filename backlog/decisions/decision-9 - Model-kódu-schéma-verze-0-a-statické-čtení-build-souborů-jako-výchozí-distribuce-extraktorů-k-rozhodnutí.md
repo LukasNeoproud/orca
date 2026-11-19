@@ -4,7 +4,7 @@ title: >-
   Model kódu: schéma verze 0 a statické čtení build souborů jako výchozí,
   distribuce extraktorů k rozhodnutí
 date: '2026-11-19T00:49:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

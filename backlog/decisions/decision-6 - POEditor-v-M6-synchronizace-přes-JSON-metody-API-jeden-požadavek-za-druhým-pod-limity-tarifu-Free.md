@@ -4,7 +4,7 @@ title: >-
   POEditor v M6: synchronizace přes JSON metody API, jeden požadavek za druhým
   pod limity tarifu Free
 date: '2026-11-18T22:47:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

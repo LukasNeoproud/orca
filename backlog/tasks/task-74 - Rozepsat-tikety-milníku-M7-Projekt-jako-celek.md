@@ -4,7 +4,7 @@ title: Rozepsat tikety milníku M7 Projekt jako celek
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-18T23:57:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - planovani
@@ -62,4 +62,6 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 Podklady z TASK-57 (2026-11-19): decision-7 navrhuje pro agenty ve Funkci seznam cest místo složky se symbolickými odkazy. Pro plán M7: výpočet skutečných cest referencí na stroji agenta; additionalDirectories ve strukturované relaci Claude a --add-dir u terminálového agenta; zakazující pravidla Edit na cesty referencí předaná relaci, ne zapsaná do repozitáře; seznam referencí v kontextu (hledání bez cesty reference nezahrne); chování při změně členů Funkce za běhu; Codex a ostatní agenti zatím jen seznam cest v kontextu. Otázky pro uživatele: 1) přijmout seznam cest (doporučeno) místo složky odkazů; 2) blokovat přepnutí reference, když ji má běžící relace přidanou (doporučeno neblokovat a relaci změnu oznámit; jinak reference zastará, dokud relace běží); 3) načítat agentovi CLAUDE.md referencí (doporučeno ne: instrukce pro cizí platformu zabírají kontext). Neověřeno: Codex během, interaktivní relace, Windows, WSL, SSH.
 
 Podklady z TASK-59 (2026-11-19): decision-8 navrhuje Funkce v M7 zakládat jen ručně, protože pull requesty ve vzorku na pracovní položky navázané nejsou a číslo ve jméně větve platformy nespojuje. Jeden z měřených produktů má backend na jiném git hostingu než Azure DevOps, takže Funkce musí umět členy napříč poskytovateli.
+
+Odpověď uživatele 2026-11-19 (decision-12): decision-7 přijat (seznam cest, přepnutí reference neblokovat a oznámit, CLAUDE.md jiných platforem nenačítat); decision-8 přijat (Funkce jen ručně). Zadání je v Jiře, ne v pracovních položkách Azure DevOps.
 <!-- SECTION:NOTES:END -->

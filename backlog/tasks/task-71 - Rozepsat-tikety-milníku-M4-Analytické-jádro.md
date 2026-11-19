@@ -4,7 +4,7 @@ title: Rozepsat tikety milníku M4 Analytické jádro
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-19T00:58:00Z'
+updated_date: '2026-11-19T11:46:00Z'
 labels:
   - review-ide
   - planovani
@@ -12,7 +12,7 @@ labels:
   - ceka-na-uzivatele
 milestone: m-4
 dependencies:
-  - TASK-60
+  - TASK-132
 documentation:
   - docs/review-ide/01-integrace.md
   - docs/review-ide/05-funkce.md
@@ -59,4 +59,6 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 
 <!-- SECTION:NOTES:BEGIN -->
 Podklady z TASK-60 (2026-11-19): decision-9 a docs/review-ide/09-model-kodu.md. Navržené tikety pro rozpis M4: jádro modelu kódu (typy schématu, skládání snímku, cache podle obsahu, čtení zdrojů lokalizace; testy nad tests/fixtures/code-model); extraktor Kotlin (statická čtečka Gradlu a PSI, připnutá verze kompilátoru, hlášení nerozhodnutých konstrukcí; Groovy DSL zatím ne); extraktor Swift (SwiftSyntax v buildu Orky jako dnešní Swift helpery, čtečky pbxproj, Tuist a SwiftPM; jen macOS); extraktor C# (nástroj nad Roslynem, statická čtečka s podmínkami MSBuildu); distribuce a doprava na vzdálený stroj přes SSH; pokus o voláních a rozpoznávacím profilu dřív, než se staví navigační graf a lokalizace (část schématu references není prototypem ověřená); úprava docs/review-ide/01-integrace.md po přijetí decision-9 (cache podle obsahu místo repozitář a SHA, statické čtení místo Gradle modelu). Příště pokus tohoto rozsahu dělit po jazycích, schéma zvlášť. Otázky pro uživatele: 1) distribuce extraktorů: A všechno přibalit (instalátor zhruba +145 MB na macOS, +125 MB jinde), B přibalit vlastní kód a knihovny stáhnout při prvním použití (doporučeno; +18 MB na macOS, stáhne 62 MB pro Kotlin a 10 MB pro C#, potřebuje JVM a .NET uživatele), C sestavit z nástrojů uživatele; 2) vyzkoušet krátkým pokusem tree-sitter místo tří extraktorů dřív, než se začnou produktizovat (doporučeno ano; odpadla by distribuce i omezení Swiftu na macOS); 3) přijmout statické čtení build souborů jako výchozí (doporučeno ano).
+
+Odpověď uživatele 2026-11-19 (decision-12): decision-9: vlastní kód přibalit, knihovny stáhnout při prvním použití; statické čtení build souborů jako výchozí, Gradle a MSBuild volitelně pro okrajové případy a hlubší integraci. Před rozpisem proběhne pokus s tree-sitter (nový tiket).
 <!-- SECTION:NOTES:END -->

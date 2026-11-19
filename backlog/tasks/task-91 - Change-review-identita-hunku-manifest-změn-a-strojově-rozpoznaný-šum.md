@@ -4,7 +4,7 @@ title: 'Change review: identita hunku, jádro manifestu změn a strojově rozpoz
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:18:00Z'
-updated_date: '2026-11-19T09:37:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-xhigh
@@ -70,4 +70,6 @@ Spojuje návrh z TASK-52 (revize změn s ověřenými tvrzeními) s Diffem po ce
 
 <!-- SECTION:NOTES:BEGIN -->
 Rozděleno 2026-11-19 podle pravidla velikosti: TASK-124 převzal RPC changeReview.getManifest, most v preloadu, CLI orca change-review manifest a kontraktní test.
+
+Odpověď uživatele 2026-11-19 (decision-12): až tento tiket zapíše záznam rozhodnutí, archivovat TASK-52 (backlog task archive 52).
 <!-- SECTION:NOTES:END -->

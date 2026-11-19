@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:03:00Z'
-updated_date: '2026-11-18T22:11:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
@@ -52,3 +52,9 @@ TASK-63 dodal oznámení nového pull requestu jen na desktopu a navázal ho na 
 - [ ] #4 Nový pull request se označí už při ruční obnově panelu, ne až při pravidelné kontrole
 - [ ] #5 Starší mobilní klient a starší hostitel dostanou platné zprávy; nový zdroj oznámení je vyjednaný, ne tiše zahozený
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): přes push bránu upstreamu se nic neprověřuje ani neposílá. Uživatel chce návrh oznámení na telefon bez push serveru upstreamu: nový pokus.
+<!-- SECTION:NOTES:END -->

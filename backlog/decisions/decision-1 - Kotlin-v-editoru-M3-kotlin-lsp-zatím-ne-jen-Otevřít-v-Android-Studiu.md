@@ -2,7 +2,7 @@
 id: decision-1
 title: 'Kotlin v editoru M3: kotlin-lsp zatím ne, jen Otevřít v Android Studiu'
 date: '2026-11-18T17:15:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

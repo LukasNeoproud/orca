@@ -4,6 +4,7 @@ title: 'Change review: pokrytí kritérií zadání a změny mimo zadání'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:26:00Z'
+updated_date: '2026-11-19T11:45:00Z'
 labels:
   - review-ide
   - effort-high
@@ -57,3 +58,9 @@ Recenzent má vidět, která část změny plní které kritérium zadání, kte
 - [ ] #6 Worktree bez pull requestu, bez pracovní položky nebo bez oprávnění číst zadání panel neukáže a zbytek pohledu funguje; totéž u pull requestu GitHubu a GitLabu
 - [ ] #7 Validace a přenos přiřazení mají testy; panel je ověřený ve skrytém okně se smyšleným zadáním a smyšleným agentem; docs/review-ide/05-funkce.md oddíl 7 uvádí, co z panelů zbývá na M7
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Podle decision-12 (2026-11-19): zdrojem zadání je tiket z Jiry odvozený ze jména větve (TASK-105), ne pracovní položky Azure DevOps. Kde rozsah a kritéria zmiňují pracovní položku, čti tiket z Jiry; worker formulace upraví.
+<!-- SECTION:NOTES:END -->

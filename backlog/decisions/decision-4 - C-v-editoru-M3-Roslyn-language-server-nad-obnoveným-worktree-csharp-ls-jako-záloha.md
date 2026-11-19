@@ -4,7 +4,7 @@ title: >-
   C# v editoru M3: Roslyn language server nad obnoveným worktree, csharp-ls jako
   záloha
 date: '2026-11-18T21:15:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

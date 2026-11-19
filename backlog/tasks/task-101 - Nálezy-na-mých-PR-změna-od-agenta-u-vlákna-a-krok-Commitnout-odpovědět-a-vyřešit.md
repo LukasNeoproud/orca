@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:23:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
@@ -60,3 +61,9 @@ Když připomínka reviewera vyžaduje změnu kódu, má ji agent připravit ve 
 - [ ] #7 Workspace na SSH hostiteli commituje a odesílá na svém hostiteli; pull request z forku krok nenabízí
 - [ ] #8 Testy pokrývají pořadí kroků, selhání každého z nich a zahození změny; průchod je ověřený ve skrytém okně na smyšleném repozitáři s místním vzdáleným repozitářem a smyšleným serverem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Otázka D4 (odeslání větve z kroku Commitnout, odpovědět a vyřešit) zůstává otevřená: uživatel 2026-11-19 chtěl víc kontextu.
+<!-- SECTION:NOTES:END -->

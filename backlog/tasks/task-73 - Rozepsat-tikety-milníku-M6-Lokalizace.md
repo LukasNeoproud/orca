@@ -4,7 +4,7 @@ title: Rozepsat tikety milníku M6 Lokalizace
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-18T22:50:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - planovani
@@ -59,4 +59,6 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 
 <!-- SECTION:NOTES:BEGIN -->
 Podklady z TASK-58 (2026-11-18): decision-6 navrhuje synchronizaci přes JSON metody API (terms/add, terms/update, languages/update po jazycích, translations/delete, terms/delete, mazání na konci, ověřovací čtení), bez projects/sync a sync_terms; výchozí dávka 100 položek, rozestup 1 s, strop 1 500 požadavků za hodinu; kontrola zastaralosti přes projects/view a languages/list; stav stahovat přes terms/list. Pro plán M6 navíc: mapování klíčů platforem na term + context (resx nemá kontext ani množné tvary, Android nemá string-array, xcstrings dělí varianty podle zařízení na samostatné klíče). Nic není ověřené proti živému API; měření má TASK-113, který čeká na token testovacího projektu a na údaj o tarifu týmu.
+
+Odpověď uživatele 2026-11-19 (decision-12): bez živého měření POEditoru (TASK-113 zrušen); tarif týmu je Plus, limity podle dokumentace.
 <!-- SECTION:NOTES:END -->

@@ -4,7 +4,7 @@ title: >-
   Funkce a agenti: reference jako přidané adresáře a seznam cest, ne složka se
   symbolickými odkazy
 date: '2026-11-18T23:38:00Z'
-status: proposed
+status: accepted
 ---
 ## Context
 

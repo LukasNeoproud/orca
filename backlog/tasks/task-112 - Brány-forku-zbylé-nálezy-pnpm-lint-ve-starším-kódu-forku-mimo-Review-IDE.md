@@ -4,7 +4,7 @@ title: 'Brány forku: zbylé nálezy pnpm lint ve starším kódu forku mimo Rev
 status: To Do
 assignee: []
 created_date: '2026-11-18T22:36:00Z'
-updated_date: '2026-11-19T05:26:00Z'
+updated_date: '2026-11-19T11:41:00Z'
 labels:
   - review-ide
   - effort-high
@@ -61,4 +61,6 @@ Z TASK-115 (2026-11-19): pnpm test v mobile/ má 4 selhání mimo Review IDE, kt
 Z TASK-83 a TASK-77 (2026-11-19): při širším běhu vitestu padají testy mimo Review IDE: src/main/runtime/rpc/methods/agent-launch-replay.test.ts, agent-launch-restart-replay.test.ts, agent-launch-instant-tab.test.ts (SQLITE_BUSY, padají i samostatně), host-operation-ownership (neklasifikuje metody androidAppRun.*), vitest-node-runtime-boundary (chce Node 24, lokálně je 22) a několik config/scripts testů. Nikdo neověřil, jestli padají i na čistém stromu.
 
 Z TASK-85 (2026-11-19): host-operation-ownership.test.ts neklasifikuje androidAppRun.*; check:focus-read-ratchet a check:layout-writer-ratchets hlásí pět souborů mimo Review IDE (například TerminalPaneBranchMenu.tsx, use-android-build-directory.ts); profile-state-crash-recovery.test.ts končí časovým limitem v projektu node-runtime (na čistém stromu neověřeno).
+
+Odpověď uživatele 2026-11-19 (decision-12): opravit, ale až po akceptaci M1. Uživatel zároveň chce akceptaci M1 až po dokončení TASK-80, 109 a 112; rozpor je otázka na uživatele.
 <!-- SECTION:NOTES:END -->
