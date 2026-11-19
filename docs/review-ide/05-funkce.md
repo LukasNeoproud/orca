@@ -128,7 +128,7 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
   - **Popis a komentáře:** popis PR, odkaz na pracovní položku, vlákna, nový komentář.
   - **Změny:** diff souborů, komentář k řádku, „Zeptat se AI na tento řádek“.
   - **AI review:** souhrn AI a drafty nálezů.
-- Seznam změněných souborů s počtem draftů AI u souboru.
+- Seznam změněných souborů s počtem nepublikovaných draftů u souboru, drafty agenta zvlášť; počítají se drafty k řádku a k souboru, odpovědi ve vláknech a obecné drafty ne. Hlavička stránky uvádí počet změněných souborů (TASK-125).
 - Draft nálezu: závažnost (chyba, upozornění, návrh, drobnost), jistota u draftu od agenta (ověřeno, pravděpodobné, nejisté, rozporné), soubor a řádek, úryvek kódu, text a rozbalovací důkazy. Závažnost jde na kartě změnit. Akce:
   - **Publikovat** (zaškrtnutí) zařadí draft do publikace;
   - **Upravit ručně** přepne text na editovatelný;

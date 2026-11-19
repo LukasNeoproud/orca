@@ -19,10 +19,9 @@ import {
   openAzureDevOpsFeedbackWorkspace
 } from '@/lib/azure-devops-feedback-agent'
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
-import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDetail } from './use-azure-devops-review-detail'
 import { useAzureDevOpsReviewDiffRevealRequest } from './use-azure-devops-review-diff-reveal'
-import { azureDevOpsReviewVoteLabel } from './azure-devops-review-vote-labels'
+import { AzureDevOpsPullRequestMeta } from './AzureDevOpsPullRequestMeta'
 import { AzureDevOpsReviewFiles } from './AzureDevOpsReviewFiles'
 import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
 import { AzureDevOpsReviewDrafts } from './AzureDevOpsReviewDrafts'
@@ -44,24 +43,6 @@ import {
 type ReviewMode = 'workspace' | 'agent'
 
 const SCROLLING_TAB_CLASS = 'min-h-0 flex-1 overflow-y-auto scrollbar-sleek'
-
-function PullRequestMeta({ detail }: { detail: AzureDevOpsReviewDetail }): React.JSX.Element {
-  const pr = detail.pullRequest
-  return (
-    <p className="truncate text-xs text-muted-foreground">
-      {pr.project}/{pr.repository} · {pr.author.displayName} ·{' '}
-      <span className="font-mono">{pr.sourceBranch}</span> →{' '}
-      <span className="font-mono">{pr.targetBranch}</span>
-      {pr.isDraft ? ` · ${translate('azureDevOpsReview.draftPr', 'Draft pull request')}` : ''}
-      {pr.status !== 'active' ? ` · ${pr.status}` : ''}
-      {pr.myVote !== 'none'
-        ? ` · ${translate('azureDevOpsReview.myVote', 'Your vote: {{value0}}', {
-            value0: azureDevOpsReviewVoteLabel(pr.myVote)
-          })}`
-        : ''}
-    </p>
-  )
-}
 
 export function AzureDevOpsPullRequestPage({
   pullRequestKey,
@@ -168,7 +149,7 @@ export function AzureDevOpsPullRequestPage({
               translate('azureDevOpsReview.title', 'Pull requests')
             )}
           </h1>
-          {detail ? <PullRequestMeta detail={detail} /> : null}
+          {detail ? <AzureDevOpsPullRequestMeta detail={detail} /> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <Tooltip>

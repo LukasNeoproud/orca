@@ -19812,7 +19812,10 @@
     "evidenceQuote": "引用的代码",
     "evidenceData": "证据数据",
     "evidenceActual": "文件中的代码",
-    "commentedCode": "被评论的代码"
+    "commentedCode": "被评论的代码",
+    "changedFilesMeta": "已更改的文件：{{value0}}",
+    "fileDrafts": "未发布的草稿：{{value0}}",
+    "fileDraftsWithAgent": "未发布的草稿：{{value0}}，来自智能体：{{value1}}"
   },
   "qualityGates": {
     "title": "质量门",

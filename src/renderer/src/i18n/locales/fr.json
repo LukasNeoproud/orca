@@ -19799,7 +19799,10 @@
     "evidenceQuote": "Code cité",
     "evidenceData": "Données de la preuve",
     "evidenceActual": "Code dans le fichier",
-    "commentedCode": "Code commenté"
+    "commentedCode": "Code commenté",
+    "changedFilesMeta": "Fichiers modifiés : {{value0}}",
+    "fileDrafts": "Brouillons non publiés : {{value0}}",
+    "fileDraftsWithAgent": "Brouillons non publiés : {{value0}}, de l’agent : {{value1}}"
   },
   "qualityGates": {
     "title": "Contrôles qualité",

@@ -19798,7 +19798,10 @@
     "evidenceQuote": "Código citado",
     "evidenceData": "Datos de la evidencia",
     "evidenceActual": "Código en el archivo",
-    "commentedCode": "Código comentado"
+    "commentedCode": "Código comentado",
+    "changedFilesMeta": "Archivos modificados: {{value0}}",
+    "fileDrafts": "Borradores sin publicar: {{value0}}",
+    "fileDraftsWithAgent": "Borradores sin publicar: {{value0}}, del agente: {{value1}}"
   },
   "qualityGates": {
     "title": "Controles de calidad",

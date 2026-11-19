@@ -39,6 +39,7 @@ export function AzureDevOpsReviewAllChanges({
   entries,
   changeByPath,
   repoPath,
+  renderFileAnnotation,
   viewModeToggle,
   onChanged
 }: {
@@ -46,6 +47,7 @@ export function AzureDevOpsReviewAllChanges({
   entries: readonly GitBranchChangeEntry[]
   changeByPath: ReadonlyMap<string, AzureDevOpsReviewChange>
   repoPath: string
+  renderFileAnnotation?: (entry: CombinedDiffFileTreeEntry) => ReactNode
   viewModeToggle: ReactNode
   onChanged: () => Promise<void>
 }): React.JSX.Element {
@@ -223,6 +225,7 @@ export function AzureDevOpsReviewAllChanges({
           collapsed={treeCollapsed}
           onCollapsedChange={setTreeCollapsed}
           onNavigate={handleTreeNavigate}
+          renderFileAnnotation={renderFileAnnotation}
         />
         <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto scrollbar-editor">
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>

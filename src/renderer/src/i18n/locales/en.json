@@ -20740,7 +20740,10 @@
     "evidenceQuote": "Quoted code",
     "evidenceData": "Evidence data",
     "evidenceActual": "Code in the file",
-    "commentedCode": "Commented code"
+    "commentedCode": "Commented code",
+    "changedFilesMeta": "Changed files: {{value0}}",
+    "fileDrafts": "Unpublished drafts: {{value0}}",
+    "fileDraftsWithAgent": "Unpublished drafts: {{value0}}, from the agent: {{value1}}"
   },
   "agentPicker": {
     "chatVariant": "{{agent}} (Chat)",

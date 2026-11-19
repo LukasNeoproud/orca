@@ -26,7 +26,8 @@ export function CombinedDiffFileTreeRows({
   visibleFileCounts,
   scrollElement,
   onToggleDirectory,
-  onNavigate
+  onNavigate,
+  renderFileAnnotation
 }: {
   rows: readonly CombinedDiffTreeNode[]
   mode: CombinedDiffFileTreeMode
@@ -39,6 +40,7 @@ export function CombinedDiffFileTreeRows({
   scrollElement: HTMLDivElement | null
   onToggleDirectory: (key: string) => void
   onNavigate: (entry: CombinedDiffFileTreeEntry) => void
+  renderFileAnnotation?: (entry: CombinedDiffFileTreeEntry) => React.ReactNode
 }): React.JSX.Element {
   return (
     <VirtualizedList
@@ -59,6 +61,7 @@ export function CombinedDiffFileTreeRows({
           visibleFileCount={visibleFileCounts?.get(node.key)}
           onToggleDirectory={onToggleDirectory}
           onNavigate={onNavigate}
+          renderFileAnnotation={renderFileAnnotation}
         />
       )}
     />

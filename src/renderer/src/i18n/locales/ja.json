@@ -19798,7 +19798,10 @@
     "evidenceQuote": "引用されたコード",
     "evidenceData": "根拠のデータ",
     "evidenceActual": "ファイル内のコード",
-    "commentedCode": "コメント対象のコード"
+    "commentedCode": "コメント対象のコード",
+    "changedFilesMeta": "変更されたファイル: {{value0}}",
+    "fileDrafts": "未公開の下書き: {{value0}}",
+    "fileDraftsWithAgent": "未公開の下書き: {{value0}}（Agent: {{value1}}）"
   },
   "qualityGates": {
     "title": "品質ゲート",

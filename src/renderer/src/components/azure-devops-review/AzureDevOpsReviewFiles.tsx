@@ -13,6 +13,7 @@ import { AzureDevOpsReviewFileDiffPane } from './AzureDevOpsReviewFileDiffPane'
 import { AzureDevOpsReviewAllChanges } from './AzureDevOpsReviewAllChanges'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 import { azureDevOpsChangeToBranchEntry } from './azure-devops-review-diff-sections'
+import { useAzureDevOpsReviewFileDraftAnnotation } from './AzureDevOpsReviewFileDraftCount'
 import type { AzureDevOpsReviewDiffReveal } from './use-azure-devops-review-diff-reveal'
 
 const NO_VIEWED = new Set<string>()
@@ -70,6 +71,7 @@ export function AzureDevOpsReviewFiles({
     () => new Map(detail.changes.map((change) => [change.path, change])),
     [detail.changes]
   )
+  const renderFileAnnotation = useAzureDevOpsReviewFileDraftAnnotation(detail.drafts)
   const [viewMode, setViewMode] = useState<FilesViewMode>(readViewMode)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
@@ -123,6 +125,7 @@ export function AzureDevOpsReviewFiles({
         entries={entries}
         changeByPath={changeByPath}
         repoPath={repoPath}
+        renderFileAnnotation={renderFileAnnotation}
         viewModeToggle={viewModeToggle}
         onChanged={onChanged}
       />
@@ -145,6 +148,7 @@ export function AzureDevOpsReviewFiles({
         collapsed={treeCollapsed}
         onCollapsedChange={setTreeCollapsed}
         onNavigate={(entry: CombinedDiffFileTreeEntry) => setSelectedPath(entry.path)}
+        renderFileAnnotation={renderFileAnnotation}
       />
       {selected ? (
         <AzureDevOpsReviewFileDiffPane

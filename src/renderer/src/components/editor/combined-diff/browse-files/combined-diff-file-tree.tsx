@@ -43,7 +43,8 @@ export function CombinedDiffFileTree({
   viewedSectionKeys,
   collapsed,
   onCollapsedChange,
-  onNavigate
+  onNavigate,
+  renderFileAnnotation
 }: {
   mode: CombinedDiffFileTreeMode
   worktreePath: string
@@ -55,6 +56,8 @@ export function CombinedDiffFileTree({
   collapsed: boolean
   onCollapsedChange: (collapsed: boolean) => void
   onNavigate: (entry: CombinedDiffFileTreeEntry) => void
+  /** Optional trailing content on a file row, e.g. per-file counts; keep it stable (useCallback). */
+  renderFileAnnotation?: (entry: CombinedDiffFileTreeEntry) => React.ReactNode
 }): React.JSX.Element | null {
   const [collapsedDirectoryKeys, setCollapsedDirectoryKeys] = React.useState<Set<string>>(
     () => new Set()
@@ -208,7 +211,8 @@ export function CombinedDiffFileTree({
     collapsedDirectoryKeys,
     scrollElement: listScrollElement,
     onToggleDirectory: toggleDirectory,
-    onNavigate
+    onNavigate,
+    renderFileAnnotation
   }
 
   return (

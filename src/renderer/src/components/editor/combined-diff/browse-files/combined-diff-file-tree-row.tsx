@@ -42,7 +42,8 @@ export const CombinedDiffFileTreeRow = memo(function CombinedDiffFileTreeRow({
   isCollapsed,
   visibleFileCount,
   onToggleDirectory,
-  onNavigate
+  onNavigate,
+  renderFileAnnotation
 }: {
   node: CombinedDiffTreeNode
   mode: CombinedDiffFileTreeMode
@@ -54,6 +55,7 @@ export const CombinedDiffFileTreeRow = memo(function CombinedDiffFileTreeRow({
   visibleFileCount?: number
   onToggleDirectory: (key: string) => void
   onNavigate: (entry: CombinedDiffFileTreeEntry) => void
+  renderFileAnnotation?: (entry: CombinedDiffFileTreeEntry) => React.ReactNode
 }): React.JSX.Element {
   if (node.type === 'directory') {
     return (
@@ -138,6 +140,7 @@ export const CombinedDiffFileTreeRow = memo(function CombinedDiffFileTreeRow({
         <span className="text-foreground">{fileName}</span>
         {dirPath && <span className="ml-1.5 text-[11px] text-muted-foreground">{dirPath}</span>}
       </span>
+      {renderFileAnnotation?.(node.entry)}
       <span
         className="w-4 shrink-0 text-center text-[10px] font-bold"
         style={{ color: STATUS_COLORS[status] }}

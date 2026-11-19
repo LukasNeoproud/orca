@@ -19798,7 +19798,10 @@
     "evidenceQuote": "인용된 코드",
     "evidenceData": "근거 데이터",
     "evidenceActual": "파일의 코드",
-    "commentedCode": "댓글 대상 코드"
+    "commentedCode": "댓글 대상 코드",
+    "changedFilesMeta": "변경된 파일: {{value0}}",
+    "fileDrafts": "게시되지 않은 초안: {{value0}}",
+    "fileDraftsWithAgent": "게시되지 않은 초안: {{value0}}, 에이전트: {{value1}}"
   },
   "qualityGates": {
     "title": "품질 게이트",
