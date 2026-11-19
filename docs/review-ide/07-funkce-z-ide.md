@@ -59,6 +59,7 @@ Hotovo (TASK-66): Annotate v editoru a historie bloku v seznamu commitů panelu 
 - Git anotuje text editoru, ne soubor na disku (`git blame --contents -`), takže neuložené řádky jsou „Uncommitted“. Další úpravy se dopočítávají lokálně; nový dotaz na git přijde po uložení, po změně HEAD a po načtení souboru z disku. Soubor nad 2 MB nebo 50 000 řádků se neanotuje.
 - Historie bloku (`git log -L` od HEAD, posledních 50 commitů, změna jednoho commitu nejvýš 400 řádků) se čte z uloženého souboru; u neuloženého souboru akce požádá o uložení. Rozbalený commit ukáže svou změnu bloku.
 - Dotazy `git.blame` a `git.lineHistory` běží na hostiteli, který workspace vlastní. Hostitel se starší Orkou je nezná: akce v menu okraje jsou vypnuté s vysvětlením a z menu editoru zmizí. Folder workspace je nenabízí.
+- Ověřeno (TASK-109) proti Gitu 2.25.5 (kontrakt `git-binary-compatibility.test.ts`) a proti SSH hostiteli s orcad: `tests/e2e/ssh-orcad-git-annotate.spec.ts` porovná odpovědi hostitele s Gitem na desktopu pro klon stejných commitů. WSL ověřené není.
 
 ## 6. Logcat a konzole aplikace s kartami
 
