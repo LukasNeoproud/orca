@@ -124,10 +124,12 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 **Chování:**
 
 - Hlavička: repozitář, číslo, autor, větve, stav kontrol, rozsah změn, revieweři; odkazy na review workspace a Diff po celcích.
-- Záložky:
-  - **Popis a komentáře:** popis PR, odkaz na pracovní položku, vlákna, nový komentář.
-  - **Změny:** diff souborů, komentář k řádku, „Zeptat se AI na tento řádek“.
-  - **AI review:** souhrn AI a drafty nálezů.
+- Záložky (čtyři podle [decision-12](../../backlog/decisions/decision-12%20-%20Odpov%C4%9Bdi-u%C5%BEivatele-z-2026-11-19-M2-v%C3%BDsledky-pokus%C5%AF-M3-Funkce-model-k%C3%B3du-a-dokon%C4%8Den%C3%AD-M1.md)); stránka se otevře na Drafts, když má PR nepublikované drafty, jinak na Overview:
+  - **Overview:** popis PR v Markdownu, nebo zpráva, že popis chybí.
+  - **Files** (počet změněných souborů): strom souborů s počtem draftů a diff po jednom souboru nebo všech změn v jednom posuvu. K řádku nebo k souboru jde napsat draft; vlákna a drafty jsou přímo v diffu a k draftu jde připojit pokyn pro AI.
+  - **Threads** (počet vláken): všechna vlákna PR, aktivní napřed, se stavem, polohou nebo označením obecného komentáře a štítkem zastaralého vlákna. Tlačítko Reply vytvoří draft odpovědi.
+  - **Drafts** (počet nepublikovaných): drafty uživatele i agenta, řazené podle priority nebo souboru a filtrovatelné (TASK-126), s tlačítky General comment, Ask AI a publikací vybraných draftů. Drafty od AI review agenta přibývají sem; souhrn AI stránka nemá.
+- Když PR mění obrázky snapshot testů, přibude záložka Snapshots (viz oddíl 10, Diff snapshotů).
 - Seznam změněných souborů s počtem nepublikovaných draftů u souboru, drafty agenta zvlášť; počítají se drafty k řádku a k souboru, odpovědi ve vláknech a obecné drafty ne. Hlavička stránky uvádí počet změněných souborů (TASK-125).
 - Draft nálezu: závažnost (chyba, upozornění, návrh, drobnost), jistota u draftu od agenta (ověřeno, pravděpodobné, nejisté, rozporné), soubor a řádek, úryvek kódu, text a rozbalovací důkazy. Závažnost jde na kartě změnit. Akce:
   - **Publikovat** (zaškrtnutí) zařadí draft do publikace;
