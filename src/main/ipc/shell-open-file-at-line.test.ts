@@ -193,8 +193,20 @@ describe('shell:openInExternalEditor with a file location', () => {
       expect(spawnedArgs()).toEqual(['--goto', `${normalize(filePath)}:42:7`])
     })
 
-    it('keeps JetBrains IDEs on the bare file', async () => {
+    it('opens a JetBrains file in the window of the folder that holds it', async () => {
       await open({ command: 'studio', projectRoot: root })
+      expect(spawnedArgs()).toEqual([
+        normalize(root),
+        '--line',
+        '42',
+        '--column',
+        '6',
+        normalize(filePath)
+      ])
+    })
+
+    it('keeps Rider on the bare file', async () => {
+      await open({ command: 'rider', projectRoot: root })
       expect(spawnedArgs()).toEqual(['--line', '42', '--column', '6', normalize(filePath)])
     })
 

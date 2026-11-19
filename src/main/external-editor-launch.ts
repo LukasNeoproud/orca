@@ -107,12 +107,13 @@ function buildExecutableArgs(
 ): string[] {
   const isCursor = getLauncherBaseName(editorCommand) === 'cursor'
   const target = resolveWslRemoteTarget(editorCommand, pathValue, platform, isCursor)
+  // Why: a folder for a WSL file is unverified in every editor, so it keeps the bare file.
+  const isWslFile = platform === 'win32' && parseWslUncPath(pathValue) !== null
   const targetArgs = [
     ...target.remoteArgs,
-    // Why: a WSL remote launch with a folder is unverified, so it keeps the bare file.
-    ...(target.remoteArgs.length === 0
-      ? buildExternalEditorProjectRootArgs(editorCommand, projectRoot, location)
-      : []),
+    ...(isWslFile
+      ? []
+      : buildExternalEditorProjectRootArgs(editorCommand, projectRoot, location, platform)),
     ...buildExternalEditorTargetArgs(editorCommand, target.path, platform, location)
   ]
   // Why: Cursor can route bare folder launches through the last active

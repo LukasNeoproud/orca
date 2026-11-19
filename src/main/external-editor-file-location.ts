@@ -39,6 +39,9 @@ const JETBRAINS_EXTRA_LAUNCHERS = new Set([
 
 const ZED_LAUNCHERS = new Set(['zed', 'zed-preview', 'zeditor'])
 
+// Why: Rider opens a solution rather than a folder, and its folder handling is unverified.
+const JETBRAINS_LAUNCHERS_WITHOUT_PROJECT_ROOT = new Set(['rider', 'rider64'])
+
 function toPositiveInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null
 }
@@ -56,13 +59,17 @@ export function normalizeExternalEditorFileLocation(
   return validColumn === null ? { line: validLine } : { line: validLine, column: validColumn }
 }
 
+function getEditorLauncherName(command: string, options: { shellCommand?: boolean }): string {
+  // Why: Linux JetBrains installs launch through `idea.sh` / `studio.sh`.
+  return getLauncherBaseName(command, options).replace(/\.sh$/, '')
+}
+
 function detectExternalEditorFamily(
   command: string,
   platform: NodeJS.Platform,
   options: { shellCommand?: boolean } = {}
 ): ExternalEditorFamily {
-  // Why: Linux JetBrains installs launch through `idea.sh` / `studio.sh`.
-  const name = getLauncherBaseName(command, options).replace(/\.sh$/, '')
+  const name = getEditorLauncherName(command, options)
   if (VSCODE_FAMILY_LAUNCHERS.has(name)) {
     return 'vscode'
   }
@@ -108,10 +115,18 @@ export function buildExternalEditorTargetArgs(
 export function buildExternalEditorProjectRootArgs(
   command: string,
   projectRoot: string | undefined,
-  location: ExternalEditorFileLocation | undefined
+  location: ExternalEditorFileLocation | undefined,
+  platform: NodeJS.Platform
 ): string[] {
-  // Why: only VS Code is verified; a JetBrains IDE may ask where to open a folder it does not have open.
-  return projectRoot && location && isVsCodeLauncherExecutable(command) ? [projectRoot] : []
+  if (!projectRoot || !location) {
+    return []
+  }
+  // Why: verified in VS Code and Android Studio; the JetBrains IDE asks about trust and the window on first open.
+  const opensFolderWithFile =
+    isVsCodeLauncherExecutable(command) ||
+    (detectExternalEditorFamily(command, platform) === 'jetbrains' &&
+      !JETBRAINS_LAUNCHERS_WITHOUT_PROJECT_ROOT.has(getEditorLauncherName(command, {})))
+  return opensFolderWithFile ? [projectRoot] : []
 }
 
 /** argv that opens `pathValue` at `location`; an unknown family gets the bare file. */

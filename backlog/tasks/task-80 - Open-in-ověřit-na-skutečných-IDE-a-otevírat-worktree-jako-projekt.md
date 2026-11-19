@@ -1,10 +1,10 @@
 ---
 id: TASK-80
 title: 'Open in: ověřit na skutečných IDE a otevírat worktree jako projekt'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-19T20:25:00Z'
+updated_date: '2026-11-19T20:41:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -41,9 +41,9 @@ Příkazy pro otevření souboru na řádku z TASK-61 jsou doložené jen testy 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 VS Code, Android Studio, Rider, Xcode a Zed na macOS otevřou soubor na zvoleném řádku příkazem, který Orca sestavuje; výsledek každé aplikace je zapsaný
+- [x] #1 VS Code, Android Studio, Rider, Xcode a Zed na macOS otevřou soubor na zvoleném řádku příkazem, který Orca sestavuje; výsledek každé aplikace je zapsaný
 - [x] #2 JetBrains IDE dostávají i sloupec, pokud ověření ukáže, jak ho počítají; jinak je důvod zapsaný v dokumentaci
-- [ ] #3 Podle rozhodnutí uživatele se soubor otevírá v okně svého worktree, nebo zůstává dnešní chování; dokumentace odpovídá
+- [x] #3 Podle rozhodnutí uživatele se soubor otevírá v okně svého worktree, nebo zůstává dnešní chování; dokumentace odpovídá
 - [x] #4 Testy sestavení příkazu pokrývají každou změnu argumentů na macOS, Linuxu a Windows
 <!-- AC:END -->
 
@@ -63,4 +63,14 @@ Odpověď uživatele 2026-11-19 (decision-12): doověří agent; uživatel mu ud
 2026-11-19: uživatel udělil oprávnění Zpřístupnění (Ovládání zařízení a přístup k datům). Macos ho připisuje Orca Dev (com.stablyai.orca.dev): relace agentů běží v terminálu Orca Dev a za proces odpovídá jeho Orca Terminal Host. AXIsProcessTrusted vrací true, Automatizace pro System Events už platí. Štítek model-opus podle úsporného režimu (decision-12).
 
 2026-11-19 21:25: worker na Opusu zastavil uživatel hned po startu; nic dalšího se nezměnilo. Zadat znovu.
+
+Plán (worker 2026-11-19, třetí běh): znovu vytvořit smyšlený projekt se dvěma worktrees v ~/.cache/orca-review-ide/task-80; zjistit běžící IDE a jejich otevřené projekty; Android Studio: studio --line 17 --column 3 a poloha kurzoru přes Zpřístupnění (stavový řádek) i ze stavu IDE; varianta se složkou worktree (dialogy důvěry a okna); Xcode: xed -l N a výběr přes AppleScript/Zpřístupnění; výsledky do 02-editor.md, rozhodnout kritéria #1 a #3.
+
+Třetí běh (2026-11-19): ověřeno živě přes Zpřístupnění. Android Studio 2026.2.1: stavový řádek 17:4 po --line 17 --column 3 (AXInsertionPointLineNumber 16), 42:7 v cestě s mezerou, 12:5, 30:1; uložený stav IDE line 16 column 3. Bez složky soubor skončí v okně jiného projektu; se složkou první otevření ukáže dialog o okně (New Window/This Window/Cancel) a u nedůvěryhodné složky dialog o důvěře, pak nové okno worktree na správném místě, další otevření bez dotazu; Cancel neotevře nic. Xcode 27.0: xed -l 42 -> Line: 42 Col: 1, xed -l 17 do běžícího -> Line: 17 Col: 1. Rozhodnutí #3 podle decision-5: kořen worktree dostávají i IDE JetBrains kromě Rideru (neověřený, otevírá řešení); WSL soubory na Windows kořen nedostanou v žádném editoru. Změny: external-editor-file-location.ts, external-editor-launch.ts, testy, 02-editor.md. Rider a Zed neověřené (decision-12). Zápis: ~/.cache/orca-review-ide/task-80/vysledky.md.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Open in ověřen na skutečných IDE (macOS): VS Code 1.140, Android Studio 2026.2.1 a Xcode 27.0 otevírají soubor na zvoleném řádku (u VS Code a Android Studia i sloupci), poloha kurzoru přečtena přes Zpřístupnění. IDE JetBrains kromě Rideru nově dostávají se souborem i složku worktree (decision-5): soubor se otevře v okně svého worktree; při prvním otevření se IDE zeptá na okno a na důvěru. WSL soubory zůstávají bez složky v každém editoru. Rider a Zed neověřeny, nejsou nainstalované (decision-12). Ověřeno: tc, 263 testů, brána změněných řádků, anti-slop.
+<!-- SECTION:FINAL_SUMMARY:END -->

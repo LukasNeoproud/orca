@@ -605,7 +605,22 @@ describe('opening a file at a line', () => {
       }
     )
 
-    it.each(['cursor', 'codium', 'studio', 'xed', 'zed', 'nvim'])(
+    it.each(['idea', 'studio', 'webstorm', 'android-studio'])(
+      'opens the project root together with the file through the JetBrains launcher %s',
+      (command) => {
+        const root = platform === 'win32' ? 'C:\\Users\\Ada Lovelace\\repo' : '/repo'
+        expect(
+          resolveExternalEditorLaunchSpec(command, file, {
+            platform,
+            location,
+            projectRoot: root,
+            fileExists: () => false
+          }).spawnArgs
+        ).toEqual([root, '--line', '42', '--column', '6', file])
+      }
+    )
+
+    it.each(['cursor', 'codium', 'rider', 'xed', 'zed', 'nvim'])(
       'keeps the project root away from %s, where it is unverified',
       (command) => {
         expect(
@@ -717,6 +732,57 @@ describe('opening a file at a line', () => {
         'C:\\repo\\Program.cs',
         'win32'
       )
+    ).toEqual(['--line', '42', '--column', '6', 'C:\\repo\\Program.cs'])
+  })
+
+  it('passes the project root through JetBrains launchers given by path or shim', () => {
+    const root = '/home/ada/repo'
+    expect(
+      resolveExternalEditorLaunchSpec('/opt/idea/bin/idea.sh', `${root}/App.kt`, {
+        platform: 'linux',
+        location,
+        projectRoot: root,
+        fileExists: () => false
+      }).spawnArgs
+    ).toEqual([root, '--line', '42', '--column', '6', `${root}/App.kt`])
+
+    const toolboxShim = 'C:\\Users\\me\\AppData\\Local\\JetBrains\\Toolbox\\scripts\\studio.cmd'
+    resolveCliCommandMock.mockImplementation(() => toolboxShim)
+    expect(
+      resolveExternalEditorLaunchSpec('studio', 'C:\\repo\\App.kt', {
+        platform: 'win32',
+        location,
+        projectRoot: 'C:\\repo',
+        fileExists: () => false
+      })
+    ).toMatchObject({
+      detachedGui: true,
+      spawnCmd: toolboxShim,
+      spawnArgs: ['C:\\repo', '--line', '42', '--column', '6', 'C:\\repo\\App.kt']
+    })
+  })
+
+  it('keeps a WSL file on the bare JetBrains launch when a project root is given', () => {
+    const file = '\\\\wsl.localhost\\Ubuntu\\home\\ada\\repo\\App.kt'
+    expect(
+      resolveExternalEditorLaunchSpec('studio', file, {
+        platform: 'win32',
+        location,
+        projectRoot: '\\\\wsl.localhost\\Ubuntu\\home\\ada\\repo',
+        fileExists: () => false
+      }).spawnArgs
+    ).toEqual(['--line', '42', '--column', '6', file])
+  })
+
+  it('keeps the project root away from Rider by its Windows GUI executable', () => {
+    const rider = 'C:\\Program Files\\JetBrains\\Rider\\bin\\rider64.exe'
+    expect(
+      resolveExternalEditorLaunchSpec(rider, 'C:\\repo\\Program.cs', {
+        platform: 'win32',
+        location,
+        projectRoot: 'C:\\repo',
+        fileExists: (candidate) => candidate === rider
+      }).spawnArgs
     ).toEqual(['--line', '42', '--column', '6', 'C:\\repo\\Program.cs'])
   })
 
