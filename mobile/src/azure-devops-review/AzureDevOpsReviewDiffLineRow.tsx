@@ -8,6 +8,7 @@ import type { MobileDiffLine } from '../session/mobile-diff-lines'
 import { colors, radii, spacing } from '../theme/mobile-theme'
 import type { ReviewInlineItems } from './azure-devops-review-inline-items'
 import { reviewStyles } from './azure-devops-review-styles'
+import { reviewThreadStateLabel } from './azure-devops-review-thread-labels'
 import type { RpcClient } from '../transport/rpc-client'
 import { AzureDevOpsReviewDiffDraft } from './AzureDevOpsReviewDiffDraft'
 
@@ -66,7 +67,7 @@ export function AzureDevOpsReviewDiffLineRow({
       </View>
       {items?.threads.map((thread) => (
         <View key={`thread:${thread.id}`} style={[reviewStyles.card, styles.inline]}>
-          <Text style={reviewStyles.muted}>Thread · {thread.status}</Text>
+          <Text style={reviewStyles.muted}>Thread · {reviewThreadStateLabel(thread)}</Text>
           {thread.comments
             .filter((comment) => !comment.isSystem)
             .map((comment) => (

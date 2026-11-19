@@ -1,7 +1,9 @@
+import { azureDevOpsReviewThreadOriginLabel } from '../shared/azure-devops-review-thread-origin-label'
 import type {
   AzureDevOpsReviewDetail,
   AzureDevOpsReviewDraftView,
-  AzureDevOpsReviewListResult
+  AzureDevOpsReviewListResult,
+  AzureDevOpsReviewThread
 } from '../shared/azure-devops-review-types'
 
 export function formatAzureDevOpsPullRequestList(result: AzureDevOpsReviewListResult): string {
@@ -43,6 +45,17 @@ export function formatAzureDevOpsDrafts(drafts: readonly AzureDevOpsReviewDraftV
     .join('\n')
 }
 
+function threadLocation(thread: AzureDevOpsReviewThread): string {
+  if (!thread.filePath) {
+    return 'general'
+  }
+  if (thread.anchor) {
+    return `${thread.filePath}:${thread.anchor.startLine}`
+  }
+  const origin = thread.outdated ? azureDevOpsReviewThreadOriginLabel(thread) : null
+  return origin ? `${thread.filePath} (was ${origin})` : thread.filePath
+}
+
 export function formatAzureDevOpsPullRequestDetail(detail: AzureDevOpsReviewDetail): string {
   const pr = detail.pullRequest
   const sections = [
@@ -58,15 +71,13 @@ export function formatAzureDevOpsPullRequestDetail(detail: AzureDevOpsReviewDeta
     '',
     `Threads (${detail.threads.length}):`,
     ...detail.threads.map((thread) => {
-      const where = thread.filePath
-        ? `${thread.filePath}${thread.anchor ? `:${thread.anchor.startLine}` : ''}`
-        : 'general'
       const comments = thread.comments
         .filter((comment) => !comment.isSystem)
         .map(
           (comment) => `    ${comment.author.displayName}: ${comment.content.split('\n').join(' ')}`
         )
-      return [`  #${thread.id} [${thread.status}] ${where}`, ...comments].join('\n')
+      const state = thread.outdated ? `${thread.status}, outdated` : thread.status
+      return [`  #${thread.id} [${state}] ${threadLocation(thread)}`, ...comments].join('\n')
     }),
     '',
     `Drafts (${detail.drafts.length}):`,

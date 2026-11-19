@@ -62,6 +62,38 @@ describe('buildAzureDevOpsFeedbackAgentPrompt', () => {
     expect(text).toContain('- Thread #13 (general comment), Alice: "Please add tests."')
   })
 
+  it('says when the commented code was rewritten or removed since the comment', () => {
+    const text = buildAzureDevOpsFeedbackAgentPrompt({
+      pullRequest,
+      threads: [
+        {
+          ...inlineThread,
+          anchor: { side: 'right', startLine: 7, endLine: 7 },
+          originalAnchor: { side: 'right', startLine: 4, endLine: 4 },
+          iterationId: 1,
+          outdated: true
+        },
+        {
+          ...inlineThread,
+          id: 14,
+          anchor: null,
+          originalAnchor: { side: 'right', startLine: 3, endLine: 5 },
+          iterationId: 2,
+          outdated: true
+        }
+      ],
+      tools: { cli: 'orca', access: 'cli' },
+      language: 'en',
+      instruction: ''
+    })
+    expect(text).toContain(
+      '- Thread #12 (src/login.ts, line 7, rewritten since the comment on line 4 of iteration 1)'
+    )
+    expect(text).toContain(
+      '- Thread #14 (src/login.ts, the commented lines are gone, was lines 3-5 of iteration 2)'
+    )
+  })
+
   it('works on the author branch, never committing, pushing or publishing', () => {
     const text = prompt('mcp')
     expect(text).toContain('source branch `feature/login` checked out')

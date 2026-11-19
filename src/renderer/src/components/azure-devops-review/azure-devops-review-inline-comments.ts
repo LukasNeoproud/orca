@@ -5,7 +5,7 @@ import type {
   AzureDevOpsReviewDetail,
   AzureDevOpsReviewDraftView
 } from '../../../../shared/azure-devops-review-types'
-import { threadStatusLabel } from './azure-devops-review-labels'
+import { threadStateLabel } from './azure-devops-review-labels'
 
 const DRAFT_PREFIX = 'azure-devops-draft:'
 const THREAD_PREFIX = 'azure-devops-thread:'
@@ -45,6 +45,7 @@ export function buildAzureDevOpsInlineComments(
   const threadAnchors = new Map<number, { filePath: string; anchor: AzureDevOpsLineAnchor }>()
 
   for (const thread of detail.threads) {
+    // A thread whose lines are gone has no anchor and stays in the thread and file lists.
     const anchor = rightAnchor(thread.anchor)
     const visible = thread.comments.filter((comment) => !comment.isSystem)
     if (!thread.filePath || !anchor || visible.length === 0) {
@@ -67,7 +68,7 @@ export function buildAzureDevOpsInlineComments(
       createdAt: Number.isFinite(publishedAt) ? publishedAt : now,
       side: 'modified',
       author: first.author.displayName,
-      createdAtLabel: threadStatusLabel(thread.status),
+      createdAtLabel: threadStateLabel(thread),
       markdown: true,
       wide: true,
       url: `${detail.pullRequest.webUrl}?_a=files&path=${encodeURIComponent(`/${thread.filePath}`)}&discussionId=${thread.id}`,

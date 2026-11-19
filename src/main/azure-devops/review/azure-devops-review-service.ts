@@ -40,6 +40,11 @@ import {
   countUnpublishedAzureDevOpsReviewDrafts,
   listStoredAzureDevOpsReviewDrafts
 } from './azure-devops-review-draft-store'
+import { createAzureDevOpsReviewLineLoader } from './azure-devops-review-file-line-cache'
+import {
+  azureDevOpsReviewThreadOrigin,
+  trackAzureDevOpsReviewThreads
+} from './azure-devops-review-thread-tracking'
 
 const LIST_CONCURRENCY = 4
 
@@ -244,13 +249,22 @@ export async function getAzureDevOpsReviewDetail(
         .map(mapAzureDevOpsReviewChange)
         .filter((change) => change !== null)
     : []
+  const threads = await trackAzureDevOpsReviewThreads({
+    threads: rawThreads.flatMap((raw) => {
+      const thread = mapAzureDevOpsReviewThread(raw)
+      return thread ? [{ thread, origin: azureDevOpsReviewThreadOrigin(raw) }] : []
+    }),
+    iterations,
+    changes,
+    loadLines: createAzureDevOpsReviewLineLoader({
+      ...resolved.source,
+      repositoryId: resolved.target.repositoryId
+    })
+  })
   return {
     pullRequest,
     latestIteration: latest,
-    threads: rawThreads
-      .map(mapAzureDevOpsReviewThread)
-      .filter((thread) => thread !== null)
-      .sort((a, b) => a.id - b.id),
+    threads: threads.sort((a, b) => a.id - b.id),
     changes,
     drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest),
     reviewWorktree: host.findReviewWorktree?.(resolved.source.key, pullRequestKey) ?? null

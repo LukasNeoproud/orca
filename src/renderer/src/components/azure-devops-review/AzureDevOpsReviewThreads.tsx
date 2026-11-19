@@ -7,7 +7,11 @@ import { formatUiRelativeTimeFromDate } from '@/i18n/relative-time-format'
 import { cn } from '@/lib/utils'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
-import { threadLocationLabel, threadStatusLabel } from './azure-devops-review-labels'
+import {
+  threadLocationLabel,
+  threadOriginLabel,
+  threadStatusLabel
+} from './azure-devops-review-labels'
 
 export function AzureDevOpsReviewThreads({
   detail,
@@ -37,6 +41,7 @@ export function AzureDevOpsReviewThreads({
     <ul className="space-y-3">
       {threads.map((thread) => {
         const location = threadLocationLabel(thread)
+        const origin = threadOriginLabel(thread)
         return (
           <li key={thread.id} className="rounded-md border border-border">
             <div className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs">
@@ -50,8 +55,20 @@ export function AzureDevOpsReviewThreads({
               >
                 {threadStatusLabel(thread.status)}
               </span>
+              {thread.outdated ? (
+                <span
+                  className="shrink-0 rounded border border-dashed border-border px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                  title={translate(
+                    'azureDevOpsReview.threadOutdatedHint',
+                    'The commented lines were rewritten or removed in a later iteration.'
+                  )}
+                >
+                  {translate('azureDevOpsReview.threadOutdated', 'Outdated')}
+                </span>
+              ) : null}
               <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
                 {location ?? translate('azureDevOpsReview.generalComment', 'General comment')}
+                {origin ? ` · ${origin}` : ''}
               </span>
               {pendingReplies.has(thread.id) ? (
                 <span className="shrink-0 text-muted-foreground">

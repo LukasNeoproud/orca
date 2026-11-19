@@ -6,12 +6,14 @@ import type {
   AzureDevOpsLineAnchor,
   AzureDevOpsReviewDetail
 } from '../../../../shared/azure-devops-review-types'
-import { threadStatusLabel } from './azure-devops-review-labels'
+import { lineRangeLabel, threadStateLabel } from './azure-devops-review-labels'
 
 type FileComment = {
   key: string
   draft: boolean
   anchor: AzureDevOpsLineAnchor | null
+  /** The lines are gone from the latest iteration; `anchor` is where they were. */
+  gone: boolean
   author: string
   text: string
   status: string | null
@@ -21,10 +23,7 @@ function lineLabel(anchor: AzureDevOpsLineAnchor | null): string {
   if (!anchor) {
     return translate('azureDevOpsReview.wholeFile', 'File')
   }
-  const range =
-    anchor.startLine === anchor.endLine
-      ? `${anchor.startLine}`
-      : `${anchor.startLine}–${anchor.endLine}`
+  const range = lineRangeLabel(anchor)
   return anchor.side === 'left' ? `L${range} (old)` : `L${range}`
 }
 
@@ -46,10 +45,11 @@ export function AzureDevOpsReviewFileComments({
         return {
           key: `t${thread.id}`,
           draft: false,
-          anchor: thread.anchor,
+          anchor: thread.anchor ?? (thread.outdated ? (thread.originalAnchor ?? null) : null),
+          gone: thread.outdated === true && !thread.anchor,
           author: first?.author.displayName ?? '',
           text: first?.content ?? '',
-          status: threadStatusLabel(thread.status)
+          status: threadStateLabel(thread)
         }
       }),
     ...detail.drafts
@@ -58,6 +58,7 @@ export function AzureDevOpsReviewFileComments({
         key: `d${draft.id}`,
         draft: true,
         anchor: draft.anchor,
+        gone: false,
         author:
           draft.author.kind === 'agent'
             ? (draft.author.label ?? translate('azureDevOpsReview.agentAuthor', 'Agent'))
@@ -92,7 +93,12 @@ export function AzureDevOpsReviewFileComments({
               ) : (
                 <MessageSquare className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
               )}
-              <span className="w-16 shrink-0 font-mono text-muted-foreground">
+              <span
+                className={cn(
+                  'w-16 shrink-0 font-mono text-muted-foreground',
+                  comment.gone && 'line-through'
+                )}
+              >
                 {lineLabel(comment.anchor)}
               </span>
               <span className="min-w-0 flex-1 truncate" title={comment.text}>

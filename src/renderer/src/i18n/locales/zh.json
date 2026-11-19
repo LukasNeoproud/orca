@@ -19741,6 +19741,9 @@
     "continueReview": "继续审查",
     "newRequest": "新",
     "originalSideUnavailable": "无法加载差异：无法加载此文件的原始版本。",
-    "modifiedSideUnavailable": "无法加载差异：无法加载此文件的修改后版本。"
+    "modifiedSideUnavailable": "无法加载差异：无法加载此文件的修改后版本。",
+    "threadOutdated": "已过时",
+    "threadOutdatedHint": "被评论的行已在后续迭代中被改写或删除。",
+    "threadOrigin": "原位于迭代 {{value1}} 的 L{{value0}}"
   }
 }

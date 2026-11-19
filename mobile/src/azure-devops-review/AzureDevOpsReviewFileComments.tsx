@@ -9,6 +9,7 @@ import { azureDevOpsReviewRequest } from './use-azure-devops-review'
 import { AzureDevOpsReviewComposer } from './azure-devops-review-composer'
 import { AzureDevOpsReviewDiffDraft } from './AzureDevOpsReviewDiffDraft'
 import { reviewStyles } from './azure-devops-review-styles'
+import { reviewThreadOriginNote, reviewThreadStateLabel } from './azure-devops-review-thread-labels'
 
 /** Threads and drafts on a whole file, with a composer for a new file-level draft. */
 export function AzureDevOpsReviewFileComments({
@@ -59,7 +60,11 @@ export function AzureDevOpsReviewFileComments({
       )}
       {threads.map((thread) => (
         <View key={`thread:${thread.id}`} style={reviewStyles.card}>
-          <Text style={reviewStyles.muted}>File thread · {thread.status}</Text>
+          <Text style={reviewStyles.muted}>
+            {[thread.outdated ? 'Thread' : 'File thread', reviewThreadStateLabel(thread)]
+              .concat(reviewThreadOriginNote(thread) ?? [])
+              .join(' · ')}
+          </Text>
           {thread.comments
             .filter((comment) => !comment.isSystem)
             .map((comment) => (

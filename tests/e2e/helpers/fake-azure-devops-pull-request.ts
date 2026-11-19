@@ -11,6 +11,10 @@ export type FakeAzureDevOpsPullRequest = {
   title: string
   changes: { changeTrackingId: number; changeType: string; item: { path: string } }[]
   files: FakeAzureDevOpsFiles
+  /** Source commits of the iterations before the latest, oldest first; `sourceCommit` is the latest. */
+  earlierSourceCommits?: string[]
+  /** Comment threads as the REST API returns them. */
+  threads?: Record<string, unknown>[]
 }
 
 // Why a global: a test changes a file's answer later to exercise a retry.
@@ -61,23 +65,22 @@ export async function serveFakeAzureDevOpsPullRequest(
             reviewers: [{ id: 'me-guid-1', vote: 0 }]
           })
         }
+        const sourceCommits = [...(fake.earlierSourceCommits ?? []), fake.sourceCommit]
         if (apiPath.endsWith(`${pullRequestPath}/iterations`)) {
           return json({
-            value: [
-              {
-                id: 1,
-                sourceRefCommit: { commitId: fake.sourceCommit },
-                commonRefCommit: { commitId: fake.baseCommit },
-                targetRefCommit: { commitId: fake.baseCommit }
-              }
-            ]
+            value: sourceCommits.map((commitId, index) => ({
+              id: index + 1,
+              sourceRefCommit: { commitId },
+              commonRefCommit: { commitId: fake.baseCommit },
+              targetRefCommit: { commitId: fake.baseCommit }
+            }))
           })
         }
-        if (apiPath.endsWith(`${pullRequestPath}/iterations/1/changes`)) {
+        if (apiPath.endsWith(`${pullRequestPath}/iterations/${sourceCommits.length}/changes`)) {
           return json({ changeEntries: fake.changes })
         }
         if (apiPath.endsWith(`${pullRequestPath}/threads`)) {
-          return json({ value: [] })
+          return json({ value: fake.threads ?? [] })
         }
         if (apiPath.endsWith(`/_apis/git/repositories/${fake.repositoryId}/items`)) {
           const side = url.searchParams.get('versionDescriptor.version') ?? ''

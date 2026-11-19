@@ -51,6 +51,13 @@ export type RawReviewThread = {
     leftFileStart?: RawThreadPosition
     leftFileEnd?: RawThreadPosition
   } | null
+  pullRequestThreadContext?: {
+    changeTrackingId?: number | null
+    iterationContext?: {
+      firstComparingIteration?: number | null
+      secondComparingIteration?: number | null
+    } | null
+  } | null
   comments?:
     | {
         id?: number | null
@@ -227,7 +234,10 @@ function isSystemComment(commentType: string | number | null | undefined): boole
   return commentType === 'system' || commentType === 2 || commentType === 'codeChange'
 }
 
-/** Drops deleted threads and system-only threads (votes, policy and push notices). */
+/**
+ * Drops deleted threads and system-only threads (votes, policy and push notices). The anchor is
+ * the one of the thread's own iteration; thread tracking moves it to the latest.
+ */
 export function mapAzureDevOpsReviewThread(raw: RawReviewThread): AzureDevOpsReviewThread | null {
   if (typeof raw.id !== 'number' || raw.isDeleted === true) {
     return null
@@ -246,12 +256,14 @@ export function mapAzureDevOpsReviewThread(raw: RawReviewThread): AzureDevOpsRev
   if (comments.every((comment) => comment.isSystem)) {
     return null
   }
+  const iterationId = raw.pullRequestThreadContext?.iterationContext?.secondComparingIteration
   return {
     id: raw.id,
     status: mapAzureDevOpsThreadStatus(raw.status),
     filePath: toRepoRelativePath(raw.threadContext?.filePath),
     anchor: mapAnchor(raw.threadContext),
-    comments
+    comments,
+    ...(typeof iterationId === 'number' && iterationId >= 1 ? { iterationId } : {})
   }
 }
 

@@ -51,7 +51,7 @@ export const AZURE_DEVOPS_REVIEW_TOOLS: AzureDevOpsReviewToolDefinition[] = [
   {
     name: 'ado_get_pull_request',
     description:
-      'Get a pull request: description, branches, latest iteration, changed files, comment threads and Orca drafts.',
+      'Get a pull request: description, branches, latest iteration, changed files, comment threads and Orca drafts. Thread anchors are lines of the latest iteration; outdated marks a thread whose commented lines were rewritten or removed since.',
     inputSchema: {
       type: 'object',
       properties: { pullRequestKey: PR_KEY },

@@ -7,9 +7,9 @@ import { extname } from 'node:path'
 import {
   getAzureDevOpsReviewItemAtCommit,
   getAzureDevOpsReviewItemBytesAtCommit,
-  type RawReviewItem,
   type RawReviewItemBytes
 } from './azure-devops-review-client'
+import { toAzureDevOpsReviewFileSide } from './azure-devops-review-file-side'
 import { PREVIEWABLE_BINARY_MIME_TYPES } from '../../git/source-control/previewable-binary-mime-types'
 import { isKnownRasterImageMimeType } from '../../../shared/raster-image-preview-limits'
 import { toAzureDevOpsItemPath } from './azure-devops-review-mappers'
@@ -20,11 +20,10 @@ import {
   type AzureDevOpsReviewHost
 } from './azure-devops-review-service'
 
-// Why: Monaco diffs past a couple of MB freeze the renderer; such files open on Azure DevOps instead.
-const MAX_CONTENT_CHARS = 2_000_000
-
 // Why: images travel as base64 to the renderer, which grows them by a third.
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+export { toAzureDevOpsReviewFileSide }
 
 /** The raster image MIME type for a path; SVG stays a text diff and other binaries are not shown. */
 export function azureDevOpsReviewImageMimeType(path: string): string | null {
@@ -50,20 +49,6 @@ export function toAzureDevOpsReviewImageSide(
         imageMimeType: mimeType
       }
   }
-}
-
-export function toAzureDevOpsReviewFileSide(item: RawReviewItem | null): AzureDevOpsReviewFileSide {
-  if (!item) {
-    return { content: '', missing: true, binary: false, tooLarge: false }
-  }
-  // Why the NUL check: hosts that omit content metadata still must not render bytes as text.
-  if (item.contentMetadata?.isBinary === true || item.content?.includes('\u0000')) {
-    return { content: '', missing: false, binary: true, tooLarge: false }
-  }
-  const content = item.content ?? ''
-  return content.length > MAX_CONTENT_CHARS
-    ? { content: '', missing: false, binary: false, tooLarge: true }
-    : { content, missing: false, binary: false, tooLarge: false }
 }
 
 /** Both sides of one file as the PR's Files view shows it: merge base vs latest iteration. */

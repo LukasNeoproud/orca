@@ -115,6 +115,20 @@ describe('mapAzureDevOpsReviewThread', () => {
     })
   })
 
+  it('keeps the iteration the thread was written on', () => {
+    const comments = [{ id: 1, content: 'Hmm' }]
+    expect(
+      mapAzureDevOpsReviewThread({
+        id: 4,
+        pullRequestThreadContext: {
+          iterationContext: { firstComparingIteration: 1, secondComparingIteration: 3 }
+        },
+        comments
+      })?.iterationId
+    ).toBe(3)
+    expect(mapAzureDevOpsReviewThread({ id: 5, comments })).not.toHaveProperty('iterationId')
+  })
+
   it('drops deleted and system-only threads', () => {
     expect(mapAzureDevOpsReviewThread({ id: 1, isDeleted: true, comments: [] })).toBeNull()
     expect(

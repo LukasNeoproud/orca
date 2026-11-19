@@ -105,6 +105,46 @@ describe('buildAzureDevOpsInlineComments', () => {
     expect(comments).toEqual([])
   })
 
+  it('shows a tracked thread at its lines in the latest iteration', () => {
+    const [moved] = buildAzureDevOpsInlineComments(
+      detail(
+        [
+          thread({
+            anchor: { side: 'right', startLine: 9, endLine: 10 },
+            originalAnchor: { side: 'right', startLine: 3, endLine: 4 },
+            iterationId: 1
+          })
+        ],
+        []
+      )
+    )
+    expect(moved).toMatchObject({ startLine: 9, lineNumber: 10, createdAtLabel: 'Active' })
+  })
+
+  it('labels a thread on rewritten lines outdated and keeps one without lines out of the diff', () => {
+    const comments = buildAzureDevOpsInlineComments(
+      detail(
+        [
+          thread({
+            id: 8,
+            outdated: true,
+            originalAnchor: { side: 'right', startLine: 2, endLine: 2 }
+          }),
+          thread({
+            id: 9,
+            anchor: null,
+            outdated: true,
+            originalAnchor: { side: 'right', startLine: 3, endLine: 4 }
+          })
+        ],
+        [draft({ kind: 'reply', threadId: 9, filePath: null, anchor: null })]
+      )
+    )
+    expect(comments.map((comment) => [comment.id, comment.createdAtLabel])).toEqual([
+      ['azure-devops-thread:8', 'Active · Outdated']
+    ])
+  })
+
   it('maps inline comment ids back to draft ids only', () => {
     expect(azureDevOpsDraftIdFromInlineComment('azure-devops-draft:x')).toBe('x')
     expect(azureDevOpsDraftIdFromInlineComment('azure-devops-thread:7')).toBeNull()

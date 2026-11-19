@@ -7,6 +7,7 @@ import {
   azureDevOpsReviewBaseRef
 } from './azure-devops-review-base-ref'
 import type { AzureDevOpsReviewLanguage } from './azure-devops-review-options'
+import { azureDevOpsReviewThreadOriginLabel } from './azure-devops-review-thread-origin-label'
 import {
   azureDevOpsReviewToolAccessLines,
   type AzureDevOpsReviewToolAccess
@@ -14,7 +15,14 @@ import {
 
 export type AzureDevOpsFeedbackThread = Pick<
   AzureDevOpsReviewThread,
-  'id' | 'status' | 'filePath' | 'anchor' | 'comments'
+  | 'id'
+  | 'status'
+  | 'filePath'
+  | 'anchor'
+  | 'comments'
+  | 'outdated'
+  | 'originalAnchor'
+  | 'iterationId'
 >
 
 const EXCERPT_MAX_LENGTH = 240
@@ -35,14 +43,19 @@ function threadLocation(thread: AzureDevOpsFeedbackThread): string {
     return 'general comment'
   }
   const anchor = thread.anchor
+  const origin = thread.outdated ? azureDevOpsReviewThreadOriginLabel(thread) : null
   if (!anchor) {
-    return `${thread.filePath} (whole file)`
+    return origin
+      ? `${thread.filePath}, the commented lines are gone, was ${origin}`
+      : `${thread.filePath} (whole file)`
   }
   const lines =
     anchor.startLine === anchor.endLine
       ? `line ${anchor.startLine}`
       : `lines ${anchor.startLine}-${anchor.endLine}`
-  return `${thread.filePath}, ${lines}${anchor.side === 'left' ? ' of the old version' : ''}`
+  return `${thread.filePath}, ${lines}${anchor.side === 'left' ? ' of the old version' : ''}${
+    origin ? `, rewritten since the comment on ${origin}` : ''
+  }`
 }
 
 function threadSummary(thread: AzureDevOpsFeedbackThread): string {

@@ -6,6 +6,10 @@ import type { AzureDevOpsReviewDetail } from '../../../src/shared/azure-devops-r
 import { azureDevOpsReviewRequest } from './use-azure-devops-review'
 import { AzureDevOpsReviewComposer } from './azure-devops-review-composer'
 import { reviewStyles as styles } from './azure-devops-review-styles'
+import {
+  reviewThreadLocationLabel,
+  reviewThreadStateLabel
+} from './azure-devops-review-thread-labels'
 
 export function AzureDevOpsReviewThreadsSection({
   client,
@@ -29,11 +33,9 @@ export function AzureDevOpsReviewThreadsSection({
         <View key={thread.id} style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.location} numberOfLines={1}>
-              {thread.filePath
-                ? `${thread.filePath}${thread.anchor ? `:${thread.anchor.startLine}` : ''}`
-                : 'General comment'}
+              {reviewThreadLocationLabel(thread)}
             </Text>
-            <Text style={styles.muted}>{thread.status}</Text>
+            <Text style={styles.muted}>{reviewThreadStateLabel(thread)}</Text>
           </View>
           {thread.comments
             .filter((comment) => !comment.isSystem)

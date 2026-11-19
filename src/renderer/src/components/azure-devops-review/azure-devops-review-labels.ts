@@ -1,5 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import type {
+  AzureDevOpsLineAnchor,
   AzureDevOpsReviewChangeType,
   AzureDevOpsReviewDraft,
   AzureDevOpsReviewThread,
@@ -35,8 +36,38 @@ export function threadLocationLabel(
   if (!thread.anchor) {
     return thread.filePath
   }
-  const { startLine, endLine } = thread.anchor
-  return `${thread.filePath}:${startLine === endLine ? startLine : `${startLine}–${endLine}`}`
+  return `${thread.filePath}:${lineRangeLabel(thread.anchor)}`
+}
+
+export function lineRangeLabel(
+  anchor: Pick<AzureDevOpsLineAnchor, 'startLine' | 'endLine'>
+): string {
+  return anchor.startLine === anchor.endLine
+    ? `${anchor.startLine}`
+    : `${anchor.startLine}–${anchor.endLine}`
+}
+
+/** Thread status for display; an outdated thread says so next to it. */
+export function threadStateLabel(
+  thread: Pick<AzureDevOpsReviewThread, 'status' | 'outdated'>
+): string {
+  const status = threadStatusLabel(thread.status)
+  return thread.outdated
+    ? `${status} · ${translate('azureDevOpsReview.threadOutdated', 'Outdated')}`
+    : status
+}
+
+/** Where an outdated thread was written; null while the thread still names its own lines. */
+export function threadOriginLabel(
+  thread: Pick<AzureDevOpsReviewThread, 'outdated' | 'originalAnchor' | 'iterationId'>
+): string | null {
+  if (!thread.outdated || !thread.originalAnchor) {
+    return null
+  }
+  return translate('azureDevOpsReview.threadOrigin', 'was L{{value0}} in iteration {{value1}}', {
+    value0: lineRangeLabel(thread.originalAnchor),
+    value1: thread.iterationId ?? '?'
+  })
 }
 
 export function changeTypeLabel(changeType: AzureDevOpsReviewChangeType): string {
@@ -60,11 +91,7 @@ export function draftLocationLabel(
   switch (draft.kind) {
     case 'inline': {
       const anchor = draft.anchor
-      const lines = anchor
-        ? anchor.startLine === anchor.endLine
-          ? `${anchor.startLine}`
-          : `${anchor.startLine}–${anchor.endLine}`
-        : '?'
+      const lines = anchor ? lineRangeLabel(anchor) : '?'
       const side =
         anchor?.side === 'left'
           ? ` (${translate('azureDevOpsReview.sideLeft', 'Old version')})`

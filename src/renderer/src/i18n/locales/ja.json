@@ -19727,6 +19727,9 @@
     "continueReview": "レビューを続ける",
     "newRequest": "新着",
     "originalSideUnavailable": "差分の読み込みに失敗しました。このファイルの元のバージョンを読み込めませんでした。",
-    "modifiedSideUnavailable": "差分の読み込みに失敗しました。このファイルの変更後のバージョンを読み込めませんでした。"
+    "modifiedSideUnavailable": "差分の読み込みに失敗しました。このファイルの変更後のバージョンを読み込めませんでした。",
+    "threadOutdated": "古い",
+    "threadOutdatedHint": "コメントされた行は、後の反復で書き換えられたか削除されました。",
+    "threadOrigin": "以前は反復 {{value1}} の L{{value0}}"
   }
 }

@@ -144,8 +144,15 @@ export type AzureDevOpsReviewThread = {
   id: number
   status: AzureDevOpsThreadStatus
   filePath: string | null
+  /** Lines in the latest iteration; null for file and general threads and when the lines are gone. */
   anchor: AzureDevOpsLineAnchor | null
   comments: AzureDevOpsReviewThreadComment[]
+  /** Iteration the thread was written on. */
+  iterationId?: number
+  /** The commented lines were rewritten or removed after `iterationId`. */
+  outdated?: boolean
+  /** The lines as commented on `iterationId`, when `anchor` no longer names them. */
+  originalAnchor?: AzureDevOpsLineAnchor
 }
 
 export type AzureDevOpsReviewChangeType = 'add' | 'edit' | 'delete' | 'rename' | 'other'

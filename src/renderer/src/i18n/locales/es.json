@@ -19727,6 +19727,9 @@
     "continueReview": "Continuar revisión",
     "newRequest": "Nueva",
     "originalSideUnavailable": "No se pudo cargar el diff: no se pudo cargar la versión original de este archivo.",
-    "modifiedSideUnavailable": "No se pudo cargar el diff: no se pudo cargar la versión modificada de este archivo."
+    "modifiedSideUnavailable": "No se pudo cargar el diff: no se pudo cargar la versión modificada de este archivo.",
+    "threadOutdated": "Obsoleto",
+    "threadOutdatedHint": "Las líneas comentadas se reescribieron o eliminaron en una iteración posterior.",
+    "threadOrigin": "antes L{{value0}} en la iteración {{value1}}"
   }
 }

@@ -19728,6 +19728,9 @@
     "continueReview": "Poursuivre la revue",
     "newRequest": "Nouvelle",
     "originalSideUnavailable": "Échec du chargement du diff : impossible de charger la version d'origine de ce fichier.",
-    "modifiedSideUnavailable": "Échec du chargement du diff : impossible de charger la version modifiée de ce fichier."
+    "modifiedSideUnavailable": "Échec du chargement du diff : impossible de charger la version modifiée de ce fichier.",
+    "threadOutdated": "Obsolète",
+    "threadOutdatedHint": "Les lignes commentées ont été réécrites ou supprimées dans une itération ultérieure.",
+    "threadOrigin": "auparavant L{{value0}} dans l'itération {{value1}}"
   }
 }
