@@ -6,6 +6,11 @@ export type ShellOpenExternalEditorRequest = {
   line?: number
   /** 1-based column on `line`; only honored together with `line`. */
   column?: number
+  /**
+   * Local worktree or folder workspace that holds `path`, so the editor opens the file in that
+   * folder's window. Main verifies it and otherwise launches without a folder; SSH ignores it.
+   */
+  projectRoot?: string
   command?: string
   connectionId?: string | null
   /** Host that owns `path`; main refuses unless it is `local` or, with `connectionId`, that SSH host. */

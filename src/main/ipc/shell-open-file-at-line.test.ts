@@ -161,6 +161,79 @@ describe('shell:openInExternalEditor with a file location', () => {
     ])
   })
 
+  describe('with the project root', () => {
+    const root = resolve('work', 'repo')
+    const filePath = resolve('work', 'repo', 'src', 'App.kt')
+
+    beforeEach(() => {
+      statMock.mockImplementation(async (candidate: string) => ({
+        isDirectory: () => candidate === normalize(root)
+      }))
+    })
+
+    function open(request: Record<string, unknown>): Promise<unknown> {
+      return getHandler()(
+        {},
+        { path: filePath, command: 'code', line: 42, column: 7, ownerHostId: 'local', ...request }
+      )
+    }
+
+    it('opens a VS Code file in the window of the folder that holds it', async () => {
+      await expect(open({ projectRoot: root })).resolves.toEqual({ ok: true })
+      expect(spawnedArgs()).toEqual([normalize(root), '--goto', `${normalize(filePath)}:42:7`])
+    })
+
+    it.each([
+      ['a folder the file is not in', resolve('work', 'other')],
+      ['a folder that does not exist', resolve('work', 'repo', 'gone')],
+      ['a relative folder', 'repo'],
+      ['a root that is not a string', ['/work/repo']]
+    ])('opens the bare file for %s', async (_label, projectRoot) => {
+      await expect(open({ projectRoot })).resolves.toEqual({ ok: true })
+      expect(spawnedArgs()).toEqual(['--goto', `${normalize(filePath)}:42:7`])
+    })
+
+    it('keeps JetBrains IDEs on the bare file', async () => {
+      await open({ command: 'studio', projectRoot: root })
+      expect(spawnedArgs()).toEqual(['--line', '42', '--column', '6', normalize(filePath)])
+    })
+
+    it('keeps a compound command on the bare file', async () => {
+      await open({ command: 'code --reuse-window' })
+      await open({ command: 'code --reuse-window', projectRoot: root })
+      expect(spawnMock.mock.calls[1]?.[1]).toEqual(spawnedArgs())
+    })
+
+    it('does not check the folder when there is no line to open', async () => {
+      await open({ line: undefined, column: undefined, projectRoot: root })
+      expect(statMock).not.toHaveBeenCalledWith(normalize(root))
+    })
+
+    it('leaves the folder out of an SSH launch', async () => {
+      await expect(
+        getHandler()(
+          {},
+          {
+            path: '/srv/repo/Makefile',
+            command: 'code',
+            line: 42,
+            column: 7,
+            projectRoot: '/srv/repo',
+            connectionId: 'ssh-1',
+            ownerHostId: 'ssh:ssh-1'
+          }
+        )
+      ).resolves.toEqual({ ok: true })
+      expect(statMock).not.toHaveBeenCalled()
+      expect(spawnedArgs()).toEqual([
+        '--remote',
+        'ssh-remote+builder',
+        '--goto',
+        '/srv/repo/Makefile:42:7'
+      ])
+    })
+  })
+
   it('refuses an editor without remote support for an SSH file', async () => {
     await expect(
       getHandler()(

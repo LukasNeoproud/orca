@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAppStore } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
+import type { FolderWorkspace } from '../../../../shared/folder-workspace-types'
+import type { Worktree } from '../../../../shared/worktree/types'
 import { rememberExternalEditorApplication } from './external-editor-last-application'
 import { ExternalEditorOpenFileMenuSection } from './ExternalEditorOpenFileMenuSection'
 
@@ -34,6 +36,15 @@ function openFile(overrides: Partial<OpenFile> = {}): OpenFile {
   }
 }
 
+function seedWorkspaceRoots(): void {
+  useAppStore.setState({
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the root lookup reads only id and path.
+    worktreesByRepo: { 'repo-1': [{ id: 'repo-1::/repo', path: '/repo' } as Worktree] },
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the root lookup reads only id and folderPath.
+    folderWorkspaces: [{ id: 'docs', folderPath: '/docs' } as FolderWorkspace]
+  })
+}
+
 function renderMenu(file: OpenFile, line?: number): void {
   useAppStore.setState({ openFiles: [file] })
   render(
@@ -52,6 +63,7 @@ describe('ExternalEditorOpenFileMenuSection', () => {
     openInExternalEditorMock.mockReset()
     openInExternalEditorMock.mockResolvedValue({ ok: true })
     Object.assign(window, { api: { shell: { openInExternalEditor: openInExternalEditorMock } } })
+    useAppStore.setState({ worktreesByRepo: {}, folderWorkspaces: [] })
     const settings = useAppStore.getState().settings
     useAppStore.setState({
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the menu reads only openInApplications from settings.
@@ -121,6 +133,42 @@ describe('ExternalEditorOpenFileMenuSection', () => {
 
     expect(openInExternalEditorMock).toHaveBeenCalledWith(
       expect.objectContaining({ line: 8, connectionId: 'ssh-1', ownerHostId: 'ssh:ssh-1' })
+    )
+  })
+
+  it('sends the root of the worktree that holds the file', () => {
+    seedWorkspaceRoots()
+    renderMenu(openFile(), 12)
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open in VS Code' }))
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/repo/src/App.kt', line: 12, projectRoot: '/repo' })
+    )
+  })
+
+  it('sends the folder of a folder workspace without git', () => {
+    seedWorkspaceRoots()
+    renderMenu(
+      openFile({ id: '/docs/notes.md', filePath: '/docs/notes.md', worktreeId: 'folder:docs' }),
+      5
+    )
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open in VS Code' }))
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/docs/notes.md', projectRoot: '/docs' })
+    )
+  })
+
+  it('keeps the root out of an SSH file', () => {
+    seedWorkspaceRoots()
+    renderMenu(openFile({ externalSshTargetId: 'ssh-1' }), 8)
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open in VS Code' }))
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'ssh-1', projectRoot: undefined })
     )
   })
 

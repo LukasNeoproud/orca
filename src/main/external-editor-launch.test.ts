@@ -605,7 +605,7 @@ describe('opening a file at a line', () => {
       }
     )
 
-    it.each(['cursor', 'codium', 'studio', 'zed', 'nvim'])(
+    it.each(['cursor', 'codium', 'studio', 'xed', 'zed', 'nvim'])(
       'keeps the project root away from %s, where it is unverified',
       (command) => {
         expect(

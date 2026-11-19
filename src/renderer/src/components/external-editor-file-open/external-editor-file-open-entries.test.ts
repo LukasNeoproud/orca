@@ -20,6 +20,7 @@ function target(overrides: Partial<ExternalEditorFileTarget> = {}): ExternalEdit
     connectionId: null,
     runtimeEnvironmentId: null,
     ownerUnresolved: false,
+    projectRoot: null,
     ...overrides
   }
 }

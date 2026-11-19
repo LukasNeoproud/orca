@@ -17,6 +17,7 @@ import {
   resolveVsCodeRemoteSshLaunchSpec
 } from '../external-editor-launch'
 import { normalizeExternalEditorFileLocation } from '../external-editor-file-location'
+import { resolveExternalEditorProjectRoot } from './external-editor-project-root'
 import { resolveVsCodeSshAuthority } from '../ssh/vscode-ssh-authority'
 import { parseRoutableExecutionHostId, toSshExecutionHostId } from '../../shared/execution-host'
 
@@ -124,9 +125,11 @@ async function openInExternalEditor(
   if (!target.ok) {
     return target
   }
+  const projectRoot =
+    location && (await resolveExternalEditorProjectRoot(request.projectRoot, target.path))
   try {
     await launchExternalEditor(
-      resolveExternalEditorLaunchSpec(request.command, target.path, { location })
+      resolveExternalEditorLaunchSpec(request.command, target.path, { location, projectRoot })
     )
     return { ok: true }
   } catch {

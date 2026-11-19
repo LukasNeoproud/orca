@@ -22,6 +22,7 @@ function target(overrides: Partial<ExternalEditorFileTarget> = {}): ExternalEdit
     connectionId: null,
     runtimeEnvironmentId: null,
     ownerUnresolved: false,
+    projectRoot: null,
     ...overrides
   }
 }
@@ -47,6 +48,18 @@ describe('openFileInExternalEditor', () => {
       ownerHostId: 'local'
     })
     expect(toastErrorMock).not.toHaveBeenCalled()
+  })
+
+  it('sends the workspace root so the editor can open the file in its window', async () => {
+    await openFileInExternalEditor({
+      target: target({ projectRoot: '/repo' }),
+      application: vscode,
+      line: 42
+    })
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/repo/src/App.kt', projectRoot: '/repo' })
+    )
   })
 
   it('remembers the application per repository once it opened the file', async () => {

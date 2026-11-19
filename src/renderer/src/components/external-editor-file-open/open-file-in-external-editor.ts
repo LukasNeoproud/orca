@@ -72,6 +72,7 @@ export async function openFileInExternalEditor(args: {
     path: target.filePath,
     line: args.line,
     column: args.column,
+    projectRoot: target.projectRoot ?? undefined,
     command: application.command,
     connectionId: target.connectionId,
     ownerHostId: owner

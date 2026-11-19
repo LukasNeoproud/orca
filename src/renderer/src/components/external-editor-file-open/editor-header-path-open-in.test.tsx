@@ -7,7 +7,8 @@ import { useAppStore } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
 
 vi.mock('@/store/selectors', () => ({
-  useWorktreeById: () => ({ path: '/repo', repoId: 'repo-1' })
+  useWorktreeById: () => ({ path: '/repo', repoId: 'repo-1' }),
+  getWorktreeMapFromState: () => new Map([['repo-1::/repo', { path: '/repo' }]])
 }))
 // Why: the owner is confirmed against the catalog, which this test does not seed.
 vi.mock('@/lib/resolved-worktree-execution-host', () => ({
@@ -61,6 +62,7 @@ describe('editor header path Open in', () => {
       path: '/repo/src/App.kt',
       line: 17,
       column: undefined,
+      projectRoot: '/repo',
       command: 'studio',
       connectionId: null,
       ownerHostId: 'local'

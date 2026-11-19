@@ -4,6 +4,8 @@ import type { AppState } from '@/store/types'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { getRouteForLocalPathOpenOwner, type LocalPathOpenOwner } from '@/lib/local-path-open-guard'
 import { getWorkspaceFileRevealOwner } from '@/lib/reveal-in-file-manager'
+import { selectMarkdownDocumentWorktreePath } from '../editor/markdown-document-worktree-path-selector'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 
@@ -23,6 +25,8 @@ export type ExternalEditorFileTarget = {
   connectionId: string | null
   runtimeEnvironmentId: string | null
   ownerUnresolved: boolean
+  /** Worktree or folder workspace root of a local file; null for SSH, runtime and unknown owners. */
+  projectRoot: string | null
 }
 
 type FileOwner = Exclude<LocalPathOpenOwner, object>
@@ -41,11 +45,16 @@ function getPreferenceKey(worktreeId: string): string {
     : getRepoIdFromWorktreeId(worktreeId)
 }
 
-function buildTarget(source: ExternalEditorFileSource, owner: FileOwner): ExternalEditorFileTarget {
+function buildTarget(
+  source: ExternalEditorFileSource,
+  owner: FileOwner,
+  workspaceRoot: string | null
+): ExternalEditorFileTarget {
   return {
     filePath: source.filePath,
     preferenceKey: getPreferenceKey(source.worktreeId),
-    ...getRouteForLocalPathOpenOwner(owner)
+    ...getRouteForLocalPathOpenOwner(owner),
+    projectRoot: owner === LOCAL_EXECUTION_HOST_ID ? workspaceRoot : null
   }
 }
 
@@ -53,7 +62,11 @@ export function getExternalEditorFileTarget(
   state: AppState,
   source: ExternalEditorFileSource
 ): ExternalEditorFileTarget {
-  return buildTarget(source, getFileOwner(state, source))
+  return buildTarget(
+    source,
+    getFileOwner(state, source),
+    selectMarkdownDocumentWorktreePath(state, source.worktreeId)
+  )
 }
 
 export function useExternalEditorFileTarget(
@@ -72,8 +85,9 @@ export function useExternalEditorFileTarget(
   )
   // Why: the owner is a string, so the selector stays stable across unrelated store writes.
   const owner = useAppStore((s) => (stableSource ? getFileOwner(s, stableSource) : 'unresolved'))
+  const workspaceRoot = useAppStore((s) => selectMarkdownDocumentWorktreePath(s, worktreeId))
   return useMemo(
-    () => (stableSource ? buildTarget(stableSource, owner) : null),
-    [owner, stableSource]
+    () => (stableSource ? buildTarget(stableSource, owner, workspaceRoot) : null),
+    [owner, stableSource, workspaceRoot]
   )
 }

@@ -18,7 +18,8 @@ import { quotePosixShell } from '../../src/shared/wsl-login-shell-command'
 /**
  * Open in from the editor and diff gutters, through the real right-click. What a unit
  * test cannot reach: Monaco reporting the pressed gutter line, and the request crossing
- * IPC into the argv the chosen application is started with.
+ * IPC into the argv the chosen application is started with. The workspace root leads the
+ * argv so VS Code opens the file in that folder's window.
  */
 
 test.skip(process.platform === 'win32', 'Needs a POSIX recorder script')
@@ -184,7 +185,7 @@ test.describe('Open file in external editor', () => {
       await orcaPage.screenshot({ path: testInfo.outputPath('editor-gutter-open-in.png') })
       await openInApp.click()
 
-      await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:7`])
+      await expect.poll(recorder.receipt).toEqual([worktreePath, '--goto', `${filePath}:7`])
     } finally {
       rmSync(filePath, { force: true })
     }
@@ -219,7 +220,7 @@ test.describe('Open file in external editor', () => {
       await orcaPage.screenshot({ path: testInfo.outputPath('header-path-open-in.png') })
       await openInApp.click()
 
-      await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:5`])
+      await expect.poll(recorder.receipt).toEqual([worktreePath, '--goto', `${filePath}:5`])
     } finally {
       rmSync(filePath, { force: true })
     }
@@ -250,7 +251,7 @@ test.describe('Open file in external editor', () => {
       await orcaPage.screenshot({ path: testInfo.outputPath('diff-gutter-open-in.png') })
       await openInApp.click()
 
-      await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:11`])
+      await expect.poll(recorder.receipt).toEqual([worktreePath, '--goto', `${filePath}:11`])
     } finally {
       execFileSync('git', ['checkout', '--', relativePath], { cwd: worktreePath, stdio: 'pipe' })
     }
@@ -278,10 +279,63 @@ test.describe('Open file in external editor', () => {
       await orcaPage.screenshot({ path: testInfo.outputPath('combined-diff-gutter-open-in.png') })
       await openInApp.click()
 
-      await expect.poll(recorder.receipt).toEqual(['--goto', `${filePath}:9`])
+      await expect.poll(recorder.receipt).toEqual([worktreePath, '--goto', `${filePath}:9`])
     } finally {
       execFileSync('git', ['checkout', '--', relativePath], { cwd: worktreePath, stdio: 'pipe' })
     }
+  })
+
+  test('a folder workspace without git opens the file in its folder window', async ({
+    orcaPage,
+    registerPostElectronShutdownCleanup
+  }, testInfo) => {
+    const folderPath = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'orca-open-in-folder-')))
+    registerPostElectronShutdownCleanup(async () =>
+      rmSync(folderPath, { recursive: true, force: true })
+    )
+    const filePath = path.join(folderPath, 'notes.ts')
+    writeFileSync(filePath, numberedLines())
+    await orcaPage.evaluate(
+      async ({ folderPath, filePath }) => {
+        const state = window.__store?.getState()
+        if (!state) {
+          throw new Error('window.__store is not available')
+        }
+        const group = await window.api.projectGroups.create({
+          name: 'Notes',
+          parentPath: folderPath,
+          createdFrom: 'folder-scan'
+        })
+        await state.fetchProjectGroups({ runtimeEnvironmentId: null, throwOnError: true })
+        const workspace = await state.createFolderWorkspace(
+          { projectGroupId: group.id, name: 'Notes', folderPath },
+          { runtimeEnvironmentId: null }
+        )
+        if (!workspace) {
+          throw new Error('Could not create folder workspace')
+        }
+        const worktreeId = `folder:${workspace.id}`
+        state.setActiveWorktree(worktreeId)
+        state.openFile({
+          filePath,
+          relativePath: 'notes.ts',
+          worktreeId,
+          runtimeEnvironmentId: null,
+          language: 'typescript',
+          mode: 'edit'
+        })
+      },
+      { folderPath, filePath }
+    )
+
+    await rightClickGutterLine(orcaPage, '.monaco-editor', 3)
+    const openInApp = orcaPage.getByRole('menuitem', { name: `Open in ${APP_LABEL}` })
+    await expect(openInApp).toBeVisible()
+    await waitForMenuAnimation(orcaPage)
+    await orcaPage.screenshot({ path: testInfo.outputPath('folder-workspace-gutter-open-in.png') })
+    await openInApp.click()
+
+    await expect.poll(recorder.receipt).toEqual([folderPath, '--goto', `${filePath}:3`])
   })
 
   test('the combined diff says why a deleted file cannot be opened', async ({
