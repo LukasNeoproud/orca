@@ -153,7 +153,7 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     permission: 'workspace',
     params: AzureDevOpsReviewListParams,
     handler: async (params, { runtime }) =>
-      listAzureDevOpsReviewPullRequests(reviewHost(runtime), params.status)
+      listAzureDevOpsReviewPullRequests(reviewHost(runtime), params.status, params.pages)
   }),
   defineMethod({
     name: 'azureDevOpsReview.get',

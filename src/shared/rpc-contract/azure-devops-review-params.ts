@@ -27,9 +27,16 @@ const Author = z.union([
 ])
 
 export const AzureDevOpsReviewListParams = z
-  .object({ status: z.enum(['active', 'completed', 'abandoned', 'all']).optional() })
+  .object({
+    status: z.enum(['active', 'completed', 'abandoned', 'all']).optional(),
+    // Why no upper bound here: the host clamps, so a newer client's larger limit still lists.
+    pages: z.number().int().positive().optional()
+  })
   .nullish()
-  .transform((value) => ({ status: value?.status ?? 'active' }))
+  .transform((value) => ({
+    status: value?.status ?? 'active',
+    ...(value?.pages === undefined ? {} : { pages: value.pages })
+  }))
 
 export const AzureDevOpsReviewKeyParams = z.object({ pullRequestKey: PullRequestKey })
 

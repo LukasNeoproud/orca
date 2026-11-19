@@ -19763,6 +19763,9 @@
     "voteSkipped": "Tu voto no se envió porque un comentario no se publicó. Para votar, publica de nuevo y vuelve a elegir el voto.",
     "voteFailed": "Tu voto no se envió: {{value0}}",
     "voteUnsupported": "Tu voto no se envió: el host de Orca que tiene la sesión de Azure DevOps aún no puede votar. Actualízalo o vota en Azure DevOps.",
-    "myVote": "Tu voto: {{value0}}"
+    "myVote": "Tu voto: {{value0}}",
+    "listTruncated": "Solo se muestran los pull requests más recientes de {{value0}}.",
+    "listTruncatedAtLimit": "Solo se muestran los pull requests más recientes de {{value0}}. Abre Azure DevOps para ver los anteriores.",
+    "loadOlder": "Cargar pull requests anteriores"
   }
 }

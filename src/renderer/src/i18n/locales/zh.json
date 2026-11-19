@@ -19777,6 +19777,9 @@
     "voteSkipped": "你的投票未发送，因为有评论未发布。要投票，请重新发布并再次选择投票。",
     "voteFailed": "你的投票未发送：{{value0}}",
     "voteUnsupported": "你的投票未发送：持有 Azure DevOps 登录的 Orca 主机尚不支持投票。请更新它，或在 Azure DevOps 中投票。",
-    "myVote": "你的投票：{{value0}}"
+    "myVote": "你的投票：{{value0}}",
+    "listTruncated": "仅列出 {{value0}} 的最新 Pull Request。",
+    "listTruncatedAtLimit": "仅列出 {{value0}} 的最新 Pull Request。更早的请在 Azure DevOps 中查看。",
+    "loadOlder": "加载更早的 Pull Request"
   }
 }

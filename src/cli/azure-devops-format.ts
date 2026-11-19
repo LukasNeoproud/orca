@@ -14,6 +14,9 @@ export function formatAzureDevOpsPullRequestList(result: AzureDevOpsReviewListRe
   for (const error of result.errors) {
     lines.push(`warning: ${error.scope}: ${error.message}`)
   }
+  for (const repoKey of result.truncatedRepoKeys ?? []) {
+    lines.push(`warning: ${repoKey}: only the newest pull requests are listed; older ones exist.`)
+  }
   if (result.pullRequests.length === 0) {
     lines.unshift('No pull requests.')
   }

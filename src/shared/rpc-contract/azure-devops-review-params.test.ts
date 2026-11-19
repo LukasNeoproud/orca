@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { AZURE_DEVOPS_REVIEW_CASTABLE_VOTES } from '../azure-devops-review-vote'
-import { AzureDevOpsReviewPublishParams } from './azure-devops-review-params'
+import {
+  AzureDevOpsReviewListParams,
+  AzureDevOpsReviewPublishParams
+} from './azure-devops-review-params'
 
 const pullRequestKey = 'dev.azure.com/contoso+repo+7'
 
@@ -42,5 +45,38 @@ describe('AzureDevOpsReviewPublishParams', () => {
     expect(
       AzureDevOpsReviewPublishParams.parse({ pullRequestKey, draftIds: ['d1'], later: true })
     ).toEqual({ pullRequestKey, draftIds: ['d1'] })
+  })
+})
+
+describe('AzureDevOpsReviewListParams', () => {
+  it.each([undefined, null, {}, { status: 'active' }])(
+    'keeps the request %j of a client that knows no pages',
+    (params) => {
+      expect(AzureDevOpsReviewListParams.parse(params)).toEqual({ status: 'active' })
+    }
+  )
+
+  it('passes the number of pages a client asks for', () => {
+    expect(AzureDevOpsReviewListParams.parse({ status: 'all', pages: 3 })).toEqual({
+      status: 'all',
+      pages: 3
+    })
+  })
+
+  // Why accepted: the host clamps, so a client with a larger limit still gets a list.
+  it('accepts more pages than this host reads', () => {
+    expect(AzureDevOpsReviewListParams.safeParse({ pages: 10_000 }).success).toBe(true)
+  })
+
+  it.each([0, -1, 1.5, '2', null])('rejects pages %j', (pages) => {
+    expect(AzureDevOpsReviewListParams.safeParse({ pages }).success).toBe(false)
+  })
+
+  // Why pinned: a host from before paging parses `pages` like this and answers the first page
+  // without `truncatedRepoKeys`, which is why clients offer more only when that field arrives.
+  it('drops fields it does not know without an error', () => {
+    expect(AzureDevOpsReviewListParams.parse({ status: 'completed', later: 2 })).toEqual({
+      status: 'completed'
+    })
   })
 })

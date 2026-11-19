@@ -19763,6 +19763,9 @@
     "voteSkipped": "댓글이 게시되지 않아 투표가 전송되지 않았습니다. 투표하려면 다시 게시하고 투표를 다시 선택하세요.",
     "voteFailed": "투표가 전송되지 않았습니다: {{value0}}",
     "voteUnsupported": "투표가 전송되지 않았습니다. Azure DevOps 로그인을 보유한 Orca 호스트가 아직 투표를 지원하지 않습니다. 업데이트하거나 Azure DevOps에서 투표하세요.",
-    "myVote": "내 투표: {{value0}}"
+    "myVote": "내 투표: {{value0}}",
+    "listTruncated": "{{value0}}의 최신 Pull Request만 표시됩니다.",
+    "listTruncatedAtLimit": "{{value0}}의 최신 Pull Request만 표시됩니다. 이전 항목은 Azure DevOps에서 확인하세요.",
+    "loadOlder": "이전 Pull Request 불러오기"
   }
 }

@@ -17,12 +17,20 @@ export type FakeAzureDevOpsPullRequest = {
   threads?: Record<string, unknown>[]
   /** The signed-in user's vote as the REST API stores it; a vote the app casts replaces it. */
   vote?: number
-  /** Also answers the repository's list of active pull requests with this pull request. */
+  /** Also answers the repository's pull request lists, in pages by `$top` and `$skip`. */
   listed?: boolean
+  /** Completed pull requests created after this one, so that they fill the first pages of a list. */
+  newerCompletedPullRequests?: number
 }
 
 /** One request the app made to the fake host, in the order they arrived. */
-export type FakeAzureDevOpsRequest = { method: string; path: string; body: unknown }
+export type FakeAzureDevOpsRequest = {
+  method: string
+  path: string
+  /** The query string, with its leading `?` when there is one. */
+  search: string
+  body: unknown
+}
 
 type FakeAzureDevOpsState = {
   vote: number
@@ -75,7 +83,7 @@ export async function serveFakeAzureDevOpsPullRequest(
           init?.method ?? (input instanceof Request ? input.method : 'GET')
         ).toUpperCase()
         const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : null
-        state.requests.push({ method, path: apiPath, body })
+        state.requests.push({ method, path: apiPath, search: decodeURIComponent(url.search), body })
         if (apiPath.endsWith('/_apis/connectiondata')) {
           return json({ authenticatedUser: { id: me.id, providerDisplayName: me.displayName } })
         }
@@ -100,10 +108,27 @@ export async function serveFakeAzureDevOpsPullRequest(
         if (
           fake.listed &&
           apiPath.endsWith(`/_apis/git/repositories/${fake.repositoryId}/pullrequests`) &&
-          url.searchParams.get('searchCriteria.status') === 'active' &&
           !url.searchParams.has('searchCriteria.sourceRefName')
         ) {
-          return json({ value: [pullRequest] })
+          const status = url.searchParams.get('searchCriteria.status') ?? 'active'
+          const newer = fake.newerCompletedPullRequests ?? 0
+          // Newest first, as the REST API orders a list.
+          const all = [
+            ...Array.from({ length: newer }, (_, index) => ({
+              ...pullRequest,
+              pullRequestId: fake.pullRequestId + newer - index,
+              title: `Completed change ${newer - index}`,
+              status: 'completed',
+              creationDate: new Date(
+                Date.UTC(2026, 10, 18) + (newer - index) * 60_000
+              ).toISOString(),
+              reviewers: []
+            })),
+            pullRequest
+          ].filter((entry) => status === 'all' || entry.status === status)
+          const skip = Number(url.searchParams.get('$skip') ?? 0)
+          const top = Number(url.searchParams.get('$top') ?? all.length)
+          return json({ value: all.slice(skip, skip + top) })
         }
         if (method === 'PUT' && apiPath.endsWith(`${pullRequestPath}/reviewers/${me.id}`)) {
           const vote = body && typeof body === 'object' && 'vote' in body ? body.vote : null

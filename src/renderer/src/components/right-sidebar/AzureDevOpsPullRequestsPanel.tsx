@@ -22,6 +22,8 @@ import {
 import { AzureDevOpsPullRequestFilters } from './AzureDevOpsPullRequestFilters'
 import { AzureDevOpsPullRequestGroups } from './AzureDevOpsPullRequestGroups'
 import { AzureDevOpsPullRequestInvolvementToggle } from './AzureDevOpsPullRequestInvolvementToggle'
+import { AzureDevOpsPullRequestListTruncation } from './AzureDevOpsPullRequestListTruncation'
+import { AZURE_DEVOPS_REVIEW_LIST_MAX_PAGES } from '../../../../shared/azure-devops-review-list-pages'
 
 const REFRESH_INTERVAL_MS = 3 * 60_000
 
@@ -37,6 +39,8 @@ export default function AzureDevOpsPullRequestsPanel({
   const openKey = useAzureDevOpsReviewStore((s) => s.openPullRequestKey)
   const setFilters = useAzureDevOpsReviewStore((s) => s.setFilters)
   const refresh = useAzureDevOpsReviewStore((s) => s.refresh)
+  const pages = useAzureDevOpsReviewStore((s) => s.pages)
+  const loadMore = useAzureDevOpsReviewStore((s) => s.loadMore)
   const projects = useAppStore((s) => azureDevOpsReviewProjectsSignature(s.repos))
 
   useEffect(() => {
@@ -225,6 +229,13 @@ export default function AzureDevOpsPullRequestsPanel({
             openKey={openKey}
           />
         )}
+        <AzureDevOpsPullRequestListTruncation
+          repos={list?.repos ?? []}
+          truncatedRepoKeys={list?.truncatedRepoKeys ?? []}
+          canLoadMore={pages < AZURE_DEVOPS_REVIEW_LIST_MAX_PAGES}
+          loading={loading}
+          onLoadMore={() => void loadMore()}
+        />
       </div>
     </section>
   )

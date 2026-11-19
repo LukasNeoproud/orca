@@ -19764,6 +19764,9 @@
     "voteSkipped": "Votre vote n’a pas été envoyé, car un commentaire n’a pas été publié. Pour voter, publiez à nouveau et choisissez à nouveau le vote.",
     "voteFailed": "Votre vote n’a pas été envoyé : {{value0}}",
     "voteUnsupported": "Votre vote n’a pas été envoyé : l’hôte Orca qui détient la connexion Azure DevOps ne peut pas encore voter. Mettez-le à jour ou votez dans Azure DevOps.",
-    "myVote": "Votre vote : {{value0}}"
+    "myVote": "Votre vote : {{value0}}",
+    "listTruncated": "Seules les pull requests les plus récentes de {{value0}} sont affichées.",
+    "listTruncatedAtLimit": "Seules les pull requests les plus récentes de {{value0}} sont affichées. Ouvrez Azure DevOps pour voir les plus anciennes.",
+    "loadOlder": "Charger les pull requests plus anciennes"
   }
 }

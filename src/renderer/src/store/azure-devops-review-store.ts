@@ -5,6 +5,7 @@ import {
   type AzureDevOpsReviewFilters
 } from '../../../shared/azure-devops-review-filters'
 import { isReviewInvolvementFilter } from '../../../shared/azure-devops-review-groups'
+import { AZURE_DEVOPS_REVIEW_LIST_MAX_PAGES } from '../../../shared/azure-devops-review-list-pages'
 import type { AzureDevOpsReviewListResult } from '../../../shared/azure-devops-review-types'
 import { listAzureDevOpsReviewPullRequests } from '@/lib/azure-devops-review-client'
 
@@ -15,6 +16,8 @@ type AzureDevOpsReviewState = {
   list: AzureDevOpsReviewListResult | null
   loading: boolean
   error: string | null
+  /** Pages of closed pull requests the list reads per repository; grows when the user asks. */
+  pages: number
   /** Pull request shown on the workbench detail page. */
   openPullRequestKey: string | null
   /** Orca projects the panel last saw; adding or removing one makes the list stale. */
@@ -23,6 +26,8 @@ type AzureDevOpsReviewState = {
   noteProjects: (signature: string) => boolean
   setFilters: (patch: Partial<AzureDevOpsReviewFilters>) => void
   refresh: () => Promise<void>
+  /** Reads one more page of every repository; does nothing once the limit is reached. */
+  loadMore: () => Promise<void>
   openPullRequest: (key: string) => void
   closePullRequest: () => void
 }
@@ -83,6 +88,7 @@ export const useAzureDevOpsReviewStore = create<AzureDevOpsReviewState>((set, ge
   list: null,
   loading: false,
   error: null,
+  pages: 1,
   openPullRequestKey: null,
   projectsSignature: null,
   noteProjects: (signature) => {
@@ -96,9 +102,11 @@ export const useAzureDevOpsReviewStore = create<AzureDevOpsReviewState>((set, ge
   setFilters: (patch) => {
     const previous = get().filters
     const filters = { ...previous, ...patch }
-    set({ filters })
+    const statusChanged = patch.status !== undefined && patch.status !== previous.status
+    // Why: the depth was asked for in the previous status's history.
+    set(statusChanged ? { filters, pages: 1 } : { filters })
     storeFilters(filters)
-    if (patch.status !== undefined && patch.status !== previous.status) {
+    if (statusChanged) {
       void get().refresh()
     }
   },
@@ -106,7 +114,7 @@ export const useAzureDevOpsReviewStore = create<AzureDevOpsReviewState>((set, ge
     const generation = ++refreshGeneration
     set({ loading: true, error: null })
     try {
-      const list = await listAzureDevOpsReviewPullRequests(get().filters.status)
+      const list = await listAzureDevOpsReviewPullRequests(get().filters.status, get().pages)
       if (generation !== refreshGeneration) {
         return
       }
@@ -117,6 +125,14 @@ export const useAzureDevOpsReviewStore = create<AzureDevOpsReviewState>((set, ge
         set({ loading: false, error: error instanceof Error ? error.message : String(error) })
       }
     }
+  },
+  loadMore: async () => {
+    const { pages, refresh } = get()
+    if (pages >= AZURE_DEVOPS_REVIEW_LIST_MAX_PAGES) {
+      return
+    }
+    set({ pages: pages + 1 })
+    await refresh()
   },
   openPullRequest: (key) => set({ openPullRequestKey: key }),
   closePullRequest: () => set({ openPullRequestKey: null })

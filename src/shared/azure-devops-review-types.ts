@@ -105,6 +105,8 @@ export type AzureDevOpsReviewListError = {
 
 export type AzureDevOpsReviewListParams = {
   status?: AzureDevOpsPullRequestStatusFilter
+  /** Pages of closed pull requests to read per repository; a host from before paging reads one. */
+  pages?: number
 }
 
 export type AzureDevOpsReviewListResult = {
@@ -114,6 +116,11 @@ export type AzureDevOpsReviewListResult = {
   /** Unpublished draft counts keyed by pull request key. */
   draftCounts: Record<string, number>
   fetchedAt: number
+  /**
+   * Keys of `repos` whose pull requests were cut off at a full page. Absent when nothing was cut
+   * off and from a host that cannot page, which therefore must not be asked for more.
+   */
+  truncatedRepoKeys?: string[]
 }
 
 export type AzureDevOpsThreadStatus =

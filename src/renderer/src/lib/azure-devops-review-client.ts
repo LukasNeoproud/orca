@@ -22,9 +22,15 @@ const LIST_TIMEOUT_MS = 60_000
 const WORKTREE_TIMEOUT_MS = 180_000
 
 export function listAzureDevOpsReviewPullRequests(
-  status: AzureDevOpsPullRequestStatusFilter
+  status: AzureDevOpsPullRequestStatusFilter,
+  pages = 1
 ): Promise<AzureDevOpsReviewListResult> {
-  return callRuntimeRpc(LOCAL, 'azureDevOpsReview.list', { status }, { timeoutMs: LIST_TIMEOUT_MS })
+  return callRuntimeRpc(
+    LOCAL,
+    'azureDevOpsReview.list',
+    { status, ...(pages > 1 ? { pages } : {}) },
+    { timeoutMs: LIST_TIMEOUT_MS }
+  )
 }
 
 export function getAzureDevOpsReviewDetail(

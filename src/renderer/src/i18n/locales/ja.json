@@ -19763,6 +19763,9 @@
     "voteSkipped": "コメントが投稿されなかったため、投票は送信されませんでした。投票するには、もう一度公開して投票を選び直してください。",
     "voteFailed": "投票は送信されませんでした: {{value0}}",
     "voteUnsupported": "投票は送信されませんでした。Azure DevOps のサインインを保持している Orca ホストはまだ投票できません。更新するか、Azure DevOps で投票してください。",
-    "myVote": "あなたの投票: {{value0}}"
+    "myVote": "あなたの投票: {{value0}}",
+    "listTruncated": "{{value0}} の新しい Pull Request のみを表示しています。",
+    "listTruncatedAtLimit": "{{value0}} の新しい Pull Request のみを表示しています。古いものは Azure DevOps で確認してください。",
+    "loadOlder": "古い Pull Request を読み込む"
   }
 }

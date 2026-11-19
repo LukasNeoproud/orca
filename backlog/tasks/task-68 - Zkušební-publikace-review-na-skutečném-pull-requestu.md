@@ -4,7 +4,7 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
-updated_date: '2026-11-19T02:54:00Z'
+updated_date: '2026-11-19T03:08:00Z'
 labels:
   - review-ide
   - ceka-na-uzivatele
@@ -72,4 +72,6 @@ K ověření z TASK-83 (hlas při publikaci), co z dokumentace Microsoftu neplyn
 7. Azure DevOps Server (on-prem): cesta přes kolekci a případná přípona -preview u api-version jde stejnou cestou jako ostatní volání; ověřit jen, pokud se testuje on-prem.
 8. Oznámení: text dialogu říká, že reviewers get notified (převzato z dosavadního potvrzení publikace); ověřit, že to pro hlas platí, jinak text upravit.
 Postup zkoušky v Orca Dev: Drafts > Publish selected nebo Vote, v dialogu zvolit hlas, Publish; pořadí je komentáře a pak hlas.
+
+Z TASK-77 (2026-11-19): při ověřování proti skutečné organizaci zkontrolovat, že seznam pull requestů se stavem all a parametrem skip vrací položky od nejnovějších a že skip u stránky po 100 funguje stejně jako u ověřených 500.
 <!-- SECTION:NOTES:END -->

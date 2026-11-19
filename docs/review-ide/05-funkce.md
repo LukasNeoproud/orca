@@ -107,6 +107,14 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 - Značka Nový zůstává, dokud PR neotevřu. Nové PR hledá stávající pravidelná kontrola, bez dalších dotazů na Azure DevOps.
 - Systémové oznámení přijde jednou za PR a po restartu se neopakuje. Řídí se nastavením oznámení včetně potlačení při aktivním okně; když u počítače nejsem, počká na návrat. Klik otevře PR. Na spárovaný telefon se neposílá.
 
+**Stav po TASK-77:**
+
+- Otevřené PR se čtou celé (po stránkách po 100, do stropu 1000 na repozitář), takže filtr stavu Vše ukáže každý otevřený PR, který ukazuje Aktivní. Vše se ptá dvakrát: na otevřené a na všechny.
+- Uzavřené PR se čtou po jedné stránce. Když je stránka plná, seznam pod řádky řekne, kterých repozitářů se oříznutí týká, a nabídne Načíst starší; každé kliknutí přidá stránku, nejvýš 20 na repozitář. Hloubka se drží při obnově a vrací se na jednu stránku při změně filtru stavu.
+- Když další stránka selže, zůstanou načtené stránky a seznam ukáže chybu i oříznutí.
+- Protokol: nepovinný parametr `pages` metody `azureDevOpsReview.list` a nepovinné pole `truncatedRepoKeys` ve výsledku, které se posílá jen při oříznutí. Starší hostitel pole neposílá, proto klient další stránky nenabídne. `orca ado` oříznutí vypíše jako varování; mobilní klient ho zatím neukazuje.
+- Úklid větví čte dokončené PR do cílové větve po 500 do stropu 5000; když další stránka selže, použije načtené.
+
 ![Pull requesty](./prototyp/04-pull-requesty.png)
 
 ## 5. Code review s AI

@@ -19,7 +19,6 @@ import {
 import {
   getAzureDevOpsReviewIdentity,
   getAzureDevOpsReviewPullRequest,
-  listAzureDevOpsRepositoryPullRequests,
   listAzureDevOpsReviewIterationChanges,
   listAzureDevOpsReviewIterations,
   listAzureDevOpsReviewThreads,
@@ -40,6 +39,7 @@ import {
   countUnpublishedAzureDevOpsReviewDrafts,
   listStoredAzureDevOpsReviewDrafts
 } from './azure-devops-review-draft-store'
+import { listAzureDevOpsReviewPullRequestPages } from './azure-devops-review-pull-request-pages'
 import { createAzureDevOpsReviewLineLoader } from './azure-devops-review-file-line-cache'
 import {
   azureDevOpsReviewThreadOrigin,
@@ -103,10 +103,12 @@ export async function listAzureDevOpsReviewRepos(host: AzureDevOpsReviewHost) {
 
 export async function listAzureDevOpsReviewPullRequests(
   host: AzureDevOpsReviewHost,
-  status: AzureDevOpsPullRequestStatusFilter = 'active'
+  status: AzureDevOpsPullRequestStatusFilter = 'active',
+  pages?: number
 ): Promise<AzureDevOpsReviewListResult> {
   const sources = await collectAzureDevOpsReviewRepos(host.listRepos())
   const errors: AzureDevOpsReviewListError[] = []
+  const truncatedRepoKeys: string[] = []
   const identities = new Map<string, string>()
   const organizations = new Map(sources.map((source) => [source.organizationKey, source]))
   for (const [organizationKey, source] of organizations) {
@@ -138,11 +140,21 @@ export async function listAzureDevOpsReviewPullRequests(
         ...source,
         repoKey: source.key
       })
-      const raw = await listAzureDevOpsRepositoryPullRequests(
+      const listed = await listAzureDevOpsReviewPullRequestPages(
         { ...source, repositoryId: repository.id },
-        status
+        status,
+        pages
       )
-      return raw
+      if (listed.truncated) {
+        truncatedRepoKeys.push(source.key)
+      }
+      if (listed.error) {
+        errors.push({
+          scope: repoScope(source),
+          message: describeAzureDevOpsReviewError(listed.error)
+        })
+      }
+      return listed.pullRequests
         .map((pr) =>
           mapAzureDevOpsReviewPullRequest(pr, {
             repo: source,
@@ -164,7 +176,9 @@ export async function listAzureDevOpsReviewPullRequests(
     repos: sources.map(toAzureDevOpsReviewRepo),
     errors,
     draftCounts: countUnpublishedAzureDevOpsReviewDrafts(),
-    fetchedAt: Date.now()
+    fetchedAt: Date.now(),
+    // Why conditional: a list that fits keeps the shape clients from before paging read.
+    ...(truncatedRepoKeys.length > 0 ? { truncatedRepoKeys: truncatedRepoKeys.sort() } : {})
   }
 }
 

@@ -12,7 +12,6 @@ import type {
 } from './azure-devops-review-mappers'
 
 const IDENTITY_TTL_MS = 60 * 60_000
-const LIST_TOP = 100
 
 type CachedIdentity = { id: string; displayName: string | null; at: number }
 const identityCache = new Map<string, CachedIdentity>()
@@ -101,10 +100,11 @@ export function peekAzureDevOpsReviewRepositoryId(repoKey: string): string | nul
   return repositoryCache.get(repoKey)?.id ?? null
 }
 
-/** Every pull request of the repository in `status`, whoever authors or reviews it. */
+/** One page of the repository's pull requests in `status`, whoever authors or reviews them. */
 export async function listAzureDevOpsRepositoryPullRequests(
   target: AzureDevOpsReviewTarget & { repositoryId: string },
-  status: AzureDevOpsPullRequestStatusFilter
+  status: AzureDevOpsPullRequestStatusFilter,
+  page: { top: number; skip: number }
 ): Promise<RawReviewPullRequest[]> {
   const data = await sendAzureDevOpsRequest<{ value?: RawReviewPullRequest[] }>(
     projectBase(target),
@@ -112,7 +112,9 @@ export async function listAzureDevOpsRepositoryPullRequests(
     {
       searchParams: {
         'searchCriteria.status': status,
-        $top: LIST_TOP
+        $top: page.top,
+        // Why: the first page stays the request older builds sent.
+        ...(page.skip > 0 ? { $skip: page.skip } : {})
       },
       timeoutMs: 15_000
     }

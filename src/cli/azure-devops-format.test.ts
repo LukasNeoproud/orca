@@ -3,7 +3,10 @@ import type {
   AzureDevOpsReviewDetail,
   AzureDevOpsReviewThread
 } from '../shared/azure-devops-review-types'
-import { formatAzureDevOpsPullRequestDetail } from './azure-devops-format'
+import {
+  formatAzureDevOpsPullRequestDetail,
+  formatAzureDevOpsPullRequestList
+} from './azure-devops-format'
 
 function thread(overrides: Partial<AzureDevOpsReviewThread>): AzureDevOpsReviewThread {
   return {
@@ -79,5 +82,23 @@ describe('formatAzureDevOpsPullRequestDetail', () => {
     )
     expect(printed).toContain('  #1 [active, outdated] src/cart.ts:6')
     expect(printed).toContain('  #2 [fixed, outdated] src/cart.ts (was lines 4-5 of iteration 1)')
+  })
+})
+
+describe('formatAzureDevOpsPullRequestList', () => {
+  const list = { pullRequests: [], repos: [], errors: [], draftCounts: {}, fetchedAt: 0 }
+
+  it('prints what it printed before for a host that reports no cut off list', () => {
+    expect(formatAzureDevOpsPullRequestList(list)).toBe('No pull requests.')
+  })
+
+  it('warns about each repository whose older pull requests are not listed', () => {
+    const printed = formatAzureDevOpsPullRequestList({
+      ...list,
+      truncatedRepoKeys: ['dev.azure.com/contoso/web/app']
+    })
+    expect(printed).toContain(
+      'warning: dev.azure.com/contoso/web/app: only the newest pull requests are listed; older ones exist.'
+    )
   })
 })
