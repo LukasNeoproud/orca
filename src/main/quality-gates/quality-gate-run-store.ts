@@ -40,13 +40,16 @@ const STATUS_LIST: readonly QualityGateRunStatus[] = [
 ]
 const STATUSES: ReadonlySet<string> = new Set(STATUS_LIST)
 
+/** A run read from the file before any of its fields is checked. */
+type UncheckedStoredRun = { [K in keyof StoredQualityGateRun]?: unknown }
+
 function isStoredRun(value: unknown): value is StoredQualityGateRun {
   if (!value || typeof value !== 'object') {
     return false
   }
-  const read = (key: keyof StoredQualityGateRun): unknown => Reflect.get(value, key)
-  const gate = read('gate')
-  const status = read('status')
+  const unchecked: UncheckedStoredRun = value
+  const gate = unchecked.gate
+  const status = unchecked.status
   const strings: (keyof StoredQualityGateRun)[] = [
     'id',
     'gateId',
@@ -58,13 +61,14 @@ function isStoredRun(value: unknown): value is StoredQualityGateRun {
     'stderr'
   ]
   return (
-    strings.every((key) => typeof read(key) === 'string') &&
-    typeof read('requestedAt') === 'number' &&
+    strings.every((key) => typeof unchecked[key] === 'string') &&
+    typeof unchecked.requestedAt === 'number' &&
     typeof status === 'string' &&
     STATUSES.has(status) &&
     gate !== null &&
     typeof gate === 'object' &&
-    typeof Reflect.get(gate, 'command') === 'string'
+    'command' in gate &&
+    typeof gate.command === 'string'
   )
 }
 
@@ -134,7 +138,7 @@ export function createQualityGateRunStore(options: {
     try {
       const parsed: unknown = JSON.parse(readFileSync(options.filePath, 'utf-8'))
       const runs: unknown =
-        parsed && typeof parsed === 'object' ? Reflect.get(parsed, 'runs') : null
+        parsed && typeof parsed === 'object' && 'runs' in parsed ? parsed.runs : null
       return Array.isArray(runs) ? runs.filter(isStoredRun) : []
     } catch {
       return []

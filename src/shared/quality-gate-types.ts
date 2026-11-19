@@ -37,14 +37,17 @@ function normalizeTimeoutSeconds(value: unknown): number {
   )
 }
 
+/** A stored gate entry before any of its fields is checked. */
+type UncheckedQualityGateDefinition = { [K in keyof QualityGateDefinition]?: unknown }
+
 function normalizeQualityGateDefinition(value: unknown): QualityGateDefinition | null {
   if (!value || typeof value !== 'object') {
     return null
   }
-  const read = (key: keyof QualityGateDefinition): unknown => Reflect.get(value, key)
-  const rawId = read('id')
-  const rawName = read('name')
-  const rawCommand = read('command')
+  const unchecked: UncheckedQualityGateDefinition = value
+  const rawId = unchecked.id
+  const rawName = unchecked.name
+  const rawCommand = unchecked.command
   const id = typeof rawId === 'string' ? rawId : ''
   const name = typeof rawName === 'string' ? rawName.trim() : ''
   const command = typeof rawCommand === 'string' ? rawCommand.trim() : ''
@@ -63,8 +66,8 @@ function normalizeQualityGateDefinition(value: unknown): QualityGateDefinition |
     id,
     name,
     command,
-    required: read('required') !== false,
-    timeoutSeconds: normalizeTimeoutSeconds(read('timeoutSeconds'))
+    required: unchecked.required !== false,
+    timeoutSeconds: normalizeTimeoutSeconds(unchecked.timeoutSeconds)
   }
 }
 

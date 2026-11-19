@@ -25,7 +25,7 @@ describe('transcript site props', () => {
       lines: Array.from({ length: 500 }, (_, index) => index)
     })
     expect(capped).toMatchObject({ stdout: 'x'.repeat(16 * 1024) })
-    expect(Reflect.get(Object(capped), 'lines')).toHaveLength(100)
+    expect(capped).toHaveProperty('lines.length', 100)
   })
 
   it('never cuts a surrogate pair in half', () => {
@@ -75,7 +75,7 @@ describe('transcript site props', () => {
     })
     expect(group?.instanceId).toBe('toolu_1')
     expect(group?.props).toMatchObject({ isActive: false, isExpanded: true })
-    expect(Reflect.get(Object(group?.props), 'calls')).toHaveLength(2)
+    expect(group?.props.calls).toHaveLength(2)
     expect(
       claudeModsToolGroup([first, call(undefined)], new Map(), {
         activeTurnIsWorking: false,

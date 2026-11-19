@@ -5,7 +5,7 @@ import { propString, type ClaudeModsNode } from './claude-mods-tree'
 
 type ElementNode = Extract<ClaudeModsNode, { kind: 'element' }>
 
-export type ShapedClaudeModsBand = {
+export type ClaudeModsBandLayout = {
   tree: ClaudeModsNode
   /** The `role: "dismiss"` Buttons, in drawing order. */
   dismiss: ElementNode[]
@@ -76,7 +76,7 @@ export function hasVisibleClaudeModsContent(node: ClaudeModsNode): boolean {
   return node.children.some(hasVisibleClaudeModsContent)
 }
 
-export function shapeClaudeModsBand(tree: ClaudeModsNode): ShapedClaudeModsBand {
+export function layoutClaudeModsBand(tree: ClaudeModsNode): ClaudeModsBandLayout {
   const dismiss: ElementNode[] = []
   // A root that is itself a dismiss Button leaves nothing else to draw.
   const lifted: ClaudeModsNode = isDismiss(tree)
@@ -85,6 +85,6 @@ export function shapeClaudeModsBand(tree: ClaudeModsNode): ShapedClaudeModsBand 
   if (isDismiss(tree)) {
     dismiss.push(tree)
   }
-  const shaped = stripRootVerticalMargins(lifted)
-  return { tree: shaped, dismiss, visible: hasVisibleClaudeModsContent(shaped) }
+  const body = stripRootVerticalMargins(lifted)
+  return { tree: body, dismiss, visible: hasVisibleClaudeModsContent(body) }
 }

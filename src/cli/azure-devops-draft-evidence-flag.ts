@@ -6,7 +6,7 @@ import { RuntimeClientError } from './runtime-client'
 // Why bounded: the file is read whole before the evidence in it is checked.
 const MAX_EVIDENCE_FILE_CHARS = 200_000
 
-const SHAPE =
+const EVIDENCE_FORMAT =
   'a JSON list of {"kind":"code-citation","filePath":…,"startLine":…,"endLine":…,"quote":…,"note":…}'
 
 function invalid(message: string): never {
@@ -46,7 +46,7 @@ export async function readAzureDevOpsDraftEvidenceFlag(
   try {
     parsed = JSON.parse(text)
   } catch {
-    invalid(`The evidence must be ${SHAPE}`)
+    invalid(`The evidence must be ${EVIDENCE_FORMAT}`)
   }
   // One citation may be passed without the list around it.
   return Array.isArray(parsed) ? parsed : [parsed]

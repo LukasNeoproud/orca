@@ -29,12 +29,6 @@ const CELL_SLACK = 0.05
 const noSubscribe = (): (() => void) => () => {}
 const loadingView = (): ClaudeModsClientView => LOADING
 
-type Redrawable = { redraw: (instanceId: string) => void }
-
-function canRedraw(controller: object): controller is Redrawable {
-  return 'redraw' in controller && typeof controller.redraw === 'function'
-}
-
 /** A count is cells of the chat's monospace advance (or line height); a string is a percentage. */
 function side(value: unknown, emPerCell: number): string | undefined {
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
@@ -78,7 +72,7 @@ function useClaudeModsClientDriver(
       (instanceId) => {
         if (redrawRef.current) {
           redrawRef.current()
-        } else if (canRedraw(controller)) {
+        } else {
           controller.redraw(instanceId)
         }
       }
@@ -96,7 +90,7 @@ function useClaudeModsClientDriver(
  * A mod's `Client`: a region whose drawing comes from the plugin's own surface module, run in a
  * sandboxed worker. `clientModules` is the site drawing's `client_modules` (plugin → hash),
  * undefined when the drawing does not carry it; `redraw` asks the site again when a press finds
- * its drawing stale (absent: the controller's own `redraw`, where it has one).
+ * its drawing stale (absent: the controller's own `redraw`).
  */
 export function ClaudeModsClientRegion({
   node,

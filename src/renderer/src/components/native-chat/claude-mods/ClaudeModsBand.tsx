@@ -5,7 +5,7 @@ import { ClaudeModsDrawContext } from './claude-mods-draw-scope'
 import { ClaudeModsNodeView } from './ClaudeModsElement'
 import { ClaudeModsStatusLines } from './ClaudeModsStatusLines'
 import { useClaudeModsSite } from './claude-mods-scroll-site'
-import { shapeClaudeModsBand } from './claude-mods-band-shape'
+import { layoutClaudeModsBand } from './claude-mods-band-layout'
 import { handleClaudeModsSiteEscape } from './claude-mods-pane-escape'
 import { claudeModsHotkeyTarget } from './claude-mods-focus-keyboard'
 import { isClaudeModsFocusWithinSite } from './claude-mods-focus-sync'
@@ -57,14 +57,14 @@ function ClaudeModsBandBody({
 }): React.JSX.Element | null {
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
   const band = snapshot.drawings[CLAUDE_MODS_BAND_ID]
-  const shaped = useMemo(
+  const layout = useMemo(
     () =>
       band !== undefined && band.hooked && band.tree.kind !== 'engine'
-        ? shapeClaudeModsBand(band.tree)
+        ? layoutClaudeModsBand(band.tree)
         : null,
     [band]
   )
-  const drawn = band && shaped?.visible ? { band, shaped } : null
+  const drawn = band && layout?.visible ? { band, layout } : null
   const site = useClaudeModsSite({
     controller,
     component: 'AbovePrompt',
@@ -138,11 +138,11 @@ function ClaudeModsBandBody({
             >
               <div ref={setContent}>
                 <ClaudeModsDrawContext.Provider value={scope}>
-                  <ClaudeModsNodeView node={drawn.shaped.tree} />
+                  <ClaudeModsNodeView node={drawn.layout.tree} />
                 </ClaudeModsDrawContext.Provider>
               </div>
             </div>
-            {drawn.shaped.dismiss.map((node) => {
+            {drawn.layout.dismiss.map((node) => {
               const label = propString(node.props, 'label') ?? ''
               const press = node.press
               return (

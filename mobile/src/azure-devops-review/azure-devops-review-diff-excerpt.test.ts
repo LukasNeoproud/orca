@@ -12,7 +12,7 @@ function context(count: number, start: number): MobileDiffLine[] {
   }))
 }
 
-const shape = (rows: ReturnType<typeof azureDevOpsReviewDiffExcerpt>) =>
+const rowLabels = (rows: ReturnType<typeof azureDevOpsReviewDiffExcerpt>) =>
   rows.map((row) => (row.kind === 'gap' ? `gap ${row.hiddenLines}` : row.line.text))
 
 describe('azureDevOpsReviewDiffExcerpt', () => {
@@ -23,7 +23,7 @@ describe('azureDevOpsReviewDiffExcerpt', () => {
   ]
 
   it('keeps three lines of context around a change and collapses the rest', () => {
-    expect(shape(azureDevOpsReviewDiffExcerpt(lines))).toEqual([
+    expect(rowLabels(azureDevOpsReviewDiffExcerpt(lines))).toEqual([
       'gap 7',
       'line 8',
       'line 9',
@@ -37,7 +37,7 @@ describe('azureDevOpsReviewDiffExcerpt', () => {
   })
 
   it('keeps an unchanged line that carries a comment', () => {
-    expect(shape(azureDevOpsReviewDiffExcerpt(lines, new Set(['right:2'])))[0]).toBe('line 1')
+    expect(rowLabels(azureDevOpsReviewDiffExcerpt(lines, new Set(['right:2'])))[0]).toBe('line 1')
   })
 })
 

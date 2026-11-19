@@ -62,6 +62,12 @@ function harness(answer: (call: Call) => unknown) {
 
 const ids = (calls: Call[]): unknown[] => calls.map((call) => call.fields.instance_id)
 
+/** The `text` prop the host sent, for a mod that passes it back unchanged. */
+function sentText(call: Call): unknown {
+  const props = call.fields.props
+  return typeof props === 'object' && props !== null && 'text' in props ? props.text : undefined
+}
+
 describe('ClaudeModsTranscriptSites', () => {
   it('asks once per site with its props and stores the answer', async () => {
     const { sites, calls } = harness(() => HOOKED)
@@ -255,7 +261,7 @@ describe('ClaudeModsTranscriptSites', () => {
     const { sites } = harness((call) => ({
       ...HOOKED,
       rewritten: true,
-      props: { text: Reflect.get(Object(call.fields.props), 'text') }
+      props: { text: sentText(call) }
     }))
     sites.watch('UserMessage', 'u', () => {})
     sites.ask('UserMessage', 'u', { text })

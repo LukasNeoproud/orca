@@ -17,8 +17,11 @@ import {
 const KINDS = ['inline', 'file', 'general', 'reply']
 const STATUSES = ['active', 'fixed', 'wontFix', 'closed', 'byDesign', 'pending']
 
-function field(record: object, name: string): unknown {
-  return Object.entries(record).find(([key]) => key === name)?.[1]
+/** An own field of a parsed JSON value; nothing when the value is not an object. */
+function field(value: unknown, name: string): unknown {
+  return value !== null && typeof value === 'object'
+    ? Object.entries(value).find(([key]) => key === name)?.[1]
+    : undefined
 }
 
 function finite(value: unknown): number | null {

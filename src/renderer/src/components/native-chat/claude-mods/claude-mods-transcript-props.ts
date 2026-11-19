@@ -203,9 +203,9 @@ export function claudeModsText(props: ClaudeModsSiteProps, name: string): string
 
 /** The AskUserQuestion `tool_use_id` a pending question item carries, when its host sends one. */
 export function claudeModsQuestionToolUseId(item: unknown): string | undefined {
-  if (typeof item !== 'object' || item === null) {
+  if (typeof item !== 'object' || item === null || !('toolUseId' in item)) {
     return undefined
   }
-  const id: unknown = Reflect.get(item, 'toolUseId')
+  const id = item.toolUseId
   return typeof id === 'string' && id.length > 0 ? id : undefined
 }

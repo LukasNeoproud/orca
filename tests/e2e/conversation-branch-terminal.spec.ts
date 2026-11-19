@@ -107,7 +107,7 @@ test('branches a Claude terminal conversation, shows its family and returns the 
   const branchTab = page.locator('[data-tab-title="Fix the parser"]')
   await expect(branchTab).toBeVisible({ timeout: 30_000 })
   const command = await page.evaluate(() => {
-    const seen: unknown = Reflect.get(window, '__branchCommands')
+    const seen = '__branchCommands' in window ? window.__branchCommands : undefined
     return Array.isArray(seen)
       ? seen.find((line): line is string => typeof line === 'string' && line.includes('--prefill'))
       : undefined

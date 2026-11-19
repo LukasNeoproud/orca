@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shapeClaudeModsBand } from './claude-mods-band-shape'
+import { layoutClaudeModsBand } from './claude-mods-band-layout'
 import { readClaudeModsTree } from './claude-mods-tree'
 
 const dismiss = {
@@ -8,32 +8,32 @@ const dismiss = {
   press: { plugin: 'p', handle: 1 }
 }
 
-describe('shapeClaudeModsBand', () => {
+describe('layoutClaudeModsBand', () => {
   it('lifts dismiss Buttons out of the tree', () => {
-    const shaped = shapeClaudeModsBand(
+    const layout = layoutClaudeModsBand(
       readClaudeModsTree({ type: 'Box', children: [{ type: 'Text', children: ['Hi'] }, dismiss] })
     )
-    expect(shaped.dismiss).toHaveLength(1)
-    expect(shaped.dismiss[0]?.props.label).toBe('Close')
-    expect(JSON.stringify(shaped.tree)).not.toContain('dismiss')
-    expect(shaped.visible).toBe(true)
+    expect(layout.dismiss).toHaveLength(1)
+    expect(layout.dismiss[0]?.props.label).toBe('Close')
+    expect(JSON.stringify(layout.tree)).not.toContain('dismiss')
+    expect(layout.visible).toBe(true)
   })
 
   it('is not visible when only a dismiss Button or blank text is left', () => {
-    expect(shapeClaudeModsBand(readClaudeModsTree(dismiss)).visible).toBe(false)
+    expect(layoutClaudeModsBand(readClaudeModsTree(dismiss)).visible).toBe(false)
     expect(
-      shapeClaudeModsBand(
+      layoutClaudeModsBand(
         readClaudeModsTree({ type: 'Box', children: [{ type: 'Text', children: ['  '] }, dismiss] })
       ).visible
     ).toBe(false)
-    expect(shapeClaudeModsBand(readClaudeModsTree({ type: 'Box', children: [] })).visible).toBe(
+    expect(layoutClaudeModsBand(readClaudeModsTree({ type: 'Box', children: [] })).visible).toBe(
       false
     )
   })
 
   it('counts controls, graphics, markdown text and painted Boxes as visible', () => {
     const visible = (tree: unknown): boolean =>
-      shapeClaudeModsBand(readClaudeModsTree(tree)).visible
+      layoutClaudeModsBand(readClaudeModsTree(tree)).visible
     expect(visible({ type: 'Box', children: [{ type: 'Button', props: { label: 'Go' } }] })).toBe(
       true
     )
@@ -44,15 +44,15 @@ describe('shapeClaudeModsBand', () => {
   })
 
   it('drops the root vertical margins and keeps the horizontal ones', () => {
-    const shaped = shapeClaudeModsBand(
+    const layout = layoutClaudeModsBand(
       readClaudeModsTree({
         type: 'Box',
         props: { margin: 1, marginTop: 2, marginBottom: 2, marginY: 1, gap: 1 },
         children: ['Hi']
       })
     )
-    expect(shaped.tree).toMatchObject({ props: { marginX: 1, gap: 1 } })
-    const props = shaped.tree.kind === 'element' ? shaped.tree.props : {}
+    expect(layout.tree).toMatchObject({ props: { marginX: 1, gap: 1 } })
+    const props = layout.tree.kind === 'element' ? layout.tree.props : {}
     expect(props).not.toHaveProperty('marginTop')
     expect(props).not.toHaveProperty('margin')
     expect(props).not.toHaveProperty('marginY')
