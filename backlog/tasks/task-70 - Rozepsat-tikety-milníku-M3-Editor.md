@@ -4,7 +4,7 @@ title: Rozepsat tikety milníku M3 Editor
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-19T11:41:00Z'
+updated_date: '2026-11-19T15:37:00Z'
 labels:
   - review-ide
   - planovani
@@ -70,4 +70,6 @@ Podklady z TASK-55 (2026-11-18): decision-3 navrhuje Swift přes xcode-build-ser
 Podklady z TASK-56 (2026-11-18): decision-4 navrhuje pro C# Roslyn language server jen nad worktree s obnovenými balíčky, csharp-ls jako zálohu. Pro plán M3: podmínka připravenosti (SDK podle global.json nainstalovaná, balíčky obnovené) a akce Připravit C#; spouštět s --telemetryLevel off a s false na projects.dotnet_enable_automatic_restore, jinak server sáhne na soukromé zdroje balíčků s uloženým přihlášením; úklid stromu procesů (BuildHost může server přežít) a hlídání zaseknutého načtení; most: diagnostika jen na vyžádání, zadržet dotazy do workspace/projectInitializationComplete, dokumenty mimo worktree přes workspace/textDocumentContent; v decision-2 chybí workspace/configuration, client/registerCapability a workspace/diagnostic/refresh. Otázky pro uživatele: 1) jak Orca server získá (a stáhne z nuget.org na počítači uživatele, 63 MB, doporučeno; b přibalit, potřebuje právní posouzení telemetrických knihoven; c ruční instalace přes dotnet tool); 2) vadí jen předběžné verze a identifikátor zařízení zapsaný do domovské složky i s vypnutou telemetrií (doporučeno nevadí; jinak csharp-ls); 3) zopakovat měření nad aktuálním backendem, což potřebuje restore se sítí a přihlášením (doporučeno až při ověřování M3); 4) má M3 umět i backend s projekty pro .NET Framework (doporučeno ne; jinak SDK 6 a Mono na počítačích týmu).
 
 Odpověď uživatele 2026-11-19 (decision-12): decision-1 varianta B (Kotlin: experimentální režim language serveru za přepínačem), chyby JetBrains nehlásit; decision-2 přijat; decision-3: build jen na pokyn, xcode-build-server stahuje Orca připnutý s kontrolním součtem; decision-4: Roslyn z nuget.org, předběžné verze nevadí, měření nad aktuálním backendem až při ověřování M3, .NET Framework jako volba uživatele (SDK 6 a Mono doinstaluje, kdo chce hlubší integraci). Otevřené: druhý build server sourcekit-xcode-bsp (TASK-55) a zařazení milníku.
+
+Odpověď uživatele 2026-11-19 (decision-12, doplnění): sourcekit-xcode-bsp před rozepsáním M3 nezkoušet, pokus později.
 <!-- SECTION:NOTES:END -->

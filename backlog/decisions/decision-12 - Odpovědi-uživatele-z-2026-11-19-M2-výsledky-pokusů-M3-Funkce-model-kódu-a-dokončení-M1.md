@@ -73,3 +73,4 @@ Lokalizace M6:
 - Krok u vlákna na vlastním pull requestu (TASK-101): opravu kódu smí agent připravit, commitnout a odeslat automaticky. Odpověď revieweru je vždy draft, který uživatel upraví a schválí ručně; bez jeho potvrzení neodejde a vlákno se nevyřeší.
 - Hlas u pull requestu (TASK-83) smí odejít z okna Orky i ze spárovaného zařízení, vždy jen po ručním potvrzení uživatelem; agent hlasovat nesmí. To odpovídá současnému stavu.
 - Oprava starších nálezů lintu forku (TASK-112) proběhne před akceptací M1; akceptace M1 čeká na TASK-80, TASK-112 a TASK-133.
+- Druhý build server pro Swift (sourcekit-xcode-bsp, TASK-55) se před rozepsáním M3 nezkouší; pokus později.
