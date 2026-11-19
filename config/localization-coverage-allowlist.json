@@ -146,5 +146,29 @@
     "dynamic": false,
     "count": 1,
     "reason": "Example of Claude Code permission rule syntax; translating it would teach an invalid rule."
+  },
+  {
+    "filePath": "src/renderer/src/components/quality-gates/QualityGateDraftEditor.tsx",
+    "kind": "jsx-attribute:placeholder",
+    "text": "pnpm lint",
+    "dynamic": false,
+    "count": 1,
+    "reason": "Example shell command for a quality gate; a translated command would not run."
+  },
+  {
+    "filePath": "src/renderer/src/components/quality-gates/QualityGateRunResult.tsx",
+    "kind": "jsx-attribute:label",
+    "text": "stdout",
+    "dynamic": false,
+    "count": 1,
+    "reason": "Name of the process output stream, matching what the shell and CI logs show."
+  },
+  {
+    "filePath": "src/renderer/src/components/quality-gates/QualityGateRunResult.tsx",
+    "kind": "jsx-attribute:label",
+    "text": "stderr",
+    "dynamic": false,
+    "count": 1,
+    "reason": "Name of the process error stream, matching what the shell and CI logs show."
   }
 ]
