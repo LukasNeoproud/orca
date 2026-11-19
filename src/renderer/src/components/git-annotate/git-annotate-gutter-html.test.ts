@@ -39,6 +39,19 @@ describe('git annotate gutter', () => {
     expect(second).toContain(`data-git-annotate-commit="${commit.id}"`)
   })
 
+  it('escapes the commit id in its attribute', () => {
+    const forged: GitAnnotatedLine = {
+      commit: { ...commit, id: '"><img src=x onerror=alert(1)>' },
+      groupStart: true
+    }
+    const layout = computeGitAnnotateGutterLayout([forged], 'Uncommitted')
+    const html = renderGitAnnotateGutterLine(forged, 1, layout, 'Uncommitted')
+    expect(html).toContain(
+      'data-git-annotate-commit="&quot;&gt;&lt;img src=x onerror=alert(1)&gt;"'
+    )
+    expect(html).not.toContain('<img')
+  })
+
   it('labels uncommitted lines and leaves unannotated lines with their number', () => {
     const layout = computeGitAnnotateGutterLayout(lines, 'Uncommitted')
     const uncommitted = renderGitAnnotateGutterLine(lines[2]!, 9, layout, 'Uncommitted')

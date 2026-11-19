@@ -36,7 +36,8 @@ export function AzureDevOpsReviewFileDiffPane({
   onShowTree,
   viewModeToggle,
   onChanged,
-  reveal = null
+  reveal = null,
+  onRevealFinished
 }: {
   detail: AzureDevOpsReviewDetail
   change: AzureDevOpsReviewChange
@@ -46,6 +47,7 @@ export function AzureDevOpsReviewFileDiffPane({
   onChanged: () => Promise<void>
   /** A line of this file to scroll to once its diff is shown. */
   reveal?: AzureDevOpsReviewDiffReveal | null
+  onRevealFinished?: (request: number) => void
 }): React.JSX.Element {
   const pullRequestKey = detail.pullRequest.key
   const iterationId = detail.latestIteration?.id ?? null
@@ -58,7 +60,7 @@ export function AzureDevOpsReviewFileDiffPane({
   const [sideBySide, setSideBySide] = useState(true)
   const [fileComposer, setFileComposer] = useState(false)
   const diffBoxRef = useRef<HTMLDivElement>(null)
-  useAzureDevOpsReviewDiffReveal(diffBoxRef, reveal)
+  useAzureDevOpsReviewDiffReveal(diffBoxRef, reveal, onRevealFinished)
   const externalEditor = getAzureDevOpsReviewExternalEditorAvailability(detail, change)
   const result = diff ? azureDevOpsLoadedSectionFields(diff).diffResult : null
   const image = result?.kind === 'binary' && result.isImage ? result : null

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { parseGitBlamePorcelain } from '../../../shared/git-blame'
 import {
   createCompatibleRuntimeStatusResponseIfNeeded,
   type RuntimeEnvironmentCallRequest
@@ -78,6 +79,61 @@ describe('runtime git annotate client', () => {
       })
     )
     expect(lineHistory).not.toHaveBeenCalled()
+  })
+
+  it('checks the blame a remote host answers before the editor uses it', async () => {
+    const id = 'a'.repeat(40)
+    const answer = (result: unknown) =>
+      runtimeEnvironmentCall.mockResolvedValueOnce({
+        id: 'rpc-1',
+        ok: true,
+        result,
+        _meta: { runtimeId: 'remote-runtime' }
+      })
+    const ask = () => getRuntimeGitBlame(remote, { relativePath: 'bread.ts', contents: 'flour\n' })
+    const commit = { id, displayId: 'aaaaaaa', author: 'Ada', timestamp: 1, subject: 'Knead' }
+    const ready = {
+      status: 'ready',
+      ranges: [{ startLine: 1, lineCount: 1, commitId: id }],
+      commits: [commit],
+      lineCount: 1
+    }
+
+    // A newer host may add fields; an answer without the optional e-mail is still whole.
+    answer({ ...ready, renamedFrom: 'dough.ts', commits: [{ ...commit, signed: true }] })
+    await expect(ask()).resolves.toMatchObject(ready)
+
+    // What a host of this version builds from Git's porcelain, an uncommitted line included.
+    const hosted = {
+      status: 'ready',
+      ...parseGitBlamePorcelain(
+        [
+          `${id} 1 1 1`,
+          'author Ada',
+          'author-mail <ada@example.invalid>',
+          'author-time 1700000000',
+          'summary Knead',
+          '\tflour',
+          `${'0'.repeat(40)} 2 2 1`,
+          'author Not Committed Yet',
+          '\twater'
+        ].join('\n')
+      )
+    }
+    for (const result of [hosted, { status: 'untracked', ranges: [], commits: [], lineCount: 0 }]) {
+      answer(result)
+      await expect(ask()).resolves.toEqual(result)
+    }
+
+    for (const forged of [
+      { ...ready, commits: [{ ...commit, id: '"><img src=x onerror=alert(1)>' }] },
+      { ...ready, commits: [{ ...commit, displayId: 'a`<b>' }] },
+      { ...ready, ranges: 'all' },
+      { status: 'ready', ranges: [] }
+    ]) {
+      answer(forged)
+      await expect(ask()).rejects.toThrow()
+    }
   })
 
   it('recognises a host that predates the queries by its unknown-method answer only', async () => {

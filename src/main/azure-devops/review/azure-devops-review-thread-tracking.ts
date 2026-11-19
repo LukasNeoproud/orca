@@ -36,11 +36,11 @@ export function azureDevOpsReviewThreadOrigin(
   }
 }
 
-/** Lines of a file at a commit; null when it is missing, binary or too large to compare. */
+/** Lines of a file at a commit; `missing` when the commit has no such file, null when unread. */
 export type AzureDevOpsReviewLineLoader = (
   path: string,
   commit: string
-) => Promise<readonly string[] | null>
+) => Promise<readonly string[] | 'missing' | null>
 
 type FileVersion = { path: string; commit: string }
 
@@ -101,27 +101,36 @@ export function planAzureDevOpsReviewThreadTracking(
   }
 }
 
-type FileLines = readonly string[] | null
+type FileLines = readonly string[] | 'missing' | null
 
-/** The thread as the latest iteration shows it, given the file versions (null: unreadable). */
+function textLines(lines: FileLines | undefined): readonly string[] | null {
+  return lines === 'missing' ? null : (lines ?? null)
+}
+
+/** The thread as the latest iteration shows it, given the file versions (null: not read). */
 export function applyAzureDevOpsReviewThreadTracking(
   thread: AzureDevOpsReviewThread,
   plan: TrackingPlan,
   lines: { before: FileLines; after: FileLines; renamed?: FileLines }
 ): AzureDevOpsReviewThread {
   const anchor = thread.anchor
-  if (!anchor) {
+  const followsRename = lines.after === 'missing' && plan.renamed !== undefined
+  // Why: a version that was not read says nothing about the code, so Azure DevOps' position stands.
+  if (!anchor || !lines.before || !lines.after || (followsRename && !lines.renamed)) {
     return thread
   }
-  const track = (after: FileLines): AzureDevOpsReviewTrackedLines | null =>
-    lines.before && after
-      ? trackAzureDevOpsReviewLines(lines.before, after, anchor.startLine, anchor.endLine)
+  const before = textLines(lines.before)
+  const track = (after: FileLines | undefined): AzureDevOpsReviewTrackedLines | null => {
+    const afterLines = textLines(after)
+    return before && afterLines
+      ? trackAzureDevOpsReviewLines(before, afterLines, anchor.startLine, anchor.endLine)
       : null
+  }
   let tracked = track(lines.after)
   let filePath = thread.filePath
-  if (!lines.after && plan.renamed) {
+  if (followsRename && plan.renamed) {
     // Why exact only: a reused id must not pin the thread into a file without the commented code.
-    const inRenamed = track(lines.renamed ?? null)
+    const inRenamed = track(lines.renamed)
     if (inRenamed && !inRenamed.changed) {
       tracked = inRenamed
       filePath = plan.renamed.path
@@ -182,7 +191,7 @@ export async function trackAzureDevOpsReviewThreads(args: {
   }
   const lines = new Map<string, FileLines>()
   await mapWithConcurrency([...versions.values()], LOAD_CONCURRENCY, async (version) => {
-    // Why: one unreadable file must not fail the whole pull request; its threads read as outdated.
+    // Why: one unreadable file must not fail the whole pull request; its threads stay put.
     const loaded = await args.loadLines(version.path, version.commit).catch(() => null)
     lines.set(versionKey(version), loaded)
   })

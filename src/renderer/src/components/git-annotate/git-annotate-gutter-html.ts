@@ -77,7 +77,9 @@ export function renderGitAnnotateGutterLine(
   const cellClass = commit
     ? 'orca-git-annotate-cell orca-git-annotate-commit'
     : 'orca-git-annotate-cell'
-  const commitAttribute = commit ? ` ${GIT_ANNOTATE_COMMIT_ATTRIBUTE}="${commit.id}"` : ''
+  const commitAttribute = commit
+    ? ` ${GIT_ANNOTATE_COMMIT_ATTRIBUTE}="${escapeGutterHtml(commit.id)}"`
+    : ''
   return (
     `<span class="${rowClass}"><span class="${cellClass}"${commitAttribute}>` +
     `${escapeGutterHtml(text)}</span><span>${lineNumber}</span></span>`

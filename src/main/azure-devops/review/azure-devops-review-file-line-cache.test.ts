@@ -34,10 +34,10 @@ describe('createAzureDevOpsReviewLineLoader', () => {
     expect(getItem).toHaveBeenCalledWith(expect.anything(), '/src/a.ts', 'c1')
   })
 
-  it('resolves to null for a missing or binary version', async () => {
+  it('tells a missing version from a binary one it cannot compare', async () => {
     const load = createAzureDevOpsReviewLineLoader(target('unreadable'))
     getItem.mockResolvedValueOnce(null)
-    expect(await load('src/gone.ts', 'c1')).toBeNull()
+    expect(await load('src/gone.ts', 'c1')).toBe('missing')
     getItem.mockResolvedValueOnce({ contentMetadata: { isBinary: true } })
     expect(await load('logo.png', 'c1')).toBeNull()
   })
@@ -53,7 +53,7 @@ describe('createAzureDevOpsReviewLineLoader', () => {
   it('stops requesting past its budget and leaves the rest to the next loader', async () => {
     getItem.mockResolvedValue({ content: 'x' })
     const load = createAzureDevOpsReviewLineLoader(target('budget'))
-    const results: (readonly string[] | null)[] = []
+    const results: (readonly string[] | 'missing' | null)[] = []
     for (let index = 0; index < 82; index += 1) {
       results.push(await load(`src/file-${index}.ts`, 'c1'))
     }
@@ -63,5 +63,22 @@ describe('createAzureDevOpsReviewLineLoader', () => {
     expect(await next('src/file-81.ts', 'c1')).toEqual(['x'])
     expect(await next('src/file-0.ts', 'c1')).toEqual(['x'])
     expect(getItem).toHaveBeenCalledTimes(81)
+  })
+
+  it('counts a version stored twice by concurrent reads once', async () => {
+    const big = 'x'.repeat(2_000_000)
+    getItem.mockImplementation(async (_target, path) => ({
+      content: path.startsWith('/src/big-') ? big : 'small'
+    }))
+    const load = createAzureDevOpsReviewLineLoader(target('concurrent'))
+    await load('src/kept.ts', 'c1')
+    // Five 2 MB versions fit the cache; each is read twice at once, as two detail loads would.
+    for (let index = 0; index < 5; index += 1) {
+      await Promise.all([load(`src/big-${index}.ts`, 'c1'), load(`src/big-${index}.ts`, 'c1')])
+    }
+    getItem.mockClear()
+    await load('src/kept.ts', 'c1')
+    await load('src/big-0.ts', 'c1')
+    expect(getItem).not.toHaveBeenCalled()
   })
 })

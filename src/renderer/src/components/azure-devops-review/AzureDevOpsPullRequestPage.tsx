@@ -61,7 +61,7 @@ export function AzureDevOpsPullRequestPage({
   const [aiDraftIds, setAiDraftIds] = useState<string[] | null>(null)
   const [chosenTab, setChosenTab] = useState<string | null>(null)
   const [openingTab, setOpeningTab] = useState<string | null>(null)
-  const { reveal, requestReveal } = useAzureDevOpsReviewDiffRevealRequest()
+  const { reveal, requestReveal, finishReveal } = useAzureDevOpsReviewDiffRevealRequest()
   const pr = detail?.pullRequest ?? null
   // Why: on the user's own open PR the agent and the workspace are the author's branch, not a review checkout.
   const ownPullRequest = pr?.createdByMe === true && pr.status === 'active'
@@ -292,7 +292,12 @@ export function AzureDevOpsPullRequestPage({
           </div>
           {/* Why: Files owns its own tree and diff scrolling; the text tabs scroll as a page. */}
           <TabsContent value="files" className="min-h-0 flex-1">
-            <AzureDevOpsReviewFiles detail={detail} onChanged={reload} reveal={reveal} />
+            <AzureDevOpsReviewFiles
+              detail={detail}
+              onChanged={reload}
+              reveal={reveal}
+              onRevealFinished={finishReveal}
+            />
           </TabsContent>
           <AzureDevOpsSnapshotsTabContent detail={detail} />
           <TabsContent value="overview" className={SCROLLING_TAB_CLASS}>

@@ -1,6 +1,7 @@
 import type { GitBlameOptions, GitBlameResult } from '../../../shared/git-blame'
 import type { GitLineHistoryOptions, GitLineHistoryResult } from '../../../shared/git-line-history'
 import { resolveLocalWorktreePath, type RuntimeGitContext } from './runtime-git-client-context'
+import { parseRuntimeGitBlameResult } from './runtime-git-blame-result'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { hasRuntimeRpcErrorCode } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
@@ -15,18 +16,23 @@ export async function getRuntimeGitBlame(
   options: GitBlameOptions
 ): Promise<GitBlameResult> {
   const target = context.target
+  // Why both paths: in the web client the local API is itself a call to the remote host.
   if (target.kind === 'local' || !context.worktreeId) {
-    return window.api.gitAnnotate.blame({
-      worktreePath: resolveLocalWorktreePath(context),
-      connectionId: context.connectionId,
-      ...options
-    })
+    return parseRuntimeGitBlameResult(
+      await window.api.gitAnnotate.blame({
+        worktreePath: resolveLocalWorktreePath(context),
+        connectionId: context.connectionId,
+        ...options
+      })
+    )
   }
-  return callRuntimeRpc<GitBlameResult>(
-    target,
-    'git.blame',
-    { worktree: toRuntimeWorktreeSelector(context.worktreeId), ...options },
-    { timeoutMs: 30_000 }
+  return parseRuntimeGitBlameResult(
+    await callRuntimeRpc<unknown>(
+      target,
+      'git.blame',
+      { worktree: toRuntimeWorktreeSelector(context.worktreeId), ...options },
+      { timeoutMs: 30_000 }
+    )
   )
 }
 

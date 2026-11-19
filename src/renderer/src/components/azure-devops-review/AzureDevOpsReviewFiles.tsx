@@ -41,12 +41,14 @@ function storeViewMode(mode: FilesViewMode): void {
 export function AzureDevOpsReviewFiles({
   detail,
   onChanged,
-  reveal
+  reveal,
+  onRevealFinished
 }: {
   detail: AzureDevOpsReviewDetail
   onChanged: () => Promise<void>
   /** A line the user asked to see; switches to that file's whole diff. */
   reveal: AzureDevOpsReviewDiffReveal | null
+  onRevealFinished?: (request: number) => void
 }): React.JSX.Element {
   const repoPath = useAppStore((s) => {
     const repoId = detail.reviewWorktree?.repoId
@@ -159,6 +161,7 @@ export function AzureDevOpsReviewFiles({
           viewModeToggle={viewModeToggle}
           onChanged={onChanged}
           reveal={reveal?.path === selected.path ? reveal : null}
+          onRevealFinished={onRevealFinished}
         />
       ) : null}
     </div>

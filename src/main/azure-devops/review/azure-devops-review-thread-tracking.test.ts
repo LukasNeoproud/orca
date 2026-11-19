@@ -65,7 +65,7 @@ const files: Record<string, readonly string[]> = {
 }
 
 const loadLines: AzureDevOpsReviewLineLoader = async (path, commit) =>
-  files[`${commit}:${path}`] ?? null
+  files[`${commit}:${path}`] ?? 'missing'
 
 function rawThread(
   id: number,
@@ -154,15 +154,32 @@ describe('trackAzureDevOpsReviewThreads', () => {
     })
   })
 
-  it('marks a thread outdated when the file is gone or cannot be read', async () => {
-    const [gone, failed] = await Promise.all([
-      track([rawThread(14, 'src/removed.ts', 3, { changeTrackingId: 9 })]),
-      track([rawThread(15, 'src/cart.ts', 6)], async () => {
+  it('marks a thread outdated when its file is gone', async () => {
+    const [gone] = await track([rawThread(14, 'src/removed.ts', 3, { changeTrackingId: 9 })])
+    expect(gone).toMatchObject({ filePath: 'src/removed.ts', anchor: null, outdated: true })
+  })
+
+  it('keeps a thread where Azure DevOps put it when a version could not be read', async () => {
+    const untracked = mapAzureDevOpsReviewThread(rawThread(15, 'src/cart.ts', 6))
+    // Past the request budget, binary or too large: the loader has no lines for it.
+    const unread: AzureDevOpsReviewLineLoader = async (path, commit) =>
+      commit === 's4' ? null : loadLines(path, commit)
+    const offline: AzureDevOpsReviewLineLoader = async (path, commit) => {
+      if (commit === 's1') {
         throw new Error('offline')
-      })
-    ])
-    expect(gone[0]).toMatchObject({ filePath: 'src/removed.ts', anchor: null, outdated: true })
-    expect(failed[0]).toMatchObject({ anchor: null, outdated: true })
+      }
+      return loadLines(path, commit)
+    }
+    for (const loader of [unread, offline]) {
+      const [thread] = await track([rawThread(15, 'src/cart.ts', 6)], loader)
+      expect(thread).toEqual(untracked)
+    }
+    // The file left its path and the version it was renamed to was not read either.
+    const renamedUnread: AzureDevOpsReviewLineLoader = async (path, commit) =>
+      path === 'src/checkout/price.ts' ? null : loadLines(path, commit)
+    const raw = rawThread(16, 'src/price.ts', 2, { changeTrackingId: 2 })
+    const [renamed] = await track([raw], renamedUnread)
+    expect(renamed).toEqual(mapAzureDevOpsReviewThread(raw))
   })
 
   it('follows a file renamed in a later iteration through its change tracking id', async () => {

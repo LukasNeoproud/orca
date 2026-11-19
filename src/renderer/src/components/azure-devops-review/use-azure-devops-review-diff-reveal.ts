@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react'
 import * as monaco from 'monaco-editor'
 
 /** A line of a changed file to show in the Files tab; `request` tells two asks for one line apart. */
@@ -12,27 +12,38 @@ const MAX_ATTEMPTS = 60
 export function useAzureDevOpsReviewDiffRevealRequest(): {
   reveal: AzureDevOpsReviewDiffReveal | null
   requestReveal: (path: string, line: number) => void
+  /** Spends a request, so coming back to its file or to the tab does not jump again. */
+  finishReveal: (request: number) => void
 } {
   const [reveal, setReveal] = useState<AzureDevOpsReviewDiffReveal | null>(null)
+  // Why not derived from `reveal`: a spent request clears it, and the next must still read as new.
+  const lastRequest = useRef(0)
   return {
     reveal,
-    requestReveal: (path, line) =>
-      setReveal((current) => ({ path, line, request: (current?.request ?? 0) + 1 }))
+    requestReveal: (path, line) => {
+      lastRequest.current += 1
+      setReveal({ path, line, request: lastRequest.current })
+    },
+    finishReveal: (request) =>
+      setReveal((current) => (current?.request === request ? null : current))
   }
 }
 
 /**
  * Scrolls the diff editor inside `box` to the asked line of the new side and selects it. The
  * editor mounts after the file is loaded, so the line is looked for until it is there.
+ * `onFinished` runs once the line is shown or the search gives up.
  */
 export function useAzureDevOpsReviewDiffReveal(
   box: RefObject<HTMLElement | null>,
-  reveal: Pick<AzureDevOpsReviewDiffReveal, 'line' | 'request'> | null
+  reveal: Pick<AzureDevOpsReviewDiffReveal, 'line' | 'request'> | null,
+  onFinished?: (request: number) => void
 ): void {
   const line = reveal?.line
   const request = reveal?.request
+  const finish = useEffectEvent((finished: number) => onFinished?.(finished))
   useEffect(() => {
-    if (line === undefined) {
+    if (line === undefined || request === undefined) {
       return
     }
     let attempts = 0
@@ -58,13 +69,18 @@ export function useAzureDevOpsReviewDiffReveal(
         // Why two frames: the viewer centres its first change a frame after the diff is computed
         // and would undo a reveal made before that.
         frame = requestAnimationFrame(() => {
-          frame = requestAnimationFrame(() => show(modified))
+          frame = requestAnimationFrame(() => {
+            show(modified)
+            finish(request)
+          })
         })
         return
       }
       attempts += 1
       if (attempts < MAX_ATTEMPTS) {
         timer = window.setTimeout(attempt, ATTEMPT_INTERVAL_MS)
+      } else {
+        finish(request)
       }
     }
     timer = window.setTimeout(attempt, 0)

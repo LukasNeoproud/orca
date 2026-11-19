@@ -25,6 +25,12 @@ const cache = new Map<string, CachedFile>()
 let cachedChars = 0
 
 function remember(key: string, entry: CachedFile): void {
+  // Why: concurrent reads of one version both miss the cache and both store it.
+  const replaced = cache.get(key)
+  if (replaced) {
+    cache.delete(key)
+    cachedChars -= replaced.chars
+  }
   cache.set(key, entry)
   cachedChars += entry.chars
   for (const [oldestKey, oldest] of cache) {
@@ -79,7 +85,7 @@ export function toAzureDevOpsReviewLineLoader(
 ): AzureDevOpsReviewLineLoader {
   return async (path, commit) => {
     const file = await read(path, commit)
-    return file?.state === 'text' ? file.lines : null
+    return file?.state === 'text' ? file.lines : file?.state === 'missing' ? 'missing' : null
   }
 }
 

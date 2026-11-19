@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { useRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   useAzureDevOpsReviewDiffReveal,
+  useAzureDevOpsReviewDiffRevealRequest,
   type AzureDevOpsReviewDiffReveal
 } from './use-azure-devops-review-diff-reveal'
 
@@ -50,9 +51,15 @@ function diffEditorIn(container: HTMLElement, state: { lineCount: number; diffCo
   return { editor, moves }
 }
 
-function Pane({ reveal }: { reveal: AzureDevOpsReviewDiffReveal | null }): React.JSX.Element {
+function Pane({
+  reveal,
+  onFinished
+}: {
+  reveal: AzureDevOpsReviewDiffReveal | null
+  onFinished?: (request: number) => void
+}): React.JSX.Element {
   const box = useRef<HTMLDivElement>(null)
-  useAzureDevOpsReviewDiffReveal(box, reveal)
+  useAzureDevOpsReviewDiffReveal(box, reveal, onFinished)
   return <div ref={box} data-testid="box" />
 }
 
@@ -92,8 +99,11 @@ describe('useAzureDevOpsReviewDiffReveal', () => {
     expect(moves).toEqual(['viewer scrolls to its first change', ...LINE_150])
   })
 
-  it('leaves a file shorter than the asked line alone', () => {
-    const view = render(<Pane reveal={{ path: 'src/cart.ts', line: 150, request: 1 }} />)
+  it('leaves a file shorter than the asked line alone and spends the request', () => {
+    const onFinished = vi.fn()
+    const view = render(
+      <Pane reveal={{ path: 'src/cart.ts', line: 150, request: 1 }} onFinished={onFinished} />
+    )
     const { editor, moves } = diffEditorIn(view.getByTestId('box'), {
       lineCount: 20,
       diffComputed: true
@@ -102,6 +112,7 @@ describe('useAzureDevOpsReviewDiffReveal', () => {
     vi.advanceTimersByTime(10_000)
     expect(moves).toEqual([])
     expect(vi.getTimerCount()).toBe(0)
+    expect(onFinished).toHaveBeenCalledExactlyOnceWith(1)
   })
 
   it('ignores a diff editor outside its pane', () => {
@@ -131,6 +142,47 @@ describe('useAzureDevOpsReviewDiffReveal', () => {
     view.unmount()
     vi.advanceTimersByTime(300)
     expect(moves).toEqual([...LINE_150, ...LINE_150])
+  })
+
+  it('jumps once, not again on the way back to the file or the tab', () => {
+    const asked: { reveal?: (path: string, line: number) => void } = {}
+    // The page with its Files tab: the pane gets the request only while its file is selected.
+    function Page({
+      path,
+      filesTab
+    }: {
+      path: string
+      filesTab: boolean
+    }): React.JSX.Element | null {
+      const { reveal, requestReveal, finishReveal } = useAzureDevOpsReviewDiffRevealRequest()
+      asked.reveal = requestReveal
+      return filesTab ? (
+        <Pane reveal={reveal?.path === path ? reveal : null} onFinished={finishReveal} />
+      ) : null
+    }
+    const view = render(<Page path="src/cart.ts" filesTab />)
+    const first = diffEditorIn(view.getByTestId('box'), { lineCount: 200, diffComputed: true })
+    fake.editors = [first.editor]
+    act(() => asked.reveal?.('src/cart.ts', 150))
+    act(() => vi.advanceTimersByTime(300))
+    expect(first.moves).toEqual(LINE_150)
+
+    view.rerender(<Page path="src/other.ts" filesTab />)
+    view.rerender(<Page path="src/cart.ts" filesTab />)
+    act(() => vi.advanceTimersByTime(300))
+    expect(first.moves).toEqual(LINE_150)
+
+    view.rerender(<Page path="src/cart.ts" filesTab={false} />)
+    view.rerender(<Page path="src/cart.ts" filesTab />)
+    const second = diffEditorIn(view.getByTestId('box'), { lineCount: 200, diffComputed: true })
+    fake.editors = [second.editor]
+    act(() => vi.advanceTimersByTime(300))
+    expect(second.moves).toEqual([])
+
+    // A new ask still jumps after the spent one was cleared.
+    act(() => asked.reveal?.('src/cart.ts', 150))
+    act(() => vi.advanceTimersByTime(300))
+    expect(second.moves).toEqual(LINE_150)
   })
 
   it('does nothing without a request', () => {
