@@ -36,7 +36,7 @@ Recenzent si má odškrtávat, co už viděl, a po dalším pushi číst jen to,
 ### Mimo rozsah
 
 - Zápis stavu do Azure DevOps nebo synchronizace s označením Viewed na GitHubu.
-- Bod posledního review pull requestu Azure DevOps a pohled Od mého review na stránce pull requestu (TASK-89).
+- Bod posledního review pull requestu Azure DevOps a pohled Od mého review na stránce pull requestu (TASK-89, TASK-123).
 - Stav revize v mobilní aplikaci; RPC ale navrhni tak, aby ho mobil mohl později použít.
 - Hromadné schválení bezpečných skupin: tiket o riziku.
 

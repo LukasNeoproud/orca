@@ -4,12 +4,13 @@ title: 'Change review: celky od AI, nástroje agenta a úložiště'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:20:00Z'
+updated_date: '2026-11-19T09:37:00Z'
 labels:
   - review-ide
   - effort-xhigh
 milestone: m-2
 dependencies:
-  - TASK-91
+  - TASK-124
 documentation:
   - docs/review-ide/05-funkce.md
   - docs/review-ide/06-ai-a-review.md

@@ -4,13 +4,15 @@ title: 'Inkrementální re-review: posouzení otevřených vláken proti novým 
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:18:00Z'
+updated_date: '2026-11-19T09:36:00Z'
 labels:
   - review-ide
   - effort-high
 milestone: m-2
 dependencies:
-  - TASK-89
   - TASK-76
+  - TASK-89
+  - TASK-123
 documentation:
   - docs/review-ide/06-ai-a-review.md
 priority: medium

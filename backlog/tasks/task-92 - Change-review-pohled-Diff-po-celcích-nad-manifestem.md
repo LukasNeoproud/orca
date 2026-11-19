@@ -4,14 +4,14 @@ title: 'Change review: pohled Diff po celcích nad manifestem'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:19:00Z'
-updated_date: '2026-11-18T21:22:00Z'
+updated_date: '2026-11-19T09:37:00Z'
 labels:
   - review-ide
   - effort-high
   - model-opus
 milestone: m-2
 dependencies:
-  - TASK-91
+  - TASK-124
 documentation:
   - docs/review-ide/05-funkce.md
 priority: high
@@ -30,7 +30,7 @@ Recenzent velkého diffu má hned vidět, kolik z něj musí opravdu číst, a p
 
 - Vstup: tlačítko v liště porovnání s bází (`src/renderer/src/components/right-sidebar/source-control/panel/header-toolbar.tsx`); odkaz ze stránky pull requestu (`src/renderer/src/components/azure-devops-review/AzureDevOpsPullRequestPage.tsx`); položka v nabídce Review, pokud už existuje registr z TASK-62. Název v rozhraní je Change review (potvrzeno v TASK-52), v dokumentaci Diff po celcích.
 - Pohled staví na souhrnném diffu (`src/renderer/src/components/editor/combined-diff/`, `DiffSectionItem.tsx`, `diff-section-types.ts`): stejné sekce, jiné seskupení. Nový kód patří do `src/renderer/src/components/change-review/`; do sdílených souborů diffu jen registrace.
-- Data: `changeReview.getManifest` z TASK-91; text hunků stávajícím diffem větve.
+- Data: `changeReview.getManifest` z TASK-124 (jádro TASK-91); text hunků stávajícím diffem větve.
 - Odznak druhu u hunku: dekorace a view zone stejným mechanismem jako inline komentáře (`src/renderer/src/components/diff-comments/`).
 - Strom souborů se seskupením podle skupin; stávající strom je `combined-diff/browse-files/`.
 
