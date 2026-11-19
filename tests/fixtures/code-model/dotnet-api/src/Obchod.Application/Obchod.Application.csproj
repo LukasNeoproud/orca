@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Obchod.Domain\Obchod.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,65 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "cart_checkout": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "K pokladně" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Checkout" } }
+      }
+    },
+    "cart_empty": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Košík je prázdný" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Your cart is empty" } }
+      }
+    },
+    "cart_remove": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove" } }
+      }
+    },
+    "cart_title": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Košík" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Cart" } }
+      }
+    },
+    "cart_total %@": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Celkem: %@" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Total: %@" } }
+      }
+    },
+    "checkout_done %@": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "needs_review", "value": "Objednávka byla odeslána" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Order %@ was placed" } }
+      }
+    },
+    "checkout_pay %@": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Zaplatit %@" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Pay %@" } }
+      }
+    },
+    "checkout_payment": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Platba" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Payment" } }
+      }
+    },
+    "checkout_title": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Pokladna" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Checkout" } }
+      }
+    },
+    "common_close": {
+      "localizations": {
+        "cs": { "stringUnit": { "state": "translated", "value": "Zavřít" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Close" } }
+      }
+    }
+  },
+  "version": "1.0"
+}

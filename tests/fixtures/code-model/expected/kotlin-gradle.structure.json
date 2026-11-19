@@ -1,0 +1,410 @@
+{
+  "schemaVersion": 0,
+  "platform": "android",
+  "structure": {
+    "roots": [
+      {
+        "file": "settings.gradle.kts",
+        "kind": "gradle",
+        "path": "",
+        "name": "obchod-android",
+        "reader": "gradle-static",
+        "members": [
+          ":app",
+          ":core:data",
+          ":core:model",
+          ":core:testing",
+          ":core:ui",
+          ":feature:cart",
+          ":feature:checkout"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "id": ":app",
+        "name": "app",
+        "path": "app",
+        "kind": "application",
+        "type": "com.android.application",
+        "language": "kotlin",
+        "buildFile": "app/build.gradle.kts",
+        "namespace": "com.example.obchod",
+        "sourceRoots": [
+          {
+            "path": "app/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          }
+        ]
+      },
+      {
+        "id": ":core:data",
+        "name": "data",
+        "path": "core/data",
+        "kind": "library",
+        "type": "com.android.library",
+        "language": "kotlin",
+        "buildFile": "core/data/build.gradle.kts",
+        "namespace": "com.example.obchod.core.data",
+        "sourceRoots": [
+          {
+            "path": "core/data/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          },
+          {
+            "path": "core/data/src/test/kotlin",
+            "set": "test",
+            "name": "test"
+          }
+        ]
+      },
+      {
+        "id": ":core:model",
+        "name": "model",
+        "path": "core/model",
+        "kind": "library",
+        "type": "org.jetbrains.kotlin.jvm",
+        "language": "kotlin",
+        "buildFile": "core/model/build.gradle.kts",
+        "sourceRoots": [
+          {
+            "path": "core/model/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          }
+        ]
+      },
+      {
+        "id": ":core:testing",
+        "name": "testing",
+        "path": "core/testing",
+        "kind": "library",
+        "type": "org.jetbrains.kotlin.jvm",
+        "language": "kotlin",
+        "buildFile": "core/testing/build.gradle.kts",
+        "sourceRoots": [
+          {
+            "path": "core/testing/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          }
+        ]
+      },
+      {
+        "id": ":core:ui",
+        "name": "ui",
+        "path": "core/ui",
+        "kind": "library",
+        "type": "com.android.library",
+        "language": "kotlin",
+        "buildFile": "core/ui/build.gradle.kts",
+        "namespace": "com.example.obchod.core.ui",
+        "sourceRoots": [
+          {
+            "path": "core/ui/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          }
+        ]
+      },
+      {
+        "id": ":feature:cart",
+        "name": "cart",
+        "path": "feature/cart",
+        "kind": "library",
+        "type": "com.android.library",
+        "language": "kotlin",
+        "buildFile": "feature/cart/build.gradle.kts",
+        "namespace": "com.example.obchod.feature.cart",
+        "sourceRoots": [
+          {
+            "path": "feature/cart/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          },
+          {
+            "path": "feature/cart/src/test/kotlin",
+            "set": "test",
+            "name": "test"
+          }
+        ]
+      },
+      {
+        "id": ":feature:checkout",
+        "name": "checkout",
+        "path": "feature/checkout",
+        "kind": "library",
+        "type": "com.android.library",
+        "language": "kotlin",
+        "buildFile": "feature/checkout/build.gradle.kts",
+        "namespace": "com.example.obchod.feature.checkout",
+        "sourceRoots": [
+          {
+            "path": "feature/checkout/src/main/kotlin",
+            "set": "main",
+            "name": "main"
+          }
+        ]
+      }
+    ],
+    "dependencies": [
+      {
+        "from": ":app",
+        "to": ":core:ui",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 32
+        }
+      },
+      {
+        "from": ":app",
+        "to": ":feature:cart",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 30
+        }
+      },
+      {
+        "from": ":app",
+        "to": ":feature:checkout",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 31
+        }
+      },
+      {
+        "from": ":core:data",
+        "to": ":core:model",
+        "scope": "api",
+        "declaredAs": "api",
+        "origin": {
+          "file": "core/data/build.gradle.kts",
+          "line": 25
+        }
+      },
+      {
+        "from": ":core:data",
+        "to": ":core:testing",
+        "scope": "test",
+        "declaredAs": "testImplementation",
+        "origin": {
+          "file": "core/data/build.gradle.kts",
+          "line": 29
+        }
+      },
+      {
+        "from": ":core:testing",
+        "to": ":core:model",
+        "scope": "api",
+        "declaredAs": "api",
+        "origin": {
+          "file": "core/testing/build.gradle.kts",
+          "line": 10
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": ":core:data",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/cart/build.gradle.kts",
+          "line": 10
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": ":core:testing",
+        "scope": "test",
+        "declaredAs": "testImplementation",
+        "origin": {
+          "file": "feature/cart/build.gradle.kts",
+          "line": 15
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": ":core:ui",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "build-logic/src/main/kotlin/obchod.android.feature.gradle.kts",
+          "line": 26
+        },
+        "via": "obchod.android.feature"
+      },
+      {
+        "from": ":feature:checkout",
+        "to": ":core:data",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/checkout/build.gradle.kts",
+          "line": 10
+        }
+      },
+      {
+        "from": ":feature:checkout",
+        "to": ":core:ui",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "build-logic/src/main/kotlin/obchod.android.feature.gradle.kts",
+          "line": 26
+        },
+        "via": "obchod.android.feature"
+      },
+      {
+        "from": ":feature:checkout",
+        "to": ":feature:cart",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/checkout/build.gradle.kts",
+          "line": 12
+        }
+      }
+    ],
+    "externalDependencies": [
+      {
+        "from": ":app",
+        "to": "androidx.compose.material3:material3",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 35
+        }
+      },
+      {
+        "from": ":app",
+        "to": "androidx.compose:compose-bom",
+        "version": "2025.05.00",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 34
+        }
+      },
+      {
+        "from": ":app",
+        "to": "androidx.navigation:navigation-compose",
+        "version": "2.9.0",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "app/build.gradle.kts",
+          "line": 36
+        }
+      },
+      {
+        "from": ":core:data",
+        "to": "com.squareup.retrofit2:retrofit",
+        "version": "2.11.0",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "core/data/build.gradle.kts",
+          "line": 27
+        }
+      },
+      {
+        "from": ":core:data",
+        "to": "junit:junit",
+        "version": "4.13.2",
+        "scope": "test",
+        "declaredAs": "testImplementation",
+        "origin": {
+          "file": "core/data/build.gradle.kts",
+          "line": 30
+        }
+      },
+      {
+        "from": ":core:ui",
+        "to": "androidx.compose.material3:material3",
+        "scope": "api",
+        "declaredAs": "api",
+        "origin": {
+          "file": "core/ui/build.gradle.kts",
+          "line": 27
+        }
+      },
+      {
+        "from": ":core:ui",
+        "to": "androidx.compose:compose-bom",
+        "version": "2025.05.00",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "core/ui/build.gradle.kts",
+          "line": 26
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": "androidx.compose:compose-bom",
+        "version": "2025.05.00",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/cart/build.gradle.kts",
+          "line": 12
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": "androidx.lifecycle:lifecycle-viewmodel-compose",
+        "version": "2.9.0",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/cart/build.gradle.kts",
+          "line": 13
+        }
+      },
+      {
+        "from": ":feature:cart",
+        "to": "junit:junit",
+        "version": "4.13.2",
+        "scope": "test",
+        "declaredAs": "testImplementation",
+        "origin": {
+          "file": "feature/cart/build.gradle.kts",
+          "line": 16
+        }
+      },
+      {
+        "from": ":feature:checkout",
+        "to": "androidx.compose:compose-bom",
+        "version": "2025.05.00",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/checkout/build.gradle.kts",
+          "line": 14
+        }
+      },
+      {
+        "from": ":feature:checkout",
+        "to": "androidx.lifecycle:lifecycle-viewmodel-compose",
+        "version": "2.9.0",
+        "scope": "implementation",
+        "declaredAs": "implementation",
+        "origin": {
+          "file": "feature/checkout/build.gradle.kts",
+          "line": 15
+        }
+      }
+    ]
+  },
+  "problems": []
+}

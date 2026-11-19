@@ -1,0 +1,434 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B10000000000000000000001 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* Analytics.swift */; };
+		B10000000000000000000002 /* ObchodAnalytics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* ObchodAnalytics.framework */; };
+		B10000000000000000000003 /* ObchodAnalytics.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* ObchodAnalytics.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B10000000000000000000004 /* CartFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D10000000000000000000001 /* CartFeature */; };
+		B10000000000000000000005 /* CheckoutFeature in Frameworks */ = {isa = PBXBuildFile; productRef = D10000000000000000000002 /* CheckoutFeature */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C10000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A0000000000000000000002;
+			remoteInfo = ObchodAnalytics;
+		};
+		C10000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A0000000000000000000001;
+			remoteInfo = Obchod;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CF0000000000000000000001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				B10000000000000000000003 /* ObchodAnalytics.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		F10000000000000000000001 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
+		F10000000000000000000002 /* Obchod.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Obchod.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000003 /* ObchodAnalytics.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ObchodAnalytics.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000004 /* ObchodTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ObchodTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5A0000000000000000000001 /* Obchod */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Obchod;
+			sourceTree = "<group>";
+		};
+		5A0000000000000000000002 /* ObchodTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ObchodTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FB0000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000002 /* ObchodAnalytics.framework in Frameworks */,
+				B10000000000000000000004 /* CartFeature in Frameworks */,
+				B10000000000000000000005 /* CheckoutFeature in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FB0000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FB0000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6A0000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				5A0000000000000000000001 /* Obchod */,
+				6A0000000000000000000002 /* ObchodAnalytics */,
+				5A0000000000000000000002 /* ObchodTests */,
+				6A0000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6A0000000000000000000002 /* ObchodAnalytics */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000001 /* Analytics.swift */,
+			);
+			path = ObchodAnalytics;
+			sourceTree = "<group>";
+		};
+		6A0000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000002 /* Obchod.app */,
+				F10000000000000000000003 /* ObchodAnalytics.framework */,
+				F10000000000000000000004 /* ObchodTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7A0000000000000000000001 /* Obchod */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20000000000000000000002 /* Build configuration list for PBXNativeTarget "Obchod" */;
+			buildPhases = (
+				5B0000000000000000000001 /* Sources */,
+				FB0000000000000000000001 /* Frameworks */,
+				CF0000000000000000000001 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7D0000000000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000001 /* Obchod */,
+			);
+			name = Obchod;
+			packageProductDependencies = (
+				D10000000000000000000001 /* CartFeature */,
+				D10000000000000000000002 /* CheckoutFeature */,
+			);
+			productName = Obchod;
+			productReference = F10000000000000000000002 /* Obchod.app */;
+			productType = "com.apple.product-type.application";
+		};
+		7A0000000000000000000002 /* ObchodAnalytics */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20000000000000000000003 /* Build configuration list for PBXNativeTarget "ObchodAnalytics" */;
+			buildPhases = (
+				5B0000000000000000000002 /* Sources */,
+				FB0000000000000000000002 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ObchodAnalytics;
+			productName = ObchodAnalytics;
+			productReference = F10000000000000000000003 /* ObchodAnalytics.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7A0000000000000000000003 /* ObchodTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20000000000000000000004 /* Build configuration list for PBXNativeTarget "ObchodTests" */;
+			buildPhases = (
+				5B0000000000000000000003 /* Sources */,
+				FB0000000000000000000003 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7D0000000000000000000002 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5A0000000000000000000002 /* ObchodTests */,
+			);
+			name = ObchodTests;
+			productName = ObchodTests;
+			productReference = F10000000000000000000004 /* ObchodTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					7A0000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					7A0000000000000000000002 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					7A0000000000000000000003 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 7A0000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = E20000000000000000000001 /* Build configuration list for PBXProject "Obchod" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				cs,
+			);
+			mainGroup = 6A0000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D20000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ObchodKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6A0000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7A0000000000000000000001 /* Obchod */,
+				7A0000000000000000000002 /* ObchodAnalytics */,
+				7A0000000000000000000003 /* ObchodTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5B0000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5B0000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000001 /* Analytics.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5B0000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7D0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A0000000000000000000002 /* ObchodAnalytics */;
+			targetProxy = C10000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		7D0000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A0000000000000000000001 /* Obchod */;
+			targetProxy = C10000000000000000000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		E10000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E10000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		E10000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E10000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E10000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod.analytics;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		E10000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod.analytics;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		E10000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Obchod.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Obchod";
+			};
+			name = Debug;
+		};
+		E10000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.obchod.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Obchod.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Obchod";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		E20000000000000000000001 /* Build configuration list for PBXProject "Obchod" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10000000000000000000001 /* Debug */,
+				E10000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20000000000000000000002 /* Build configuration list for PBXNativeTarget "Obchod" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10000000000000000000003 /* Debug */,
+				E10000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20000000000000000000003 /* Build configuration list for PBXNativeTarget "ObchodAnalytics" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10000000000000000000005 /* Debug */,
+				E10000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20000000000000000000004 /* Build configuration list for PBXNativeTarget "ObchodTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10000000000000000000007 /* Debug */,
+				E10000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		D20000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ObchodKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ObchodKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D10000000000000000000001 /* CartFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D20000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ObchodKit" */;
+			productName = CartFeature;
+		};
+		D10000000000000000000002 /* CheckoutFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D20000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ObchodKit" */;
+			productName = CheckoutFeature;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A10000000000000000000001 /* Project object */;
+}

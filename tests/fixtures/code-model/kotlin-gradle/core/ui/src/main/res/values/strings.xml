@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cart_title">Cart</string>
+    <string name="cart_empty">Your cart is empty</string>
+    <string name="cart_total">Total: %1$s</string>
+    <string name="cart_checkout">Checkout</string>
+    <string name="checkout_title">Checkout</string>
+    <string name="checkout_pay">Pay %1$s</string>
+    <string name="checkout_done">Order %1$s was placed</string>
+    <plurals name="cart_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+</resources>

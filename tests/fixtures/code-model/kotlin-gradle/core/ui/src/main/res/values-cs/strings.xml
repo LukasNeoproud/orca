@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cart_title">Košík</string>
+    <string name="cart_empty">Košík je prázdný</string>
+    <string name="cart_total">Celkem: %1$s</string>
+    <string name="cart_checkout">K pokladně</string>
+    <string name="checkout_title">Pokladna</string>
+    <string name="checkout_pay">Zaplatit</string>
+    <plurals name="cart_items">
+        <item quantity="one">%d položka</item>
+        <item quantity="few">%d položky</item>
+        <item quantity="other">%d položek</item>
+    </plurals>
+</resources>

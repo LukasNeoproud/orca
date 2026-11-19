@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 0,
+  "platform": "ios",
+  "structure": {
+    "roots": [
+      {
+        "file": "Packages/ObchodKit/Package.swift",
+        "kind": "swiftpm",
+        "path": "Packages/ObchodKit",
+        "name": "ObchodKit",
+        "reader": "swiftpm-describe",
+        "members": [
+          "CartFeature",
+          "CartFeatureTests",
+          "CheckoutFeature",
+          "DesignSystem",
+          "Model",
+          "Networking"
+        ]
+      },
+      {
+        "file": "Obchod.xcodeproj/project.pbxproj",
+        "kind": "xcodeproj",
+        "path": "",
+        "name": "Obchod",
+        "reader": "xcodeproj",
+        "members": ["Obchod", "ObchodAnalytics", "ObchodTests"]
+      }
+    ],
+    "modules": [
+      {
+        "id": "CartFeature",
+        "name": "CartFeature",
+        "path": "Packages/ObchodKit/Sources/CartFeature",
+        "kind": "library",
+        "type": "swiftpm:library",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Sources/CartFeature",
+            "set": "main",
+            "name": "CartFeature"
+          }
+        ]
+      },
+      {
+        "id": "CartFeatureTests",
+        "name": "CartFeatureTests",
+        "path": "Packages/ObchodKit/Tests/CartFeatureTests",
+        "kind": "test",
+        "type": "swiftpm:test",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Tests/CartFeatureTests",
+            "set": "test",
+            "name": "CartFeatureTests"
+          }
+        ]
+      },
+      {
+        "id": "CheckoutFeature",
+        "name": "CheckoutFeature",
+        "path": "Packages/ObchodKit/Sources/CheckoutFeature",
+        "kind": "library",
+        "type": "swiftpm:library",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Sources/CheckoutFeature",
+            "set": "main",
+            "name": "CheckoutFeature"
+          }
+        ]
+      },
+      {
+        "id": "DesignSystem",
+        "name": "DesignSystem",
+        "path": "Packages/ObchodKit/Sources/DesignSystem",
+        "kind": "library",
+        "type": "swiftpm:library",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Sources/DesignSystem",
+            "set": "main",
+            "name": "DesignSystem"
+          }
+        ]
+      },
+      {
+        "id": "Model",
+        "name": "Model",
+        "path": "Packages/ObchodKit/Sources/Model",
+        "kind": "library",
+        "type": "swiftpm:library",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Sources/Model",
+            "set": "main",
+            "name": "Model"
+          }
+        ]
+      },
+      {
+        "id": "Networking",
+        "name": "Networking",
+        "path": "Packages/ObchodKit/Sources/Networking",
+        "kind": "library",
+        "type": "swiftpm:library",
+        "language": "swift",
+        "buildFile": "Packages/ObchodKit/Package.swift",
+        "sourceRoots": [
+          {
+            "path": "Packages/ObchodKit/Sources/Networking",
+            "set": "main",
+            "name": "Networking"
+          }
+        ]
+      },
+      {
+        "id": "Obchod",
+        "name": "Obchod",
+        "path": "Obchod",
+        "kind": "application",
+        "type": "com.apple.product-type.application",
+        "language": "swift",
+        "buildFile": "Obchod.xcodeproj/project.pbxproj",
+        "sourceRoots": [
+          {
+            "path": "Obchod",
+            "set": "main",
+            "name": "Obchod"
+          }
+        ]
+      },
+      {
+        "id": "ObchodAnalytics",
+        "name": "ObchodAnalytics",
+        "path": "ObchodAnalytics",
+        "kind": "library",
+        "type": "com.apple.product-type.framework",
+        "language": "swift",
+        "buildFile": "Obchod.xcodeproj/project.pbxproj",
+        "sourceRoots": [
+          {
+            "path": "ObchodAnalytics",
+            "set": "main",
+            "name": "ObchodAnalytics"
+          }
+        ]
+      },
+      {
+        "id": "ObchodTests",
+        "name": "ObchodTests",
+        "path": "ObchodTests",
+        "kind": "test",
+        "type": "com.apple.product-type.bundle.unit-test",
+        "language": "swift",
+        "buildFile": "Obchod.xcodeproj/project.pbxproj",
+        "sourceRoots": [
+          {
+            "path": "ObchodTests",
+            "set": "test",
+            "name": "ObchodTests"
+          }
+        ]
+      }
+    ],
+    "dependencies": [
+      {
+        "from": "CartFeature",
+        "to": "DesignSystem",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CartFeature",
+        "to": "Model",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CartFeature",
+        "to": "Networking",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CartFeatureTests",
+        "to": "CartFeature",
+        "scope": "test",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CheckoutFeature",
+        "to": "CartFeature",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CheckoutFeature",
+        "to": "DesignSystem",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CheckoutFeature",
+        "to": "Model",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "CheckoutFeature",
+        "to": "Networking",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "Networking",
+        "to": "Model",
+        "scope": "implementation",
+        "declaredAs": "target",
+        "origin": {
+          "file": "Packages/ObchodKit/Package.swift"
+        }
+      },
+      {
+        "from": "Obchod",
+        "to": "CartFeature",
+        "scope": "implementation",
+        "declaredAs": "packageProduct:CartFeature",
+        "origin": {
+          "file": "Obchod.xcodeproj/project.pbxproj"
+        }
+      },
+      {
+        "from": "Obchod",
+        "to": "CheckoutFeature",
+        "scope": "implementation",
+        "declaredAs": "packageProduct:CheckoutFeature",
+        "origin": {
+          "file": "Obchod.xcodeproj/project.pbxproj"
+        }
+      },
+      {
+        "from": "Obchod",
+        "to": "ObchodAnalytics",
+        "scope": "implementation",
+        "declaredAs": "targetDependency",
+        "origin": {
+          "file": "Obchod.xcodeproj/project.pbxproj"
+        }
+      },
+      {
+        "from": "ObchodTests",
+        "to": "Obchod",
+        "scope": "test",
+        "declaredAs": "targetDependency",
+        "origin": {
+          "file": "Obchod.xcodeproj/project.pbxproj"
+        }
+      }
+    ],
+    "externalDependencies": []
+  },
+  "problems": []
+}

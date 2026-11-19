@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 0,
+  "platform": "dotnet",
+  "structure": {
+    "roots": [
+      {
+        "file": "Obchod.sln",
+        "kind": "dotnet-solution",
+        "path": "",
+        "name": "Obchod",
+        "reader": "dotnet-static",
+        "members": [
+          "Obchod.Api",
+          "Obchod.Application",
+          "Obchod.Application.Tests",
+          "Obchod.Domain",
+          "Obchod.Infrastructure"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "id": "Obchod.Api",
+        "name": "Obchod.Api",
+        "path": "src/Obchod.Api",
+        "kind": "application",
+        "type": "sdk:Microsoft.NET.Sdk.Web",
+        "language": "csharp",
+        "buildFile": "src/Obchod.Api/Obchod.Api.csproj",
+        "targetFrameworks": ["net8.0"],
+        "sourceRoots": [
+          {
+            "path": "src/Obchod.Api",
+            "set": "main",
+            "name": "default"
+          }
+        ]
+      },
+      {
+        "id": "Obchod.Application",
+        "name": "Obchod.Application",
+        "path": "src/Obchod.Application",
+        "kind": "library",
+        "type": "sdk:Microsoft.NET.Sdk",
+        "language": "csharp",
+        "buildFile": "src/Obchod.Application/Obchod.Application.csproj",
+        "targetFrameworks": ["net8.0"],
+        "sourceRoots": [
+          {
+            "path": "src/Obchod.Application",
+            "set": "main",
+            "name": "default"
+          }
+        ]
+      },
+      {
+        "id": "Obchod.Application.Tests",
+        "name": "Obchod.Application.Tests",
+        "path": "tests/Obchod.Application.Tests",
+        "kind": "test",
+        "type": "sdk:Microsoft.NET.Sdk",
+        "language": "csharp",
+        "buildFile": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+        "targetFrameworks": ["net8.0"],
+        "sourceRoots": [
+          {
+            "path": "tests/Obchod.Application.Tests",
+            "set": "test",
+            "name": "default"
+          }
+        ]
+      },
+      {
+        "id": "Obchod.Domain",
+        "name": "Obchod.Domain",
+        "path": "src/Obchod.Domain",
+        "kind": "library",
+        "type": "sdk:Microsoft.NET.Sdk",
+        "language": "csharp",
+        "buildFile": "src/Obchod.Domain/Obchod.Domain.csproj",
+        "targetFrameworks": ["net8.0"],
+        "sourceRoots": [
+          {
+            "path": "src/Obchod.Domain",
+            "set": "main",
+            "name": "default"
+          }
+        ]
+      },
+      {
+        "id": "Obchod.Infrastructure",
+        "name": "Obchod.Infrastructure",
+        "path": "src/Obchod.Infrastructure",
+        "kind": "library",
+        "type": "sdk:Microsoft.NET.Sdk",
+        "language": "csharp",
+        "buildFile": "src/Obchod.Infrastructure/Obchod.Infrastructure.csproj",
+        "targetFrameworks": ["net8.0"],
+        "sourceRoots": [
+          {
+            "path": "src/Obchod.Infrastructure",
+            "set": "main",
+            "name": "default"
+          }
+        ]
+      }
+    ],
+    "dependencies": [
+      {
+        "from": "Obchod.Api",
+        "to": "Obchod.Application",
+        "scope": "api",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "src/Obchod.Api/Obchod.Api.csproj",
+          "line": 3
+        }
+      },
+      {
+        "from": "Obchod.Api",
+        "to": "Obchod.Infrastructure",
+        "scope": "api",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "src/Obchod.Api/Obchod.Api.csproj",
+          "line": 4
+        }
+      },
+      {
+        "from": "Obchod.Application",
+        "to": "Obchod.Domain",
+        "scope": "api",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "src/Obchod.Application/Obchod.Application.csproj",
+          "line": 3
+        }
+      },
+      {
+        "from": "Obchod.Application.Tests",
+        "to": "Obchod.Application",
+        "scope": "test",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+          "line": 12
+        }
+      },
+      {
+        "from": "Obchod.Application.Tests",
+        "to": "Obchod.Infrastructure",
+        "scope": "test",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+          "line": 13
+        }
+      },
+      {
+        "from": "Obchod.Infrastructure",
+        "to": "Obchod.Application",
+        "scope": "api",
+        "declaredAs": "ProjectReference",
+        "origin": {
+          "file": "src/Obchod.Infrastructure/Obchod.Infrastructure.csproj",
+          "line": 3
+        }
+      }
+    ],
+    "externalDependencies": [
+      {
+        "from": "Obchod.Application.Tests",
+        "to": "Microsoft.NET.Test.Sdk",
+        "version": "17.11.1",
+        "scope": "test",
+        "declaredAs": "PackageReference",
+        "origin": {
+          "file": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+          "line": 7
+        }
+      },
+      {
+        "from": "Obchod.Application.Tests",
+        "to": "xunit",
+        "version": "2.9.2",
+        "scope": "test",
+        "declaredAs": "PackageReference",
+        "origin": {
+          "file": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+          "line": 8
+        }
+      },
+      {
+        "from": "Obchod.Application.Tests",
+        "to": "xunit.runner.visualstudio",
+        "version": "2.8.2",
+        "scope": "test",
+        "declaredAs": "PackageReference",
+        "origin": {
+          "file": "tests/Obchod.Application.Tests/Obchod.Application.Tests.csproj",
+          "line": 9
+        }
+      }
+    ]
+  },
+  "problems": []
+}
