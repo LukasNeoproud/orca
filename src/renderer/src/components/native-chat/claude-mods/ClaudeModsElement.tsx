@@ -312,6 +312,10 @@ function ClaudeModsMarkdown({ node }: { node: ElementNode }): React.JSX.Element 
   )
 }
 
+function renderClaudeModsTree(tree: ClaudeModsNode): React.JSX.Element {
+  return <ClaudeModsNodeView node={tree} />
+}
+
 function ClaudeModsClientSlot({ node }: { node: ElementNode }): React.JSX.Element {
   const scope = useClaudeModsDrawScope()
   return (
@@ -319,6 +323,7 @@ function ClaudeModsClientSlot({ node }: { node: ElementNode }): React.JSX.Elemen
       node={node}
       {...(scope?.clientModules ? { clientModules: scope.clientModules } : {})}
       {...(scope?.redrawSite ? { redraw: scope.redrawSite } : {})}
+      renderTree={renderClaudeModsTree}
     />
   )
 }

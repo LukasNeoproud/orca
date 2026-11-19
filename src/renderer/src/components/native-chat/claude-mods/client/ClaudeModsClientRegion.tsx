@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { translate } from '@/i18n/i18n'
 import { propNumber, propString, type ClaudeModsNode } from '../claude-mods-tree'
 import {
@@ -6,7 +6,6 @@ import {
   useClaudeModsDrawScope,
   type ClaudeModsDrawScope
 } from '../claude-mods-draw-scope'
-import { ClaudeModsNodeView } from '../ClaudeModsElement'
 import type { ClaudeModsSurfaceController } from '../claude-mods-surface-controller'
 import { claudeModsClientFramesFor } from './claude-mods-client-frames'
 import {
@@ -90,16 +89,19 @@ function useClaudeModsClientDriver(
  * A mod's `Client`: a region whose drawing comes from the plugin's own surface module, run in a
  * sandboxed worker. `clientModules` is the site drawing's `client_modules` (plugin → hash),
  * undefined when the drawing does not carry it; `redraw` asks the site again when a press finds
- * its drawing stale (absent: the controller's own `redraw`).
+ * its drawing stale (absent: the controller's own `redraw`). `renderTree` draws the module's tree,
+ * passed in because the node view that draws it also draws this region.
  */
 export function ClaudeModsClientRegion({
   node,
   clientModules,
-  redraw
+  redraw,
+  renderTree
 }: {
   node: ElementNode
   clientModules?: Readonly<Record<string, string>>
   redraw?: () => void
+  renderTree: (tree: ClaudeModsNode) => ReactNode
 }): React.JSX.Element | null {
   const scope = useClaudeModsDrawScope()
   const plugin = node.plugin
@@ -115,6 +117,7 @@ export function ClaudeModsClientRegion({
       module={module}
       clientModules={clientModules}
       redraw={redraw}
+      renderTree={renderTree}
     />
   )
 }
@@ -136,7 +139,8 @@ function ClaudeModsClientMounted({
   plugin,
   module,
   clientModules,
-  redraw
+  redraw,
+  renderTree
 }: {
   scope: ClaudeModsDrawScope
   node: ElementNode
@@ -144,6 +148,7 @@ function ClaudeModsClientMounted({
   module: string
   clientModules: Readonly<Record<string, string>> | undefined
   redraw: (() => void) | undefined
+  renderTree: (tree: ClaudeModsNode) => ReactNode
 }): React.JSX.Element {
   const driver = useClaudeModsClientDriver(scope.controller, redraw)
   const view = useSyncExternalStore(
@@ -260,7 +265,7 @@ function ClaudeModsClientMounted({
     >
       {view.kind === 'drawn' && inner ? (
         <ClaudeModsDrawContext.Provider value={inner}>
-          <ClaudeModsNodeView node={view.tree} />
+          {renderTree(view.tree)}
         </ClaudeModsDrawContext.Provider>
       ) : view.kind === 'fault' ? (
         <span className="block truncate text-xs text-chat-foreground-faint" title={view.line}>

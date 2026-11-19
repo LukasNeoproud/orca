@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ClaudeModsDrawContext } from '../claude-mods-draw-scope'
 import { ClaudeModsSurfaceController } from '../claude-mods-surface-controller'
 import { readClaudeModsTree } from '../claude-mods-tree'
+import { ClaudeModsNodeView } from '../ClaudeModsElement'
 import { ClaudeModsClientRegion } from './ClaudeModsClientRegion'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -57,7 +58,11 @@ async function draw(
   await act(async () => {
     root.render(
       <ClaudeModsDrawContext.Provider value={scope}>
-        <ClaudeModsClientRegion node={node} clientModules={modules} />
+        <ClaudeModsClientRegion
+          node={node}
+          clientModules={modules}
+          renderTree={(tree) => <ClaudeModsNodeView node={tree} />}
+        />
       </ClaudeModsDrawContext.Provider>
     )
   })
