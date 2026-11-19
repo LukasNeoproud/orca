@@ -10,6 +10,16 @@ import {
   type AzureDevOpsReviewIteration,
   type AzureDevOpsThreadStatus
 } from '../../../shared/azure-devops-review-types'
+import {
+  isReviewFindingSeverity,
+  type ReviewFindingEvidence,
+  type ReviewFindingSeverity
+} from '../../../shared/review-finding'
+import {
+  parseReviewFindingEvidence,
+  parseReviewFindingSeverity,
+  readStoredReviewFindingEvidence
+} from '../../../shared/review-finding-input'
 
 const MAX_BODY_LENGTH = 64_000
 const DRAFT_KINDS: readonly AzureDevOpsReviewDraftKind[] = ['inline', 'file', 'general', 'reply']
@@ -75,6 +85,7 @@ export function normalizeAzureDevOpsReviewDraft(input: unknown): AzureDevOpsRevi
     return null
   }
   const state = record.state === 'published' || record.state === 'failed' ? record.state : 'draft'
+  const evidence = readStoredReviewFindingEvidence(record.evidence)
   return {
     id: record.id,
     pullRequestKey: record.pullRequestKey,
@@ -91,7 +102,39 @@ export function normalizeAzureDevOpsReviewDraft(input: unknown): AzureDevOpsRevi
     publishError: typeof record.publishError === 'string' ? record.publishError : null,
     publishedThreadId: finiteOrNull(record.publishedThreadId),
     createdAt: finiteOrNull(record.createdAt) ?? 0,
-    updatedAt: finiteOrNull(record.updatedAt) ?? 0
+    updatedAt: finiteOrNull(record.updatedAt) ?? 0,
+    // Why conditional: a draft without them keeps the shape older builds wrote.
+    ...(isReviewFindingSeverity(record.severity) ? { severity: record.severity } : {}),
+    ...(evidence.length > 0 ? { evidence } : {})
+  }
+}
+
+type FindingFields = Pick<AzureDevOpsReviewDraft, 'severity' | 'evidence'>
+
+/** Severity and evidence as sent: `undefined` leaves `current`, `null` or nothing removes it. */
+function findingFields(
+  input: { severity?: unknown; evidence?: unknown },
+  current: FindingFields = {}
+): FindingFields {
+  let severity: ReviewFindingSeverity | undefined = current.severity
+  if (input.severity !== undefined) {
+    const parsed = input.severity === null ? null : parseReviewFindingSeverity(input.severity)
+    if (parsed && !parsed.ok) {
+      throw new AzureDevOpsReviewDraftError(parsed.error)
+    }
+    severity = parsed?.value
+  }
+  let evidence: ReviewFindingEvidence[] | undefined = current.evidence
+  if (input.evidence !== undefined) {
+    const parsed = parseReviewFindingEvidence(input.evidence ?? [], { unknownKinds: 'keep' })
+    if (!parsed.ok) {
+      throw new AzureDevOpsReviewDraftError(parsed.error)
+    }
+    evidence = parsed.value
+  }
+  return {
+    ...(severity ? { severity } : {}),
+    ...(evidence && evidence.length > 0 ? { evidence } : {})
   }
 }
 
@@ -161,7 +204,8 @@ export function buildAzureDevOpsReviewDraft(
     publishError: null,
     publishedThreadId: null,
     createdAt: context.now,
-    updatedAt: context.now
+    updatedAt: context.now,
+    ...findingFields(input)
   }
   assertDraftAnchorFields(draft)
   return draft
@@ -178,8 +222,10 @@ export function applyAzureDevOpsReviewDraftPatch(
   const anchored = draft.kind === 'inline' || draft.kind === 'file'
   const moved =
     anchored && (patch.anchor !== undefined || patch.filePath !== undefined || patch.rebaseToLatest)
+  const { severity: _severity, evidence: _evidence, ...rest } = draft
   const next: AzureDevOpsReviewDraft = {
-    ...draft,
+    ...rest,
+    ...findingFields(patch, draft),
     body: patch.body !== undefined ? requireBody(patch.body) : draft.body,
     filePath:
       anchored && patch.filePath !== undefined ? normalizePath(patch.filePath) : draft.filePath,

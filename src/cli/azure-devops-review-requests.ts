@@ -2,6 +2,10 @@ import {
   AZURE_DEVOPS_REVIEW_THREAD_STATUSES,
   type AzureDevOpsReviewDraftKind
 } from '../shared/azure-devops-review-types'
+import {
+  parseReviewFindingEvidence,
+  parseReviewFindingSeverity
+} from '../shared/review-finding-input'
 import { RuntimeClientError } from './runtime-client'
 
 const DRAFT_KINDS: readonly AzureDevOpsReviewDraftKind[] = ['inline', 'file', 'general', 'reply']
@@ -15,6 +19,9 @@ export type AzureDevOpsDraftFields = {
   endLine?: number
   side?: string
   threadStatus?: string
+  /** As the caller sent them: checked here, so a wrong value is reported before the host is asked. */
+  severity?: unknown
+  evidence?: unknown
 }
 
 function invalid(message: string): never {
@@ -62,6 +69,26 @@ function anchorFrom(fields: AzureDevOpsDraftFields): Record<string, unknown> | u
   return { side: parseSide(fields.side) ?? 'right', startLine: fields.line, endLine }
 }
 
+function findingParams(fields: AzureDevOpsDraftFields): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
+  if (fields.severity !== undefined) {
+    const severity = parseReviewFindingSeverity(fields.severity)
+    if (!severity.ok) {
+      invalid(severity.error)
+    }
+    params.severity = severity.value
+  }
+  if (fields.evidence !== undefined) {
+    // Why reject: these surfaces are for agents, which may only attach what Orca can check.
+    const evidence = parseReviewFindingEvidence(fields.evidence, { unknownKinds: 'reject' })
+    if (!evidence.ok) {
+      invalid(evidence.error)
+    }
+    params.evidence = evidence.value
+  }
+  return params
+}
+
 export function buildAzureDevOpsDraftCreateParams(
   input: AzureDevOpsDraftFields & {
     pr: string
@@ -97,6 +124,7 @@ export function buildAzureDevOpsDraftCreateParams(
     ...(input.thread !== undefined ? { threadId: input.thread } : {}),
     ...(input.threadStatus ? { threadStatus: parseThreadStatus(input.threadStatus) } : {}),
     ...(input.commit ? { commit: input.commit } : {}),
+    ...findingParams(input),
     // Why: these surfaces are how agents write drafts; the label shows who wrote them.
     author: { kind: 'agent', label: input.agentLabel?.trim() || null }
   }
@@ -113,10 +141,13 @@ export function buildAzureDevOpsDraftPatch(
     ...(input.threadStatus !== undefined
       ? { threadStatus: parseThreadStatus(input.threadStatus) }
       : {}),
-    ...(input.rebase ? { rebaseToLatest: true } : {})
+    ...(input.rebase ? { rebaseToLatest: true } : {}),
+    ...findingParams(input)
   }
   if (Object.keys(patch).length === 0) {
-    invalid('Nothing to update: pass a body, a location, a thread status or --rebase')
+    invalid(
+      'Nothing to update: pass a body, a location, a thread status, a severity, evidence or --rebase'
+    )
   }
   return patch
 }

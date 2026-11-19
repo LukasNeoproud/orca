@@ -241,6 +241,73 @@ describe('buildAzureDevOpsReviewPiExtensionSource', () => {
     fs.rmSync(path.dirname(file!), { recursive: true, force: true })
   })
 
+  // What `orca ado mcp` does with these arguments is covered next to it, in
+  // src/cli/azure-devops-review-finding-surfaces.test.ts.
+  describe('with a severity and evidence', () => {
+    const citation = {
+      kind: 'code-citation',
+      filePath: 'src/cart.ts',
+      startLine: 4,
+      endLine: 4,
+      quote: 'sum += item'
+    }
+
+    it('offers both on the draft tools as Orca declares them', () => {
+      const { tools } = loadExtension({})
+      for (const name of ['ado_create_draft', 'ado_update_draft']) {
+        const declared = AZURE_DEVOPS_REVIEW_TOOLS.find((tool) => tool.name === name)
+        expect(tools.get(name)?.parameters).toEqual(declared?.inputSchema)
+        expect(tools.get(name)?.parameters.properties).toHaveProperty('severity')
+        expect(tools.get(name)?.parameters.properties).toHaveProperty('evidence')
+      }
+    })
+
+    it('hands them to `orca ado mcp` as the agent gave them and returns its answer', async () => {
+      const { tool, callTool } = loadExtension({
+        callTool: async () => ({ draft: { id: 'd1', certainty: 'likely' } })
+      })
+      const created = {
+        pullRequestKey: 'k+r+1',
+        kind: 'inline',
+        body: 'Clamp it.',
+        file: 'src/cart.ts',
+        line: 4,
+        severity: 'warning',
+        evidence: [citation]
+      }
+      const result = await tool('ado_create_draft').execute('call-1', created)
+      await tool('ado_update_draft').execute('call-2', { id: 'd1', severity: 'nit', evidence: [] })
+      expect(callTool.mock.calls.map(([name, args]) => [name, args])).toEqual([
+        ['ado_create_draft', created],
+        ['ado_update_draft', { id: 'd1', severity: 'nit', evidence: [] }]
+      ])
+      expect(JSON.parse(result.content[0].text)).toEqual({
+        draft: { id: 'd1', certainty: 'likely' }
+      })
+    })
+
+    it("fails the call with Orca's error, which says what to correct", async () => {
+      const { tool } = loadExtension({
+        callTool: async (_name, args) => {
+          throw new Error(
+            args.severity === 'critical'
+              ? 'severity must be one of error, warning, suggestion, nit'
+              : 'evidence[0].quote must hold the cited lines as they are in the file'
+          )
+        }
+      })
+      await expect(
+        tool('ado_create_draft').execute('call-1', { kind: 'general', severity: 'critical' })
+      ).rejects.toThrow('severity must be one of error, warning, suggestion, nit')
+      await expect(
+        tool('ado_update_draft').execute('call-2', {
+          id: 'd1',
+          evidence: [{ ...citation, quote: '' }]
+        })
+      ).rejects.toThrow('evidence[0].quote must hold the cited lines as they are in the file')
+    })
+  })
+
   it('stops the CLI when the Pi session ends', async () => {
     const { tool, handlers, children } = loadExtension({})
     await tool('ado_list_pull_requests').execute('call-1', {})

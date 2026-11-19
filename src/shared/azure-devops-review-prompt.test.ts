@@ -132,4 +132,33 @@ describe('buildAzureDevOpsReviewAgentPrompt', () => {
     )
     expect(bare).toContain('The PR has no description')
   })
+
+  describe.each(['mcp', 'pi-tools', 'cli'] as const)('for an agent with %s access', (access) => {
+    const prompt = buildAzureDevOpsReviewAgentPrompt(pullRequest, { cli: 'orca-dev', access })
+
+    it('asks for a severity and evidence for every finding', () => {
+      expect(prompt).toContain('Give every finding a severity (error, warning, suggestion, nit:')
+      expect(prompt).toContain(
+        'and evidence: one or more code citations with the file, the line range and the quoted lines exactly as they are at the reviewed commit'
+      )
+    })
+
+    it('says a finding without evidence is marked as uncertain', () => {
+      expect(prompt).toContain('A finding without evidence is marked as uncertain for the user')
+      expect(prompt).toContain('one whose quote is not in the file as contradicted')
+      expect(prompt).toContain('do not invent a quote')
+    })
+
+    it('says how to pass both on the CLI, with the shape of a citation', () => {
+      expect(prompt).toContain('`--severity error|warning|suggestion|nit`')
+      expect(prompt).toContain('`--evidence-file <path>`')
+      expect(prompt).toContain(
+        '`{"kind":"code-citation","filePath":"<path>","startLine":<n>,"endLine":<n>,"quote":"<the lines as they are in the file>","note":"<what they show>"}`'
+      )
+    })
+
+    it('names the tool fields only where the agent has the tools', () => {
+      expect(prompt.includes('each with its `severity` and `evidence`')).toBe(access !== 'cli')
+    })
+  })
 })

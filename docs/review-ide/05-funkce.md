@@ -129,7 +129,7 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
   - **Změny:** diff souborů, komentář k řádku, „Zeptat se AI na tento řádek“.
   - **AI review:** souhrn AI a drafty nálezů.
 - Seznam změněných souborů s počtem draftů AI u souboru.
-- Draft nálezu: závažnost (chyba, návrh, drobnost), soubor a řádek, úryvek kódu, text. Akce:
+- Draft nálezu: závažnost (chyba, upozornění, návrh, drobnost), jistota u draftu od agenta (ověřeno, pravděpodobné, nejisté, rozporné), soubor a řádek, úryvek kódu, text a rozbalovací důkazy. Závažnost jde na kartě změnit. Akce:
   - **Publikovat** (zaškrtnutí) zařadí draft do publikace;
   - **Upravit ručně** přepne text na editovatelný;
   - **Zeptat se AI** položí otázku k nálezu a odpověď zobrazí pod ním;
@@ -146,6 +146,7 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
 - Hlasuje jen uživatel v aplikaci po potvrzení dialogu. Hostitel hlas odmítne, když přijde přes lokální socket, kterým mluví `orca ado`, jeho MCP server a rozšíření pro Pi. Zrušit hlas (bez hlasu) jde jen v Azure DevOps.
 - Hlas se nenabízí na vlastním, dokončeném a opuštěném pull requestu a proti hostiteli, který ho neumí odeslat (schopnost `azure-devops-review.vote.v1`). Pull request z forku hlasovat umí.
 - AI review kontroluje změny proti zadání (pracovní položce) a pravidlům projektu.
+- Jistotu nálezu odvozuje hostitel z důkazů, které agent přiložil, a agent ji poslat nemůže. Draft agenta bez důkazu je nejistý; s citací kódu, která na commitu draftu v souboru je, pravděpodobný; s citací, která tam není, rozporný. Důkaz s polohou v souboru změněném v pull requestu jde otevřít v diffu. Publikuje se jen text draftu. Změna závažnosti se nenabízí proti hostiteli, který ji neumí uložit (schopnost `azure-devops-review.findings.v1`). Viz TASK-84 a [AI a review](./06-ai-a-review.md), bod 7.
 - Vlákno ukazuje na řádky poslední iterace. Azure DevOps vrací polohu z iterace, na které komentář vznikl, a jeho vlastní sledování posun často nevrátí; Orca proto porovná soubor v původní a v poslední iteraci. Posunutý kód vlákno následuje. Když byl komentovaný řádek přepsán, vlákno je označené jako zastaralé a stojí u řádku, který ho nahradil. Když řádek nebo soubor zanikl, je zastaralé vlákno jen v seznamech, s původním řádkem a iterací. Stejnou polohu vrací desktop, mobil, CLI i MCP.
 
 ![Code review s AI](./prototyp/05-code-review.png)

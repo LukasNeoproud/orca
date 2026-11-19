@@ -13,6 +13,7 @@ import { AzureDevOpsReviewFileDiffPane } from './AzureDevOpsReviewFileDiffPane'
 import { AzureDevOpsReviewAllChanges } from './AzureDevOpsReviewAllChanges'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 import { azureDevOpsChangeToBranchEntry } from './azure-devops-review-diff-sections'
+import type { AzureDevOpsReviewDiffReveal } from './use-azure-devops-review-diff-reveal'
 
 const NO_VIEWED = new Set<string>()
 const VIEW_MODE_KEY = 'orca.azureDevOpsReview.filesViewMode'
@@ -38,10 +39,13 @@ function storeViewMode(mode: FilesViewMode): void {
 /** Azure DevOps-style Files view: all changes in one scroll, or the tree with one file's diff. */
 export function AzureDevOpsReviewFiles({
   detail,
-  onChanged
+  onChanged,
+  reveal
 }: {
   detail: AzureDevOpsReviewDetail
   onChanged: () => Promise<void>
+  /** A line the user asked to see; switches to that file's whole diff. */
+  reveal: AzureDevOpsReviewDiffReveal | null
 }): React.JSX.Element {
   const repoPath = useAppStore((s) => {
     const repoId = detail.reviewWorktree?.repoId
@@ -69,6 +73,14 @@ export function AzureDevOpsReviewFiles({
   const [viewMode, setViewMode] = useState<FilesViewMode>(readViewMode)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [treeCollapsed, setTreeCollapsed] = useState(false)
+  const [shownReveal, setShownReveal] = useState<number | null>(null)
+  if (reveal && reveal.request !== shownReveal && changeByPath.has(reveal.path)) {
+    setShownReveal(reveal.request)
+    // Why not stored: the all-changes view hides unchanged lines, so a cited line needs the
+    // whole file; the remembered preference stays the user's.
+    setViewMode('file')
+    setSelectedPath(reveal.path)
+  }
   // Why: open the first file in tree order, as Azure DevOps does, instead of an empty pane.
   const selected =
     (selectedPath ? changeByPath.get(selectedPath) : undefined) ??
@@ -142,6 +154,7 @@ export function AzureDevOpsReviewFiles({
           onShowTree={() => setTreeCollapsed(false)}
           viewModeToggle={viewModeToggle}
           onChanged={onChanged}
+          reveal={reveal?.path === selected.path ? reveal : null}
         />
       ) : null}
     </div>

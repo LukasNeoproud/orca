@@ -54,3 +54,35 @@ describe('azureDevOpsReviewHostCastsVotes', () => {
     ])
   })
 })
+
+describe('azureDevOpsReviewHostKeepsFindings', () => {
+  beforeEach(() => {
+    callRuntimeRpc.mockReset()
+  })
+
+  it('is true once the host advertises findings, from the same answer as the vote', async () => {
+    callRuntimeRpc.mockResolvedValue({
+      capabilities: ['azure-devops-review.vote.v1', 'azure-devops-review.findings.v1']
+    })
+    const client = await freshClient()
+
+    expect(await client.azureDevOpsReviewHostCastsVotes()).toBe(true)
+    expect(await client.azureDevOpsReviewHostKeepsFindings()).toBe(true)
+    expect(callRuntimeRpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('is false for a host from before findings, which may still cast votes', async () => {
+    callRuntimeRpc.mockResolvedValue({ capabilities: ['azure-devops-review.vote.v1'] })
+    const client = await freshClient()
+
+    expect(await client.azureDevOpsReviewHostKeepsFindings()).toBe(false)
+    expect(await client.azureDevOpsReviewHostCastsVotes()).toBe(true)
+  })
+
+  it('is false when the host cannot be asked', async () => {
+    callRuntimeRpc.mockRejectedValue(new Error('offline'))
+    const client = await freshClient()
+
+    expect(await client.azureDevOpsReviewHostKeepsFindings()).toBe(false)
+  })
+})

@@ -12,8 +12,11 @@ import {
   latestAzureDevOpsReviewIteration,
   loadAzureDevOpsReviewIterations,
   resolveAzureDevOpsReviewPullRequest,
+  type AzureDevOpsResolvedPullRequest,
   type AzureDevOpsReviewHost
 } from './azure-devops-review-service'
+import { createAzureDevOpsReviewFileReader } from './azure-devops-review-file-line-cache'
+import { describeAzureDevOpsReviewDraftFindings } from './azure-devops-review-draft-findings'
 import {
   createAzureDevOpsReviewReply,
   createAzureDevOpsReviewThread,
@@ -47,6 +50,22 @@ import {
   putStoredAzureDevOpsReviewDraft
 } from './azure-devops-review-draft-store'
 
+/** Draft views with the host's checks of their evidence, read through one request budget. */
+function withFindings(
+  resolved: AzureDevOpsResolvedPullRequest,
+  iterations: readonly AzureDevOpsReviewIteration[],
+  drafts: readonly AzureDevOpsReviewDraftView[]
+): Promise<AzureDevOpsReviewDraftView[]> {
+  return describeAzureDevOpsReviewDraftFindings({
+    drafts,
+    iterations,
+    readFile: createAzureDevOpsReviewFileReader({
+      ...resolved.source,
+      repositoryId: resolved.target.repositoryId
+    })
+  })
+}
+
 export async function listAzureDevOpsReviewDrafts(
   host: AzureDevOpsReviewHost,
   pullRequestKey: string
@@ -55,10 +74,16 @@ export async function listAzureDevOpsReviewDrafts(
   latestIteration: AzureDevOpsReviewIteration | null
 }> {
   const resolved = await resolveAzureDevOpsReviewPullRequest(host, pullRequestKey)
-  const latest = latestAzureDevOpsReviewIteration(
-    await loadAzureDevOpsReviewIterations(resolved.target)
-  )
-  return { drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest), latestIteration: latest }
+  const iterations = await loadAzureDevOpsReviewIterations(resolved.target)
+  const latest = latestAzureDevOpsReviewIteration(iterations)
+  return {
+    drafts: await withFindings(
+      resolved,
+      iterations,
+      azureDevOpsReviewDraftViews(pullRequestKey, latest)
+    ),
+    latestIteration: latest
+  }
 }
 
 export async function createAzureDevOpsReviewDraft(
@@ -73,7 +98,8 @@ export async function createAzureDevOpsReviewDraft(
     iterations
   })
   putStoredAzureDevOpsReviewDraft(draft)
-  return toAzureDevOpsReviewDraftView(draft, latestAzureDevOpsReviewIteration(iterations))
+  const view = toAzureDevOpsReviewDraftView(draft, latestAzureDevOpsReviewIteration(iterations))
+  return (await withFindings(resolved, iterations, [view]))[0]
 }
 
 function requireDraft(id: string) {
@@ -91,15 +117,14 @@ export async function updateAzureDevOpsReviewDraft(
 ): Promise<AzureDevOpsReviewDraftView> {
   const draft = requireDraft(id)
   const resolved = await resolveAzureDevOpsReviewPullRequest(host, draft.pullRequestKey)
-  const latest = latestAzureDevOpsReviewIteration(
-    await loadAzureDevOpsReviewIterations(resolved.target)
-  )
+  const iterations = await loadAzureDevOpsReviewIterations(resolved.target)
+  const latest = latestAzureDevOpsReviewIteration(iterations)
   const next = applyAzureDevOpsReviewDraftPatch(draft, patch, {
     now: Date.now(),
     latestIteration: latest
   })
   putStoredAzureDevOpsReviewDraft(next)
-  return toAzureDevOpsReviewDraftView(next, latest)
+  return (await withFindings(resolved, iterations, [toAzureDevOpsReviewDraftView(next, latest)]))[0]
 }
 
 export function deleteAzureDevOpsReviewDraft(id: string): { deleted: boolean } {

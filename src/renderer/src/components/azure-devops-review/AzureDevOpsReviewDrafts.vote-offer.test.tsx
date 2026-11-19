@@ -12,6 +12,7 @@ const hostCastsVotes = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/azure-devops-review-client', () => ({
   azureDevOpsReviewHostCastsVotes: hostCastsVotes,
+  azureDevOpsReviewHostKeepsFindings: async () => true,
   publishAzureDevOpsReviewDrafts: vi.fn()
 }))
 vi.mock('./AzureDevOpsReviewDraftCard', () => ({ AzureDevOpsReviewDraftCard: () => null }))
@@ -59,6 +60,7 @@ async function voteButton(pullRequest: Partial<AzureDevOpsReviewPullRequest> = {
       detail={detail(pullRequest)}
       onChanged={async () => undefined}
       onAskAi={() => undefined}
+      onOpenInDiff={() => undefined}
     />
   )
   // Lets the capability answer land and re-render before looking for the button.

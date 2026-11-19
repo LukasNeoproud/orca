@@ -5,6 +5,7 @@ import type {
   AzureDevOpsReviewDetail,
   AzureDevOpsReviewDraftView
 } from '../../../../shared/azure-devops-review-types'
+import { draftFindingSummary } from './azure-devops-review-finding-labels'
 import { threadStateLabel } from './azure-devops-review-labels'
 
 const DRAFT_PREFIX = 'azure-devops-draft:'
@@ -25,6 +26,21 @@ function draftAuthor(draft: AzureDevOpsReviewDraftView): string {
       ? (draft.author.label ?? translate('azureDevOpsReview.agentAuthor', 'Agent'))
       : translate('azureDevOpsReview.youAuthor', 'You')
   return translate('azureDevOpsReview.inlineDraftAuthor', '{{value0}} · draft', { value0: name })
+}
+
+/** What follows the author and the lines of a draft in the diff: reply target, severity, certainty. */
+function draftMetaLabel(draft: AzureDevOpsReviewDraftView): string | undefined {
+  const parts = [
+    ...(draft.kind === 'reply'
+      ? [
+          translate('azureDevOpsReview.inlineDraftReply', 'reply to #{{value0}}', {
+            value0: draft.threadId ?? '?'
+          })
+        ]
+      : []),
+    ...[draftFindingSummary(draft)].filter((part) => part !== null)
+  ]
+  return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
 // The decorator renders only on the new side; old-side anchors stay in the file comment list.
@@ -104,12 +120,7 @@ export function buildAzureDevOpsInlineComments(
       updatedAt: draft.updatedAt,
       side: 'modified',
       author: draftAuthor(draft),
-      createdAtLabel:
-        draft.kind === 'reply'
-          ? translate('azureDevOpsReview.inlineDraftReply', 'reply to #{{value0}}', {
-              value0: draft.threadId ?? '?'
-            })
-          : undefined,
+      createdAtLabel: draftMetaLabel(draft),
       markdown: true,
       wide: true,
       canDelete: true,

@@ -40,7 +40,11 @@ import {
   listStoredAzureDevOpsReviewDrafts
 } from './azure-devops-review-draft-store'
 import { listAzureDevOpsReviewPullRequestPages } from './azure-devops-review-pull-request-pages'
-import { createAzureDevOpsReviewLineLoader } from './azure-devops-review-file-line-cache'
+import {
+  createAzureDevOpsReviewFileReader,
+  toAzureDevOpsReviewLineLoader
+} from './azure-devops-review-file-line-cache'
+import { describeAzureDevOpsReviewDraftFindings } from './azure-devops-review-draft-findings'
 import {
   azureDevOpsReviewThreadOrigin,
   trackAzureDevOpsReviewThreads
@@ -263,6 +267,11 @@ export async function getAzureDevOpsReviewDetail(
         .map(mapAzureDevOpsReviewChange)
         .filter((change) => change !== null)
     : []
+  // Why one reader: threads and drafts share its request budget, threads first.
+  const readFile = createAzureDevOpsReviewFileReader({
+    ...resolved.source,
+    repositoryId: resolved.target.repositoryId
+  })
   const threads = await trackAzureDevOpsReviewThreads({
     threads: rawThreads.flatMap((raw) => {
       const thread = mapAzureDevOpsReviewThread(raw)
@@ -270,17 +279,18 @@ export async function getAzureDevOpsReviewDetail(
     }),
     iterations,
     changes,
-    loadLines: createAzureDevOpsReviewLineLoader({
-      ...resolved.source,
-      repositoryId: resolved.target.repositoryId
-    })
+    loadLines: toAzureDevOpsReviewLineLoader(readFile)
   })
   return {
     pullRequest,
     latestIteration: latest,
     threads: threads.sort((a, b) => a.id - b.id),
     changes,
-    drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest),
+    drafts: await describeAzureDevOpsReviewDraftFindings({
+      drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest),
+      iterations,
+      readFile
+    }),
     reviewWorktree: host.findReviewWorktree?.(resolved.source.key, pullRequestKey) ?? null
   }
 }

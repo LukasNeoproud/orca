@@ -2,6 +2,11 @@
 // the desktop renderer, the paired mobile client and the `orca ado` CLI.
 
 import type { AzureDevOpsReviewVoteOutcome } from './azure-devops-review-vote'
+import type {
+  AzureDevOpsReviewDraftFinding,
+  AzureDevOpsReviewDraftFindingInput,
+  AzureDevOpsReviewDraftFindingView
+} from './azure-devops-review-draft-finding-types'
 
 export type AzureDevOpsConnection = {
   id: string
@@ -233,12 +238,13 @@ export type AzureDevOpsReviewDraft = {
   publishedThreadId: number | null
   createdAt: number
   updatedAt: number
-}
+} & AzureDevOpsReviewDraftFinding
 
-export type AzureDevOpsReviewDraftView = AzureDevOpsReviewDraft & {
-  /** Written against an older iteration than the pull request's latest. */
-  outdated: boolean
-}
+export type AzureDevOpsReviewDraftView = AzureDevOpsReviewDraft &
+  AzureDevOpsReviewDraftFindingView & {
+    /** Written against an older iteration than the pull request's latest. */
+    outdated: boolean
+  }
 
 export type AzureDevOpsReviewDraftCreateInput = {
   pullRequestKey: string
@@ -251,7 +257,7 @@ export type AzureDevOpsReviewDraftCreateInput = {
   author?: AzureDevOpsReviewDraftAuthor
   /** Defaults to the latest iteration (and its source commit). */
   commit?: string | null
-}
+} & AzureDevOpsReviewDraftFindingInput
 
 export type AzureDevOpsReviewDraftPatch = {
   body?: string
@@ -260,7 +266,7 @@ export type AzureDevOpsReviewDraftPatch = {
   threadStatus?: AzureDevOpsThreadStatus | null
   /** Re-anchor to the latest iteration so an outdated draft becomes publishable. */
   rebaseToLatest?: boolean
-}
+} & AzureDevOpsReviewDraftFindingInput
 
 export type AzureDevOpsReviewWorktreeInfo = {
   worktreeId: string

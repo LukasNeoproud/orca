@@ -14,18 +14,34 @@ import {
 import type { AzureDevOpsReviewDraftView } from '../../../../shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDraftPrompts } from '@/store/azure-devops-review-draft-prompts'
 import { draftLocationLabel, threadStatusLabel } from './azure-devops-review-labels'
+import { draftCertainty, draftSeverity } from './azure-devops-review-finding-labels'
 import { AzureDevOpsDraftAiPrompt } from './AzureDevOpsDraftAiPrompt'
+import { AzureDevOpsReviewCodeLines } from './AzureDevOpsReviewCodeLines'
+import {
+  AzureDevOpsReviewDraftEvidence,
+  type AzureDevOpsReviewOpenInDiff
+} from './AzureDevOpsReviewDraftEvidence'
+import { AzureDevOpsReviewDraftSeverityMenu } from './AzureDevOpsReviewDraftSeverityMenu'
+import {
+  AzureDevOpsReviewCertaintyMark,
+  AzureDevOpsReviewSeverityMark
+} from './AzureDevOpsReviewFindingMarks'
 
 export function AzureDevOpsReviewDraftCard({
   draft,
   selected,
   onSelectedChange,
-  onChanged
+  onChanged,
+  openInDiff,
+  severityEditable
 }: {
   draft: AzureDevOpsReviewDraftView
   selected: boolean
   onSelectedChange: (selected: boolean) => void
   onChanged: () => Promise<void>
+  openInDiff: AzureDevOpsReviewOpenInDiff
+  /** The host stores a severity the user sets; false leaves it as text. */
+  severityEditable: boolean
 }): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(draft.body)
@@ -33,6 +49,8 @@ export function AzureDevOpsReviewDraftCard({
   const aiPrompt = useAzureDevOpsReviewDraftPrompts((s) => s.prompts[draft.id]?.text ?? '')
   const published = draft.state === 'published'
   const selectable = !published && !draft.outdated
+  const severity = draftSeverity(draft)
+  const certainty = draftCertainty(draft)
 
   const run = async (action: () => Promise<unknown>): Promise<void> => {
     setBusy(true)
@@ -69,6 +87,20 @@ export function AzureDevOpsReviewDraftCard({
             → {threadStatusLabel(draft.threadStatus)}
           </span>
         ) : null}
+        {published || !severityEditable ? (
+          severity ? (
+            <AzureDevOpsReviewSeverityMark severity={severity} />
+          ) : null
+        ) : (
+          <AzureDevOpsReviewDraftSeverityMenu
+            severity={severity}
+            disabled={busy}
+            onChange={(next) =>
+              void run(() => updateAzureDevOpsReviewDraft(draft.id, { severity: next }))
+            }
+          />
+        )}
+        {certainty ? <AzureDevOpsReviewCertaintyMark certainty={certainty} /> : null}
         <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
           {draft.author.kind === 'agent' ? <Bot className="size-3" /> : <User className="size-3" />}
           {draft.author.kind === 'agent'
@@ -117,6 +149,14 @@ export function AzureDevOpsReviewDraftCard({
         ) : null}
       </div>
       <div className="space-y-2 px-3 py-2">
+        {draft.codeExcerpt ? (
+          <AzureDevOpsReviewCodeLines
+            lines={draft.codeExcerpt.lines}
+            startLine={draft.codeExcerpt.startLine}
+            truncated={draft.codeExcerpt.truncated === true}
+            label={translate('azureDevOpsReview.commentedCode', 'Commented code')}
+          />
+        ) : null}
         {editing ? (
           <>
             <Textarea
@@ -147,6 +187,7 @@ export function AzureDevOpsReviewDraftCard({
         ) : (
           <CommentMarkdownAsync content={draft.body} className="text-sm" />
         )}
+        <AzureDevOpsReviewDraftEvidence draft={draft} openInDiff={openInDiff} />
         {aiPrompt && !published ? (
           <p className="flex items-start gap-1.5 rounded-sm bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
             <Sparkles className="mt-0.5 size-3 shrink-0" />

@@ -38,6 +38,11 @@ function locationArgs(args: McpJsonRecord) {
   }
 }
 
+// Why not narrowed here: a value of the wrong type must come back as an error, not be dropped.
+function findingArgs(args: McpJsonRecord) {
+  return { severity: args.severity ?? undefined, evidence: args.evidence ?? undefined }
+}
+
 export async function callAzureDevOpsReviewTool(
   client: Pick<RuntimeClient, 'call'>,
   name: string,
@@ -71,6 +76,7 @@ export async function callAzureDevOpsReviewTool(
             kind: requiredString(args, 'kind'),
             body: stringArg(args, 'body'),
             ...locationArgs(args),
+            ...findingArgs(args),
             thread: integerArg(args, 'threadId'),
             commit: stringArg(args, 'commit'),
             agentLabel: process.env.ORCA_AGENT_LABEL
@@ -84,6 +90,7 @@ export async function callAzureDevOpsReviewTool(
           patch: buildAzureDevOpsDraftPatch({
             body: stringArg(args, 'body'),
             ...locationArgs(args),
+            ...findingArgs(args),
             rebase: args.rebase === true
           })
         })

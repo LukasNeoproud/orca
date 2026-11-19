@@ -5,6 +5,7 @@ import type {
   AzureDevOpsReviewListResult,
   AzureDevOpsReviewThread
 } from '../shared/azure-devops-review-types'
+import { isReviewCodeCitation } from '../shared/review-finding'
 
 export function formatAzureDevOpsPullRequestList(result: AzureDevOpsReviewListResult): string {
   const lines = result.pullRequests.map(
@@ -36,15 +37,42 @@ function draftLocation(draft: AzureDevOpsReviewDraftView): string {
   return 'general'
 }
 
+/** One line per piece of evidence with what Orca found when it checked it. */
+function draftEvidenceLines(draft: AzureDevOpsReviewDraftView): string[] {
+  return (draft.evidence ?? []).map((evidence, index) => {
+    const check = draft.evidenceChecks?.[index]
+    const where = isReviewCodeCitation(evidence)
+      ? `${evidence.filePath}:${evidence.startLine}-${evidence.endLine}`
+      : evidence.kind
+    const outcome = !check
+      ? 'not checked'
+      : check.status === 'confirmed'
+        ? check.foundAt
+          ? `confirmed at lines ${check.foundAt.startLine}-${check.foundAt.endLine}`
+          : 'confirmed'
+        : `${check.status === 'refuted' ? 'refuted' : 'not checked'} (${check.reason})`
+    return `  evidence ${index + 1}: ${where} ${outcome}`
+  })
+}
+
 export function formatAzureDevOpsDrafts(drafts: readonly AzureDevOpsReviewDraftView[]): string {
   if (drafts.length === 0) {
     return 'No drafts.'
   }
   return drafts
-    .map(
-      (draft) =>
-        `${draft.id} [${draft.state}${draft.outdated ? ', outdated' : ''}] ${draftLocation(draft)}\n  ${draft.body.split('\n').join('\n  ')}`
-    )
+    .map((draft) => {
+      const state = [
+        draft.state,
+        ...(draft.outdated ? ['outdated'] : []),
+        ...(draft.severity ? [draft.severity] : []),
+        ...(draft.certainty ? [draft.certainty] : [])
+      ].join(', ')
+      return [
+        `${draft.id} [${state}] ${draftLocation(draft)}`,
+        `  ${draft.body.split('\n').join('\n  ')}`,
+        ...draftEvidenceLines(draft)
+      ].join('\n')
+    })
     .join('\n')
 }
 

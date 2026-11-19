@@ -109,6 +109,17 @@ Každý draft nálezu od AI nese ověření, aby bylo méně falešných nález�
 - Nález bez důkazu má jistotu „nejisté“ a je tak označený.
 - Reviewer vidí důkaz u nálezu a může ho otevřít (reference, výstup testu, snímek).
 
+**Stav po TASK-84:**
+
+- **Hotovo:** draft nese závažnost (chyba, upozornění, návrh, drobnost) a seznam důkazů. První druh důkazu je citace kódu: soubor, řádky a citovaný text na commitu draftu. Hostitel citaci porovná se souborem a z výsledku odvodí jistotu nálezu.
+- **Jistota:** bez důkazu nejisté, s citací, která v souboru je, pravděpodobné, s citací, která tam není, rozporné s důvodem. „Ověřeno“ zatím nevznikne; je vyhrazené pro důkazy, které Orca sama spustí.
+- **Kde je to vidět:** karta draftu (závažnost, jistota, úryvek komentovaného kódu, rozbalovací důkazy s otevřením v diffu) a komentář draftu v diffu. Závažnost může uživatel změnit; ručně psaný draft jistotu nemá.
+- **Agent:** závažnost a důkazy ukládá přes `ado_create_draft` a `ado_update_draft` (MCP i rozšíření pro Pi) a přes `orca ado draft create` a `update`. Prompt AI review je žádá u každého nálezu a říká, co se stane bez nich.
+- **Publikace:** do Azure DevOps odchází jen text draftu.
+- **Zbývá:** ostatní druhy důkazu (reference a typy z language serveru, výsledek testu, reprodukce v emulátoru, kontrakt jiné platformy), zobrazení na mobilu a rozhodnutí, jestli publikovaný komentář ponese závažnost a důkaz.
+
+Model, druhy důkazu a pravidla jistoty popisuje [decision-10](../../backlog/decisions/decision-10%20-%20N%C3%A1lezy-AI-v-review-z%C3%A1va%C5%BEnost-d%C5%AFkazy-a-jistota-odvozen%C3%A1-hostitelem-ov%C4%9B%C5%99en%C3%A1-citace-k%C3%B3du-znamen%C3%A1-jen-pravd%C4%9Bpodobn%C3%BD-n%C3%A1lez.md).
+
 ### 8. Inkrementální re-review
 
 Po pushi autora reviewer vidí jen to, co se změnilo od jeho posledního review.

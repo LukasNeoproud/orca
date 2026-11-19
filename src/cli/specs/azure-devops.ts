@@ -6,6 +6,14 @@ const PR_KEY_NOTE =
 
 const LOCATION_FLAGS = ['file', 'line', 'end-line', 'side']
 
+const FINDING_FLAGS = ['severity', 'evidence', 'evidence-file']
+
+const FINDING_NOTES = [
+  '--severity says how serious the finding is: error, warning, suggestion or nit.',
+  '--evidence takes JSON, --evidence-file a file with it: a list of {"kind":"code-citation","filePath","startLine","endLine","quote","note"} quoting code as it is at the commit of the draft.',
+  'Orca compares every citation with the file: the reviewer sees a draft without evidence as uncertain and one whose quote is not in the file as contradicted. `--json` shows the outcome in `.result.draft.evidenceChecks` and `.result.draft.certainty`.'
+]
+
 const JSON_ENVELOPE_NOTE = '`--json` wraps the answer as `{ "ok": true, "result": … }`.'
 
 export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
@@ -48,7 +56,7 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
     path: ['ado', 'draft', 'create'],
     summary: 'Save a draft review comment in Orca (never published by this command)',
     usage:
-      'orca ado draft create --pr <key> --kind inline|file|general|reply (--body <text> | --body-file <path|->) [--file <path>] [--line <n>] [--end-line <n>] [--side right|left] [--thread <id>] [--thread-status active|fixed|wontFix|closed|byDesign] [--commit <sha>] [--agent-label <name>] [--json]',
+      'orca ado draft create --pr <key> --kind inline|file|general|reply (--body <text> | --body-file <path|->) [--file <path>] [--line <n>] [--end-line <n>] [--side right|left] [--thread <id>] [--thread-status active|fixed|wontFix|closed|byDesign] [--commit <sha>] [--severity error|warning|suggestion|nit] [--evidence <json> | --evidence-file <path>] [--agent-label <name>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'pr',
@@ -59,16 +67,19 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
       'thread',
       'thread-status',
       'commit',
+      ...FINDING_FLAGS,
       'agent-label'
     ],
     examples: [
       'orca ado draft create --pr <key> --kind inline --file src/app.ts --line 42 --end-line 45 --body "Null check missing" --json',
-      'orca ado draft create --pr <key> --kind reply --thread 7 --body "Fixed in the latest push?" --json'
+      'orca ado draft create --pr <key> --kind reply --thread 7 --body "Fixed in the latest push?" --json',
+      'orca ado draft create --pr <key> --kind inline --file src/app.ts --line 42 --severity warning --evidence-file evidence.json --body-file - --json'
     ],
     notes: [
       'inline needs --file and --line; file needs --file; reply needs --thread.',
       'Paths are repository-relative. Lines refer to the new version unless --side left.',
       '--commit records the commit you reviewed (defaults to the latest iteration); older commits create outdated drafts.',
+      ...FINDING_NOTES,
       'Drafts stay in Orca until the user selects and publishes them.'
     ]
   },
@@ -76,7 +87,7 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
     path: ['ado', 'draft', 'update'],
     summary: 'Edit or re-anchor an Orca draft review comment',
     usage:
-      'orca ado draft update <id> [--body <text> | --body-file <path|->] [--file <path>] [--line <n>] [--end-line <n>] [--side right|left] [--thread-status <status>] [--rebase] [--json]',
+      'orca ado draft update <id> [--body <text> | --body-file <path|->] [--file <path>] [--line <n>] [--end-line <n>] [--side right|left] [--thread-status <status>] [--severity error|warning|suggestion|nit] [--evidence <json> | --evidence-file <path>] [--rebase] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'id',
@@ -84,11 +95,14 @@ export const AZURE_DEVOPS_COMMAND_SPECS: CommandSpec[] = [
       'body-file',
       ...LOCATION_FLAGS,
       'thread-status',
+      ...FINDING_FLAGS,
       'rebase'
     ],
     positionalArgs: ['id'],
     notes: [
-      'Changing the location or passing --rebase moves the draft to the latest iteration, which clears outdated.'
+      'Changing the location or passing --rebase moves the draft to the latest iteration, which clears outdated.',
+      ...FINDING_NOTES,
+      '--evidence replaces the whole list of the draft.'
     ]
   },
   {

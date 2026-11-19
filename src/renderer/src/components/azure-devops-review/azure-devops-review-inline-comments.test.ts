@@ -145,6 +145,42 @@ describe('buildAzureDevOpsInlineComments', () => {
     ])
   })
 
+  it('marks an agent draft in the diff with its severity and certainty', () => {
+    const agent = { kind: 'agent', label: null } as const
+    const comments = buildAzureDevOpsInlineComments(
+      detail(
+        [thread({})],
+        [
+          draft({ id: 'bare', author: agent, certainty: 'uncertain' }),
+          draft({ id: 'cited', author: agent, severity: 'warning', certainty: 'likely' }),
+          draft({ id: 'wrong', author: agent, severity: 'error', certainty: 'contradicted' }),
+          draft({
+            id: 'reply',
+            author: agent,
+            kind: 'reply',
+            threadId: 7,
+            filePath: null,
+            anchor: null,
+            certainty: 'uncertain'
+          })
+        ]
+      )
+    )
+    expect(comments.slice(1).map((comment) => [comment.id, comment.createdAtLabel])).toEqual([
+      ['azure-devops-draft:bare', 'Uncertain'],
+      ['azure-devops-draft:cited', 'Warning · Likely'],
+      ['azure-devops-draft:wrong', 'Error · Contradicted'],
+      ['azure-devops-draft:reply', 'reply to #7 · Uncertain']
+    ])
+  })
+
+  it('shows no certainty on a hand-written draft, only the severity the user gave it', () => {
+    const comments = buildAzureDevOpsInlineComments(
+      detail([], [draft({ id: 'plain' }), draft({ id: 'graded', severity: 'nit' })])
+    )
+    expect(comments.map((comment) => comment.createdAtLabel)).toEqual([undefined, 'Nit'])
+  })
+
   it('maps inline comment ids back to draft ids only', () => {
     expect(azureDevOpsDraftIdFromInlineComment('azure-devops-draft:x')).toBe('x')
     expect(azureDevOpsDraftIdFromInlineComment('azure-devops-thread:7')).toBeNull()

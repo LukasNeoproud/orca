@@ -6,6 +6,7 @@ import type {
   AzureDevOpsLineAnchor,
   AzureDevOpsReviewDetail
 } from '../../../../shared/azure-devops-review-types'
+import { draftFindingSummary } from './azure-devops-review-finding-labels'
 import { lineRangeLabel, threadStateLabel } from './azure-devops-review-labels'
 
 type FileComment = {
@@ -64,7 +65,11 @@ export function AzureDevOpsReviewFileComments({
             ? (draft.author.label ?? translate('azureDevOpsReview.agentAuthor', 'Agent'))
             : translate('azureDevOpsReview.youAuthor', 'You'),
         text: draft.body,
-        status: draft.outdated ? translate('azureDevOpsReview.outdated', 'Outdated') : null
+        status:
+          [
+            ...(draft.outdated ? [translate('azureDevOpsReview.outdated', 'Outdated')] : []),
+            ...[draftFindingSummary(draft)].filter((part) => part !== null)
+          ].join(' · ') || null
       }))
   ].sort((a, b) => (a.anchor?.startLine ?? 0) - (b.anchor?.startLine ?? 0))
 

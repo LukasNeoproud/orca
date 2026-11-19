@@ -22,6 +22,7 @@ import {
   formatAzureDevOpsPullRequestList
 } from '../azure-devops-format'
 import { runAzureDevOpsReviewMcpServer } from '../azure-devops-review-mcp'
+import { readAzureDevOpsDraftEvidenceFlag } from '../azure-devops-draft-evidence-flag'
 
 type DraftResult = { draft: AzureDevOpsReviewDraftView }
 
@@ -32,6 +33,13 @@ function locationFlags(flags: Map<string, string | boolean>) {
     endLine: getOptionalPositiveIntegerFlag(flags, 'end-line'),
     side: getOptionalStringFlag(flags, 'side'),
     threadStatus: getOptionalStringFlag(flags, 'thread-status')
+  }
+}
+
+async function findingFlags(flags: Map<string, string | boolean>, cwd: string) {
+  return {
+    severity: getOptionalStringFlag(flags, 'severity'),
+    evidence: await readAzureDevOpsDraftEvidenceFlag(flags, cwd)
   }
 }
 
@@ -66,6 +74,7 @@ export const AZURE_DEVOPS_HANDLERS: Record<string, CommandHandler> = {
       kind: getRequiredStringFlag(flags, 'kind'),
       body: await readLinearBody(flags, cwd, { required: true }),
       ...locationFlags(flags),
+      ...(await findingFlags(flags, cwd)),
       thread: getOptionalPositiveIntegerFlag(flags, 'thread'),
       commit: getOptionalStringFlag(flags, 'commit'),
       agentLabel: getOptionalStringFlag(flags, 'agent-label')
@@ -77,6 +86,7 @@ export const AZURE_DEVOPS_HANDLERS: Record<string, CommandHandler> = {
     const patch = buildAzureDevOpsDraftPatch({
       body: await readLinearBody(flags, cwd, { required: false }),
       ...locationFlags(flags),
+      ...(await findingFlags(flags, cwd)),
       rebase: flags.get('rebase') === true
     })
     const response = await client.call<DraftResult>('azureDevOpsReview.updateDraft', {

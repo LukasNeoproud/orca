@@ -1,5 +1,8 @@
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
-import { AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY } from '../../../shared/host-feature-runtime-capabilities'
+import {
+  AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY
+} from '../../../shared/host-feature-runtime-capabilities'
 import type { AzureDevOpsReviewCastableVote } from '../../../shared/azure-devops-review-vote'
 import type { RuntimeStatus } from '../../../shared/runtime-types'
 import type {
@@ -85,21 +88,31 @@ export function publishAzureDevOpsReviewDrafts(
   )
 }
 
-let hostCastsVotes = false
+const hostCapabilities = new Set<string>()
 
-/** Whether the host that holds the credentials reads a vote; an older one drops it silently. */
-export async function azureDevOpsReviewHostCastsVotes(): Promise<boolean> {
-  if (hostCastsVotes) {
+async function hostHasCapability(capability: string): Promise<boolean> {
+  if (hostCapabilities.has(capability)) {
     return true
   }
   try {
     const status = await callRuntimeRpc<RuntimeStatus>(LOCAL, 'status.get')
-    hostCastsVotes =
-      status.capabilities?.includes(AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY) === true
+    for (const advertised of status.capabilities ?? []) {
+      hostCapabilities.add(advertised)
+    }
   } catch {
     // Unknown is treated as unsupported; the next page load asks again.
   }
-  return hostCastsVotes
+  return hostCapabilities.has(capability)
+}
+
+/** Whether the host that holds the credentials reads a vote; an older one drops it silently. */
+export function azureDevOpsReviewHostCastsVotes(): Promise<boolean> {
+  return hostHasCapability(AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY)
+}
+
+/** Whether the host keeps a draft's severity and evidence; an older one drops both silently. */
+export function azureDevOpsReviewHostKeepsFindings(): Promise<boolean> {
+  return hostHasCapability(AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY)
 }
 
 export function openAzureDevOpsReviewWorktree(

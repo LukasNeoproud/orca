@@ -17,12 +17,17 @@ export const AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY =
 
 // azureDevOpsReview.publishDrafts reads `vote`; hosts without it drop the field without an error.
 export const AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY = 'azure-devops-review.vote.v1' as const
+// Drafts take `severity` and `evidence` and come back with the host's checks; hosts without it
+// drop both fields without an error.
+export const AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY =
+  'azure-devops-review.findings.v1' as const
 
 export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
   EMULATOR_MOBILE_STREAM_RUNTIME_CAPABILITY,
   'backlog.v1',
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,

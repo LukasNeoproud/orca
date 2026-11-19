@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { Columns2, ExternalLink, FileText, MessageSquarePlus, PanelLeft, Rows2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,10 @@ import type {
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 import { AzureDevOpsReviewFileComments } from './AzureDevOpsReviewFileComments'
 import { useAzureDevOpsReviewFileDiff } from './use-azure-devops-review-file-diff'
+import {
+  useAzureDevOpsReviewDiffReveal,
+  type AzureDevOpsReviewDiffReveal
+} from './use-azure-devops-review-diff-reveal'
 import { useAzureDevOpsReviewInlineComments } from './use-azure-devops-review-inline-comments'
 import { AzureDevOpsReviewIconButton } from './AzureDevOpsReviewIconButton'
 import { azureDevOpsLoadedSectionFields } from './azure-devops-review-diff-sections'
@@ -31,7 +35,8 @@ export function AzureDevOpsReviewFileDiffPane({
   treeCollapsed,
   onShowTree,
   viewModeToggle,
-  onChanged
+  onChanged,
+  reveal = null
 }: {
   detail: AzureDevOpsReviewDetail
   change: AzureDevOpsReviewChange
@@ -39,6 +44,8 @@ export function AzureDevOpsReviewFileDiffPane({
   onShowTree: () => void
   viewModeToggle: React.ReactNode
   onChanged: () => Promise<void>
+  /** A line of this file to scroll to once its diff is shown. */
+  reveal?: AzureDevOpsReviewDiffReveal | null
 }): React.JSX.Element {
   const pullRequestKey = detail.pullRequest.key
   const iterationId = detail.latestIteration?.id ?? null
@@ -50,6 +57,8 @@ export function AzureDevOpsReviewFileDiffPane({
   const inline = useAzureDevOpsReviewInlineComments(detail, onChanged)
   const [sideBySide, setSideBySide] = useState(true)
   const [fileComposer, setFileComposer] = useState(false)
+  const diffBoxRef = useRef<HTMLDivElement>(null)
+  useAzureDevOpsReviewDiffReveal(diffBoxRef, reveal)
   const externalEditor = getAzureDevOpsReviewExternalEditorAvailability(detail, change)
   const result = diff ? azureDevOpsLoadedSectionFields(diff).diffResult : null
   const image = result?.kind === 'binary' && result.isImage ? result : null
@@ -148,7 +157,7 @@ export function AzureDevOpsReviewFileDiffPane({
         </div>
       ) : null}
       <AzureDevOpsReviewFileComments detail={detail} path={change.path} />
-      <div className="relative min-h-0 flex-1">
+      <div ref={diffBoxRef} className="relative min-h-0 flex-1">
         {error ? (
           <div className="space-y-2 p-4 text-sm">
             <p role="alert" className="text-destructive">

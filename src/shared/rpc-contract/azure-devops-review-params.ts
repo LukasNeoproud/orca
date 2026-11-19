@@ -5,6 +5,11 @@ import {
   AZURE_DEVOPS_REVIEW_THREAD_STATUSES,
   type AzureDevOpsThreadStatus
 } from '../azure-devops-review-types'
+import {
+  parseReviewFindingEvidence,
+  parseReviewFindingSeverity,
+  type ReviewFindingInput
+} from '../review-finding-input'
 
 const PullRequestKey = z.string().min(3).max(512)
 const ThreadStatus = z
@@ -25,6 +30,24 @@ const Author = z.union([
   z.object({ kind: z.literal('user') }),
   z.object({ kind: z.literal('agent'), label: z.string().max(120).nullable().optional() })
 ])
+
+// Why the parser's own message: the sender gets an error that names the field it has to fix.
+function parsedBy<T>(parse: (value: unknown) => ReviewFindingInput<T>) {
+  return z.unknown().transform((value, ctx): T => {
+    const parsed = parse(value)
+    if (!parsed.ok) {
+      ctx.addIssue({ code: 'custom', message: parsed.error })
+      return z.NEVER
+    }
+    return parsed.value
+  })
+}
+// `null` removes the value. A host from before findings drops both fields without an error.
+const Severity = parsedBy(parseReviewFindingSeverity).nullable().optional()
+// Why kinds are kept: a newer client may send evidence this host cannot check yet.
+const Evidence = parsedBy((value) => parseReviewFindingEvidence(value, { unknownKinds: 'keep' }))
+  .nullable()
+  .optional()
 
 export const AzureDevOpsReviewListParams = z
   .object({
@@ -49,7 +72,9 @@ export const AzureDevOpsReviewCreateDraftParams = z.object({
   threadId: z.number().int().positive().nullable().optional(),
   threadStatus: ThreadStatus.nullable().optional(),
   author: Author.optional(),
-  commit: z.string().max(64).nullable().optional()
+  commit: z.string().max(64).nullable().optional(),
+  severity: Severity,
+  evidence: Evidence
 })
 
 export const AzureDevOpsReviewUpdateDraftParams = z.object({
@@ -59,7 +84,9 @@ export const AzureDevOpsReviewUpdateDraftParams = z.object({
     filePath: z.string().max(4096).nullable().optional(),
     anchor: NormalizedAnchor.nullable().optional(),
     threadStatus: ThreadStatus.nullable().optional(),
-    rebaseToLatest: z.boolean().optional()
+    rebaseToLatest: z.boolean().optional(),
+    severity: Severity,
+    evidence: Evidence
   })
 })
 

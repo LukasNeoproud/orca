@@ -21,6 +21,7 @@ import {
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDetail } from './use-azure-devops-review-detail'
+import { useAzureDevOpsReviewDiffRevealRequest } from './use-azure-devops-review-diff-reveal'
 import { azureDevOpsReviewVoteLabel } from './azure-devops-review-vote-labels'
 import { AzureDevOpsReviewFiles } from './AzureDevOpsReviewFiles'
 import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
@@ -77,6 +78,9 @@ export function AzureDevOpsPullRequestPage({
   const [choosingOptions, setChoosingOptions] = useState(false)
   const [choosingThreads, setChoosingThreads] = useState(false)
   const [aiDraftIds, setAiDraftIds] = useState<string[] | null>(null)
+  const [chosenTab, setChosenTab] = useState<string | null>(null)
+  const [openingTab, setOpeningTab] = useState<string | null>(null)
+  const { reveal, requestReveal } = useAzureDevOpsReviewDiffRevealRequest()
   const pr = detail?.pullRequest ?? null
   // Why: on the user's own open PR the agent and the workspace are the author's branch, not a review checkout.
   const ownPullRequest = pr?.createdByMe === true && pr.status === 'active'
@@ -129,6 +133,14 @@ export function AzureDevOpsPullRequestPage({
   }
 
   const forkBlocked = pr?.isFork === true
+  // Why once: the tab the page opens on must not follow drafts that arrive while it is open.
+  if (detail && openingTab === null) {
+    setOpeningTab(unpublished > 0 ? 'drafts' : 'overview')
+  }
+  const openInDiff = (filePath: string, line: number): void => {
+    requestReveal(filePath, line)
+    setChosenTab('files')
+  }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
@@ -276,7 +288,8 @@ export function AzureDevOpsPullRequestPage({
         </p>
       ) : (
         <Tabs
-          defaultValue={unpublished > 0 ? 'drafts' : 'overview'}
+          value={chosenTab ?? openingTab ?? 'overview'}
+          onValueChange={setChosenTab}
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
           <div className="shrink-0 border-b border-border px-4 py-2">
@@ -298,7 +311,7 @@ export function AzureDevOpsPullRequestPage({
           </div>
           {/* Why: Files owns its own tree and diff scrolling; the text tabs scroll as a page. */}
           <TabsContent value="files" className="min-h-0 flex-1">
-            <AzureDevOpsReviewFiles detail={detail} onChanged={reload} />
+            <AzureDevOpsReviewFiles detail={detail} onChanged={reload} reveal={reveal} />
           </TabsContent>
           <AzureDevOpsSnapshotsTabContent detail={detail} />
           <TabsContent value="overview" className={SCROLLING_TAB_CLASS}>
@@ -323,7 +336,12 @@ export function AzureDevOpsPullRequestPage({
           </TabsContent>
           <TabsContent value="drafts" className={SCROLLING_TAB_CLASS}>
             <div className="mx-auto w-full max-w-4xl px-4 py-4">
-              <AzureDevOpsReviewDrafts detail={detail} onChanged={reload} onAskAi={setAiDraftIds} />
+              <AzureDevOpsReviewDrafts
+                detail={detail}
+                onChanged={reload}
+                onAskAi={setAiDraftIds}
+                onOpenInDiff={openInDiff}
+              />
             </div>
           </TabsContent>
         </Tabs>

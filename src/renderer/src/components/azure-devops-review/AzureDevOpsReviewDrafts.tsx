@@ -4,24 +4,30 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { AzureDevOpsReviewDraftCard } from './AzureDevOpsReviewDraftCard'
+import type { AzureDevOpsReviewOpenInDiff } from './AzureDevOpsReviewDraftEvidence'
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 import { AzureDevOpsReviewPublishDialog } from './AzureDevOpsReviewPublishDialog'
+import { useAzureDevOpsReviewFindingsKept } from './use-azure-devops-review-findings-kept'
 import { useAzureDevOpsReviewVoteOffered } from './use-azure-devops-review-vote-offered'
 
 export function AzureDevOpsReviewDrafts({
   detail,
   onChanged,
-  onAskAi
+  onAskAi,
+  onOpenInDiff
 }: {
   detail: AzureDevOpsReviewDetail
   onChanged: () => Promise<void>
   /** Opens the send-to-AI dialog with these drafts picked. */
   onAskAi: (draftIds: string[]) => void
+  /** Shows a line of a changed file in the Files tab. */
+  onOpenInDiff: (filePath: string, line: number) => void
 }): React.JSX.Element {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [publishing, setPublishing] = useState(false)
   const [composing, setComposing] = useState(false)
   const voteOffered = useAzureDevOpsReviewVoteOffered(detail.pullRequest)
+  const severityEditable = useAzureDevOpsReviewFindingsKept()
   const { pending, published } = useMemo(
     () => ({
       pending: detail.drafts.filter((draft) => draft.state !== 'published'),
@@ -29,6 +35,10 @@ export function AzureDevOpsReviewDrafts({
     }),
     [detail.drafts]
   )
+  const openInDiff = useMemo<AzureDevOpsReviewOpenInDiff>(() => {
+    const changed = new Set(detail.changes.map((change) => change.path))
+    return { canOpen: (filePath) => changed.has(filePath), open: onOpenInDiff }
+  }, [detail.changes, onOpenInDiff])
   const publishable = pending.filter((draft) => !draft.outdated)
   // Why: drafts can disappear or turn outdated after a reload; never publish a stale selection.
   const selectedIds = publishable.filter((draft) => selected.has(draft.id)).map((d) => d.id)
@@ -154,6 +164,8 @@ export function AzureDevOpsReviewDrafts({
             selected={selected.has(draft.id) && !draft.outdated}
             onSelectedChange={(value) => setDraftSelected(draft.id, value)}
             onChanged={onChanged}
+            openInDiff={openInDiff}
+            severityEditable={severityEditable}
           />
         ))}
       </ul>
@@ -172,6 +184,8 @@ export function AzureDevOpsReviewDrafts({
                 selected={false}
                 onSelectedChange={() => undefined}
                 onChanged={onChanged}
+                openInDiff={openInDiff}
+                severityEditable={false}
               />
             ))}
           </ul>
