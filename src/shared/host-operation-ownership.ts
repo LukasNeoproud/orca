@@ -55,6 +55,7 @@ export const HOST_OPERATION_OWNERSHIP = {
   project: 'host',
   projectGroup: 'host',
   projectHostSetup: 'host',
+  qualityGates: 'host',
   reference: 'host',
   repo: 'host',
   runtime: 'host',

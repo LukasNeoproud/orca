@@ -511,6 +511,12 @@ import {
   ProjectHostSetupUpdate,
   ProjectUpdate
 } from './project-runtime-params'
+import {
+  QualityGateCancelParams,
+  QualityGateOutputParams,
+  QualityGateRunParams,
+  QualityGateWorktreeParams
+} from './quality-gate-params'
 import { ReferenceFind, ReferenceList } from './reference-params'
 import {
   ProjectGroupCreate,
@@ -1269,6 +1275,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'projectHostSetup.list': null,
   'projectHostSetup.setupExistingFolder': ProjectHostSetupExistingFolder,
   'projectHostSetup.update': ProjectHostSetupUpdate,
+  'qualityGates.cancel': QualityGateCancelParams,
+  'qualityGates.list': QualityGateWorktreeParams,
+  'qualityGates.output': QualityGateOutputParams,
+  'qualityGates.run': QualityGateRunParams,
+  'qualityGates.status': QualityGateWorktreeParams,
   'reference.find': ReferenceFind,
   'reference.list': ReferenceList,
   'repo.add': RepoPath,

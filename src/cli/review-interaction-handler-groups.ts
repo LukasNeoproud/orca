@@ -20,6 +20,11 @@ export const REVIEW_INTERACTION_HANDLER_GROUPS: readonly HandlerGroup[] = [
       'ado mcp'
     ],
     load: async () => (await import('./handlers/azure-devops.js')).AZURE_DEVOPS_HANDLERS
+  },
+  {
+    name: 'quality-gates',
+    keys: ['gates list', 'gates run', 'gates status'],
+    load: async () => (await import('./handlers/quality-gates.js')).QUALITY_GATE_HANDLERS
   }
 ]
 

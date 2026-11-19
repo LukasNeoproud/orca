@@ -143,6 +143,7 @@ export class RepoLifecycleOperations {
         | 'gitRemoteIdentity'
         | 'hostLocalProjectId'
         | 'hookSettings'
+        | 'qualityGates'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'

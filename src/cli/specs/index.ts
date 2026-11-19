@@ -25,6 +25,7 @@ import { PROFILE_STATE_COMMAND_SPECS } from './profile-state'
 import { REFERENCE_COMMAND_SPECS } from './reference'
 import { INTERACT_COMMAND_SPECS } from './interact'
 import { AZURE_DEVOPS_COMMAND_SPECS } from './azure-devops'
+import { QUALITY_GATE_COMMAND_SPECS } from './quality-gates'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
@@ -52,5 +53,6 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...SEARCH_COMMAND_SPECS,
   ...PROFILE_STATE_COMMAND_SPECS,
   ...INTERACT_COMMAND_SPECS,
-  ...AZURE_DEVOPS_COMMAND_SPECS
+  ...AZURE_DEVOPS_COMMAND_SPECS,
+  ...QUALITY_GATE_COMMAND_SPECS
 ]

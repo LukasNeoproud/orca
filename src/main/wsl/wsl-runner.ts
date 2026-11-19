@@ -74,6 +74,10 @@ export type WslSpec = WslCommand & {
   env?: Readonly<Record<string, string>>
   timeoutMs?: number
   maxOutputBytes?: number
+  /** Aborting stops `wsl.exe`; the result still reports what was captured. */
+  signal?: AbortSignal
+  /** Which end of an over-long output to keep. Defaults to the head. */
+  outputCapture?: 'head' | 'tail'
 }
 
 export type WslResult = {
@@ -92,6 +96,8 @@ export type WslResult = {
   stdout: string
   stderr: string
   timedOut: boolean
+  /** True when stdout or stderr exceeded `maxOutputBytes` and was clipped. */
+  outputTruncated?: boolean
 }
 
 export const DEFAULT_WSL_TIMEOUT_MS = 30_000
@@ -242,7 +248,12 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
   // One budget for the whole call: the probe used to run on its own 10s timer
   // ahead of the timed leg, so a 5s caller could wait 15s.
   const remainingMs = Math.max(1, deadline - Date.now())
-  const result = await runProcess({
+  const { outputCapture } = spec
+  // Why a wrapper: callers that keep the head still make the one-argument call they always made.
+  const run: typeof runProcess = outputCapture
+    ? (processSpec) => runProcess(processSpec, outputCapture)
+    : runProcess
+  const result = await run({
     program: resolveWslExecutablePath(),
     args: buildWslExecArgs(spec.distro, argv, { user: spec.user }),
     // Name a Windows directory rather than inheriting one: an inherited cwd that
@@ -252,7 +263,8 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
     env: buildHostEnv(spec.env),
     input: delivery === 'stdin' ? spec.script : undefined,
     timeoutMs: remainingMs,
-    maxOutputBytes: spec.maxOutputBytes
+    maxOutputBytes: spec.maxOutputBytes,
+    ...(spec.signal ? { signal: spec.signal } : {})
   })
 
   return {
@@ -260,6 +272,7 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
     code: result.code,
     stdout: result.stdout,
     stderr: result.stderr,
-    timedOut: result.timedOut
+    timedOut: result.timedOut,
+    ...(result.outputTruncated ? { outputTruncated: true } : {})
   }
 }

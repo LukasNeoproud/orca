@@ -47,6 +47,7 @@ export type RepositoryApi = {
         | 'repoIcon'
         | 'upstream'
         | 'hookSettings'
+        | 'qualityGates'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'

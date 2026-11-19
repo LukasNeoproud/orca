@@ -49,6 +49,7 @@ import { CLIPBOARD_METHODS } from './clipboard'
 import { HOST_CAPABILITY_METHODS } from './host-capabilities'
 import { HOST_SYSTEM_METHODS } from './host-system'
 import { AZURE_DEVOPS_REVIEW_METHODS } from './azure-devops-review'
+import { QUALITY_GATE_METHODS } from './quality-gates'
 import { CONVERSATION_BRANCH_METHODS } from './conversation-branch'
 import { MOBILE_WEB_BUNDLE_METHODS } from './mobile-web-bundle'
 import { RUNTIME_CLIENT_CAPABILITY_METHODS } from './runtime-client-capabilities'
@@ -134,6 +135,7 @@ export const ALL_RPC_METHODS = [
   ...HOST_CAPABILITY_METHODS,
   ...HOST_SYSTEM_METHODS,
   ...AZURE_DEVOPS_REVIEW_METHODS,
+  ...QUALITY_GATE_METHODS,
   ...CONVERSATION_BRANCH_METHODS,
   ...MOBILE_WEB_BUNDLE_METHODS,
   ...RUNTIME_CLIENT_CAPABILITY_METHODS,

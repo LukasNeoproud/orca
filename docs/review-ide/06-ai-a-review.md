@@ -53,6 +53,18 @@ Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepši
 - **Výsledek:** stav bran je vidět u workspace a v PR; review nedostává chyby kompilace ani lintu.
 - **Nastavení:** které brány jsou povinné, je v nastavení projektu v Orce.
 
+**Stav po TASK-85:**
+
+- **Hotovo:** brány se nastavují u repozitáře v Orce (název, příkaz, povinná nebo volitelná, časový limit, pořadí) a spouštějí se jen na pokyn: tlačítkem v nastavení repozitáře nebo příkazem `orca gates run`. Git repozitář i složka bez gitu.
+- **Výsledek brány:** prošla, selhala, vypršel limit, nešla spustit nebo zastavena; k tomu návratový kód a konec výstupu.
+- **Vazba na kód:** záznam běhu nese commit, zda byl strom čistý, a kdo běh spustil. Po dalším commitu nebo úpravě souboru se výsledek hlásí jako zastaralý. Složka bez gitu se na commit neváže.
+- **Kde to běží:** na hostiteli, který worktree vlastní, včetně WSL a Orky na vzdáleném stroji. Při ztrátě spojení je běh „nelze ověřit“, ne selhání; starší hostitel odpoví, že brány neumí.
+- **Bezpečnost:** příkazy bran se nikdy nečtou z repozitáře ani z `orca.yaml` a přes RPC ani CLI je nejde založit ani změnit. Agent smí přes CLI spustit jen bránu, kterou nastavil uživatel.
+- **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`. `run` čeká na konec a skončí kódem 0, jen když prošly všechny povinné brány.
+- **Zbývá:** stav bran u workspace a panel výsledků (TASK-86), spuštění po kroku agenta, smyčka s limitem opakování a vrácení nálezů agentovi (TASK-87), ostatní kontroly (diagnostika language serveru, pravidla vrstev) a běh brány jako důkaz nálezu (TASK-88). Zápis stavu bran do pull requestu rozhodnutý není. Brány repozitáře u jiného hostitele jdou nastavit jen v Orce na něm.
+
+Model brány a běhu, úložiště a vlastníka běhu popisuje [decision-11](../../backlog/decisions/decision-11%20-%20Br%C3%A1ny-kvality-definice-v-nastaven%C3%AD-repozit%C3%A1%C5%99e-v-Orce-b%C4%9Bh-a-jeho-z%C3%A1znam-na-hostiteli-kter%C3%BD-worktree-vlastn%C3%AD.md).
+
 ### 4. Rozdělení velké změny
 
 Velikost PR se dnes neřeší, ale menší celky jsou pro reviewera přehlednější. Funkce je proto volitelná.

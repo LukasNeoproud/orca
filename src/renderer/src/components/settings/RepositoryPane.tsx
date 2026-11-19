@@ -31,6 +31,8 @@ import { matchesRepositoryIdentitySearch } from './repository-identity-search'
 import { RepositoryWorktreeDefaultsSection } from './RepositoryWorktreeDefaultsSection'
 import { getProjectRuntimeSessionSummary } from './repository-runtime-session-summary'
 import { getRepoOwnerWorktreeVisibilityDefaults } from '../../store/worktree-visibility-defaults-by-host'
+import { RepositoryQualityGatesSection } from '../quality-gates/RepositoryQualityGatesSection'
+import { getQualityGateSettingsSearchEntries } from '../quality-gates/quality-gate-settings-search'
 export { getRepositoryPaneSearchEntries }
 export { matchesRepositoryIdentitySearch } from './repository-identity-search'
 
@@ -361,6 +363,14 @@ export function RepositoryPane({
       </section>
     ) : null,
     hooksSection,
+    forceFullPaneForRepoMatch ||
+    matchesSettingsSearch(searchQuery, getQualityGateSettingsSearchEntries(repo)) ? (
+      <RepositoryQualityGatesSection
+        key={`quality-gates:${selectedHostId}:${repo.id}`}
+        repo={repo}
+        updateRepo={updateSelectedRepo}
+      />
+    ) : null,
     !isFolder &&
     (forceFullPaneForRepoMatch || matchesSettingsSearch(searchQuery, sourceControlAiEntries)) ? (
       <RepositorySourceControlAiSection

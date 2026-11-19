@@ -158,6 +158,7 @@ export function supportsBrowserPageFlag(commandPath: string[]): boolean {
       'diagnostics',
       'linear',
       'ado',
+      'gates',
       'skills',
       'search',
       'agent-context'

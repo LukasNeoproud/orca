@@ -9,6 +9,7 @@ import { sanitizeRepoIcon } from '../../../shared/repo-icon'
 import { normalizeGhAccountBinding } from '../../../shared/github/account-binding'
 import type { GhAccountBinding } from '../../../shared/github/account-binding'
 import { normalizeRepoSourceControlAiOverrides } from '../../../shared/source-control-ai'
+import { normalizeQualityGateDefinitions } from '../../../shared/quality-gate-types'
 import {
   normalizeCustomWorktreeVisibilitySources,
   normalizeWorktreeVisibilitySourcePreferences
@@ -33,6 +34,7 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
             | 'repoIcon'
             | 'upstream'
             | 'hookSettings'
+            | 'qualityGates'
             | 'worktreeBaseRef'
             | 'worktreeBasePath'
             | 'simplifiedWorktreeLayout'
@@ -215,6 +217,16 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
           delete updates.sourceControlAi
         } else {
           updates.sourceControlAi = normalizedSourceControlAi
+        }
+      }
+      // Why here and not in repo.update: this channel is the app's own window, the only place
+      // the user defines a gate. The runtime socket's schema does not know the field.
+      if ('qualityGates' in updates) {
+        const qualityGates = normalizeQualityGateDefinitions(updates.qualityGates)
+        if (!qualityGates) {
+          delete updates.qualityGates
+        } else {
+          updates.qualityGates = qualityGates
         }
       }
       const hostId = args.hostId ? normalizeExecutionHostId(args.hostId) : null

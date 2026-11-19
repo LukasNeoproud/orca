@@ -38,6 +38,7 @@ export type RepoUpdate = Partial<
     | 'repoIcon'
     | 'upstream'
     | 'hookSettings'
+    | 'qualityGates'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
     | 'simplifiedWorktreeLayout'

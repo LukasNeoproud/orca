@@ -85,6 +85,7 @@ export class RepoUpdatePersistenceOperations {
         | 'gitRemoteIdentity'
         | 'hostLocalProjectId'
         | 'hookSettings'
+        | 'qualityGates'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'
