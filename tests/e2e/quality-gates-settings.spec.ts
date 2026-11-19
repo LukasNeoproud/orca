@@ -4,6 +4,11 @@ import os from 'node:os'
 import path from 'node:path'
 import type { ElectronApplication, Locator, Page } from '@stablyai/playwright-test'
 import { test, expect } from './helpers/orca-app'
+import {
+  addQualityGate as addGate,
+  openQualityGateSettings as openRepoSettings,
+  qualityGateRow as row
+} from './helpers/quality-gate-settings-page'
 import { runCompiledOrcaCli } from './helpers/compiled-orca-cli'
 import { attachRepoAndOpenTerminal, createRestartSession } from './helpers/orca-restart'
 import { createSeededTestRepo } from './helpers/seeded-test-repo'
@@ -20,50 +25,10 @@ import { cleanupTestRepository } from './global-teardown'
 // An odd duration, so the process check below cannot match anything else on the machine.
 const SLOW_COMMAND = 'sleep 317'
 
-async function openRepoSettings(page: Page, repoId: string): Promise<Locator> {
-  await page.evaluate((repoId) => {
-    const state = window.__store!.getState()
-    state.openSettingsTarget({ pane: 'repo', repoId })
-    state.openSettingsPage()
-  }, repoId)
-  await expect(page.getByPlaceholder('Search settings')).toBeVisible({ timeout: 10_000 })
-  // Why: first-run announcements can cover the settings pane on fresh profiles.
-  const maybeLater = page.getByRole('button', { name: 'Maybe Later' })
-  if (await maybeLater.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await maybeLater.click()
-  }
-  const section = page.locator(`[data-quality-gates-section="${repoId}"]`)
-  await section.scrollIntoViewIfNeeded()
-  await expect(section.getByRole('heading', { name: 'Quality Gates' })).toBeVisible()
-  return section
-}
-
-async function addGate(
-  section: Locator,
-  gate: { name: string; command: string; timeout?: string; optional?: boolean }
-): Promise<void> {
-  await section.getByRole('button', { name: 'Add Gate' }).click()
-  const editor = section.locator('[data-quality-gate-editor="new"]')
-  await editor.getByLabel('Name').fill(gate.name)
-  await editor.getByLabel('Command').fill(gate.command)
-  if (gate.timeout) {
-    await editor.getByLabel('Time limit (seconds)').fill(gate.timeout)
-  }
-  if (gate.optional) {
-    await editor.getByRole('switch', { name: 'Required' }).click()
-  }
-  await editor.getByRole('button', { name: 'Save' }).click()
-  await expect(editor).toHaveCount(0)
-}
-
 function gateOrder(section: Locator): Promise<string[]> {
   return section
     .locator('[data-quality-gate-row]')
     .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-quality-gate-row') ?? ''))
-}
-
-function row(section: Locator, gateId: string): Locator {
-  return section.locator(`[data-quality-gate-row="${gateId}"]`)
 }
 
 function slowProcessCount(): number {

@@ -1,6 +1,10 @@
 import { buildWindowsCmdShimCommandLine } from '@orca/process-host/windows-command-line'
 import { describe, expect, it } from 'vitest'
-import { isCommandNotStartedExitCode, planQualityGateLaunch } from './quality-gate-launch'
+import {
+  isCommandNotStartedExitCode,
+  planQualityGateLaunch,
+  QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL
+} from './quality-gate-launch'
 
 const COMMAND = 'pnpm lint && echo "done" > out.txt'
 
@@ -63,6 +67,20 @@ describe('planQualityGateLaunch', () => {
     expect(launch.runnerScript).toContain(
       'call pnpm lint\r\nif errorlevel 1 exit /b %errorlevel%\r\ncall pnpm test\r\n'
     )
+  })
+
+  it('refuses a "#!" command on Windows with a message about gates, not setup scripts', () => {
+    for (const command of ['#!/bin/bash\npnpm lint', '#!/usr/bin/env sh\r\npnpm lint']) {
+      expect(plan('win32', command)).toEqual({
+        kind: 'refused',
+        reason: QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL
+      })
+    }
+    expect(QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL).not.toMatch(/setup|terminal shell/i)
+    // A "#!" further down is cmd's problem, as in the setup runner.
+    expect(plan('win32', 'pnpm lint\n#!/bin/bash').kind).toBe('windows-runner')
+    // bash reads the line as a comment.
+    expect(plan('linux', '#!/bin/bash\npnpm lint').kind).toBe('posix')
   })
 
   it.each(['win32', 'linux'] as const)(

@@ -74,8 +74,8 @@ Hostitel si k záznamu navíc drží konec výstupu (posledních 16 KiB z každ�
 | `passed` | návratový kód 0 | `exited` |
 | `failed` | jiný návratový kód | `exited` |
 | `timed-out` | vypršel limit; strom procesů je ukončen a kód se neuvádí | `exited` |
-| `not-started` | shell příkaz nenašel nebo nespustil (126 a 127, v `cmd.exe` 9009), proces nešel založit, worktree neexistuje | `exited` |
-| `cancelled` | zastavila ho Orca na pokyn; kód se neuvádí | `exited` |
+| `not-started` | shell příkaz nenašel nebo nespustil (126 a 127, v `cmd.exe` 9009), proces nešel založit, worktree neexistuje, na Windows příkaz začíná `#!` | `exited` |
+| `cancelled` | zastavila ho Orca na pokyn, nebo proto, že se ukončovala (důvod v `error`); kód se neuvádí | `exited` |
 | `unverifiable` | nikdo, koho se dá zeptat, neví, jestli příkaz běží | `unverifiable` |
 
 ### Zastaralý výsledek
@@ -99,6 +99,15 @@ Hostitel si k záznamu navíc drží konec výstupu (posledních 16 KiB z každ�
 - **Jedna fronta na worktree.** Brány běží jedna po druhé v pořadí z nastavení, protože build a testy sdílejí jeden adresář. Různé worktrees běží souběžně.
 - **Zdvojení:** žádost o bránu, která ve stejném worktree čeká nebo běží, vrátí běžící záznam s `started: false` a nový proces nezaloží.
 - **Zrušení:** podle běhu, podle brány nebo všeho ve worktree. Běžící příkaz se ukončí i se svými potomky, čekající se nespustí. Stav je `cancelled`, ne `failed`.
+
+### Ukončení aplikace
+
+- **Kdy:** při řádném ukončení, tedy v desktopové Orce ve `will-quit` (až když už ukončení nemůže zrušit okno) a v `orcad` mezi úklidy při zastavení. Hostitel zastaví všechny své běhy stejnou cestou jako zrušení na pokyn: čekající se nespustí, běžícímu se ukončí celý strom procesů.
+- **Záznam:** `cancelled` s textem v `error` „Stopped because Orca quit while the gate was running.“ Do úložiště se zapíše dřív, než ukončení pokračuje. Nová hodnota stavu ani pole nepřibyly, takže starší klient dostane platný záznam a důvod ukáže jako text chyby, stejně jako u vypršeného limitu.
+- **Limit:** ukončení čeká na brány nejvýš 5 s. Strom dostane SIGTERM a po 2 s ho hostitel procesů ukončí natvrdo. Běh, jehož konec se do limitu nepotvrdí, zůstane v souboru živý a po dalším startu je `unverifiable`.
+- **Po začátku ukončování** hostitel nový běh odmítne chybou.
+- **Pád a vynucené ukončení** (SIGKILL, vynucené ukončení v systému) tuto cestu nespustí. Záznam zůstane živý a po startu je `unverifiable`; příkaz může doběhnout bez záznamu výsledku.
+- **Ověření:** test služby se skutečným procesem, jeho potomkem a vnukem (macOS, na Linuxu v CI) a e2e test, který Orcu ukončí uprostřed běhu a po startu čte záznam. Windows a WSL ověřené nejsou; tam se ukončení spoléhá na stejnou cestu jako zrušení na pokyn.
 
 ### Úložiště běhů
 
@@ -175,10 +184,10 @@ Brány kvality jsou seznam příkazů na řádku repozitáře v Orce. Píše je 
 
 - **Brány se samy nespouštějí.** Stav v postranním panelu (TASK-86), spuštění po kroku agenta (TASK-87) a běh brány jako důkaz nálezu (TASK-88) navazují.
 - **Repozitář u jiného hostitele** má brány jen ke čtení; nastavit je jde v Orce na tom hostiteli. Zápis na dálku by potřeboval cestu, kterou agent nepoužije, a tu zatím nikdo nerozhodl.
-- **Ukončení aplikace běžící příkaz nezastaví.** Po startu je jeho záznam `unverifiable` a proces může doběhnout bez záznamu výsledku.
+- **Řádné ukončení aplikace běžící příkaz zastaví** i s potomky a záznam říká proč. Po pádu nebo vynuceném ukončení je záznam `unverifiable` a proces může doběhnout bez záznamu výsledku. Převzetí běžícího příkazu novou instancí se nestaví.
 - **Zrušení ve WSL** ukončí `wsl.exe`; že skončí i potomci uvnitř hosta, ověřené není.
 - **Windows a skutečný vzdálený hostitel** ověřené nejsou. Sestavení spuštění pro Windows a WSL a chování klienta při ztrátě spojení pokrývají testy nad náhradami.
-- **Příkaz začínající `#!` na Windows** runner odmítne textem určeným pro setup skripty.
+- **Příkaz začínající `#!` na Windows** se nespustí. Záznam je `not-started` s hláškou, že brány na Windows běží přes `cmd.exe` a skript je potřeba zavolat přes jeho interpret. Ve WSL ho bash čte jako komentář.
 - **Výsledek brány, která mění soubory,** je hned zastaralý.
 - **CLI neumí běh zrušit ani nečekat** (`gates cancel`, `--no-wait`); zrušit jde z nastavení.
 - **Výstup je jen konec,** 16 KiB z každého proudu. Celý log buildu Orca nedrží.

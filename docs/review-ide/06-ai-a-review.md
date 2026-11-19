@@ -61,6 +61,7 @@ Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepši
 - **Kde to běží:** na hostiteli, který worktree vlastní, včetně WSL a Orky na vzdáleném stroji. Při ztrátě spojení je běh „nelze ověřit“, ne selhání; starší hostitel odpoví, že brány neumí.
 - **Bezpečnost:** příkazy bran se nikdy nečtou z repozitáře ani z `orca.yaml` a přes RPC ani CLI je nejde založit ani změnit. Agent smí přes CLI spustit jen bránu, kterou nastavil uživatel.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`. `run` čeká na konec a skončí kódem 0, jen když prošly všechny povinné brány.
+- **Ukončení Orky:** běžící brána se zastaví i s procesy, které spustila, a po startu je „zastavena, protože se Orca ukončila“. Po pádu je „nelze ověřit“ (TASK-119).
 - **Zbývá:** stav bran u workspace a panel výsledků (TASK-86), spuštění po kroku agenta, smyčka s limitem opakování a vrácení nálezů agentovi (TASK-87), ostatní kontroly (diagnostika language serveru, pravidla vrstev) a běh brány jako důkaz nálezu (TASK-88). Zápis stavu bran do pull requestu rozhodnutý není. Brány repozitáře u jiného hostitele jdou nastavit jen v Orce na něm.
 
 Model brány a běhu, úložiště a vlastníka běhu popisuje [decision-11](../../backlog/decisions/decision-11%20-%20Br%C3%A1ny-kvality-definice-v-nastaven%C3%AD-repozit%C3%A1%C5%99e-v-Orce-b%C4%9Bh-a-jeho-z%C3%A1znam-na-hostiteli-kter%C3%BD-worktree-vlastn%C3%AD.md).

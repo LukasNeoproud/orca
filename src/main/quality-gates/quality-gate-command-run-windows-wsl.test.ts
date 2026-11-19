@@ -17,6 +17,7 @@ import {
   seedWslGuestEnvironmentForTests
 } from '../wsl/wsl-guest-environment'
 import { runQualityGateCommand } from './quality-gate-command-run'
+import { QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL } from './quality-gate-launch'
 
 const RUNNER_DIRECTORY = 'C:\\Users\\dev\\AppData\\orca\\gates'
 const RUNNER_FILE = `${RUNNER_DIRECTORY}\\quality-gate-run-1.cmd`
@@ -99,6 +100,21 @@ describe('runQualityGateCommand on Windows and in WSL', () => {
       expect(result).toMatchObject({ status: 'not-started', exitCode: null, error: 'spawn EPERM' })
     })
 
+    it('starts nothing for a "#!" command and says why in terms of gates', async () => {
+      const result = await run(target, '#!/usr/bin/env bash\nset -e\npnpm lint')
+
+      expect(runProcessMock).not.toHaveBeenCalled()
+      expect(order).toEqual([])
+      expect(result).toEqual({
+        status: 'not-started',
+        exitCode: null,
+        stdout: '',
+        stderr: '',
+        outputTruncated: false,
+        error: QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL
+      })
+    })
+
     it('reads 9009 as a command cmd.exe could not find', async () => {
       runProcessMock.mockResolvedValue({ ...EXITED, code: 9009 })
       expect(await run(target, 'no-such-tool')).toMatchObject({
@@ -138,6 +154,13 @@ describe('runQualityGateCommand on Windows and in WSL', () => {
       // Nothing is written on the Windows side for a guest command.
       expect(order).toEqual([])
       expect(result).toMatchObject({ status: 'failed', exitCode: 2, stderr: 'boom\n' })
+    })
+
+    it('hands a "#!" command to bash in the guest, which reads the line as a comment', async () => {
+      runProcessMock.mockResolvedValue({ ...EXITED, code: 0 })
+      const script = '#!/usr/bin/env bash\npnpm lint'
+      expect(await run(target, script)).toMatchObject({ status: 'passed' })
+      expect(runProcessMock.mock.calls[0][0].args).toContain(script)
     })
 
     it('lets only the prompt guards cross into the guest', async () => {

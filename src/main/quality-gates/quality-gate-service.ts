@@ -28,10 +28,19 @@ export type QualityGateServiceDeps = {
   newRunId: () => string
 }
 
-type LiveRun = { run: StoredQualityGateRun; abort: AbortController; settled: Promise<void> }
+type LiveRun = {
+  run: StoredQualityGateRun
+  abort: AbortController
+  settled: Promise<void>
+  /** Set when Orca itself is going away, so the record says why the command was stopped. */
+  stoppedByQuit?: boolean
+}
 
 const CANCEL_SETTLE_WAIT_MS = 15_000
+// Why short: quit must not hang on a gate; the tree gets SIGTERM, then a forced kill after 2s.
+export const QUALITY_GATE_QUIT_SETTLE_WAIT_MS = 5_000
 const OWNER_GONE = 'The Orca process that started this run is gone; its outcome was not observed.'
+export const QUALITY_GATE_STOPPED_BY_QUIT = 'Stopped because Orca quit while the gate was running.'
 
 export type QualityGateService = ReturnType<typeof createQualityGateService>
 
@@ -76,6 +85,10 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
     }
     try {
       entry.run.source = await deps.readSource(target.source)
+      // Stopped while the tree was being read: the stop already wrote the final record.
+      if (!live.has(entry.run.id)) {
+        return
+      }
       entry.run.status = 'running'
       entry.run.startedAt = deps.now()
       save(entry.run)
@@ -88,6 +101,9 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
         runnerDirectory: deps.runnerDirectory
       })
       Object.assign(entry.run, result)
+      if (entry.stoppedByQuit && result.status === 'cancelled') {
+        entry.run.error = QUALITY_GATE_STOPPED_BY_QUIT
+      }
     } catch (error) {
       entry.run.status = 'not-started'
       entry.run.error = errorMessage(error)
@@ -158,6 +174,34 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
     return [...runs.values()]
   }
 
+  /** Stops the entries the way a cancel does and waits, at most `waitMs`, for their trees to end. */
+  async function stopEntries(entries: LiveRun[], waitMs: number): Promise<void> {
+    const stopping: Promise<void>[] = []
+    for (const entry of entries) {
+      if (entry.run.status === 'queued') {
+        entry.run.status = 'cancelled'
+        entry.run.error = entry.stoppedByQuit ? QUALITY_GATE_STOPPED_BY_QUIT : null
+        entry.run.finishedAt = deps.now()
+        live.delete(entry.run.id)
+        save(entry.run)
+      } else {
+        entry.abort.abort()
+        stopping.push(entry.settled)
+      }
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      Promise.all(stopping),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, waitMs)
+        timer.unref?.()
+      })
+    ])
+    clearTimeout(timer)
+  }
+
+  let quitting = false
+
   function storedRun(target: QualityGateTarget, runId: string): StoredQualityGateRun {
     const run = live.get(runId)?.run ?? deps.store.get(runId)
     if (!run || run.worktreeId !== target.worktreeId) {
@@ -177,6 +221,9 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       gateIds: readonly string[] | undefined,
       startedBy: QualityGateRunStarter
     ): QualityGateRunStartResult {
+      if (quitting) {
+        throw new Error('Orca is quitting; quality gates cannot start now.')
+      }
       const selected = gateIds
         ? gateIds.map((gateId) => {
             const gate = target.gates.find((candidate) => candidate.id === gateId)
@@ -236,28 +283,22 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
           (only.runId === undefined || entry.run.id === only.runId) &&
           (only.gateId === undefined || entry.run.gateId === only.gateId)
       )
-      const stopping: Promise<void>[] = []
-      for (const entry of entries) {
-        if (entry.run.status === 'queued') {
-          entry.run.status = 'cancelled'
-          entry.run.finishedAt = deps.now()
-          live.delete(entry.run.id)
-          save(entry.run)
-        } else {
-          entry.abort.abort()
-          stopping.push(entry.settled)
-        }
-      }
-      let timer: ReturnType<typeof setTimeout> | undefined
-      await Promise.race([
-        Promise.all(stopping),
-        new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, CANCEL_SETTLE_WAIT_MS)
-          timer.unref?.()
-        })
-      ])
-      clearTimeout(timer)
+      await stopEntries(entries, CANCEL_SETTLE_WAIT_MS)
       return { cancelled: entries.map((entry) => toView(entry.run, null, null)) }
+    },
+
+    /**
+     * Stops every live run because Orca is quitting, and refuses new ones. A run whose tree has
+     * not ended within `waitMs` keeps its live record, which the next start shows as unverifiable.
+     */
+    async shutdown(waitMs = QUALITY_GATE_QUIT_SETTLE_WAIT_MS): Promise<{ unsettled: number }> {
+      quitting = true
+      const entries = [...live.values()]
+      for (const entry of entries) {
+        entry.stoppedByQuit = true
+      }
+      await stopEntries(entries, waitMs)
+      return { unsettled: live.size }
     },
 
     /** Resolves once nothing is queued or running for the worktree. For tests and shutdown. */

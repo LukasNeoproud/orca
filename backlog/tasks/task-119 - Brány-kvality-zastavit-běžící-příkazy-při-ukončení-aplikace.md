@@ -1,9 +1,10 @@
 ---
 id: TASK-119
 title: 'Brány kvality: zastavit běžící příkazy při ukončení aplikace'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-19T05:26:00Z'
+updated_date: '2026-11-19T05:35:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -42,9 +43,17 @@ Po TASK-85 ukončení aplikace běžící příkaz brány nezastaví: dlouhý bu
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Po ukončení aplikace neběží žádný proces spuštěný bránou ani jeho potomek; pokrývá to test služby se skutečným procesem na macOS a Linuxu
-- [ ] #2 Záznam takového běhu má po dalším startu výsledek zastaveno s důvodem ukončení aplikace, ne unverifiable
-- [ ] #3 Běh, o kterém hostitel po pádu aplikace neví, zůstává unverifiable
-- [ ] #4 Na Windows dostane příkaz začínající #! hlášku určenou pro brány; sestavení spuštění pokrývá test
-- [ ] #5 decision-11 uvádí chování při ukončení aplikace
+- [x] #1 Po ukončení aplikace neběží žádný proces spuštěný bránou ani jeho potomek; pokrývá to test služby se skutečným procesem na macOS a Linuxu
+- [x] #2 Záznam takového běhu má po dalším startu výsledek zastaveno s důvodem ukončení aplikace, ne unverifiable
+- [x] #3 Běh, o kterém hostitel po pádu aplikace neví, zůstává unverifiable
+- [x] #4 Na Windows dostane příkaz začínající #! hlášku určenou pro brány; sestavení spuštění pokrývá test
+- [x] #5 decision-11 uvádí chování při ukončení aplikace
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plán: (1) služba dostane shutdown(): zastaví čekající i běžící běhy stejnou cestou jako cancel (abort -> runProcess s terminationBarrier ukončí strom), důvod jde do existujícího pole error u stavu cancelled (žádná změna drátu), čeká nejvýš pevný limit, co nedoběhne, zůstane v souboru running a po startu unverifiable; run() po shutdown odmítne. (2) quality-gate-host: stopQualityGatesForShutdown bez založení služby; registrace v will-quit (main-process-quit) a v orcad cleanup. (3) quality-gate-launch: na Windows příkaz s #! se nespustí, not-started s hláškou pro brány. (4) testy: skutečný proces s potomkem a vnukem, nový hostitel nad stejným souborem, vypršený limit -> unverifiable, sestavení #! na Windows, napojení na will-quit. (5) decision-11.
+
+Hotovo: shutdown() ve službě (stejná cesta jako cancel přes stopEntries, limit 5 s, důvod v error u cancelled, po začátku ukončování run() odmítne), stopQualityGatesForShutdown v quality-gate-host, registrace ve will-quit (main-process-quit) a v orcad cleanup, #! na Windows -> plán refused, not-started s hláškou pro brány. Opraven i závod: zrušení během čtení stavu gitu už příkaz nespustí. Testy: quality-gate-service-quit.test.ts (skutečný strom procesů), launch a windows-wsl testy, test napojení ve will-quit, e2e quality-gates-quit.spec.ts (bez registrace selže, ověřeno). decision-11 a 06-ai-a-review.md doplněny. Windows/WSL neověřeno, jen testy sestavení.
+<!-- SECTION:NOTES:END -->

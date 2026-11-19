@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { isShebangLine } from '../../shared/setup-script-shebang'
 import { buildWindowsRunnerScript } from '../setup-runner-script-text'
 
 /** Where the command runs: on this host natively, or inside one of its WSL distros. */
@@ -16,6 +17,13 @@ export type QualityGateLaunchPlan =
       cwd: string
     }
   | { kind: 'wsl'; distro: string | null; cwd: string; script: string }
+  /** Nothing to start: the command cannot mean what it says on this host. */
+  | { kind: 'refused'; reason: string }
+
+export const QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL =
+  'This gate command starts with a "#!" interpreter line, which needs a POSIX shell. ' +
+  'On Windows, gate commands run through cmd.exe: write the command in cmd syntax, or call ' +
+  'the interpreter yourself (for example "bash ./check.sh").'
 
 /**
  * Decide how a gate command starts. Pure, so the Windows branch is testable anywhere.
@@ -37,6 +45,10 @@ export function planQualityGateLaunch(args: {
     return { kind: 'wsl', distro: target.distro, cwd: target.cwd, script: command }
   }
   if (args.platform === 'win32') {
+    // Why not the runner's own refusal: that text tells the user to change a setup-script setting.
+    if (isShebangLine(command.split('\n', 1)[0] ?? '')) {
+      return { kind: 'refused', reason: QUALITY_GATE_WINDOWS_SHEBANG_REFUSAL }
+    }
     return {
       kind: 'windows-runner',
       program: path.win32.join(args.runnerDirectory, `quality-gate-${args.runId}.cmd`),

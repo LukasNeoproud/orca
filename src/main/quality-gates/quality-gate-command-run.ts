@@ -53,7 +53,7 @@ function wslGuestEnv(): Record<string, string> {
 }
 
 async function runPlan(
-  plan: QualityGateLaunchPlan,
+  plan: Exclude<QualityGateLaunchPlan, { kind: 'refused' }>,
   timeoutMs: number,
   signal: AbortSignal
 ): Promise<RawResult> {
@@ -121,6 +121,9 @@ export async function runQualityGateCommand(args: {
   const empty = { exitCode: null, stdout: '', stderr: '', outputTruncated: false }
   if (args.signal.aborted) {
     return { ...empty, status: 'cancelled', error: null }
+  }
+  if (plan.kind === 'refused') {
+    return { ...empty, status: 'not-started', error: plan.reason }
   }
   let raw: RawResult
   try {

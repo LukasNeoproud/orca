@@ -6,6 +6,7 @@ const settled = () => vi.fn(async () => {})
 const idle = () => vi.fn()
 const stopAgentHookServer = idle()
 const stopStructuredAgentSessionRuntime = settled()
+const stopQualityGatesForShutdown = settled()
 
 // Every teardown member settles except the profile store, so only the writer can hold quit.
 const dependencies: Record<string, Record<string, unknown>> = {
@@ -45,7 +46,8 @@ const dependencies: Record<string, Record<string, unknown>> = {
   '../terminal-history-gc': { cancelHistoryGc: idle() },
   './window-all-closed-quit-policy': { shouldQuitWhenAllWindowsClosed: vi.fn(() => false) },
   './configure-process': { isDevParentShutdownRequested: vi.fn(() => false) },
-  '../persistence': { getCanonicalUserDataPath: vi.fn(() => '/unused') }
+  '../persistence': { getCanonicalUserDataPath: vi.fn(() => '/unused') },
+  '../quality-gates/quality-gate-host': { stopQualityGatesForShutdown }
 }
 
 afterEach(() => {
@@ -164,3 +166,16 @@ it.each([
     expect(app.quit).toHaveBeenCalledOnce()
   }
 )
+
+it('stops quality gate commands on the committed quit and quits only once they are stopped', async () => {
+  const gateStop = Promise.withResolvers<void>()
+  stopQualityGatesForShutdown.mockClear()
+  stopQualityGatesForShutdown.mockImplementationOnce(() => gateStop.promise)
+  const { app } = await startQuit(async () => {})
+  expect(stopQualityGatesForShutdown).toHaveBeenCalledOnce()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(app.quit).not.toHaveBeenCalled()
+  gateStop.resolve()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(app.quit).toHaveBeenCalledOnce()
+})

@@ -4,6 +4,7 @@ title: 'Brány kvality: stav u workspace a panel výsledků'
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:17:00Z'
+updated_date: '2026-11-19T05:35:00Z'
 labels:
   - review-ide
   - effort-high
@@ -55,3 +56,9 @@ Výsledek bran kvality má být vidět tam, kde uživatel sleduje workspace: na 
 - [ ] #6 Starší spárovaný klient dál načte rozložení sidebaru i karty workspace
 - [ ] #7 Komponenty mají testy a stav i panel jsou ověřené ve skrytém okně se snímkem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-119 (2026-11-19), vyřeš v tomto tiketu: (1) zrušený nebo ukončením aplikace zastavený běh ukazuje čerstvost Up to date, jako by byl výsledkem; u běhu bez výsledku čerstvost neukazuj. (2) Důvod zastavení ukončením aplikace je dnes jen text v poli error (QUALITY_GATE_STOPPED_BY_QUIT); když ho stav u workspace nebo agent potřebuje rozlišit, přidej nepovinné pole stopReason, ne novou hodnotu stavu.
+<!-- SECTION:NOTES:END -->

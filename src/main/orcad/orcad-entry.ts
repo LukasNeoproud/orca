@@ -19,6 +19,7 @@ import {
 } from '../../shared/app-environment'
 import { setSecretStore, type SecretStore } from '../../shared/secret-store'
 import { disposeBacklogRuntimeServiceForShutdown } from '../backlog-runtime/backlog-runtime-service'
+import { stopQualityGatesForShutdown } from '../quality-gates/quality-gate-host'
 import type { ServeReadiness } from '../server/serve-readiness'
 import { resolveOrcadInstallRoot, resolveOrcadPath, resolveUserDataPath } from './orcad-app-paths'
 import { getOrcadCliLauncherPath, prepareOrcadCliLauncher } from './orcad-cli-launcher'
@@ -206,6 +207,7 @@ async function startOrcadRuntime(
   // Watcher children outlive a disposal that does not wait for them.
   registerCleanup(() => disposeWatcherProcessAndWait())
   registerCleanup(disposeBacklogRuntimeServiceForShutdown)
+  registerCleanup(stopQualityGatesForShutdown)
   const { DesktopPushService } = await import('../runtime/push/desktop-push-service')
   const { resolvePushGatewayOrigin } = await import('../runtime/push/push-gateway-origin')
 

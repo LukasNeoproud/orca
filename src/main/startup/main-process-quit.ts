@@ -10,6 +10,7 @@ import { wslHookRelayManager } from '../agent-hooks/wsl-hook-relay-manager'
 import { removeManagedAgentHooksAsync } from '../agent-hooks/managed-agent-hook-controls'
 import { stopStructuredAgentSessionRuntime } from '../runtime/structured-agent-session-runtime'
 import { disposeBacklogRuntimeService } from '../backlog-runtime/backlog-runtime-service'
+import { stopQualityGatesForShutdown } from '../quality-gates/quality-gate-host'
 import { setStructuredAgentSessionTeardownTrigger } from '../runtime/structured-agent-session-runtime-teardown'
 import { awaitRuntimeFileWatcherUnsubscribes } from '../runtime/orca-runtime-files'
 import { clearRuntimeMetadataIfOwned } from '../runtime/runtime-metadata'
@@ -148,6 +149,7 @@ function installWillQuitHandler(): void {
     setStructuredAgentSessionTeardownTrigger(updateQuitInProgress ? 'update' : 'quit')
     const structuredAgentSessionShutdown = stopStructuredAgentSessionRuntime()
     const backlogShutdown = disposeBacklogRuntimeService()
+    const qualityGateShutdown = stopQualityGatesForShutdown()
     state.pluginService = null
     setUnreadDockBadgeCount(0)
     // Why wait rather than kill: the child finishes fine orphaned, and signalling
@@ -283,6 +285,7 @@ function installWillQuitHandler(): void {
       { name: 'codex-backfill-recovery', promise: codexBackfillRecoveryShutdown },
       { name: 'structured-agent-session', promise: structuredAgentSessionShutdown },
       { name: 'backlog', promise: backlogShutdown },
+      { name: 'quality-gates', promise: qualityGateShutdown },
       { name: 'usage-cache', promise: usageCacheFlush },
       { name: 'notification-dismissals', promise: notificationDismissalClose },
       { name: 'stats', promise: statsFlush },
