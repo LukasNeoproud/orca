@@ -173,19 +173,34 @@ test('threads of an older iteration show at their lines in the latest iteration'
     .locator('[data-index]')
     .filter({ hasText: 'cart.ts' })
     .filter({ has: orcaPage.locator('.monaco-diff-editor') })
-  const top = async (locator: Locator): Promise<number> => {
-    const box = await locator.boundingBox()
-    if (!box) {
-      throw new Error('The element is not laid out.')
+  // Why: Monaco keeps a comment's view zone hidden until the editor has grown to fit it, so the
+  // card is in the DOM (with its text) a few frames before it has a place.
+  await expect(
+    cartSection.locator('.orca-diff-comment-card').filter({ hasText: MOVED })
+  ).toBeVisible()
+  // The moved thread sits between its own line and the next one, read from one layout.
+  const position = await cartSection.evaluate((section, cardText) => {
+    const text = (element: Element): string =>
+      (element.textContent ?? '').replace(/\s+/g, ' ').trim()
+    const top = (element: Element): number => element.getBoundingClientRect().top
+    const lines = [...section.querySelectorAll('.editor.modified .view-line')].sort(
+      (a, b) => top(a) - top(b)
+    )
+    const own = lines.find((line) => text(line) === 'return sum')
+    const next = own ? lines.find((line) => top(line) > top(own)) : undefined
+    const card = [...section.querySelectorAll('.orca-diff-comment-card')].find((element) =>
+      text(element).includes(cardText)
+    )
+    return {
+      card: card ? top(card) : null,
+      own: own ? top(own) : null,
+      next: next ? top(next) : null,
+      nextText: next ? text(next) : null
     }
-    return box.y
-  }
-  const line = (text: string): Locator =>
-    cartSection.locator('.editor.modified .view-line').filter({ hasText: text })
-  // The moved thread sits between its own line and the next one.
-  const cardTop = await top(card(MOVED))
-  expect(cardTop).toBeGreaterThan(await top(line('return sum')))
-  expect(cardTop).toBeLessThan(await top(line('}').last()))
+  }, MOVED)
+  expect(position.nextText).toBe('}')
+  expect(position.card).toBeGreaterThan(position.own ?? Number.POSITIVE_INFINITY)
+  expect(position.card).toBeLessThan(position.next ?? Number.NEGATIVE_INFINITY)
   await orcaPage.screenshot({ path: path.join(screenshotDir, 'diff-latest-iteration.png') })
 
   // One file at a time: its comment list keeps the thread whose lines are gone.
