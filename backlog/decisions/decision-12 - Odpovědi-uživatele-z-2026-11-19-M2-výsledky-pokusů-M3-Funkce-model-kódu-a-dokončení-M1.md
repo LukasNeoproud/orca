@@ -74,3 +74,4 @@ Lokalizace M6:
 - Hlas u pull requestu (TASK-83) smí odejít z okna Orky i ze spárovaného zařízení, vždy jen po ručním potvrzení uživatelem; agent hlasovat nesmí. To odpovídá současnému stavu.
 - Oprava starších nálezů lintu forku (TASK-112) proběhne před akceptací M1; akceptace M1 čeká na TASK-80, TASK-112 a TASK-133.
 - Druhý build server pro Swift (sourcekit-xcode-bsp, TASK-55) se před rozepsáním M3 nezkouší; pokus později.
+- Pořadí milníků po M2: M3 Editor, M4 Analytické jádro (po pokusu s tree-sitter, TASK-132), M5 Pohledy nad modelem, M6 Lokalizace, M7 Projekt jako celek, M8 Zařízení, inspektory a hlas. M0 je tím akceptovaný.

@@ -4,16 +4,14 @@ title: Rozepsat tikety milníku M7 Projekt jako celek
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-19T11:41:00Z'
+updated_date: '2026-11-19T15:50:00Z'
 labels:
   - review-ide
   - planovani
   - effort-xhigh
-  - ceka-na-uzivatele
 milestone: m-7
 dependencies:
-  - TASK-57
-  - TASK-59
+  - TASK-73
 documentation:
   - docs/review-ide/03-rozlozeni.md
   - docs/review-ide/04-projekty-a-funkce.md
@@ -64,4 +62,6 @@ Podklady z TASK-57 (2026-11-19): decision-7 navrhuje pro agenty ve Funkci seznam
 Podklady z TASK-59 (2026-11-19): decision-8 navrhuje Funkce v M7 zakládat jen ručně, protože pull requesty ve vzorku na pracovní položky navázané nejsou a číslo ve jméně větve platformy nespojuje. Jeden z měřených produktů má backend na jiném git hostingu než Azure DevOps, takže Funkce musí umět členy napříč poskytovateli.
 
 Odpověď uživatele 2026-11-19 (decision-12): decision-7 přijat (seznam cest, přepnutí reference neblokovat a oznámit, CLAUDE.md jiných platforem nenačítat); decision-8 přijat (Funkce jen ručně). Zadání je v Jiře, ne v pracovních položkách Azure DevOps.
+
+Odpověď uživatele 2026-11-19 (decision-12): pořadí milníků po M2 je M3, M4, M5, M6, M7, M8; milník se rozepíše až po rozepsání předchozího.
 <!-- SECTION:NOTES:END -->

@@ -4,13 +4,14 @@ title: Rozepsat tikety milníku M8 Zařízení, inspektory a hlas
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
+updated_date: '2026-11-19T15:50:00Z'
 labels:
   - review-ide
   - planovani
   - effort-high
-  - ceka-na-uzivatele
 milestone: m-8
-dependencies: []
+dependencies:
+  - TASK-74
 documentation:
   - docs/review-ide/08-zarizeni-inspektory-hlas.md
   - docs/review-ide/07-funkce-z-ide.md
@@ -52,3 +53,9 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 - [ ] #5 Otázky pro uživatele k rozsahu, placeným službám a chování navenek jsou v poznámkách tiketu, každá s možnostmi a doporučením
 - [ ] #6 Popis milníku v backlog/milestones odpovídá naplánovanému rozsahu
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Odpověď uživatele 2026-11-19 (decision-12): pořadí milníků po M2 je M3, M4, M5, M6, M7, M8; milník se rozepíše až po rozepsání předchozího.
+<!-- SECTION:NOTES:END -->

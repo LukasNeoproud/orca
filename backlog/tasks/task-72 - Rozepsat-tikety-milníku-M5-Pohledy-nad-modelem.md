@@ -4,12 +4,11 @@ title: Rozepsat tikety milníku M5 Pohledy nad modelem
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-19T11:41:00Z'
+updated_date: '2026-11-19T15:50:00Z'
 labels:
   - review-ide
   - planovani
   - effort-xhigh
-  - ceka-na-uzivatele
 milestone: m-5
 dependencies:
   - TASK-71
@@ -59,4 +58,6 @@ Zařazení milníku do další vlny. Pořadí milníků po první vlně (M0 až 
 Zbytek po TASK-64 (2026-11-18) pro plán M5: snapshoty na stránce pull requestu GitHubu a GitLabu (stránka musí nejdřív vracet obsah obrázků); nastavitelná cesta snapshotů (Roborazzi s vlastní výstupní cestou se nepozná, vzor src/screenshots může zachytit i běžné screenshoty); očekávané a nečekané změny, počet nezměněných, vazba oblasti na celek, příčina podle AI, Přijmout jako nový základ.
 
 Odpověď uživatele 2026-11-19 (decision-12): rozdíl snapshotů po celcích (očekávané a nečekané změny, vazba oblasti na celek) zůstává na plánování M5.
+
+Odpověď uživatele 2026-11-19 (decision-12): pořadí milníků po M2 je M3, M4, M5, M6, M7, M8; milník se rozepíše až po rozepsání předchozího.
 <!-- SECTION:NOTES:END -->

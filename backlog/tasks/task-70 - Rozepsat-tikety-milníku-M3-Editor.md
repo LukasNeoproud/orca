@@ -4,12 +4,11 @@ title: Rozepsat tikety milníku M3 Editor
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:45:00Z'
-updated_date: '2026-11-19T15:37:00Z'
+updated_date: '2026-11-19T15:50:00Z'
 labels:
   - review-ide
   - planovani
   - effort-xhigh
-  - ceka-na-uzivatele
 milestone: m-3
 dependencies:
   - TASK-53
@@ -72,4 +71,6 @@ Podklady z TASK-56 (2026-11-18): decision-4 navrhuje pro C# Roslyn language serv
 Odpověď uživatele 2026-11-19 (decision-12): decision-1 varianta B (Kotlin: experimentální režim language serveru za přepínačem), chyby JetBrains nehlásit; decision-2 přijat; decision-3: build jen na pokyn, xcode-build-server stahuje Orca připnutý s kontrolním součtem; decision-4: Roslyn z nuget.org, předběžné verze nevadí, měření nad aktuálním backendem až při ověřování M3, .NET Framework jako volba uživatele (SDK 6 a Mono doinstaluje, kdo chce hlubší integraci). Otevřené: druhý build server sourcekit-xcode-bsp (TASK-55) a zařazení milníku.
 
 Odpověď uživatele 2026-11-19 (decision-12, doplnění): sourcekit-xcode-bsp před rozepsáním M3 nezkoušet, pokus později.
+
+Odpověď uživatele 2026-11-19 (decision-12): pořadí milníků po M2 je M3, M4, M5, M6, M7, M8; milník se rozepíše až po rozepsání předchozího.
 <!-- SECTION:NOTES:END -->
