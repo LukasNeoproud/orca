@@ -60,7 +60,7 @@ Agent se má o chybách kompilace, lintu a testů dozvědět sám a opravit je d
 - [x] #5 Dokončení kroku podagenta ani druhý agent ve stejném worktree nespustí druhou smyčku ani souběžný běh téže brány
 - [x] #6 Smyčka je ve výchozím stavu vypnutá: bez zapnutí v nastavení repozitáře se nespustí žádná brána a agent nedostane nic; limit kol se čte z nastavení repozitáře; starší klient i hostitel bez pole smyčky ve stavu bran fungují dál
 - [x] #7 Testy pokrývají průchod, selhání s opravou, limit kol, kolo bez zlepšení a zásah uživatele
-- [ ] #8 Doručení zprávy terminálovému agentovi a strukturovanému chatu je pokryté testy nad náhradou běhového prostředí; agentovi, kterému zprávu poslat nejde, se jen ukáže stav bran. Ověření se skutečným Claude Code lokálně a přes SSH je TASK-139
+- [x] #8 Doručení zprávy terminálovému agentovi a strukturovanému chatu je pokryté testy nad náhradou běhového prostředí; agentovi, kterému zprávu poslat nejde, se jen ukáže stav bran. Ověření se skutečným Claude Code lokálně a přes SSH je TASK-139
 <!-- AC:END -->
 
 ## Implementation Notes
