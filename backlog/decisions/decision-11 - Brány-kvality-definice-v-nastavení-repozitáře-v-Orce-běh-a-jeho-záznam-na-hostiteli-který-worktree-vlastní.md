@@ -155,8 +155,10 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 ### RPC a CLI
 
 - **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje.
-- **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem.
+- **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem. Řádek běhu končí jeho id.
 - **`orca gates run` čeká** a u každé brány vypíše výsledek, návratový kód a konec výstupu. Skončí kódem 0, jen když prošly všechny povinné brány; volitelná brána výsledek nemění. Ukončení CLI běh nezastaví.
+- **`orca gates run --no-wait`** vypíše běhy hned, jak je hostitel zařadil (id, stav, případně že brána už běžela), a skončí kódem 0. Průběh a výsledek pak ukáže `orca gates status` (u běžící brány i dosavadní dobu).
+- **`orca gates cancel`** zastaví čekající i běžící brány workspace, nebo jen jmenované (jedno volání `qualityGates.cancel` na bránu), a vypíše zastavené běhy. Když nic neběželo, řekne to a skončí kódem 0. Běh, jehož konec hostitel do 15 s nepotvrdí, vypíše s upozorněním a odkazem na `status`. (TASK-120; metody RPC ani jejich parametry se nezměnily.)
 
 ### Co záznam nese pro pozdější důkaz
 
@@ -189,5 +191,5 @@ Brány kvality jsou seznam příkazů na řádku repozitáře v Orce. Píše je 
 - **Windows a skutečný vzdálený hostitel** ověřené nejsou. Sestavení spuštění pro Windows a WSL a chování klienta při ztrátě spojení pokrývají testy nad náhradami.
 - **Příkaz začínající `#!` na Windows** se nespustí. Záznam je `not-started` s hláškou, že brány na Windows běží přes `cmd.exe` a skript je potřeba zavolat přes jeho interpret. Ve WSL ho bash čte jako komentář.
 - **Výsledek brány, která mění soubory,** je hned zastaralý.
-- **CLI neumí běh zrušit ani nečekat** (`gates cancel`, `--no-wait`); zrušit jde z nastavení.
+- **CLI umí běh zrušit i nečekat** (`gates cancel`, `--no-wait`, TASK-120).
 - **Výstup je jen konec,** 16 KiB z každého proudu. Celý log buildu Orca nedrží.

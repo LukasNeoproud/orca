@@ -17,8 +17,8 @@ export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['gates', 'run'],
     summary: 'Run quality gates in a workspace and report the result of each',
-    usage: 'orca gates run [<gate>...] [--worktree <selector>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'gate'],
+    usage: 'orca gates run [<gate>...] [--no-wait] [--worktree <selector>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'gate', 'no-wait'],
     positionalArgs: ['gate'],
     variadicPositional: true,
     repeatableFlags: ['gate'],
@@ -28,11 +28,16 @@ export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
       'Waits for the runs and prints the result, exit code and end of the output of each gate.',
       'Exits 1 unless every required gate passed. A run whose outcome could not be observed is reported as unverifiable, not as failed.',
       'A gate that is already running in the workspace is not started twice; its run is reported.',
-      'Stopping this command does not stop the runs: orca gates status reports them.',
+      'With --no-wait, prints the run of each gate as soon as the host has queued it and exits 0; orca gates status follows the runs and orca gates cancel stops them.',
+      'Stopping this command does not stop the runs: orca gates status reports them and orca gates cancel stops them.',
       WORKTREE_NOTE,
       DEFINITION_NOTE
     ],
-    examples: ['orca gates run', 'orca gates run lint tests --json']
+    examples: [
+      'orca gates run',
+      'orca gates run lint tests --json',
+      'orca gates run build --no-wait'
+    ]
   },
   {
     path: ['gates', 'status'],
@@ -41,7 +46,24 @@ export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
     allowedFlags: [...GLOBAL_FLAGS, 'worktree'],
     notes: [
       'A result is stale once the workspace has another commit, a changed file, or the gate was edited.',
+      'Each line ends with the id of the run, the same id orca gates run prints.',
       WORKTREE_NOTE
     ]
+  },
+  {
+    path: ['gates', 'cancel'],
+    summary: 'Stop the quality gates running in a workspace',
+    usage: 'orca gates cancel [<gate>...] [--worktree <selector>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'gate'],
+    positionalArgs: ['gate'],
+    variadicPositional: true,
+    repeatableFlags: ['gate'],
+    notes: [
+      'Name gates by id or name; without any, every running or queued gate of the workspace stops.',
+      'A running command is stopped together with the processes it started; a queued one never starts. The run is recorded as cancelled.',
+      'Prints what was stopped. When nothing was running, says so and exits 0.',
+      WORKTREE_NOTE
+    ],
+    examples: ['orca gates cancel', 'orca gates cancel build --json']
   }
 ]

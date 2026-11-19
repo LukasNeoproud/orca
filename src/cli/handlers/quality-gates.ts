@@ -1,4 +1,5 @@
 import type {
+  QualityGateCancelResult,
   QualityGateDefinition,
   QualityGateListResult,
   QualityGateRunStartResult,
@@ -8,12 +9,14 @@ import type { CommandHandler, HandlerContext } from '../dispatch'
 import { getRepeatedStringFlag } from '../flags'
 import { printResult } from '../format'
 import {
+  formatQualityGateCancelResult,
   formatQualityGateList,
   formatQualityGateRunResult,
+  formatQualityGateRunStarted,
   formatQualityGateStatus
 } from '../quality-gate-format'
 import { waitForQualityGateRuns, type QualityGateRpcCall } from '../quality-gate-run-wait'
-import { RuntimeClientError } from '../runtime-client'
+import { RuntimeClientError, type RuntimeRpcSuccess } from '../runtime-client'
 import { getOptionalWorktreeSelector, resolveCurrentWorktreeSelector } from '../selectors'
 
 // Why: a host from before the gate methods answers method_not_found, which reads as an Orca bug
@@ -60,6 +63,20 @@ function resolveGateIds(requested: string[], gates: QualityGateDefinition[]): st
   return [...new Set(ids)]
 }
 
+/** Ids of the gates named on the command line, or undefined when none were named. */
+async function requestedGateIds(
+  context: HandlerContext,
+  call: QualityGateRpcCall,
+  worktree: string
+): Promise<string[] | undefined> {
+  const requested = getRepeatedStringFlag(context.flags, 'gate')
+  if (requested.length === 0) {
+    return undefined
+  }
+  const listed = await call<QualityGateListResult>('qualityGates.list', { worktree })
+  return resolveGateIds(requested, listed.result.gates)
+}
+
 export const QUALITY_GATE_HANDLERS: Record<string, CommandHandler> = {
   'gates list': async (context) => {
     const response = await gateCaller(context.client)<QualityGateListResult>('qualityGates.list', {
@@ -77,18 +94,15 @@ export const QUALITY_GATE_HANDLERS: Record<string, CommandHandler> = {
   'gates run': async (context) => {
     const call = gateCaller(context.client)
     const worktree = await worktreeSelector(context)
-    const requested = getRepeatedStringFlag(context.flags, 'gate')
-    const gateIds =
-      requested.length > 0
-        ? resolveGateIds(
-            requested,
-            (await call<QualityGateListResult>('qualityGates.list', { worktree })).result.gates
-          )
-        : undefined
+    const gateIds = await requestedGateIds(context, call, worktree)
     const started = await call<QualityGateRunStartResult>('qualityGates.run', {
       worktree,
       ...(gateIds ? { gateIds } : {})
     })
+    if (context.flags.get('no-wait') === true) {
+      printResult(started, context.json, formatQualityGateRunStarted)
+      return
+    }
     const result = await waitForQualityGateRuns({
       call,
       worktree,
@@ -98,6 +112,31 @@ export const QUALITY_GATE_HANDLERS: Record<string, CommandHandler> = {
     printResult({ ...started, result }, context.json, formatQualityGateRunResult)
     if (result.outcome !== 'passed') {
       process.exitCode = 1
+    }
+  },
+  'gates cancel': async (context) => {
+    const call = gateCaller(context.client)
+    const worktree = await worktreeSelector(context)
+    const gateIds = await requestedGateIds(context, call, worktree)
+    const format = (result: QualityGateCancelResult): string =>
+      formatQualityGateCancelResult(result, gateIds)
+    if (!gateIds) {
+      printResult(
+        await call<QualityGateCancelResult>('qualityGates.cancel', { worktree }),
+        context.json,
+        format
+      )
+      return
+    }
+    // The host stops one gate per call; asking for each keeps one result for the whole request.
+    let response: RuntimeRpcSuccess<QualityGateCancelResult> | undefined
+    const cancelled: QualityGateCancelResult['cancelled'] = []
+    for (const gateId of gateIds) {
+      response = await call<QualityGateCancelResult>('qualityGates.cancel', { worktree, gateId })
+      cancelled.push(...response.result.cancelled)
+    }
+    if (response) {
+      printResult({ ...response, result: { cancelled } }, context.json, format)
     }
   }
 }

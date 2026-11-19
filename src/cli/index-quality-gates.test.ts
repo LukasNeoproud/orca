@@ -44,35 +44,13 @@ import { COMMAND_SPECS } from './specs'
 import { main } from './index'
 import { useWorktreeAwarenessEnvironment } from './index-test-harness'
 import { RuntimeClientError } from './runtime/types'
+import { GATE_WORKTREE, LINT_GATE, TEST_GATE, gateRunView } from './quality-gate-cli-test-fixtures'
 import { buildWorktree, okFixture, worktreeListFixture } from './test-fixtures'
 
-const lint = { id: 'lint', name: 'Lint', command: 'echo lint', required: true, timeoutSeconds: 60 }
-const tests = { ...lint, id: 'test', name: 'Unit tests', command: 'exit 4', required: false }
-const worktree = 'id:repo::/tmp/api'
-
-function runView(gate: typeof lint, overrides: Record<string, unknown> = {}) {
-  const { id: gateId, ...snapshot } = gate
-  return {
-    id: `run-${gateId}`,
-    gateId,
-    gate: snapshot,
-    repoId: 'repo',
-    worktreeId: 'repo::/tmp/api',
-    worktreePath: '/tmp/api',
-    startedBy: { kind: 'local-cli' },
-    source: { head: 'a'.repeat(40), clean: true, fingerprint: 'f0' },
-    status: 'passed',
-    requestedAt: 1_000,
-    startedAt: 1_000,
-    finishedAt: 2_500,
-    exitCode: 0,
-    error: null,
-    outputTruncated: false,
-    liveness: 'exited',
-    freshness: { state: 'current' },
-    ...overrides
-  }
-}
+const lint = LINT_GATE
+const tests = TEST_GATE
+const worktree = GATE_WORKTREE
+const runView = gateRunView
 
 function mockHost(runs = [runView(lint), runView(tests, { status: 'failed', exitCode: 4 })]) {
   callMock.mockImplementation(async (method: string, params: { runId?: string }) => {
@@ -203,6 +181,7 @@ describe('gates CLI', () => {
   it('has no command or flag that defines a gate', () => {
     const specs = COMMAND_SPECS.filter((spec) => spec.path[0] === 'gates')
     expect(specs.map((spec) => spec.path.join(' ')).sort()).toEqual([
+      'gates cancel',
       'gates list',
       'gates run',
       'gates status'

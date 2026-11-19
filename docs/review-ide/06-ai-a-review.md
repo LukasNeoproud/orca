@@ -60,7 +60,7 @@ Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepši
 - **Vazba na kód:** záznam běhu nese commit, zda byl strom čistý, a kdo běh spustil. Po dalším commitu nebo úpravě souboru se výsledek hlásí jako zastaralý. Složka bez gitu se na commit neváže.
 - **Kde to běží:** na hostiteli, který worktree vlastní, včetně WSL a Orky na vzdáleném stroji. Při ztrátě spojení je běh „nelze ověřit“, ne selhání; starší hostitel odpoví, že brány neumí.
 - **Bezpečnost:** příkazy bran se nikdy nečtou z repozitáře ani z `orca.yaml` a přes RPC ani CLI je nejde založit ani změnit. Agent smí přes CLI spustit jen bránu, kterou nastavil uživatel.
-- **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`. `run` čeká na konec a skončí kódem 0, jen když prošly všechny povinné brány.
+- **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. `run` čeká na konec a skončí kódem 0, jen když prošly všechny povinné brány; s `--no-wait` vrátí hned id běhů a průběh pak ukáže `status`. `cancel` zastaví běžící brány workspace nebo jmenované a bez běžící brány skončí úspěšně (TASK-120).
 - **Ukončení Orky:** běžící brána se zastaví i s procesy, které spustila, a po startu je „zastavena, protože se Orca ukončila“. Po pádu je „nelze ověřit“ (TASK-119).
 - **Zbývá:** stav bran u workspace a panel výsledků (TASK-86), spuštění po kroku agenta, smyčka s limitem opakování a vrácení nálezů agentovi (TASK-87), ostatní kontroly (diagnostika language serveru, pravidla vrstev) a běh brány jako důkaz nálezu (TASK-88). Zápis stavu bran do pull requestu rozhodnutý není. Brány repozitáře u jiného hostitele jdou nastavit jen v Orce na něm.
 
