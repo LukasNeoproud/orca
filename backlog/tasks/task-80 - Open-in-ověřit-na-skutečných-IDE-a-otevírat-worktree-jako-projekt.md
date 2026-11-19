@@ -1,10 +1,10 @@
 ---
 id: TASK-80
 title: 'Open in: ověřit na skutečných IDE a otevírat worktree jako projekt'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-11-18T14:40:00Z'
-updated_date: '2026-11-19T20:24:00Z'
+updated_date: '2026-11-19T20:25:00Z'
 labels:
   - review-ide
   - effort-medium
@@ -61,4 +61,6 @@ Stav 2026-11-19 (koordinátor): commitnuto je sloupec pro JetBrains (--line N --
 Odpověď uživatele 2026-11-19 (decision-12): doověří agent; uživatel mu udělí oprávnění Automatizace a Zpřístupnění (čeká se na potvrzení, že je udělil). Rider a Zed zůstávají neověřené; zapsat do dokumentace.
 
 2026-11-19: uživatel udělil oprávnění Zpřístupnění (Ovládání zařízení a přístup k datům). Macos ho připisuje Orca Dev (com.stablyai.orca.dev): relace agentů běží v terminálu Orca Dev a za proces odpovídá jeho Orca Terminal Host. AXIsProcessTrusted vrací true, Automatizace pro System Events už platí. Štítek model-opus podle úsporného režimu (decision-12).
+
+2026-11-19 21:25: worker na Opusu zastavil uživatel hned po startu; nic dalšího se nezměnilo. Zadat znovu.
 <!-- SECTION:NOTES:END -->
