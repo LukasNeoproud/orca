@@ -52,8 +52,9 @@ function selectAgentTranscriptPath(state: AppState, worktreeId: string): string 
 }
 
 function selectActiveTerminalPtyId(state: AppState, worktreeId: string): string | null {
+  const activeTabId = selectActiveTabEntityId(state, worktreeId)
   return resolveChecksPanelTerminalPtyId({
-    activeTabId: selectActiveTabEntityId(state, worktreeId),
+    activeTabId,
     ptyIdsByTabId: state.ptyIdsByTabId,
     terminalLayoutsByTabId: state.terminalLayoutsByTabId
   })

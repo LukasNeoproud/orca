@@ -3,21 +3,18 @@ import type React from 'react'
 import { CircleAlert, Loader2, Play } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
-import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
+import { isAndroidWorkspaceOnThisMachine } from './android-app-run-host'
 import { isAndroidAppRunActive, useAndroidAppRunState } from './android-app-run-state'
 import { AndroidAppRunPanel, androidAppRunPhaseLabel } from './AndroidAppRunPanel'
 
 /** Whether the workspace is an Android project on this machine, where the SDK and adb live. */
 function useLocalAndroidProjectPath(worktreeId: string): string | null {
   const worktreePath = useAppStore((state) => findWorktreeById(state, worktreeId)?.path ?? null)
-  const isLocal = useAppStore(
-    (state) => getExecutionHostIdForWorktree(state, worktreeId) === LOCAL_EXECUTION_HOST_ID
-  )
+  const isLocal = useAppStore((state) => isAndroidWorkspaceOnThisMachine(state, worktreeId))
   const [androidPath, setAndroidPath] = useState<string | null>(null)
   useEffect(() => {
     setAndroidPath(null)

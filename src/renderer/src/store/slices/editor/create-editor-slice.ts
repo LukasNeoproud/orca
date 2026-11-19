@@ -50,7 +50,7 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
   ...createOpenConflictReview(set, get),
   ...createCheckRunDetailsActions(set, get),
   ...createChatVisualTabActions(set, get),
-  ...createGitGraphTabActions(set, get),
+  ...createGitGraphTabActions(get),
   ...createEditorCursorLine(set, get),
   ...createGitStatusActions(set, get),
   ...createGitRemoteStatus(set, get),

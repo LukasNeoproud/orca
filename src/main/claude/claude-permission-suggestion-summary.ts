@@ -27,9 +27,12 @@ function describe(update: PermissionUpdate): string | null {
       return Array.isArray(update.directories) && update.directories.length > 0
         ? `access to ${update.directories.join(', ')}`
         : null
-    default:
+    case 'removeRules':
+    case 'removeDirectories':
       return null
   }
+  // A type the SDK does not declare yet.
+  return null
 }
 
 /**

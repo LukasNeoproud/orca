@@ -18,16 +18,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { translate } from '@/i18n/i18n'
 import { structuredAgentSessionLaunchFeasible } from '@/lib/agent-session-launch-plan'
 import { workspaceKindForWorktreeId } from '@/lib/agent-launch-route-input'
+import { conversationBranchWorkspaceTarget } from '@/lib/conversation-branch-host'
 import { returnConversationBranchResult } from '@/lib/conversation-branch-return'
 import {
   listConversationBranches,
   readConversationBranchOutline,
   supportsConversationBranches
 } from '@/runtime/conversation-branch-client'
-import {
-  resolveStructuredAgentSessionOwner,
-  structuredAgentSessionTargetForHost
-} from '@/runtime/structured-agent-session-owner'
 import { useAppStore } from '@/store'
 import {
   conversationBranchOf,
@@ -54,9 +51,7 @@ type Opened =
 
 /** The host that serves this workspace's branches, or null where none can. */
 async function branchHost(worktreeId: string): Promise<RuntimeClientTarget | null> {
-  const target = structuredAgentSessionTargetForHost(
-    resolveStructuredAgentSessionOwner(useAppStore.getState(), worktreeId)
-  )
+  const target = conversationBranchWorkspaceTarget(useAppStore.getState(), worktreeId)
   return target && (await supportsConversationBranches(target)) ? target : null
 }
 

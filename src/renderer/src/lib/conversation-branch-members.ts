@@ -1,7 +1,7 @@
 // Finding and opening the members of a conversation family, which are known by Claude session id:
 // the id a branch record names whether the member is open, closed or never opened here.
 
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { activateConversationBranchChatTab } from '@/lib/conversation-branch-host'
 import { revealStructuredSession } from '@/lib/activate-ai-vault-structured-session'
 import { openBranchChat } from '@/lib/conversation-branch-launch'
 import { openConversationBranchTerminalMember } from '@/lib/conversation-branch-terminal-launch'
@@ -52,7 +52,7 @@ export async function openConversationBranchMember(args: {
       sessionId: chat.sessionId,
       target: args.target
     }
-    if (!activateStructuredAgentSessionById(location)) {
+    if (!activateConversationBranchChatTab(location)) {
       await revealStructuredSession(location)
     }
     return

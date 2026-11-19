@@ -8,7 +8,6 @@ import type {
   ConversationBranchMode,
   ConversationBranchRecord
 } from '../../../src/shared/conversation-branch'
-import { agentSessionRowId } from '../../../src/shared/workspace-layout/old-client/old-client-session-tab-rows'
 import type { RpcClient } from '../transport/rpc-client'
 import {
   conversationBranchList,
@@ -61,7 +60,7 @@ export function appendMobileBranchDraft(
   text: string
 ): void {
   // The host lists a chat's tab under this row id; its composer draft is keyed by it.
-  const key = mobileNativeChatScopeKey(scope.hostId, scope.worktreeId, agentSessionRowId(sessionId))
+  const key = mobileNativeChatScopeKey(scope.hostId, scope.worktreeId, `agent-session:${sessionId}`)
   if (key && text.trim()) {
     setMobileNativeChatDraftText(key, (current) =>
       current.trim() ? `${current.trimEnd()}\n\n${text}` : text
