@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => {
     >(),
     openFilePath: vi.fn(),
     pathsExist: vi.fn(),
-    activateAndRevealWorktree: vi.fn()
+    activateAndRevealWorktree: vi.fn(),
+    openTerminalDirectoryLink: vi.fn()
   }
 })
 
@@ -20,6 +21,9 @@ vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state.value } }
 vi.mock('@/lib/worktree-activation', () => ({
   activateAndRevealWorktree: mocks.activateAndRevealWorktree,
   activateAndRevealWorkspace: vi.fn()
+}))
+vi.mock('./terminal-directory-link-open', () => ({
+  openTerminalDirectoryLink: mocks.openTerminalDirectoryLink
 }))
 
 import { buildFileLinkActions } from './terminal-file-link-actions'
@@ -112,6 +116,12 @@ describe('same-id SSH terminal file links', () => {
 
     expect(desktopStatCalls()).toEqual([])
     expect(mocks.openFilePath).not.toHaveBeenCalled()
+    expect(mocks.openTerminalDirectoryLink).toHaveBeenCalledWith('/home/u/proj', undefined, {
+      worktreeId: id,
+      worktreePath: '/home/u/proj',
+      executionHostId: undefined,
+      canOpenWithSystemDefault: false
+    })
   })
 
   it('refuses file access when no owner names the terminal host', async () => {

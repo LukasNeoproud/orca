@@ -4,6 +4,7 @@ import { getConnectionId } from '@/lib/connection-context'
 import { getWorkspaceFilePreviewPlan, openFileInBrowserTab } from '@/lib/file-preview'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
+import { openTerminalDirectoryLink } from './terminal-directory-link-open'
 import { createTerminalLinkTestDoubles } from './terminal-link-handlers-test-fixtures'
 import {
   flushAsyncWork,
@@ -52,6 +53,10 @@ vi.mock('./terminal-remote-file-download-open', () => ({
 vi.mock('@/lib/file-preview', () => ({
   getWorkspaceFilePreviewPlan: vi.fn(() => ({ status: 'doc-preview' })),
   openFileInBrowserTab: vi.fn()
+}))
+
+vi.mock('./terminal-directory-link-open', () => ({
+  openTerminalDirectoryLink: vi.fn()
 }))
 
 installTerminalLinkTestEnvironment(doubles)
@@ -301,5 +306,11 @@ describe('handleOscLink', () => {
 
     expect(openFilePathMock).not.toHaveBeenCalled()
     expect(openFileMock).not.toHaveBeenCalled()
+    expect(openTerminalDirectoryLink).toHaveBeenCalledWith('/home/me/repo/src', undefined, {
+      worktreeId: 'wt-1',
+      worktreePath: '/home/me/repo',
+      executionHostId: undefined,
+      canOpenWithSystemDefault: false
+    })
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { openDetectedFilePath } from './terminal-link-handlers'
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
+import { openTerminalDirectoryLink } from './terminal-directory-link-open'
 import { createTerminalLinkTestDoubles } from './terminal-link-handlers-test-fixtures'
 import {
   flushDoubleRaf,
@@ -28,6 +29,10 @@ vi.mock('@/lib/connection-context', () => ({
 
 vi.mock('./terminal-remote-file-download-open', () => ({
   downloadAndOpenRemoteTerminalFile: vi.fn()
+}))
+
+vi.mock('./terminal-directory-link-open', () => ({
+  openTerminalDirectoryLink: vi.fn()
 }))
 
 installTerminalLinkTestEnvironment(doubles)
@@ -141,6 +146,12 @@ describe('a paired-server link outside its own workspace', () => {
 
     expect(openFilePathMock).not.toHaveBeenCalled()
     expect(openFileMock).not.toHaveBeenCalled()
+    expect(openTerminalDirectoryLink).toHaveBeenCalledWith('/repo/docs', undefined, {
+      worktreeId: 'wt-main',
+      worktreePath: '/repo',
+      executionHostId: 'runtime:env-1',
+      canOpenWithSystemDefault: false
+    })
   })
 
   it('says the host has no workspace for a path outside all of them and this computer', async () => {
