@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { MOUNTED_OPERATION_MODULES } from './adapters/mounted-operation-modules'
 import {
   HOST_CLIENT_CONTEXT_LOCAL,
+  HOST_CLIENT_CONTEXT_MODULE,
   hostClientContextExposure
 } from './host-client-context-exposure'
 
@@ -27,7 +28,7 @@ describe('the adapter directory', () => {
     // against the declaration it names, turns that into one failure that says what moved.
     const [, source] = hostClientContextExposure
     const declaration = `const ${HOST_CLIENT_CONTEXT_LOCAL} = createContext`
-    const context = readFileSync(join(root, 'mobile/src/transport/client-context.tsx'), 'utf8')
+    const context = readFileSync(join(root, HOST_CLIENT_CONTEXT_MODULE), 'utf8')
     expect(context.split(declaration).length - 1).toBe(1)
     // Sources only, since the README quotes the string to document it.
     const copies = [engine, directory]

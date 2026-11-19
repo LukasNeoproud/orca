@@ -160,8 +160,8 @@ compare clean while certifying the mutated code.
 
 A module-private product export an adapter drives is exposed by its own module — see
 `settingsMountExposures` — not by a shared table. One exposure is shared instead: five domains
-mount a screen that reads the client off the context `client-context.tsx` keeps module-private, and
-`hostClientContextExposure` is the one copy of that string. A rename of the local is invisible to
+mount a screen that reads the client off the context `rpc-client-react-context.tsx` keeps private,
+and `hostClientContextExposure` is the one copy of that string. A rename of the local is invisible to
 `tsc`, so `adapter-seam.test.ts` asserts the declaration it names exists exactly once, and refuses a
 sixth inline copy. The same test requires every file under `adapters/` to be registered in
 `adapters/mounted-operation-modules.ts`.

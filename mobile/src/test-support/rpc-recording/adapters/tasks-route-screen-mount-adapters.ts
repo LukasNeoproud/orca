@@ -9,7 +9,7 @@ import type { RpcClientContextValue } from '../../../transport/rpc-client-contex
 
 const HOST = 'host-1'
 
-/** The screen-root hook reads its client through the context handle `client-context.tsx` keeps. */
+/** The screen-root hook reads its client off the context in `rpc-client-react-context.tsx`. */
 export const tasksRouteScreenMountExposures: readonly OperationExposure[] = [
   hostClientContextExposure
 ]

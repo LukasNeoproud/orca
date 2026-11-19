@@ -21,7 +21,7 @@ const UNLOADED_WORKTREES: typeof WORKTREES = []
  * connection-state policy in the adapter, which is exactly what these recordings exist to observe.
  */
 export const agentHistoryMountExposures: readonly OperationExposure[] = [
-  ['transport/client-context.tsx', '\nexports.RecordingHostClientContext = Ctx;']
+  ['transport/rpc-client-react-context.tsx', '\nexports.RecordingHostClientContext = Ctx;']
 ]
 
 /** A connected single-host context: one client, one state, no acquisition or reconnect behaviour. */
@@ -64,7 +64,7 @@ export function agentHistoryMountAdapters(
       >('mobile/src/agent-history/use-mobile-agent-history-state.ts').useMobileAgentHistoryState
       const { RecordingHostClientContext } = modules.load<{
         RecordingHostClientContext: React.Context<unknown>
-      }>('mobile/src/transport/client-context.tsx')
+      }>('mobile/src/transport/rpc-client-react-context.tsx')
       const context = hostClientContext(client, effect)
       // A holder rather than a bare binding: the harness is a component, and a component may not
       // assign a variable declared outside it.

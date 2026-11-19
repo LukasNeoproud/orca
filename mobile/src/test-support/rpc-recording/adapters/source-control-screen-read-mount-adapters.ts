@@ -18,7 +18,7 @@ import type {
 const HOST = 'host-1'
 const WORKTREE = 'repo42::/p'
 
-/** The commit list reads its reconnect handle through the context `client-context.tsx` keeps. */
+/** The commit list reads its reconnect handle off the context in `rpc-client-react-context.tsx`. */
 export const sourceControlScreenReadMountExposures: readonly OperationExposure[] = [
   hostClientContextExposure
 ]

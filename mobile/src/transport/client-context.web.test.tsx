@@ -6,18 +6,6 @@ import { BRIDGE_PAGE_CLIENT_ID } from '../mobile-web-shell/bridge/bridge-page-cl
 import { createShellPageClient } from '../mobile-web-shell/bridge/page-bootstrap'
 import type { BridgeRpcClient } from '../mobile-web-shell/bridge/bridge-rpc-client'
 import type { RpcClientContextValue } from './rpc-client-context-contract'
-
-// The web file re-exports the screen hooks, and reaching the real ones imports the Expo runtime
-// this test does not have. Nothing below calls one.
-vi.mock('./host-client-hooks', () => ({
-  useDisconnectHostClient: () => () => {},
-  useForceReconnect: () => null,
-  useForgetHostClient: () => () => {},
-  useHostClient: () => ({ client: null, clientId: null, state: 'disconnected' }),
-  usePrimeHosts: () => () => {},
-  useRefreshHostClient: () => () => {}
-}))
-
 import { RpcClientProvider, useRpcClientContext } from './client-context.web'
 
 const INIT = {

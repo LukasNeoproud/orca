@@ -11,8 +11,8 @@ const WORKTREE = 'wt-files'
 
 /**
  * The panel reads its client through the shared host-client context, whose handle is module-private
- * in `client-context.tsx`. Exposing it mounts the real `useHostClient` — acquire, subscribe,
- * release — over a scripted client, instead of reconstructing the hook against a prop.
+ * in `rpc-client-react-context.tsx`. Exposing it mounts the real `useHostClient` — acquire,
+ * subscribe, release — over a scripted client, instead of reconstructing the hook against a prop.
  */
 export const fileExplorerScreenMountExposures: readonly OperationExposure[] = [
   hostClientContextExposure
