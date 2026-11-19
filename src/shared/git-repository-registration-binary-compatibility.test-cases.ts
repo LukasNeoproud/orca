@@ -1,4 +1,4 @@
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, realpath, rm } from 'node:fs/promises'
 import { join, posix, resolve } from 'node:path'
 import { expect, it } from 'vitest'
 
@@ -42,10 +42,13 @@ export function registerGitRepositoryRegistrationBinaryCompatibilityCase(
         expect(records).toHaveLength(4)
         expect(records[0]).toBe('true')
         expect(records[1]).toBe(cwd === linked ? linkedRoot : root)
-        const resolveDirectory = image ? posix.resolve : resolve
-        expect(resolveDirectory(cwd, records[2]) === resolveDirectory(cwd, records[3])).toBe(
-          cwd !== linked
-        )
+        // Git prints a realpath git dir beside a cwd-relative common dir; macOS tmpdir is a /var symlink.
+        const resolveDirectory = image
+          ? async (from: string, to: string) => posix.resolve(from, to)
+          : (from: string, to: string) => realpath(resolve(from, to))
+        expect(
+          (await resolveDirectory(cwd, records[2])) === (await resolveDirectory(cwd, records[3]))
+        ).toBe(cwd !== linked)
       }
       expect(
         (await runGit(['-C', bare, 'rev-parse', '--is-inside-work-tree', '--is-bare-repository']))
