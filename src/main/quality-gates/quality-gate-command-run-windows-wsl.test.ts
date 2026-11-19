@@ -181,6 +181,43 @@ describe('runQualityGateCommand on Windows and in WSL', () => {
       ).toEqual([])
     })
 
+    const groupMarker = (spec: { args: string[] }): string =>
+      /__ORCA_WSL_PROCESS_GROUP_[^=]+=/.exec(spec.args.join('\n'))?.[0] ?? ''
+
+    it('stops the process group of the command in the guest, not only wsl.exe', async () => {
+      runProcessMock.mockResolvedValue({ ...EXITED, code: 0 })
+      await run(target, command)
+
+      const [spec] = runProcessMock.mock.calls[0]
+      // The command starts in a session of its own, which reports its group on stderr.
+      expect(spec.args.slice(3, 5)).toEqual(['sh', '-c'])
+      expect(spec.args[5]).toContain('setsid --wait')
+      expect(spec.args).toContain(command)
+      const barrier = spec.terminationBarrier
+      // Before the group is known there is nothing in the guest to signal.
+      expect(await barrier.signal()).toBe(false)
+      expect(runProcessMock).toHaveBeenCalledTimes(1)
+
+      barrier.observeStderr(`${groupMarker(spec)}4321\n`)
+      expect(await barrier.signal()).toBe(true)
+      expect(await barrier.force()).toBe(true)
+
+      const [term, kill] = runProcessMock.mock.calls.slice(1).map(([stop]) => stop.args)
+      expect(term.slice(0, 3)).toEqual(['-d', 'Ubuntu', '--exec'])
+      expect(term.join('\n')).toContain('kill -TERM "-$_orca_group"')
+      expect(term.at(-1)).toBe('4321')
+      expect(kill.join('\n')).toContain('kill -KILL "-$_orca_group"')
+    })
+
+    it('keeps the group report out of the stderr of the run', async () => {
+      runProcessMock.mockImplementation(async (spec) => ({
+        ...EXITED,
+        code: 2,
+        stderr: `${groupMarker(spec)}4321\nboom\n`
+      }))
+      expect(await run(target, command)).toMatchObject({ status: 'failed', stderr: 'boom\n' })
+    })
+
     it('reports the time limit and a stop as what they are, without an exit code', async () => {
       runProcessMock.mockResolvedValueOnce({ ...EXITED, code: null, timedOut: true })
       expect(await run(target, command)).toMatchObject({ status: 'timed-out', exitCode: null })

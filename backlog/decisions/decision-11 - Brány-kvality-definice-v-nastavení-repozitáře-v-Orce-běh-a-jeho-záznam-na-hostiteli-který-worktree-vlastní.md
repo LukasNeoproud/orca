@@ -151,6 +151,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 - **Strom procesů:** `terminationBarrier` ukončí při limitu a při zrušení i potomky, protože buildy a testy se větví.
 - **Bez obsluhy:** dotaz na přihlášení by visel do časového limitu, proto je vypnutý.
 - **`runWslProcess`** dostal dvě nepovinné volby, `signal` a `outputCapture: 'tail'`. Kdo je neposílá, volá ho stejně jako dřív.
+- **Strom procesů ve WSL (TASK-141):** zastavení `wsl.exe` potomky uvnitř distribuce neukončí. Příkaz brány proto běží ve vlastní skupině procesů (`setsid --wait`, stejně jako git přes `createWslProcessGroupTermination`) a při limitu nebo zrušení dostane skupina `TERM` a po lhůtě `KILL`. `runWslProcess` k tomu má třetí nepovinnou volbu `guestTermination`. Distribuce bez `setsid --wait` (BusyBox) skupinu nehlásí; tam se zastaví jen `wsl.exe` a potomci příkazu mohou běžet dál, přestože záznam běhu říká `cancelled` nebo `timed-out`. Na skutečném WSL ověřeno není, jen testem sestavení příkazu.
 
 ### RPC a CLI
 

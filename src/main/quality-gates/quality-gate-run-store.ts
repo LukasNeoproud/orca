@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import {
@@ -122,27 +122,50 @@ export function defaultQualityGateRunStorePath(): string {
 }
 
 /**
- * Why every call reads the file: two Orca builds can share one data directory, and each keeps
- * only its own runs in memory. Reading before writing keeps the other build's records.
+ * Why every call looks at the file: two Orca builds can share one data directory, and each keeps
+ * only its own runs in memory. Reading before writing keeps the other build's records. The file
+ * is parsed again only after it changed; with 300 runs it is megabytes of JSON.
  */
 export function createQualityGateRunStore(options: {
   filePath: string
   now?: () => number
+  /** For tests: counts how often the file is really read. */
+  readText?: (filePath: string) => string
 }): QualityGateRunStore {
   const now = options.now ?? Date.now
+  const readText = options.readText ?? ((filePath: string) => readFileSync(filePath, 'utf-8'))
+  /** The last parse and the file it was made from. Its runs are shared with callers: read only. */
+  let parsed: { identity: string; runs: StoredQualityGateRun[] } | null = null
+
+  /** Changes with every write: each one renames a new file into place. Null when there is none. */
+  function fileIdentity(): string | null {
+    try {
+      const stats = statSync(options.filePath, { bigint: true })
+      return `${stats.ino}:${stats.size}:${stats.mtimeNs}:${stats.ctimeNs}`
+    } catch {
+      return null
+    }
+  }
 
   function load(): StoredQualityGateRun[] {
-    if (!existsSync(options.filePath)) {
+    const identity = fileIdentity()
+    if (identity === null) {
       return []
     }
+    if (parsed?.identity === identity) {
+      return parsed.runs
+    }
+    let runs: StoredQualityGateRun[] = []
     try {
-      const parsed: unknown = JSON.parse(readFileSync(options.filePath, 'utf-8'))
-      const runs: unknown =
-        parsed && typeof parsed === 'object' && 'runs' in parsed ? parsed.runs : null
-      return Array.isArray(runs) ? runs.filter(isStoredRun) : []
+      const content: unknown = JSON.parse(readText(options.filePath))
+      const stored: unknown =
+        content && typeof content === 'object' && 'runs' in content ? content.runs : null
+      runs = Array.isArray(stored) ? stored.filter(isStoredRun) : []
     } catch {
-      return []
+      // Unreadable or foreign: read as empty, as before.
     }
+    parsed = { identity, runs }
+    return runs
   }
 
   return {
@@ -158,6 +181,8 @@ export function createQualityGateRunStore(options: {
         options.filePath,
         JSON.stringify(file)
       )
+      // Not kept from memory: `run` is the caller's live object, and another build may write next.
+      parsed = null
     }
   }
 }

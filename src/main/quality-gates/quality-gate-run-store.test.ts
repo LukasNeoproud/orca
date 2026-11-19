@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   QUALITY_GATE_RUN_RETENTION,
   createQualityGateRunStore,
@@ -80,6 +80,32 @@ describe('quality gate run store', () => {
         .map((stored) => stored.id)
         .sort()
     ).toEqual(['from-first', 'from-first-again', 'from-second'])
+  })
+
+  it('parses the file once for any number of reads, and again after anybody wrote it', () => {
+    const readText = vi.fn((path: string) => readFileSync(path, 'utf-8'))
+    const store = createQualityGateRunStore({ filePath, now: () => NOW, readText })
+    const otherBuild = createQualityGateRunStore({ filePath, now: () => NOW })
+    otherBuild.put(run({ id: 'from-other', hostInstanceId: 'host-b' }))
+
+    for (let i = 0; i < 20; i++) {
+      expect(store.list('repo::/work')).toHaveLength(1)
+      expect(store.get('from-other')?.hostInstanceId).toBe('host-b')
+    }
+    expect(readText).toHaveBeenCalledTimes(1)
+
+    // Same length and written at once: only the replaced file tells the two apart.
+    otherBuild.put(run({ id: 'from-other', hostInstanceId: 'host-c' }))
+    expect(store.get('from-other')?.hostInstanceId).toBe('host-c')
+    expect(readText).toHaveBeenCalledTimes(2)
+
+    const own = run({ id: 'own', gateId: 'test', status: 'running', finishedAt: null })
+    store.put(own)
+    // The caller keeps changing its live record; the store answers with what is in the file.
+    own.status = 'failed'
+    expect(store.get('own')?.status).toBe('running')
+    expect(store.list()).toHaveLength(2)
+    expect(readText).toHaveBeenCalledTimes(3)
   })
 
   it('reads an unreadable or foreign file as empty and drops malformed records', () => {

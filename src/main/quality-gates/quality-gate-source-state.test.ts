@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { lstatSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -73,6 +74,28 @@ describe.skipIf(process.platform === 'win32')('readQualityGateSourceState', () =
     writeFileSync(join(repo, 'app.txt'), 'edited again\n')
     utimesSync(join(repo, 'app.txt'), new Date(), new Date(Date.now() + 5_000))
     expect((await read()).fingerprint).not.toBe(added.fingerprint)
+  })
+
+  it('gives many changed files the fingerprint a stored run was given for the same tree', async () => {
+    for (let index = 0; index < 150; index++) {
+      writeFileSync(join(repo, `changed-${index}.txt`), 'x'.repeat(index))
+    }
+    // The form stored runs carry: the listing, then path, size and mtime in listing order.
+    const listing = execFileSync(
+      'git',
+      ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      { cwd: repo, encoding: 'utf-8' }
+    )
+    const expected = createHash('sha256').update(listing)
+    for (const record of listing.split('\0').filter(Boolean)) {
+      const path = record.slice(3)
+      const stats = lstatSync(join(repo, path))
+      expected.update(`\0${path}\0${stats.size}:${Math.round(stats.mtimeMs)}`)
+    }
+
+    const state = await read()
+    expect(state.clean).toBe(false)
+    expect(state.fingerprint).toBe(expected.digest('hex'))
   })
 
   it('ignores files git ignores, so build output does not make a result stale', async () => {

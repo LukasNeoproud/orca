@@ -13,7 +13,10 @@ export type WslProcessGroupTermination = ProcessTerminationBarrier & {
   stripControlOutput: (stderr: string) => string
 }
 
-export function createWslProcessGroupTermination(distro: string): WslProcessGroupTermination {
+/** `distro` undefined names the default distro, as it does for the runner. */
+export function createWslProcessGroupTermination(
+  distro: string | undefined
+): WslProcessGroupTermination {
   const marker = `__ORCA_WSL_PROCESS_GROUP_${randomUUID()}__=`
   let processGroupId: number | null = null
   let stderrTail = ''

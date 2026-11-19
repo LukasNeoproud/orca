@@ -95,6 +95,27 @@ describe('quality gate service: stopped runs and change reports', () => {
     )
   })
 
+  it('runs the gate and the ones queued behind it although the change subscriber throws', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onRunChanged = vi.fn(() => {
+      throw new Error('subscriber broke')
+    })
+    const gates = service({ onRunChanged })
+
+    expect(gates.run(target, ['lint'], { kind: 'desktop' }).runs).toMatchObject([{ started: true }])
+    await expect.poll(() => finish.length).toBe(1)
+    finish[0](RESULT)
+    await gates.whenIdle('repo::/work')
+    gates.run(target, ['test'], { kind: 'desktop' })
+    await expect.poll(() => finish.length).toBe(2)
+    finish[1](RESULT)
+    await gates.whenIdle('repo::/work')
+
+    expect(await latest(gates)).toMatchObject([{ status: 'passed' }, { status: 'passed' }])
+    expect(onRunChanged).toHaveBeenCalledTimes(6)
+    logged.mockRestore()
+  })
+
   it('gives a run stopped on request no freshness: it checked nothing', async () => {
     const onRunChanged = vi.fn()
     const gates = service({ onRunChanged })

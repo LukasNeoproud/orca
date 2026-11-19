@@ -5,6 +5,7 @@ import { resolveWslInteropSpawnCwd } from '../wsl-interop-spawn-directory'
 import { buildWslExecArgs } from '../../shared/wsl-login-shell-command'
 import { getWslGuestEnvironment, type WslGuestEnvironment } from './wsl-guest-environment'
 import { resolveWslExecutablePath } from './wsl-executable-path'
+import type { WslProcessGroupTermination } from '../git/wsl-process-group-termination'
 
 /**
  * The single place Orca runs a program inside WSL.
@@ -76,6 +77,11 @@ export type WslSpec = WslCommand & {
   maxOutputBytes?: number
   /** Aborting stops `wsl.exe`; the result still reports what was captured. */
   signal?: AbortSignal
+  /**
+   * Ends the guest's process group on abort or timeout. Without it only `wsl.exe` is stopped and
+   * whatever the command forked inside the distro runs on.
+   */
+  guestTermination?: WslProcessGroupTermination
   /** Which end of an over-long output to keep. Defaults to the head. */
   outputCapture?: 'head' | 'tail'
 }
@@ -229,7 +235,12 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
   // Build the argv form first and measure it: the env prefix is part of the
   // budget, so only the finished line can say whether argv fits. Resolved once
   // here because the argv shape and the stdin payload must agree.
-  const argvForm = buildGuestArgv(environment, spec, 'argv')
+  const { guestTermination } = spec
+  const guestArgv = (delivery: 'argv' | 'stdin'): string[] => {
+    const built = buildGuestArgv(environment, spec, delivery)
+    return guestTermination ? guestTermination.wrapGuestArgs(built) : built
+  }
+  const argvForm = guestArgv('argv')
   // Measure what is actually spawned: `wsl.exe` and `-d <distro> --exec` are
   // prepended after this point and are part of the same budget.
   const fullLine = [
@@ -243,7 +254,7 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
     spec.script !== undefined && commandLineLength(fullLine) > MAX_COMMAND_LINE_CHARS
       ? 'stdin'
       : 'argv'
-  const argv = delivery === 'argv' ? argvForm : buildGuestArgv(environment, spec, 'stdin')
+  const argv = delivery === 'argv' ? argvForm : guestArgv('stdin')
 
   // One budget for the whole call: the probe used to run on its own 10s timer
   // ahead of the timed leg, so a 5s caller could wait 15s.
@@ -264,14 +275,15 @@ export async function runWslProcess(spec: WslSpec): Promise<WslResult> {
     input: delivery === 'stdin' ? spec.script : undefined,
     timeoutMs: remainingMs,
     maxOutputBytes: spec.maxOutputBytes,
-    ...(spec.signal ? { signal: spec.signal } : {})
+    ...(spec.signal ? { signal: spec.signal } : {}),
+    ...(guestTermination ? { terminationBarrier: guestTermination } : {})
   })
 
   return {
     environmentResolved: !wantsEnvironment || environment !== null,
     code: result.code,
     stdout: result.stdout,
-    stderr: result.stderr,
+    stderr: guestTermination ? guestTermination.stripControlOutput(result.stderr) : result.stderr,
     timedOut: result.timedOut,
     ...(result.outputTruncated ? { outputTruncated: true } : {})
   }

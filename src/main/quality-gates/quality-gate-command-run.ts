@@ -4,6 +4,7 @@ import { runProcess } from '@orca/process-host'
 import { errorMessage } from '../../shared/error-message'
 import { QUALITY_GATE_OUTPUT_TAIL_BYTES } from '../../shared/quality-gate-types'
 import { promptGuardShellEnv } from '../git/runner'
+import { createWslProcessGroupTermination } from '../git/wsl-process-group-termination'
 import { dropIncoherentCondaActivationEnv } from '../pty/conda-activation-env'
 import { runWslProcess } from '../wsl/wsl-runner'
 import {
@@ -69,6 +70,8 @@ async function runPlan(
       timeoutMs,
       maxOutputBytes: QUALITY_GATE_OUTPUT_TAIL_BYTES,
       signal,
+      // Builds and test runners fork; stopping only wsl.exe would leave them running in the guest.
+      guestTermination: createWslProcessGroupTermination(plan.distro ?? undefined),
       outputCapture: 'tail'
     })
   }

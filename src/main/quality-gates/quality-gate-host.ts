@@ -5,14 +5,25 @@ import { createQualityGateChangeFeed, type QualityGateChangeFeed } from './quali
 import { runQualityGateCommand } from './quality-gate-command-run'
 import { createQualityGateRunStore, defaultQualityGateRunStorePath } from './quality-gate-run-store'
 import { createQualityGateService, type QualityGateService } from './quality-gate-service'
+import {
+  createQualityGateSourceReader,
+  type QualityGateSourceReader
+} from './quality-gate-source-reader'
 import { readQualityGateSourceState } from './quality-gate-source-state'
 
 let service: QualityGateService | null = null
 let changeFeed: QualityGateChangeFeed | null = null
+let sourceReader: QualityGateSourceReader | null = null
+
+/** Shared by the feed and the service, so the status asked for after a signal reuses its read. */
+function getSourceReader(): QualityGateSourceReader {
+  sourceReader ??= createQualityGateSourceReader({ read: readQualityGateSourceState })
+  return sourceReader
+}
 
 /** What `qualityGates.subscribe` listens to; the service of this process reports its runs into it. */
 export function getQualityGateChangeFeed(): QualityGateChangeFeed {
-  changeFeed ??= createQualityGateChangeFeed({ readSource: readQualityGateSourceState })
+  changeFeed ??= createQualityGateChangeFeed({ readSource: getSourceReader() })
   return changeFeed
 }
 
@@ -22,7 +33,7 @@ export function getQualityGateService(): QualityGateService {
     store: createQualityGateRunStore({ filePath: defaultQualityGateRunStorePath() }),
     hostInstanceId: randomUUID(),
     runCommand: runQualityGateCommand,
-    readSource: readQualityGateSourceState,
+    readSource: getSourceReader(),
     runnerDirectory: join(getAppEnvironment().getPath('userData'), 'quality-gate-runners'),
     now: Date.now,
     newRunId: randomUUID,

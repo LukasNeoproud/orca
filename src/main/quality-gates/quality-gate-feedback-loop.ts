@@ -49,6 +49,8 @@ type Chain = {
   lastMarker: string | null
   /** A message was sent and no turn has been seen starting since. */
   pendingTurn: boolean
+  /** The message being delivered right now: its turn can start before the delivery returns. */
+  outgoing: { marker: string; turnSeen: boolean; named: boolean } | null
   /** A turn began after the failures were left to the user, so the agent was given new work. */
   resumed: boolean
   /** Bumped by every stop, so a check in flight learns its verdict is no longer wanted. */
@@ -144,6 +146,7 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
     const round = chain.round + 1
     const marker = qualityGateFeedbackMarker(chain.chainId, round)
     let delivery: QualityGateFeedbackDelivery
+    const outgoing = (chain.outgoing = { marker, turnSeen: false, named: false })
     try {
       delivery = await deps.deliver(
         agent,
@@ -157,17 +160,25 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
     } catch (error) {
       delivery = { kind: 'not-deliverable', reason: 'not-deliverable', detail: errorMessage(error) }
     }
+    // One check per worktree at a time, so the slot is still this delivery's.
+    chain.outgoing = null
     if (!current()) {
       return
     }
-    if (delivery.kind === 'not-deliverable') {
+    // A turn that names the marker proves the message arrived, whatever the delivery reports.
+    if (delivery.kind === 'not-deliverable' && !outgoing.named) {
+      if (outgoing.turnSeen) {
+        // Nothing was sent, so the turn that began meanwhile is the user's.
+        stop(worktreeId, 'user-message')
+        return
+      }
       console.warn(`[quality-gates] feedback was not sent to the agent: ${delivery.detail}`)
       settle(worktreeId, chain, 'needs-user', delivery.reason)
       return
     }
     chain.round = round
     chain.lastMarker = marker
-    chain.pendingTurn = true
+    chain.pendingTurn = !outgoing.turnSeen
     settle(worktreeId, chain, 'awaiting-agent')
   }
 
@@ -210,6 +221,7 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
             lastFailure: null,
             lastMarker: null,
             pendingTurn: false,
+            outgoing: null,
             resumed: false,
             generation: (existing?.generation ?? 0) + 1
           }
@@ -246,6 +258,12 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
       chain.resumed = true
     }
     if (!ACTIVE.has(chain.state)) {
+      return
+    }
+    // The agent can report the turn our message opened before the delivery itself returns.
+    if (chain.outgoing) {
+      chain.outgoing.turnSeen = true
+      chain.outgoing.named ||= event.prompt.includes(chain.outgoing.marker)
       return
     }
     // Our own message, named by its marker, however often its turn start is reported.

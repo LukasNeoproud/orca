@@ -15,7 +15,7 @@ import {
 } from '../../shared/quality-gate-types'
 import type { runQualityGateCommand } from './quality-gate-command-run'
 import type { QualityGateRunStore, StoredQualityGateRun } from './quality-gate-run-store'
-import type { readQualityGateSourceState } from './quality-gate-source-state'
+import type { QualityGateSourceReader } from './quality-gate-source-reader'
 import type { QualityGateTarget } from './quality-gate-target'
 
 export type QualityGateServiceDeps = {
@@ -23,7 +23,7 @@ export type QualityGateServiceDeps = {
   /** Names this process; a live record carrying another id belongs to someone who cannot be asked. */
   hostInstanceId: string
   runCommand: typeof runQualityGateCommand
-  readSource: typeof readQualityGateSourceState
+  readSource: QualityGateSourceReader
   runnerDirectory: string
   now: () => number
   newRunId: () => string
@@ -81,7 +81,12 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       // The run itself is not undone by a full disk; the live map still answers for it.
       console.error('[quality-gates] could not persist a run:', errorMessage(error))
     }
-    deps.onRunChanged?.(run.worktreeId)
+    try {
+      deps.onRunChanged?.(run.worktreeId)
+    } catch (error) {
+      // A subscriber's failure is not the run's: thrown onward it would fail the run and its queue.
+      console.error('[quality-gates] a run change subscriber failed:', errorMessage(error))
+    }
   }
 
   async function execute(entry: LiveRun, target: QualityGateTarget): Promise<void> {
@@ -89,7 +94,7 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       return
     }
     try {
-      entry.run.source = await deps.readSource(target.source)
+      entry.run.source = await deps.readSource(target.source, { fresh: true })
       // Stopped while the tree was being read: the stop already wrote the final record.
       if (!live.has(entry.run.id)) {
         return
