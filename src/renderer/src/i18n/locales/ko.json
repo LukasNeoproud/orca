@@ -19895,6 +19895,8 @@
     "summaryUnknown": "알 수 없음 {{value0}}",
     "summaryOutdated": "오래된 결과 {{value0}}",
     "summaryPassed": "통과 {{value0}}",
-    "summaryMissing": "미실행 {{value0}}"
+    "summaryMissing": "미실행 {{value0}}",
+    "cardLabel": "로컬 게이트: {{value0}}",
+    "cardContactLost": "로컬 게이트: 호스트가 응답하지 않았습니다. 마지막으로 확인된 상태: {{value0}}"
   }
 }

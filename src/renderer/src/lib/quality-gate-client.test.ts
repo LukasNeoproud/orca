@@ -19,6 +19,7 @@ import {
   classifyQualityGateCallFailure,
   fetchQualityGateOutput,
   fetchQualityGateStatus,
+  qualityGateBackgroundChangesSupported,
   qualityGateChangesSupported,
   qualityGatesSupported,
   startQualityGates,
@@ -145,6 +146,30 @@ describe('quality gate client', () => {
         'env-ssh',
         'quality-gates.subscribe.v1',
         expect.any(Number)
+      )
+    })
+
+    it('asks for the slow watch only of a host that advertises it, and names it in the request', async () => {
+      runtimeEnvironmentSupportsCapability.mockResolvedValueOnce(false)
+      expect(await qualityGateBackgroundChangesSupported(remote)).toBe(false)
+      expect(await qualityGateBackgroundChangesSupported(local)).toBe(true)
+      expect(runtimeEnvironmentSupportsCapability).toHaveBeenCalledWith(
+        'env-ssh',
+        'quality-gates.subscribe-cadence.v1',
+        expect.any(Number)
+      )
+
+      await subscribeQualityGateChanges(
+        remote,
+        'repo::/srv/app',
+        { onChanged: vi.fn(), onLost: vi.fn() },
+        { background: true }
+      )
+      expect(subscribeRuntimeRpc).toHaveBeenLastCalledWith(
+        remote,
+        'qualityGates.subscribe',
+        { worktree: 'id:repo::/srv/app', cadence: 'background' },
+        expect.anything()
       )
     })
 

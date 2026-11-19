@@ -515,6 +515,7 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from './quality-gate-params'
@@ -1281,7 +1282,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'qualityGates.output': QualityGateOutputParams,
   'qualityGates.run': QualityGateRunParams,
   'qualityGates.status': QualityGateWorktreeParams,
-  'qualityGates.subscribe': QualityGateWorktreeParams,
+  'qualityGates.subscribe': QualityGateSubscribeParams,
   'qualityGates.unsubscribe': QualityGateUnsubscribeParams,
   'reference.find': ReferenceFind,
   'reference.list': ReferenceList,

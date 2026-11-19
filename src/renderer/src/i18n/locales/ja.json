@@ -19895,6 +19895,8 @@
     "summaryUnknown": "不明 {{value0}}",
     "summaryOutdated": "古い結果 {{value0}}",
     "summaryPassed": "合格 {{value0}}",
-    "summaryMissing": "未実行 {{value0}}"
+    "summaryMissing": "未実行 {{value0}}",
+    "cardLabel": "ローカルゲート: {{value0}}",
+    "cardContactLost": "ローカルゲート: ホストが応答しませんでした。最後に確認した状態: {{value0}}"
   }
 }

@@ -19909,6 +19909,8 @@
     "summaryUnknown": "{{value0}} 项未知",
     "summaryOutdated": "{{value0}} 项已过期",
     "summaryPassed": "{{value0}} 项通过",
-    "summaryMissing": "{{value0}} 项未运行"
+    "summaryMissing": "{{value0}} 项未运行",
+    "cardLabel": "本地质量门：{{value0}}",
+    "cardContactLost": "本地质量门：主机没有应答。上次已知状态：{{value0}}"
   }
 }

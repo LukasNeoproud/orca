@@ -2,19 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   classifyQualityGateCallFailure,
   fetchQualityGateStatus,
+  qualityGateBackgroundChangesSupported,
   qualityGateChangesSupported,
   qualityGatesSupported,
-  subscribeQualityGateChanges
+  subscribeQualityGateChanges,
+  type QualityGateChangeHandlers
 } from '@/lib/quality-gate-client'
 import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import {
   emptyQualityGateStatusView,
+  hasNoQualityGates,
   nextQualityGatePollDelay,
   type QualityGateStatusView
 } from './quality-gate-status-view'
 
 const STREAM_RETRY_MS = 5_000
+const BACKGROUND_STREAM_RETRY_MS = 30_000
 
 /**
  * The latest run of each gate in one workspace, read from the host that owns it. `revision`
@@ -22,17 +26,22 @@ const STREAM_RETRY_MS = 5_000
  *
  * Without `watch` it asks again only while a run is in progress. With `watch` it follows the
  * workspace: through the host's change stream when the host has one, on an interval otherwise.
+ *
+ * `background` is for a reader that is one of many, such as a sidebar card. It opens no stream
+ * until the host has named a gate, asks the host to watch the tree at its slow interval, and
+ * falls back to a slow interval of its own on a host that cannot.
  */
 export function useQualityGateStatus(
   target: RuntimeClientTarget | null,
   worktreeId: string | null,
   revision: string,
-  options: { watch?: boolean } = {}
+  options: { watch?: boolean; background?: boolean } = {}
 ): { view: QualityGateStatusView; refresh: () => void } {
   // Why primitives: a fresh target object per render must not restart polling.
   const hasTarget = target !== null
   const environmentId = target?.kind === 'environment' ? target.environmentId : null
   const watch = options.watch === true
+  const background = watch && options.background === true
   const scope = `${hasTarget ? (environmentId ?? 'local') : ''}\0${worktreeId ?? ''}`
   const [stored, setStored] = useState<QualityGateStatusView>(() =>
     emptyQualityGateStatusView(scope)
@@ -50,6 +59,7 @@ export function useQualityGateStatus(
     let streamTimer: number | null = null
     let stream: { close: () => void } | null = null
     let streaming = false
+    let streamWanted = false
     let reading = false
     let readAgain = false
 
@@ -64,8 +74,12 @@ export function useQualityGateStatus(
       if (timer !== null) {
         window.clearTimeout(timer)
       }
-      const delay = nextQualityGatePollDelay(next, { watch, streaming })
+      const delay = nextQualityGatePollDelay(next, { watch, streaming, background })
       timer = delay === null ? null : window.setTimeout(read, delay)
+      if (background && !streamWanted && next.status !== null && !hasNoQualityGates(next)) {
+        streamWanted = true
+        void openStream()
+      }
     }
     const poll = async (): Promise<void> => {
       try {
@@ -112,15 +126,21 @@ export function useQualityGateStatus(
       streamTimer = null
       const retryLater = (): void => {
         if (!cancelled) {
-          streamTimer = window.setTimeout(() => void openStream(), STREAM_RETRY_MS)
+          streamTimer = window.setTimeout(
+            () => void openStream(),
+            background ? BACKGROUND_STREAM_RETRY_MS : STREAM_RETRY_MS
+          )
         }
       }
       try {
         // An older host: the interval of a watching panel stands in for the stream.
-        if (!(await qualityGateChangesSupported(owner))) {
+        if (
+          !(await qualityGateChangesSupported(owner)) ||
+          (background && !(await qualityGateBackgroundChangesSupported(owner)))
+        ) {
           return
         }
-        const opened = await subscribeQualityGateChanges(owner, worktreeId, {
+        const handlers: QualityGateChangeHandlers = {
           onChanged: () => {
             streaming = true
             read()
@@ -133,6 +153,9 @@ export function useQualityGateStatus(
               retryLater()
             }
           }
+        }
+        const opened = await subscribeQualityGateChanges(owner, worktreeId, handlers, {
+          background
         })
         if (cancelled) {
           opened.close()
@@ -145,7 +168,7 @@ export function useQualityGateStatus(
     }
 
     read()
-    if (watch) {
+    if (watch && !background) {
       void openStream()
     }
     return () => {
@@ -157,7 +180,7 @@ export function useQualityGateStatus(
         }
       }
     }
-  }, [hasTarget, environmentId, worktreeId, scope, revision, refreshCount, watch])
+  }, [hasTarget, environmentId, worktreeId, scope, revision, refreshCount, watch, background])
 
   const refresh = useCallback(() => setRefreshCount((count) => count + 1), [])
   return { view: stored.scope === scope ? stored : emptyQualityGateStatusView(scope), refresh }

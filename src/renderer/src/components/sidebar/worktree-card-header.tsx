@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import { WorkspaceQualityGatesCardIndicator } from '../quality-gates/WorkspaceQualityGatesCardIndicator'
 import type { Repo } from '../../../../shared/repo-types'
 import { resolveRepoHeaderColor } from './project-header-color'
 import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './worktree-card-model'
@@ -260,6 +261,11 @@ export function WorktreeCardHeader({
             </TooltipContent>
           </Tooltip>
         )}
+
+        <WorkspaceQualityGatesCardIndicator
+          worktreeId={worktree.id}
+          gateDefinitions={repo?.qualityGates}
+        />
 
         {showTitleRowIndicators && titleRowIndicators}
       </div>

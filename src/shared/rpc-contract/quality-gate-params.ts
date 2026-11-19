@@ -25,6 +25,14 @@ export const QualityGateCancelParams = QualityGateWorktreeParams.extend({
   gateId: GateId.optional()
 })
 
+/**
+ * `cadence: 'background'` asks for the tree to be watched at the slow interval; runs are signalled
+ * at once either way. Any other value reads as the default, so a newer client's word is no error.
+ */
+export const QualityGateSubscribeParams = QualityGateWorktreeParams.extend({
+  cadence: z.string().max(32).optional()
+})
+
 /** Ends a `qualityGates.subscribe` stream; the id comes from that stream's `ready` frame. */
 export const QualityGateUnsubscribeParams = z.object({
   subscriptionId: z.string().min(1).max(128)

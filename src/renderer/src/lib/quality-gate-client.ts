@@ -3,6 +3,7 @@ import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
 import { subscribeRuntimeRpc } from '@/runtime/runtime-rpc-subscribe'
 import {
   QUALITY_GATES_RUNTIME_CAPABILITY,
+  QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY
 } from '../../../shared/host-feature-runtime-capabilities'
 import { readQualityGateChangeFrame } from '../../../shared/quality-gate-change-stream'
@@ -114,6 +115,23 @@ export async function qualityGateChangesSupported(target: RuntimeClientTarget): 
   )
 }
 
+/**
+ * Whether the host can watch a workspace at the slow interval. One that cannot would read the tree
+ * of every subscribed workspace every few seconds, so a background reader does not subscribe to it.
+ */
+export async function qualityGateBackgroundChangesSupported(
+  target: RuntimeClientTarget
+): Promise<boolean> {
+  if (target.kind === 'local') {
+    return true
+  }
+  return runtimeEnvironmentSupportsCapability(
+    target.environmentId,
+    QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
+    CAPABILITY_TIMEOUT_MS
+  )
+}
+
 export type QualityGateChangeHandlers = {
   /** The stream opened, or the host said the runs or the tree moved: read the status again. */
   onChanged: () => void
@@ -128,7 +146,8 @@ export type QualityGateChangeHandlers = {
 export async function subscribeQualityGateChanges(
   target: RuntimeClientTarget,
   worktreeId: string,
-  handlers: QualityGateChangeHandlers
+  handlers: QualityGateChangeHandlers,
+  options: { background?: boolean } = {}
 ): Promise<{ close: () => void }> {
   let subscriptionId: string | null = null
   let over = false
@@ -141,7 +160,7 @@ export async function subscribeQualityGateChanges(
   const handle = await subscribeRuntimeRpc(
     target,
     'qualityGates.subscribe',
-    { worktree: `id:${worktreeId}` },
+    { worktree: `id:${worktreeId}`, ...(options.background ? { cadence: 'background' } : {}) },
     {
       onEvent: (result) => {
         const frame = readQualityGateChangeFrame(result)

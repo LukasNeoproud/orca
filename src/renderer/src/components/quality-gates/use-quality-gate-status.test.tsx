@@ -7,6 +7,7 @@ import type { QualityGateChangeHandlers } from '@/lib/quality-gate-client'
 const client = vi.hoisted(() => ({
   classifyQualityGateCallFailure: vi.fn(() => 'contact-lost'),
   fetchQualityGateStatus: vi.fn(),
+  qualityGateBackgroundChangesSupported: vi.fn(),
   qualityGateChangesSupported: vi.fn(),
   qualityGatesSupported: vi.fn(),
   subscribeQualityGateChanges: vi.fn()
@@ -39,6 +40,7 @@ describe('useQualityGateStatus', () => {
     client.classifyQualityGateCallFailure.mockReturnValue('contact-lost')
     client.qualityGatesSupported.mockReset().mockResolvedValue(true)
     client.qualityGateChangesSupported.mockReset().mockResolvedValue(true)
+    client.qualityGateBackgroundChangesSupported.mockReset().mockResolvedValue(true)
     client.fetchQualityGateStatus.mockReset().mockResolvedValue(gateStatus(gateRun()))
     client.subscribeQualityGateChanges
       .mockReset()
@@ -178,5 +180,107 @@ describe('useQualityGateStatus', () => {
 
     expect(client.subscribeQualityGateChanges).not.toHaveBeenCalled()
     expect(reads()).toBe(1)
+  })
+
+  describe('in the background, as a sidebar card', () => {
+    function card(target: typeof remote | { kind: 'local' } = remote) {
+      return renderHook(() =>
+        useQualityGateStatus(target, 'repo::/work', 'rev', { watch: true, background: true })
+      )
+    }
+
+    it('reads once and stops for a workspace whose host has no gates: no stream, no interval', async () => {
+      client.fetchQualityGateStatus.mockResolvedValue(gateStatus())
+      card()
+
+      await settle(120_000)
+
+      expect(reads()).toBe(1)
+      expect(client.subscribeQualityGateChanges).not.toHaveBeenCalled()
+    })
+
+    it('opens the stream at the background cadence once the host names a gate', async () => {
+      const hook = card()
+      await settle()
+
+      expect(client.subscribeQualityGateChanges).toHaveBeenCalledTimes(1)
+      expect(client.subscribeQualityGateChanges.mock.calls[0][3]).toEqual({ background: true })
+      act(() => stream?.onChanged())
+      await settle()
+      const afterOpen = reads()
+      await settle(120_000)
+      expect(reads()).toBe(afterOpen)
+
+      client.fetchQualityGateStatus.mockResolvedValue(
+        gateStatus(gateRun({ status: 'failed', exitCode: 1 }))
+      )
+      act(() => stream?.onChanged())
+      await settle()
+      expect(hook.result.current.view.status?.gates[0].latestRun?.status).toBe('failed')
+    })
+
+    it('does not subscribe to a host that would watch every tree at full speed; it asks seldom', async () => {
+      client.qualityGateBackgroundChangesSupported.mockResolvedValue(false)
+      card()
+      await settle()
+      expect(reads()).toBe(1)
+
+      await settle(29_000)
+      expect(reads()).toBe(1)
+      await settle(1_000)
+      expect(reads()).toBe(2)
+      expect(client.subscribeQualityGateChanges).not.toHaveBeenCalled()
+    })
+
+    it('asks a host from before the stream seldom as well, faster while a gate runs', async () => {
+      client.qualityGateChangesSupported.mockResolvedValue(false)
+      client.fetchQualityGateStatus.mockResolvedValue(gateStatus(liveGateRun()))
+      card()
+      await settle()
+
+      await settle(5_000)
+      expect(reads()).toBe(2)
+
+      client.fetchQualityGateStatus.mockResolvedValue(gateStatus(gateRun()))
+      await settle(5_000)
+      expect(reads()).toBe(3)
+      await settle(30_000)
+      expect(reads()).toBe(4)
+      expect(client.subscribeQualityGateChanges).not.toHaveBeenCalled()
+    })
+
+    it('keeps the last status when the host stops answering and recovers by itself', async () => {
+      const hook = card()
+      await settle()
+      client.fetchQualityGateStatus.mockRejectedValue(new Error('socket hang up'))
+      act(() => stream?.onLost(false))
+      await settle()
+
+      expect(hook.result.current.view.contactLost).toBe(true)
+      expect(hook.result.current.view.status?.gates[0].latestRun?.status).toBe('passed')
+
+      client.fetchQualityGateStatus.mockResolvedValue(gateStatus(gateRun()))
+      await settle(30_000)
+      expect(hook.result.current.view.contactLost).toBe(false)
+    })
+
+    it('moves to the foreground stream when its workspace becomes the active one', async () => {
+      const hook = renderHook(
+        ({ background }: { background: boolean }) =>
+          useQualityGateStatus(remote, 'repo::/work', 'rev', { watch: true, background }),
+        { initialProps: { background: true } }
+      )
+      await settle()
+      hook.rerender({ background: false })
+      await settle()
+
+      expect(closeStream).toHaveBeenCalledTimes(1)
+      expect(client.subscribeQualityGateChanges.mock.calls.map((call) => call[3])).toEqual([
+        { background: true },
+        { background: false }
+      ])
+      // The glyph does not blink while the stream is swapped.
+      expect(hook.result.current.view.status?.gates).toHaveLength(1)
+    })
   })
 })

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   QUALITY_GATES_RUNTIME_CAPABILITY,
+  QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY
 } from '../../../../shared/host-feature-runtime-capabilities'
 import { RUNTIME_CAPABILITIES } from '../../../../shared/protocol-version'
@@ -65,10 +66,13 @@ describe.skipIf(process.platform === 'win32')('qualityGates.subscribe', () => {
   }
 
   /** Opens the stream as the transport does: replies arrive while the dispatch stays pending. */
-  function subscribe(options: { connectionId?: string; signal?: AbortSignal } = {}) {
+  function subscribe(
+    options: { connectionId?: string; signal?: AbortSignal } = {},
+    params: Record<string, unknown> = WORKTREE
+  ) {
     const responses: RpcResponse[] = []
     const settled = dispatcher().dispatchStreaming(
-      { id: 'sub', authToken: 'token', method: 'qualityGates.subscribe', params: WORKTREE },
+      { id: 'sub', authToken: 'token', method: 'qualityGates.subscribe', params },
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the dispatcher serializes an RpcResponse.
       (reply) => responses.push(JSON.parse(reply) as RpcResponse),
       { caller: { kind: 'desktop' }, connectionId: options.connectionId ?? 'conn-a', ...options }
@@ -110,6 +114,38 @@ describe.skipIf(process.platform === 'win32')('qualityGates.subscribe', () => {
   it('advertises the stream apart from the gates, so a client asks before it subscribes', () => {
     expect(RUNTIME_CAPABILITIES).toContain(QUALITY_GATES_RUNTIME_CAPABILITY)
     expect(RUNTIME_CAPABILITIES).toContain(QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY)
+    expect(RUNTIME_CAPABILITIES).toContain(QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY)
+  })
+
+  it('passes the cadence of the subscriber on to the watch', async () => {
+    const feed = getQualityGateChangeFeed()
+    const cadences: (boolean | undefined)[] = []
+    const subscribeToFeed = feed.subscribe
+    feed.subscribe = (target, listener, options) => {
+      cadences.push(options?.background)
+      return subscribeToFeed(target, listener, options)
+    }
+
+    // The second is what a client from before the cadence sends, the third a word of a newer one.
+    const streams = [
+      subscribe({}, { ...WORKTREE, cadence: 'background' }),
+      subscribe({ connectionId: 'conn-b' }),
+      subscribe({ connectionId: 'conn-c' }, { ...WORKTREE, cadence: 'idle' })
+    ]
+    await expect
+      .poll(() => streams.map((stream) => stream.types()))
+      .toEqual([['ready'], ['ready'], ['ready']])
+    expect(cadences).toEqual([true, false, false])
+
+    await call('qualityGates.run', WORKTREE)
+    await expect
+      .poll(() => streams.map((stream) => stream.types().length), { timeout: 20_000 })
+      .toEqual([4, 4, 4])
+    for (const connectionId of ['conn-a', 'conn-b', 'conn-c']) {
+      registry.cleanupSubscriptionsForConnection(connectionId)
+    }
+    await Promise.all(streams.map((stream) => stream.settled))
+    expect(feed.watchedCount()).toBe(0)
   })
 
   it('signals each change of a run and ends when the subscriber says so', async () => {

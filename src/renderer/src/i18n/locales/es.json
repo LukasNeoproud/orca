@@ -19895,6 +19895,8 @@
     "summaryUnknown": "{{value0}} desconocidos",
     "summaryOutdated": "{{value0}} desactualizados",
     "summaryPassed": "{{value0}} pasaron",
-    "summaryMissing": "{{value0}} sin ejecutar"
+    "summaryMissing": "{{value0}} sin ejecutar",
+    "cardLabel": "Controles locales: {{value0}}",
+    "cardContactLost": "Controles locales: el host no respondió. Último estado conocido: {{value0}}"
   }
 }

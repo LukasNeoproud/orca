@@ -20912,6 +20912,8 @@
     "summaryUnknown": "{{value0}} unknown",
     "summaryOutdated": "{{value0}} out of date",
     "summaryPassed": "{{value0}} passed",
-    "summaryMissing": "{{value0}} not run"
+    "summaryMissing": "{{value0}} not run",
+    "cardLabel": "Local gates: {{value0}}",
+    "cardContactLost": "Local gates: the host did not answer. Last known: {{value0}}"
   }
 }

@@ -4,6 +4,7 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from './quality-gate-params'
@@ -28,8 +29,21 @@ describe('quality gate RPC params', () => {
     ])
   })
 
-  it('opens the change stream with a worktree and nothing else, and ends it by its id', () => {
-    expect(RPC_PARAMS_BY_METHOD['qualityGates.subscribe']).toBe(QualityGateWorktreeParams)
+  it('opens the change stream with a worktree and an optional cadence, and ends it by its id', () => {
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.subscribe']).toBe(QualityGateSubscribeParams)
+    // What a client from before the cadence sends.
+    expect(QualityGateSubscribeParams.parse({ worktree })).toEqual({ worktree })
+    expect(QualityGateSubscribeParams.parse({ worktree, cadence: 'background' })).toEqual({
+      worktree,
+      cadence: 'background'
+    })
+    // A word of a newer client is not an error; the host reads it as the default.
+    expect(QualityGateSubscribeParams.safeParse({ worktree, cadence: 'idle' }).success).toBe(true)
+    expect(QualityGateSubscribeParams.safeParse({ worktree, cadence: 7 }).success).toBe(false)
+    // A host from before the cadence validates with the worktree-only schema and drops the field.
+    expect(QualityGateWorktreeParams.parse({ worktree, cadence: 'background' })).toEqual({
+      worktree
+    })
     expect(RPC_PARAMS_BY_METHOD['qualityGates.unsubscribe']).toBe(QualityGateUnsubscribeParams)
     expect(QualityGateUnsubscribeParams.safeParse({}).success).toBe(false)
     expect(

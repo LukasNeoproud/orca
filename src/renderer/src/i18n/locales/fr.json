@@ -19896,6 +19896,8 @@
     "summaryUnknown": "{{value0}} inconnus",
     "summaryOutdated": "{{value0}} obsolètes",
     "summaryPassed": "{{value0}} réussis",
-    "summaryMissing": "{{value0}} non exécutés"
+    "summaryMissing": "{{value0}} non exécutés",
+    "cardLabel": "Contrôles locaux : {{value0}}",
+    "cardContactLost": "Contrôles locaux : l'hôte n'a pas répondu. Dernier état connu : {{value0}}"
   }
 }

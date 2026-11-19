@@ -2,6 +2,7 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from '../../../../shared/rpc-contract/quality-gate-params'
@@ -86,7 +87,7 @@ export const QUALITY_GATE_METHODS = [
   defineStreamingMethod({
     name: 'qualityGates.subscribe',
     permission: 'workspace',
-    params: QualityGateWorktreeParams,
+    params: QualityGateSubscribeParams,
     handler: async (params, { runtime, connectionId, signal }, emitFrame) => {
       const emit = (frame: QualityGateChangeFrame): void => emitFrame(frame)
       const target = await resolveQualityGateTarget(runtime, params.worktree)
@@ -94,8 +95,10 @@ export const QUALITY_GATE_METHODS = [
         const subscriptionId = `quality-gates-${connectionId ?? 'inproc'}-${++subscriptionSeq}`
         const key = cleanupKey(connectionId, subscriptionId)
         const release = (): void => runtime.cleanupSubscription(key)
-        const unsubscribe = getQualityGateChangeFeed().subscribe(target, () =>
-          emit({ type: 'changed' })
+        const unsubscribe = getQualityGateChangeFeed().subscribe(
+          target,
+          () => emit({ type: 'changed' }),
+          { background: params.cadence === 'background' }
         )
         runtime.registerSubscriptionCleanup(
           key,

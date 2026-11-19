@@ -6,6 +6,8 @@ import type {
 import {
   QUALITY_GATE_LIVE_POLL_MS,
   QUALITY_GATE_LOST_CONTACT_POLL_MS,
+  QUALITY_GATE_BACKGROUND_LIVE_POLL_MS,
+  QUALITY_GATE_BACKGROUND_POLL_MS,
   QUALITY_GATE_WATCH_POLL_MS,
   emptyQualityGateStatusView,
   hasLiveQualityGateRun,
@@ -148,6 +150,46 @@ describe('quality gate status view', () => {
           { watch: true, streaming: false }
         )
       ).toBeNull()
+    })
+  })
+
+  describe('a background reader', () => {
+    const background = { watch: true, streaming: false, background: true }
+    const withStatus = (value: QualityGateStatusResult) => ({
+      ...emptyQualityGateStatusView(scope),
+      status: value
+    })
+
+    it('stops for good once the host says the workspace has no gates', () => {
+      expect(nextQualityGatePollDelay(withStatus(status()), background)).toBeNull()
+      // The panel in front of the user keeps following the same workspace.
+      expect(
+        nextQualityGatePollDelay(withStatus(status()), { watch: true, streaming: false })
+      ).toBe(QUALITY_GATE_WATCH_POLL_MS)
+    })
+
+    it('asks seldom without a stream, a little faster while a gate runs', () => {
+      expect(nextQualityGatePollDelay(withStatus(status(passed)), background)).toBe(
+        QUALITY_GATE_BACKGROUND_POLL_MS
+      )
+      expect(nextQualityGatePollDelay(withStatus(status(run())), background)).toBe(
+        QUALITY_GATE_BACKGROUND_LIVE_POLL_MS
+      )
+      expect(
+        nextQualityGatePollDelay(withStatus(status(run())), { ...background, streaming: true })
+      ).toBeNull()
+    })
+
+    it('keeps asking a silent host seldom, before the first answer too', () => {
+      expect(
+        nextQualityGatePollDelay(
+          { ...emptyQualityGateStatusView(scope), contactLost: true },
+          background
+        )
+      ).toBe(QUALITY_GATE_BACKGROUND_POLL_MS)
+      expect(
+        nextQualityGatePollDelay({ ...withStatus(status()), contactLost: true }, background)
+      ).toBe(QUALITY_GATE_BACKGROUND_POLL_MS)
     })
   })
 })
