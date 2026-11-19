@@ -47,11 +47,23 @@ Hotovo (TASK-61): pravé tlačítko na čísle řádku v editoru, v diffu soubor
 
 Hotovo (TASK-79): totéž v souhrnném diffu workspace a v pohledu All changes pull requestu Azure DevOps. Souhrnné diffy pull requestů GitHubu a GitLabu akci nenabízejí, protože ukazují kód mimo review worktree.
 
-- Rodinu editoru určuje název spouštěče (`src/main/external-editor-file-location.ts`): VS Code a odvozeniny dostanou `--goto soubor:N:S`, JetBrains `--line N soubor`, Xcode `xed -l N soubor` (jen macOS), Zed `soubor:N:S`. Neznámý příkaz dostane jen soubor.
-- JetBrains dostává jen řádek. Sloupec vynecháváme, dokud na skutečném IDE neověříme, jestli `--column` počítá od nuly.
+- Rodinu editoru určuje název spouštěče (`src/main/external-editor-file-location.ts`): VS Code a odvozeniny dostanou `--goto soubor:N:S`, JetBrains `--line N --column S-1 soubor`, Xcode `xed -l N soubor` (jen macOS), Zed `soubor:N:S`. Neznámý příkaz dostane jen soubor.
+- JetBrains počítá `--line` od jedné a `--column` od nuly, proto Orca sloupec o jedna snižuje. Sloupec je u JetBrains logický (tabulátor zabere šířku odsazení), takže na řádku odsazeném tabulátory skončí kurzor vlevo od zvoleného znaku; řádek sedí.
+- Okno worktree: `code <worktree> --goto soubor:N:S` otevře soubor v okně svého worktree a už otevřené okno použije znovu; bez složky skončí soubor v naposledy aktivním okně, i když patří jinému projektu. Sestavení příkazu to umí pro `code` a `code-insiders` (volba `projectRoot`), ale rozhraní kořen worktree zatím nepředává, takže chování zůstává dnešní. Složený příkaz (například `code --reuse-window`) a WSL složku nedostanou. JetBrains zůstává u samotného souboru: IDE se u neotevřené složky může zeptat na důvěru a na okno a to se ověřit nepodařilo.
 - Nabízí se aplikace z nastavení Open in. Výchozí je ta, kterou uživatel pro daný repozitář (nebo folder workspace) zvolil naposledy; výchozí IDE podle role repozitáře přijde s Funkcemi.
 - Diff pull requestu akci nabízí, jen když má review worktree vybraný právě tento pull request. Jiný checkout by otevřel jiný kód, než diff ukazuje.
 - Kde akce dostupná není, menu na čísle řádku ukáže vypnutou položku Open in s důvodem: pull request není otevřený v review worktree, review worktree má jiný pull request, nebo je soubor smazaný.
 - U SSH worktree otevírá jen VS Code přes Remote-SSH; ostatní aplikace jsou v nabídce vypnuté s označením „Local only“.
+
+Ověření na skutečných IDE (TASK-80, 2026-11-19, jen macOS; příkazy sestavila a spustila Orca nad smyšleným projektem se dvěma worktrees):
+
+| IDE | Výsledek |
+| --- | --- |
+| VS Code 1.140 | Ověřeno: řádek i sloupec sedí (42:7, 17:3, 12:5 na řádku s tabulátory, 30 bez sloupce), přečteno z uloženého stavu okna. Ověřena i varianta se složkou worktree |
+| Android Studio (platforma 262, spouštěč z JetBrains Toolbox) | Ověřeno zčásti: běžící IDE příkaz přijalo s argumenty beze změny a soubor otevřelo, i s mezerou v cestě (podle logu IDE). Počítání řádku a sloupce je doložené z kódu příkazové řádky nainstalovaného IDE, ne z polohy kurzoru: IDE stav neuložilo, protože byla zamčená obrazovka |
+| Xcode | Ověřeno zčásti: `xed` Xcode spustil a soubor mu předal. Řádek se přečíst nepodařilo, dotaz přes AppleScript čekal na oprávnění Automatizace |
+| Rider, Zed | Neověřeno, na počítači nejsou. Rider sdílí zpracování příkazové řádky s platformou IntelliJ |
+
+Windows a Linux pokrývají jen testy sestavení příkazu.
 
 Ladění, build, Compose Preview a simulátory v Orce nestavíme; zůstávají v nativních IDE.

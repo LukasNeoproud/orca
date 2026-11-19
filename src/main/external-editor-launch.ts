@@ -10,6 +10,7 @@ import {
   stripMatchingQuotes
 } from './editor-launcher-name'
 import {
+  buildExternalEditorProjectRootArgs,
   buildExternalEditorTargetArgs,
   type ExternalEditorFileLocation
 } from './external-editor-file-location'
@@ -101,12 +102,17 @@ function buildExecutableArgs(
   editorCommand: string,
   pathValue: string,
   platform: NodeJS.Platform,
-  location: ExternalEditorFileLocation | undefined
+  location: ExternalEditorFileLocation | undefined,
+  projectRoot: string | undefined
 ): string[] {
   const isCursor = getLauncherBaseName(editorCommand) === 'cursor'
   const target = resolveWslRemoteTarget(editorCommand, pathValue, platform, isCursor)
   const targetArgs = [
     ...target.remoteArgs,
+    // Why: a WSL remote launch with a folder is unverified, so it keeps the bare file.
+    ...(target.remoteArgs.length === 0
+      ? buildExternalEditorProjectRootArgs(editorCommand, projectRoot, location)
+      : []),
     ...buildExternalEditorTargetArgs(editorCommand, target.path, platform, location)
   ]
   // Why: Cursor can route bare folder launches through the last active
@@ -162,13 +168,14 @@ function buildExecutableLaunchSpec(
   editorCommand: string,
   pathValue: string,
   platform: NodeJS.Platform,
-  location: ExternalEditorFileLocation | undefined
+  location: ExternalEditorFileLocation | undefined,
+  projectRoot?: string
 ): ExternalEditorExecutableLaunchSpec {
   const spec: ExternalEditorExecutableLaunchSpec = {
     kind: 'executable',
     hideWindowsConsole: !shouldShowWindowsConsole(editorCommand, platform),
     spawnCmd: editorCommand,
-    spawnArgs: buildExecutableArgs(editorCommand, pathValue, platform, location)
+    spawnArgs: buildExecutableArgs(editorCommand, pathValue, platform, location, projectRoot)
   }
   if (spec.hideWindowsConsole && isJetBrainsConsoleShim(editorCommand, platform)) {
     spec.detachedGui = true
@@ -216,6 +223,11 @@ type ExternalEditorLaunchOptions = {
   fileExists?: (path: string) => boolean
   /** Set when `pathValue` is a file to open at a line instead of a folder. */
   location?: ExternalEditorFileLocation
+  /**
+   * Worktree or folder workspace that holds the file; honored only with `location`.
+   * Never applied to compound commands, where `--reuse-window` would replace another folder.
+   */
+  projectRoot?: string
 }
 
 export function resolveExternalEditorLaunchSpec(
@@ -225,7 +237,7 @@ export function resolveExternalEditorLaunchSpec(
 ): ExternalEditorLaunchSpec {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
-  const { location } = options
+  const { location, projectRoot } = options
   const trimmed = command?.trim() || EXTERNAL_EDITOR_CLI_COMMAND
 
   if (isDirectExecutablePath(trimmed, platform, fileExists)) {
@@ -235,7 +247,8 @@ export function resolveExternalEditorLaunchSpec(
       preferJetBrainsGuiExecutable(stripMatchingQuotes(trimmed), platform, fileExists),
       pathValue,
       platform,
-      location
+      location,
+      projectRoot
     )
   }
 
@@ -247,7 +260,8 @@ export function resolveExternalEditorLaunchSpec(
     resolveSimpleEditorCommand(trimmed, platform, fileExists),
     pathValue,
     platform,
-    location
+    location,
+    projectRoot
   )
 }
 

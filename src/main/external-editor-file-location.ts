@@ -1,3 +1,4 @@
+import { isVsCodeLauncherExecutable } from '../shared/vscode-remote-ssh-launcher'
 import { getLauncherBaseName } from './editor-launcher-name'
 import { isJetBrainsLauncherName } from './jetbrains-windows-gui-launchers'
 
@@ -100,6 +101,19 @@ export function buildExternalEditorTargetArgs(
     : [pathValue]
 }
 
+/**
+ * Folder argv that puts a file opened at a line into that folder's window instead of the
+ * last active one. Empty for editors where this is unverified.
+ */
+export function buildExternalEditorProjectRootArgs(
+  command: string,
+  projectRoot: string | undefined,
+  location: ExternalEditorFileLocation | undefined
+): string[] {
+  // Why: only VS Code is verified; a JetBrains IDE may ask where to open a folder it does not have open.
+  return projectRoot && location && isVsCodeLauncherExecutable(command) ? [projectRoot] : []
+}
+
 /** argv that opens `pathValue` at `location`; an unknown family gets the bare file. */
 function buildExternalEditorFileLocationArgs(
   family: ExternalEditorFamily,
@@ -110,8 +124,13 @@ function buildExternalEditorFileLocationArgs(
     case 'vscode':
       return ['--goto', formatPathWithLocation(pathValue, location)]
     case 'jetbrains':
-      // Why: line only; the IDEs disagree on whether `--column` counts from 0 or 1.
-      return ['--line', String(location.line), pathValue]
+      // Why: the IntelliJ platform reads `--line` as 1-based and `--column` as 0-based.
+      return [
+        '--line',
+        String(location.line),
+        ...(location.column === undefined ? [] : ['--column', String(location.column - 1)]),
+        pathValue
+      ]
     case 'xcode':
       return ['-l', String(location.line), pathValue]
     case 'zed':

@@ -570,11 +570,75 @@ describe('opening a file at a line', () => {
     })
 
     it.each(['idea', 'studio', 'rider', 'webstorm', 'android-studio'])(
-      'gives the JetBrains launcher %s the line through --line',
+      'gives the JetBrains launcher %s a 1-based line and a 0-based column',
       (command) => {
-        expect(argsFor(command, file, platform)).toEqual(['--line', '42', file])
+        expect(argsFor(command, file, platform)).toEqual(['--line', '42', '--column', '6', file])
       }
     )
+
+    it('omits the column a JetBrains launcher was not given', () => {
+      expect(argsFor('studio', file, platform, { line: 42 })).toEqual(['--line', '42', file])
+    })
+
+    it('puts the first column of a line at JetBrains column 0', () => {
+      expect(argsFor('rider', file, platform, { line: 1, column: 1 })).toEqual([
+        '--line',
+        '1',
+        '--column',
+        '0',
+        file
+      ])
+    })
+
+    it.each(['code', 'code-insiders'])(
+      'opens the project root together with the file through %s',
+      (command) => {
+        const root = platform === 'win32' ? 'C:\\Users\\Ada Lovelace\\repo' : '/repo'
+        expect(
+          resolveExternalEditorLaunchSpec(command, file, {
+            platform,
+            location,
+            projectRoot: root,
+            fileExists: () => false
+          }).spawnArgs
+        ).toEqual([root, '--goto', `${file}:42:7`])
+      }
+    )
+
+    it.each(['cursor', 'codium', 'studio', 'zed', 'nvim'])(
+      'keeps the project root away from %s, where it is unverified',
+      (command) => {
+        expect(
+          resolveExternalEditorLaunchSpec(command, file, {
+            platform,
+            location,
+            projectRoot: '/repo',
+            fileExists: () => false
+          }).spawnArgs
+        ).toEqual(argsFor(command, file, platform))
+      }
+    )
+
+    it('keeps the project root out of a compound command', () => {
+      const withRoot = resolveExternalEditorLaunchSpec('code --reuse-window', file, {
+        platform,
+        location,
+        projectRoot: '/repo'
+      })
+      expect(withRoot).toEqual(
+        resolveExternalEditorLaunchSpec('code --reuse-window', file, { platform, location })
+      )
+    })
+
+    it('ignores the project root when opening a folder', () => {
+      expect(
+        resolveExternalEditorLaunchSpec('code', file, {
+          platform,
+          projectRoot: '/repo',
+          fileExists: () => false
+        }).spawnArgs
+      ).toEqual([file])
+    })
 
     it.each(['zed', 'zeditor'])('gives %s the file with line and column', (command) => {
       expect(argsFor(command, file, platform)).toEqual([`${file}:42:7`])
@@ -636,10 +700,15 @@ describe('opening a file at a line', () => {
         location,
         fileExists: (candidate) => candidate === studio
       })
-    ).toMatchObject({ spawnCmd: studio, spawnArgs: ['--line', '42', '/Users/ada/repo/App.kt'] })
+    ).toMatchObject({
+      spawnCmd: studio,
+      spawnArgs: ['--line', '42', '--column', '6', '/Users/ada/repo/App.kt']
+    })
     expect(argsFor('/opt/idea/bin/idea.sh', '/home/ada/repo/App.kt', 'linux')).toEqual([
       '--line',
       '42',
+      '--column',
+      '6',
       '/home/ada/repo/App.kt'
     ])
     expect(
@@ -648,7 +717,7 @@ describe('opening a file at a line', () => {
         'C:\\repo\\Program.cs',
         'win32'
       )
-    ).toEqual(['--line', '42', 'C:\\repo\\Program.cs'])
+    ).toEqual(['--line', '42', '--column', '6', 'C:\\repo\\Program.cs'])
   })
 
   it('keeps the WSL remote for a VS Code file on Windows', () => {
@@ -660,13 +729,25 @@ describe('opening a file at a line', () => {
     ])
   })
 
+  it('keeps a WSL file on the bare remote launch when a project root is given', () => {
+    const file = '\\\\wsl.localhost\\Ubuntu\\home\\ada\\repo\\App.kt'
+    expect(
+      resolveExternalEditorLaunchSpec('code', file, {
+        platform: 'win32',
+        location,
+        projectRoot: '\\\\wsl.localhost\\Ubuntu\\home\\ada\\repo',
+        fileExists: () => false
+      }).spawnArgs
+    ).toEqual(argsFor('code', file, 'win32'))
+  })
+
   it('quotes a POSIX file path with spaces in a compound command', () => {
     expect(
       resolveExternalEditorLaunchSpec('idea nosplash', '/home/Ada Lovelace/App.kt', {
         platform: 'linux',
         location
       }).spawnArgs
-    ).toEqual(['-c', "idea nosplash --line 42 '/home/Ada Lovelace/App.kt'"])
+    ).toEqual(['-c', "idea nosplash --line 42 --column 6 '/home/Ada Lovelace/App.kt'"])
   })
 
   it('still opens a folder in a new Cursor window when no line is given', () => {
