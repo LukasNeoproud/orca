@@ -114,6 +114,13 @@ Celky i nálezy dostanou strukturované hodnocení, podle kterého se řadí a f
 - Nálezy jsou seřazené podle priority, opakované nálezy jsou seskupené do jednoho s výčtem míst.
 - Publikovat jde s filtrem, např. jen chyby a varování s jistotou ověřeno.
 
+**Stav po TASK-126:**
+
+- **Hotovo:** záložka draftů řadí nepublikované drafty podle priority ze závažnosti a jistoty (pravidlo v [decision-10](../../backlog/decisions/decision-10%20-%20N%C3%A1lezy-AI-v-review-z%C3%A1va%C5%BEnost-d%C5%AFkazy-a-jistota-odvozen%C3%A1-hostitelem-ov%C4%9B%C5%99en%C3%A1-citace-k%C3%B3du-znamen%C3%A1-jen-pravd%C4%9Bpodobn%C3%BD-n%C3%A1lez.md)) nebo podle souboru a řádku. Filtr zužuje seznam podle závažnosti, jistoty, autora a souboru; odpověď ve vlákně patří k souboru svého vlákna.
+- **Publikace podle filtru:** „Vybrat zobrazené“ zaškrtne právě zobrazené publikovatelné drafty a publikuje se stávajícím dialogem, který uvede jejich počet. Kolik draftů filtr skrývá, kolik z nich nemá závažnost a kolik skrytých zůstává vybraných, stojí vedle filtru.
+- **Zapamatování:** řazení si Orca pamatuje jako režim zobrazení Files; filtr platí, dokud je stránka otevřená. Publikované drafty se neřadí ani nefiltrují.
+- **Zbývá:** četnost a ruční přepsání priority se seskupením opakovaných nálezů (TASK-103), dopad nálezu (M4) a nálezy z lintu a kontrol IDE ve stejném seznamu (M3, M5).
+
 ### 7. Nálezy AI s důkazem
 
 Každý draft nálezu od AI nese ověření, aby bylo méně falešných nálezů.

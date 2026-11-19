@@ -24,6 +24,7 @@ Model je ve sdíleném kódu a nezávisí na poskytovateli review (`src/shared/r
 - **Důkaz:** seznam položek, každá s polem `kind`. V protokolu, v nástrojích agenta i v úložišti má položka stejný tvar.
 - **Kontrola důkazu:** co hostitel zjistil, když položku porovnal s kódem. `confirmed` (volitelně s řádky, kde citát opravdu je), `refuted` (s důvodem a s textem, který na citovaném místě je) nebo `unchecked` (s důvodem).
 - **Jistota:** `verified`, `likely`, `uncertain`, `contradicted`. Odvozuje ji hostitel z důkazů a jejich kontrol; agent ji poslat nemůže.
+- **Priorita (TASK-126):** odvozuje ji klient čistou funkcí `deriveReviewFindingPriority` (`src/shared/review-finding-priority.ts`) jako součet bodů za závažnost (chyba 40, varování 30, návrh 20, drobnost 10, bez závažnosti 0) a za jistotu (ověřeno +4, pravděpodobné i bez jistoty 0, nejisté −4, rozporné −50), takže seznam řadí podle závažnosti, v ní podle jistoty a rozporné nálezy až za drafty bez závažnosti; další faktor (četnost a ruční přepsání z TASK-103) přibude jako další sčítanec.
 
 ### Druhy důkazu
 

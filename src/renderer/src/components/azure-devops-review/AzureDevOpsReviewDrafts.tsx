@@ -3,10 +3,13 @@ import { MessageSquarePlus, Send, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
+import { countReviewFindingFilters } from '../../../../shared/review-finding-list-view'
 import { AzureDevOpsReviewDraftCard } from './AzureDevOpsReviewDraftCard'
+import { AzureDevOpsReviewDraftListBar } from './AzureDevOpsReviewDraftListBar'
 import type { AzureDevOpsReviewOpenInDiff } from './AzureDevOpsReviewDraftEvidence'
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
 import { AzureDevOpsReviewPublishDialog } from './AzureDevOpsReviewPublishDialog'
+import { useAzureDevOpsReviewDraftList } from './use-azure-devops-review-draft-list'
 import { useAzureDevOpsReviewFindingsKept } from './use-azure-devops-review-findings-kept'
 import { useAzureDevOpsReviewVoteOffered } from './use-azure-devops-review-vote-offered'
 
@@ -42,6 +45,16 @@ export function AzureDevOpsReviewDrafts({
   const publishable = pending.filter((draft) => !draft.outdated)
   // Why: drafts can disappear or turn outdated after a reload; never publish a stale selection.
   const selectedIds = publishable.filter((draft) => selected.has(draft.id)).map((d) => d.id)
+  const list = useAzureDevOpsReviewDraftList(detail, pending)
+  const filtering = countReviewFindingFilters(list.filter) > 0
+  const shownPublishable = list.shown.map((item) => item.draft).filter((draft) => !draft.outdated)
+  const allShownSelected =
+    shownPublishable.length > 0 &&
+    selectedIds.length === shownPublishable.length &&
+    shownPublishable.every((draft) => selected.has(draft.id))
+  const selectedHidden = list.hidden.filter(
+    (item) => !item.draft.outdated && selected.has(item.draft.id)
+  ).length
 
   const setDraftSelected = (id: string, value: boolean): void => {
     setSelected((current) => {
@@ -123,21 +136,24 @@ export function AzureDevOpsReviewDrafts({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
+        {/* Why it replaces the selection: what the filter shows is exactly what gets selected. */}
         <Button
           variant="ghost"
           size="xs"
-          disabled={publishable.length === 0}
+          disabled={shownPublishable.length === 0}
           onClick={() =>
             setSelected(
-              selectedIds.length === publishable.length
-                ? new Set()
-                : new Set(publishable.map((draft) => draft.id))
+              allShownSelected ? new Set() : new Set(shownPublishable.map((draft) => draft.id))
             )
           }
         >
-          {selectedIds.length === publishable.length && publishable.length > 0
+          {allShownSelected
             ? translate('azureDevOpsReview.selectNone', 'Select none')
-            : translate('azureDevOpsReview.selectAll', 'Select all')}
+            : filtering
+              ? translate('azureDevOpsReview.draftsSelectShown', 'Select shown ({{value0}})', {
+                  value0: shownPublishable.length
+                })
+              : translate('azureDevOpsReview.selectAll', 'Select all')}
         </Button>
         {generalButton}
         <span className="flex-1" />
@@ -154,10 +170,18 @@ export function AzureDevOpsReviewDrafts({
         </Button>
         {publishButton}
       </div>
+      {pending.length > 0 ? (
+        <AzureDevOpsReviewDraftListBar list={list} selectedHidden={selectedHidden} />
+      ) : null}
       {generalComposer}
       {publishDialog}
+      {pending.length > 0 && list.shown.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {translate('azureDevOpsReview.draftsFilterNoMatch', 'No draft matches the filter.')}
+        </p>
+      ) : null}
       <ul className="space-y-3">
-        {pending.map((draft) => (
+        {list.shown.map(({ draft }) => (
           <AzureDevOpsReviewDraftCard
             key={draft.id}
             draft={draft}
