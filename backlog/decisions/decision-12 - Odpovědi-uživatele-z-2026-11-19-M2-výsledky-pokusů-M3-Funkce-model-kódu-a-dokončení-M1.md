@@ -77,3 +77,8 @@ Lokalizace M6:
 - Pořadí milníků po M2: M3 Editor, M4 Analytické jádro (po pokusu s tree-sitter, TASK-132), M5 Pohledy nad modelem, M6 Lokalizace, M7 Projekt jako celek, M8 Zařízení, inspektory a hlas. M0 je tím akceptovaný.
 - Oprava importních cyklů v kódu upstreamu v mobilní aplikaci (commit e274d4e7da, TASK-134) ve forku zůstává; občasné konflikty při slučování s upstreamem jsou přijatá cena.
 - Koordinátor zůstává na Fable s effortem medium (high při akceptaci a rozpisu milníku); Fable jen pro plánování, pokusy určující architekturu, změny mezi klientem a hostitelem, data pro AI, zápis navenek a úrovně důvěry, ostatní tikety na Opus; workeři na Fable o stupeň nižší effort, než je štítek.
+
+## Doplnění 2026-11-19 večer (brány kvality, z TASK-86)
+
+- **Folder workspace skupiny projektů zůstává bez oddílu Local gates.** Nepatří k němu repozitář s nastavením bran. Brány má jen workspace, ke kterému repozitář patří, včetně složky bez gitu.
+- **Prázdný oddíl Local gates se u repozitáře bez bran ukazuje dál** s odkazem „Set up gates“, aby brány byly k nalezení i mimo nastavení.

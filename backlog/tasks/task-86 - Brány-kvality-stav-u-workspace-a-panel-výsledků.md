@@ -4,7 +4,7 @@ title: 'Brány kvality: oddíl místních bran v panelu Checks'
 status: Done
 assignee: []
 created_date: '2026-11-18T15:17:00Z'
-updated_date: '2026-11-19T21:12:00Z'
+updated_date: '2026-11-19T21:29:00Z'
 labels:
   - review-ide
   - effort-high
@@ -68,6 +68,8 @@ Plán workera (2026-11-19): (1) hostitel: proud qualityGates.subscribe (signál 
 Stav (worker): hotovo a otestováno jednotkově: proud qualityGates.subscribe/unsubscribe + schopnost, stopReason, čerstvost jen u běhu s výsledkem, hook s odběrem a záložním intervalem, oddíl WorkspaceQualityGatesSection registrovaný v ChecksPanel, záložka Checks pro složku s branami, položka Review > Quality Gates, texty v 6 jazycích. Zbývá: e2e ve skrytém okně se snímkem, brány kvality kódu (tc, code-quality, anti-slop, oxlint, ratchety), dokumentace.
 
 Dokončeno workerem 2026-11-19, čeká na ověření koordinátorem. Hotovo vše z plánu včetně e2e ve skrytém okně (tests/e2e/quality-gates-checks-panel.spec.ts, snímky ~/.cache/orca-review-ide/task-86/01..06-*.png) a dokumentace (06-ai-a-review bod 3, 03-rozlozeni, doplnění decision-11). Brány: pnpm tc 0, oxlint 0, check:code-quality:changed 0 nálezů, audit:anti-slop 0, max-lines ratchet OK, focus-read a layout-writer ratchety 0, katalog RPC přegenerovaný. Výhrady: SSH jen testy nad náhradou (vzdálený hostitel přes runtime prostředí; přímé ssh: hostitel neobsluhuje a oddíl ukáže jeho odmítnutí); folder workspace skupiny projektů brány nemá (žádné nastavení repozitáře), oddíl má složka bez gitu s nastavenými branami. Známé pády mimo tiket při širším běhu vitestu: agent-launch-*replay/instant-tab a host-operation-ownership (androidAppRun.*), viz TASK-112.
+
+Rozhodnutí uživatele 2026-11-19 (decision-12, doplnění večer): folder workspace skupiny projektů zůstává bez oddílu; prázdný oddíl s odkazem Set up gates zůstává.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
