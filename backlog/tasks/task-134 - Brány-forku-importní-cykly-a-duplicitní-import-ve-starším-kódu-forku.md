@@ -4,7 +4,7 @@ title: 'Brány forku: importní cykly a duplicitní import ve starším kódu fo
 status: Done
 assignee: []
 created_date: '2026-11-19T15:37:00Z'
-updated_date: '2026-11-19T16:24:00Z'
+updated_date: '2026-11-19T20:14:00Z'
 labels:
   - review-ide
   - effort-high
@@ -49,6 +49,8 @@ Hotovo (worker): všech 7 nálezů opraveno, audit:code-quality:native končí k
 Ověřeno (worker 2026-11-19): audit:code-quality:native kód 0; pnpm tc 0; mobile typecheck 0 a ratchet typecheck testů OK; mobilní oxlint 0; oxlint a React Doctor změněných souborů 0; audit:anti-slop 0; check:code-quality:changed 0 nových nálezů; max-lines ratchet OK. Testy: renderer claude-mods + tab-bar 110 souborů / 927 testů prochází; celý mobile vitest 10666 prochází, 4 selhání jsou jen známé cizí (mock-server-key-pair, mobile-structured-composer-command, mobile-agent-launch-architecture). E2E app-menu-review-views (electron-headless, ORCA_BACKGROUND_LAUNCH=1, 1 worker) prochází, snímek /tmp/orca-task134/shots/menu-review-git-graph.png ukazuje záložku Git graph s ikonou. focus-read a layout-writer ratchety hlásí jen cizí soubory (TASK-135). Žádná baseline ani výjimka; v native-document-bundle.test.ts přesný počet modulů dokumentu 50 -> 52 kvůli dvěma novým listům (není to baseline, test počítá moduly v balíčku). Harness RPC nahrávek přesměrován na rpc-client-react-context.tsx (lokál Ctx zůstává soukromý).
 
 Koordinátor: oprava mobilních cyklů upstreamu je samostatný commit; otázka na uživatele, zda ji ponechat (konflikty při slučování s upstreamem) nebo vrátit (git revert).
+
+Odpověď uživatele 2026-11-19 (decision-12): commit e274d4e7da s opravou mobilních cyklů upstreamu zůstává.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
