@@ -25,6 +25,7 @@ import {
   publishAzureDevOpsReviewDrafts,
   updateAzureDevOpsReviewDraft
 } from '../../../azure-devops/review/azure-devops-review-draft-actions'
+import { assertAzureDevOpsReviewVoteCaller } from '../../../azure-devops/review/azure-devops-review-vote-cast'
 import {
   findAzureDevOpsReviewWorktree,
   openAzureDevOpsReviewWorktree,
@@ -137,7 +138,7 @@ async function resolveFreshPullRequest(runtime: OrcaRuntimeService, pullRequestK
 
 // Why: the desktop that owns the Azure DevOps credentials answers for every client;
 // there is deliberately no RPC that publishes on an agent's behalf except publishDrafts,
-// which the CLI and MCP surfaces never expose.
+// which the CLI and MCP surfaces never expose and whose vote the runtime socket cannot send.
 export const AZURE_DEVOPS_REVIEW_METHODS = [
   defineMethod({
     name: 'azureDevOpsReview.repos',
@@ -207,8 +208,17 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     name: 'azureDevOpsReview.publishDrafts',
     permission: 'workspace',
     params: AzureDevOpsReviewPublishParams,
-    handler: async (params, { runtime }) =>
-      publishAzureDevOpsReviewDrafts(reviewHost(runtime), params.pullRequestKey, params.draftIds)
+    handler: async (params, { runtime, caller }) => {
+      if (params.vote !== undefined) {
+        assertAzureDevOpsReviewVoteCaller(caller)
+      }
+      return publishAzureDevOpsReviewDrafts(
+        reviewHost(runtime),
+        params.pullRequestKey,
+        params.draftIds,
+        params.vote
+      )
+    }
   }),
   defineMethod({
     name: 'azureDevOpsReview.openWorktree',

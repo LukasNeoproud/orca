@@ -1,6 +1,8 @@
 // Azure DevOps pull request review: wire types shared by the host runtime,
 // the desktop renderer, the paired mobile client and the `orca ado` CLI.
 
+import type { AzureDevOpsReviewVoteOutcome } from './azure-devops-review-vote'
+
 export type AzureDevOpsConnection = {
   id: string
   /** Lowercased org URL without protocol, e.g. `dev.azure.com/contoso`. */
@@ -273,6 +275,8 @@ export type AzureDevOpsReviewDetail = {
 
 export type AzureDevOpsReviewPublishResult = {
   results: { draftId: string; ok: boolean; error: string | null }[]
+  /** Present only when the request carried a vote and the host understands votes. */
+  vote?: AzureDevOpsReviewVoteOutcome
 }
 
 export type AzureDevOpsReviewWorktreeResult =

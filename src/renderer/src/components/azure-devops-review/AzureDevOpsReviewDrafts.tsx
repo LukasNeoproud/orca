@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import { MessageSquarePlus, Send, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
 import { translate } from '@/i18n/i18n'
-import { publishAzureDevOpsReviewDrafts } from '@/lib/azure-devops-review-client'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { AzureDevOpsReviewDraftCard } from './AzureDevOpsReviewDraftCard'
 import { AzureDevOpsDraftComposer } from './AzureDevOpsDraftComposer'
+import { AzureDevOpsReviewPublishDialog } from './AzureDevOpsReviewPublishDialog'
+import { useAzureDevOpsReviewVoteOffered } from './use-azure-devops-review-vote-offered'
 
 export function AzureDevOpsReviewDrafts({
   detail,
@@ -19,10 +18,10 @@ export function AzureDevOpsReviewDrafts({
   /** Opens the send-to-AI dialog with these drafts picked. */
   onAskAi: (draftIds: string[]) => void
 }): React.JSX.Element {
-  const confirm = useConfirmationDialog()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [publishing, setPublishing] = useState(false)
   const [composing, setComposing] = useState(false)
+  const voteOffered = useAzureDevOpsReviewVoteOffered(detail.pullRequest)
   const { pending, published } = useMemo(
     () => ({
       pending: detail.drafts.filter((draft) => draft.state !== 'published'),
@@ -46,48 +45,33 @@ export function AzureDevOpsReviewDrafts({
     })
   }
 
-  const publish = async (): Promise<void> => {
-    if (selectedIds.length === 0) {
-      return
-    }
-    const ok = await confirm({
-      title: translate('azureDevOpsReview.publishTitle', 'Publish {{value0}} comments?', {
-        value0: selectedIds.length
-      }),
-      description: translate(
-        'azureDevOpsReview.publishDescription',
-        'The selected drafts are posted to Azure DevOps as you, and reviewers get notified.'
-      ),
-      confirmLabel: translate('azureDevOpsReview.publish', 'Publish')
-    })
-    if (!ok) {
-      return
-    }
-    setPublishing(true)
-    try {
-      const { results } = await publishAzureDevOpsReviewDrafts(detail.pullRequest.key, selectedIds)
-      const failed = results.filter((result) => !result.ok)
-      if (failed.length > 0) {
-        toast.error(
-          translate('azureDevOpsReview.publishFailed', '{{value0}} drafts were not published.', {
-            value0: failed.length
-          })
-        )
-      } else {
-        toast.success(
-          translate('azureDevOpsReview.publishDone', 'Published {{value0}} comments.', {
-            value0: results.length
-          })
-        )
-      }
-      setSelected(new Set())
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
-    } finally {
-      setPublishing(false)
-      await onChanged()
-    }
-  }
+  // Why nothing is sent from here: the dialog names what leaves and the user confirms it there.
+  const publishDialog = publishing ? (
+    <AzureDevOpsReviewPublishDialog
+      pullRequest={detail.pullRequest}
+      draftIds={selectedIds}
+      voteOffered={voteOffered}
+      onClose={() => setPublishing(false)}
+      onPublished={async () => {
+        setSelected(new Set())
+        await onChanged()
+      }}
+    />
+  ) : null
+  const publishButton =
+    selectedIds.length > 0 || !voteOffered ? (
+      <Button size="sm" disabled={selectedIds.length === 0} onClick={() => setPublishing(true)}>
+        <Send className="size-3.5" />
+        {translate('azureDevOpsReview.publishSelected', 'Publish selected ({{value0}})', {
+          value0: selectedIds.length
+        })}
+      </Button>
+    ) : (
+      <Button size="sm" onClick={() => setPublishing(true)}>
+        <Send className="size-3.5" />
+        {translate('azureDevOpsReview.voteOnly', 'Vote')}
+      </Button>
+    )
 
   const generalComposer = composing ? (
     <AzureDevOpsDraftComposer
@@ -118,8 +102,10 @@ export function AzureDevOpsReviewDrafts({
             )}
           </p>
           {generalButton}
+          {voteOffered ? publishButton : null}
         </div>
         {generalComposer}
+        {publishDialog}
       </div>
     )
   }
@@ -156,18 +142,10 @@ export function AzureDevOpsReviewDrafts({
           <Sparkles className="size-3.5" />
           {translate('azureDevOpsReview.askAi', 'Ask AI')}
         </Button>
-        <Button
-          size="sm"
-          disabled={publishing || selectedIds.length === 0}
-          onClick={() => void publish()}
-        >
-          <Send className="size-3.5" />
-          {translate('azureDevOpsReview.publishSelected', 'Publish selected ({{value0}})', {
-            value0: selectedIds.length
-          })}
-        </Button>
+        {publishButton}
       </div>
       {generalComposer}
+      {publishDialog}
       <ul className="space-y-3">
         {pending.map((draft) => (
           <AzureDevOpsReviewDraftCard

@@ -1,4 +1,7 @@
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY } from '../../../shared/host-feature-runtime-capabilities'
+import type { AzureDevOpsReviewCastableVote } from '../../../shared/azure-devops-review-vote'
+import type { RuntimeStatus } from '../../../shared/runtime-types'
 import type {
   AzureDevOpsFeedbackWorktreeResult,
   AzureDevOpsPullRequestStatusFilter,
@@ -62,16 +65,35 @@ export async function deleteAzureDevOpsReviewDraft(id: string): Promise<void> {
   await callRuntimeRpc(LOCAL, 'azureDevOpsReview.deleteDraft', { id })
 }
 
+/** Posts the drafts and then, when given, the vote. Pass a vote only the user just confirmed. */
 export function publishAzureDevOpsReviewDrafts(
   pullRequestKey: string,
-  draftIds: string[]
+  draftIds: string[],
+  vote: AzureDevOpsReviewCastableVote | null = null
 ): Promise<AzureDevOpsReviewPublishResult> {
   return callRuntimeRpc(
     LOCAL,
     'azureDevOpsReview.publishDrafts',
-    { pullRequestKey, draftIds },
+    { pullRequestKey, draftIds, ...(vote ? { vote } : {}) },
     { timeoutMs: LIST_TIMEOUT_MS }
   )
+}
+
+let hostCastsVotes = false
+
+/** Whether the host that holds the credentials reads a vote; an older one drops it silently. */
+export async function azureDevOpsReviewHostCastsVotes(): Promise<boolean> {
+  if (hostCastsVotes) {
+    return true
+  }
+  try {
+    const status = await callRuntimeRpc<RuntimeStatus>(LOCAL, 'status.get')
+    hostCastsVotes =
+      status.capabilities?.includes(AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY) === true
+  } catch {
+    // Unknown is treated as unsupported; the next page load asks again.
+  }
+  return hostCastsVotes
 }
 
 export function openAzureDevOpsReviewWorktree(

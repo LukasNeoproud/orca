@@ -116,7 +116,7 @@ async function requestAuthHeaders(url: URL): Promise<Record<string, string>> {
 }
 
 type AzureDevOpsFetchInit = {
-  method?: 'GET' | 'POST' | 'PATCH'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT'
   body?: unknown
   searchParams?: AzureDevOpsRequestOptions['searchParams']
   timeoutMs?: number

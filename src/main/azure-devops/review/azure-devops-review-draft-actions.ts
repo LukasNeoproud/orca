@@ -36,6 +36,11 @@ import {
   isAzureDevOpsReviewDraftOutdated,
   toAzureDevOpsReviewDraftView
 } from './azure-devops-review-drafts'
+import type { AzureDevOpsReviewCastableVote } from '../../../shared/azure-devops-review-vote'
+import {
+  castAzureDevOpsReviewVoteAfterDrafts,
+  resolveAzureDevOpsReviewVoter
+} from './azure-devops-review-vote-cast'
 import {
   deleteStoredAzureDevOpsReviewDraft,
   getStoredAzureDevOpsReviewDraft,
@@ -106,7 +111,8 @@ const publishingPullRequests = new Set<string>()
 export async function publishAzureDevOpsReviewDrafts(
   host: AzureDevOpsReviewHost,
   pullRequestKey: string,
-  draftIds: readonly string[]
+  draftIds: readonly string[],
+  vote?: AzureDevOpsReviewCastableVote
 ): Promise<AzureDevOpsReviewPublishResult> {
   // Why: two publish clicks (desktop + phone) must not post the same comment twice.
   if (publishingPullRequests.has(pullRequestKey)) {
@@ -115,6 +121,8 @@ export async function publishAzureDevOpsReviewDrafts(
   publishingPullRequests.add(pullRequestKey)
   try {
     const resolved = await resolveAzureDevOpsReviewPullRequest(host, pullRequestKey)
+    // Why first: a vote this pull request cannot take stops the publish before a comment leaves.
+    const voter = vote ? await resolveAzureDevOpsReviewVoter(resolved) : null
     const iterations = await loadAzureDevOpsReviewIterations(resolved.target)
     const latest = latestAzureDevOpsReviewIteration(iterations)
     const needsChanges = draftIds.some((id) => {
@@ -203,7 +211,13 @@ export async function publishAzureDevOpsReviewDrafts(
         results.push({ draftId, ok: false, error: describeAzureDevOpsReviewError(error) })
       }
     }
-    return { results }
+    if (!vote || !voter) {
+      return { results }
+    }
+    return {
+      results,
+      vote: await castAzureDevOpsReviewVoteAfterDrafts(resolved.target, voter, vote, results)
+    }
   } finally {
     publishingPullRequests.delete(pullRequestKey)
   }

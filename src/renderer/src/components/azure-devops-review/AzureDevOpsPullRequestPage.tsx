@@ -21,6 +21,7 @@ import {
 import { closeAzureDevOpsPullRequestPage } from '@/lib/azure-devops-review-page'
 import type { AzureDevOpsReviewDetail } from '../../../../shared/azure-devops-review-types'
 import { useAzureDevOpsReviewDetail } from './use-azure-devops-review-detail'
+import { azureDevOpsReviewVoteLabel } from './azure-devops-review-vote-labels'
 import { AzureDevOpsReviewFiles } from './AzureDevOpsReviewFiles'
 import { AzureDevOpsReviewThreads } from './AzureDevOpsReviewThreads'
 import { AzureDevOpsReviewDrafts } from './AzureDevOpsReviewDrafts'
@@ -52,6 +53,11 @@ function PullRequestMeta({ detail }: { detail: AzureDevOpsReviewDetail }): React
       <span className="font-mono">{pr.targetBranch}</span>
       {pr.isDraft ? ` · ${translate('azureDevOpsReview.draftPr', 'Draft pull request')}` : ''}
       {pr.status !== 'active' ? ` · ${pr.status}` : ''}
+      {pr.myVote !== 'none'
+        ? ` · ${translate('azureDevOpsReview.myVote', 'Your vote: {{value0}}', {
+            value0: azureDevOpsReviewVoteLabel(pr.myVote)
+          })}`
+        : ''}
     </p>
   )
 }

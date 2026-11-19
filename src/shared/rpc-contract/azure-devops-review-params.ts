@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeAzureDevOpsReviewOptions } from '../azure-devops-review-options'
+import { AZURE_DEVOPS_REVIEW_CASTABLE_VOTES } from '../azure-devops-review-vote'
 import {
   AZURE_DEVOPS_REVIEW_THREAD_STATUSES,
   type AzureDevOpsThreadStatus
@@ -63,10 +64,16 @@ export const AzureDevOpsReviewFileDiffParams = z.object({
 
 export const AzureDevOpsReviewDeleteDraftParams = z.object({ id: z.string().min(1).max(128) })
 
-export const AzureDevOpsReviewPublishParams = z.object({
-  pullRequestKey: PullRequestKey,
-  draftIds: z.array(z.string().min(1).max(128)).min(1).max(200)
-})
+export const AzureDevOpsReviewPublishParams = z
+  .object({
+    pullRequestKey: PullRequestKey,
+    draftIds: z.array(z.string().min(1).max(128)).max(200),
+    // Why no 'none': Orca casts a vote, it never withdraws one.
+    vote: z.enum(AZURE_DEVOPS_REVIEW_CASTABLE_VOTES).optional()
+  })
+  .refine((value) => value.draftIds.length > 0 || value.vote !== undefined, {
+    message: 'Nothing to publish: pass at least one draft or a vote.'
+  })
 
 export const AzureDevOpsReviewOpenWorktreeParams = z.object({
   pullRequestKey: PullRequestKey,

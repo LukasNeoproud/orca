@@ -127,13 +127,16 @@ Snímky jsou z prototypu ([`examples/review-ide-prototype`](../../examples/revie
   - **Zeptat se AI** položí otázku k nálezu a odpověď zobrazí pod ním;
   - **Zahodit** draft vyřadí.
 - Spustit AI review znovu.
-- Publikace: výběr hlasování (Čekat na autora, Schválit s připomínkami, Schválit, Zamítnout) a odeslání vybraných draftů jedním krokem.
+- Publikace: výběr hlasování (Hlas neměnit jako výchozí, Schválit, Schválit s připomínkami, Čekat na autora, Zamítnout) a odeslání vybraných draftů jedním krokem. Dialog předem vypíše, co odejde do Azure DevOps. Hlasovat jde i bez vybraných draftů.
 
 **Pravidla:**
 
 - Drafty vidí jen uživatel, dokud je nepublikuje.
 - Publikuje vždy uživatel; agent drafty jen vytváří a upravuje (TASK-51).
 - Nezaškrtnuté drafty zůstávají uložené lokálně.
+- Hlas odchází až po draftech a jen když se odeslaly všechny. Když některý selže, dialog zůstane otevřený a řekne, co odešlo a co ne; hlas se nikam neukládá a při dalším pokusu ho uživatel volí znovu.
+- Hlasuje jen uživatel v aplikaci po potvrzení dialogu. Hostitel hlas odmítne, když přijde přes lokální socket, kterým mluví `orca ado`, jeho MCP server a rozšíření pro Pi. Zrušit hlas (bez hlasu) jde jen v Azure DevOps.
+- Hlas se nenabízí na vlastním, dokončeném a opuštěném pull requestu a proti hostiteli, který ho neumí odeslat (schopnost `azure-devops-review.vote.v1`). Pull request z forku hlasovat umí.
 - AI review kontroluje změny proti zadání (pracovní položce) a pravidlům projektu.
 - Vlákno ukazuje na řádky poslední iterace. Azure DevOps vrací polohu z iterace, na které komentář vznikl, a jeho vlastní sledování posun často nevrátí; Orca proto porovná soubor v původní a v poslední iteraci. Posunutý kód vlákno následuje. Když byl komentovaný řádek přepsán, vlákno je označené jako zastaralé a stojí u řádku, který ho nahradil. Když řádek nebo soubor zanikl, je zastaralé vlákno jen v seznamech, s původním řádkem a iterací. Stejnou polohu vrací desktop, mobil, CLI i MCP.
 

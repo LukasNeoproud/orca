@@ -213,6 +213,19 @@ export async function updateAzureDevOpsReviewThreadStatus(
   )
 }
 
+/** Sets the vote of `reviewerId` through the reviewers resource (PUT, body `{ vote, id }`). */
+export async function castAzureDevOpsReviewVote(
+  target: AzureDevOpsPullRequestTarget,
+  reviewerId: string,
+  vote: number
+): Promise<void> {
+  await sendAzureDevOpsRequest(
+    projectBase(target),
+    `${pullRequestPath(target.repositoryId, target.pullRequestId)}/reviewers/${segment(reviewerId)}`,
+    { method: 'PUT', body: { vote, id: reviewerId }, timeoutMs: 15_000 }
+  )
+}
+
 export type RawReviewItem = {
   content?: string | null
   contentMetadata?: { isBinary?: boolean | null } | null

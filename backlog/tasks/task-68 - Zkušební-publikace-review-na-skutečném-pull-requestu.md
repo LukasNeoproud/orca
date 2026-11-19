@@ -4,7 +4,7 @@ title: Zkušební publikace review na skutečném pull requestu
 status: To Do
 assignee: []
 created_date: '2026-11-18T12:44:00Z'
-updated_date: '2026-11-19T02:05:00Z'
+updated_date: '2026-11-19T02:54:00Z'
 labels:
   - review-ide
   - ceka-na-uzivatele
@@ -61,4 +61,15 @@ Odpovědi uživatele (2026-11-18, decision-5): 1) druhá skrytá instance Orca D
 Z TASK-114 (2026-11-19): při ověřování proti skutečné organizaci zkontrolovat, jestli items API může u neprázdného souboru vrátit HTTP 200 bez pole content. Dnes se taková odpověď bere jako prázdný text a od opravdu prázdného souboru ji nejde rozlišit.
 
 Z TASK-76 (2026-11-19): při zkušební publikaci zkontrolovat ve webu Azure DevOps, jak se chová vlákno založené Orkou po dalším pushi. Orca zakládá vlákna s kontextem iterací 1-N, webové rozhraní N-N, a server vlákna 1-N při čtení nesleduje vůbec. Když se ve webu taková vlákna po pushi drží špatného řádku, založit tiket na úpravu payloadu publikace (firstComparingIteration).
+
+K ověření z TASK-83 (hlas při publikaci), co z dokumentace Microsoftu neplyne jednoznačně. Volání: PUT {organizace}/{projekt}/_apis/git/repositories/{repositoryId}/pullRequests/{id}/reviewers/{reviewerId}?api-version=7.1, tělo {"vote": 10|5|-5|-10, "id": reviewerId}; dokumentace: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-reviewers/create-pull-request-reviewer?view=azure-devops-rest-7.1 (popis operace: Add a reviewer to a pull request or cast a vote; PATCH téhož zdroje podle dokumentace mění jen isFlagged a hasDeclined).
+1. Identifikátor reviewera: Orca posílá authenticatedUser.id z _apis/connectionData. Dokumentace říká jen ID of the reviewer; ověřit, že se shoduje s id uživatele v poli reviewers a hlas se připíše jemu.
+2. Uživatel mezi reviewery není: z popisu plyne, že PUT ho přidá i s hlasem; ověřit na PR, kde uživatel reviewerem není (a že se nepřidá jako povinný).
+3. Povinný reviewer: tělo nese jen vote a id. Ověřit, že PUT nezmění isRequired ani isFlagged a nesmaže hasDeclined jinak, než dělá web.
+4. Čtení po zápisu: Orca po hlasu znovu čte PR a seznam; ověřit, že GET hned vrací nový hlas (řádek opustí skupinu Čeká na moje review bez ruční obnovy).
+5. Oprávnění tokenu: dokumentace žádá rozsah vso.code_write. Ověřit hlášku v dialogu, když uložený token smí jen číst (očekává se HTTP 401/403 a hlas neodeslán, komentáře také ne nebo podle toho, co token dovolí).
+6. Hlas na dokončeném nebo opuštěném PR a na vlastním PR Orca nenabízí a hostitel ho odmítne dřív, než cokoli odejde; chování serveru v těchto případech dokumentace neuvádí, neověřovat zápisem.
+7. Azure DevOps Server (on-prem): cesta přes kolekci a případná přípona -preview u api-version jde stejnou cestou jako ostatní volání; ověřit jen, pokud se testuje on-prem.
+8. Oznámení: text dialogu říká, že reviewers get notified (převzato z dosavadního potvrzení publikace); ověřit, že to pro hlas platí, jinak text upravit.
+Postup zkoušky v Orca Dev: Drafts > Publish selected nebo Vote, v dialogu zvolit hlas, Publish; pořadí je komentáře a pak hlas.
 <!-- SECTION:NOTES:END -->
