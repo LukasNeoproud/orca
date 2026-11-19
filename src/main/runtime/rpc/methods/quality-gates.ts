@@ -2,12 +2,21 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateSetFeedbackLoopParams,
   QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from '../../../../shared/rpc-contract/quality-gate-params'
 import type { QualityGateChangeFrame } from '../../../../shared/quality-gate-change-stream'
-import type { QualityGateRunStarter } from '../../../../shared/quality-gate-types'
+import type { QualityGateSetFeedbackLoopResult } from '../../../../shared/quality-gate-feedback-loop'
+import type {
+  QualityGateRunStarter,
+  QualityGateStatusResult
+} from '../../../../shared/quality-gate-types'
+import {
+  getQualityGateFeedbackLoop,
+  getQualityGateFeedbackLoopSwitches
+} from '../../../quality-gates/quality-gate-feedback-loop-host'
 import {
   getQualityGateChangeFeed,
   getQualityGateService
@@ -34,7 +43,8 @@ const cleanupKey = (connectionId: string | undefined, subscriptionId: string): s
 
 // Why no method writes a gate: the runtime socket is what agents and the CLI call through, and a
 // caller that could define the command would be checking its own work with a command of its choice.
-// Gates are written by the app's own window (repos:update) and only run from here.
+// Gates are written by the app's own window (repos:update) and only run from here. The one write
+// here is the workspace switch of the feedback loop, which defines nothing and runs nothing.
 export const QUALITY_GATE_METHODS = [
   defineMethod({
     name: 'qualityGates.list',
@@ -60,8 +70,13 @@ export const QUALITY_GATE_METHODS = [
     name: 'qualityGates.status',
     permission: 'workspace',
     params: QualityGateWorktreeParams,
-    handler: async (params, { runtime }) =>
-      getQualityGateService().status(await resolveQualityGateTarget(runtime, params.worktree))
+    handler: async (params, { runtime }): Promise<QualityGateStatusResult> => {
+      const target = await resolveQualityGateTarget(runtime, params.worktree)
+      return {
+        ...(await getQualityGateService().status(target)),
+        feedbackLoop: getQualityGateFeedbackLoop().status(target)
+      }
+    }
   }),
   defineMethod({
     name: 'qualityGates.output',
@@ -125,6 +140,25 @@ export const QUALITY_GATE_METHODS = [
     handler: async (params, { runtime, connectionId }) => {
       runtime.cleanupSubscription(cleanupKey(connectionId, params.subscriptionId))
       return { unsubscribed: true }
+    }
+  }),
+  defineMethod({
+    name: 'qualityGates.setFeedbackLoop',
+    permission: 'workspace',
+    params: QualityGateSetFeedbackLoopParams,
+    handler: async (params, { runtime, caller }): Promise<QualityGateSetFeedbackLoopResult> => {
+      // Off is open to every caller, the agent included: it only stops messages. Back on is the
+      // user's call, since it resumes messages they declined, so the runtime socket cannot do it.
+      if (params.enabled && caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
+        throw new Error(
+          'The feedback loop of a workspace can only be turned back on in the Orca app.'
+        )
+      }
+      const target = await resolveQualityGateTarget(runtime, params.worktree)
+      getQualityGateFeedbackLoopSwitches().setDisabled(target.worktreeId, !params.enabled)
+      const loop = getQualityGateFeedbackLoop()
+      loop.workspaceSwitchChanged(target.worktreeId)
+      return { feedbackLoop: loop.status(target) }
     }
   })
 ]

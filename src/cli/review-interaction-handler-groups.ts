@@ -23,7 +23,7 @@ export const REVIEW_INTERACTION_HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'quality-gates',
-    keys: ['gates list', 'gates run', 'gates status', 'gates cancel'],
+    keys: ['gates list', 'gates run', 'gates status', 'gates cancel', 'gates loop'],
     load: async () => (await import('./handlers/quality-gates.js')).QUALITY_GATE_HANDLERS
   }
 ]

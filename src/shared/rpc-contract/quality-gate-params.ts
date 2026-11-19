@@ -37,3 +37,11 @@ export const QualityGateSubscribeParams = QualityGateWorktreeParams.extend({
 export const QualityGateUnsubscribeParams = z.object({
   subscriptionId: z.string().min(1).max(128)
 })
+
+/**
+ * The workspace's own switch of the feedback loop. It cannot turn the loop on for a repository:
+ * that setting is written by the app's own window, like the gates.
+ */
+export const QualityGateSetFeedbackLoopParams = QualityGateWorktreeParams.extend({
+  enabled: z.boolean()
+})

@@ -57,6 +57,7 @@ describe('quality gates when Orca quits', () => {
       worktreeId: `repo::${worktree}`,
       worktreePath: worktree,
       gates: [build, tests],
+      feedbackLoop: { enabled: false, maxRounds: 3 },
       launch: { kind: 'native', cwd: worktree },
       source: { path: worktree, git: false }
     }

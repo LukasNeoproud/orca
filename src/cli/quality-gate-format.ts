@@ -1,3 +1,4 @@
+import { formatQualityGateFeedbackLoop } from './quality-gate-feedback-loop-format'
 import type {
   QualityGateCancelResult,
   QualityGateDefinition,
@@ -100,13 +101,15 @@ export function formatQualityGateStatus(result: QualityGateStatusResult, now = D
   if (result.gates.length === 0) {
     return 'No quality gates are set up for this repository.'
   }
-  return result.gates
-    .map(({ gate, latestRun }) =>
+  const loop = formatQualityGateFeedbackLoop(result.feedbackLoop)
+  return [
+    ...result.gates.map(({ gate, latestRun }) =>
       latestRun
         ? [runLine(latestRun, now), ...(latestRun.error ? [`  ${latestRun.error}`] : [])].join('\n')
         : ['never run', gate.id, gate.name, requirement(gate)].join('\t')
-    )
-    .join('\n')
+    ),
+    ...(loop ? [loop] : [])
+  ].join('\n')
 }
 
 export function formatQualityGateRunResult(result: QualityGateCliRunResult): string {

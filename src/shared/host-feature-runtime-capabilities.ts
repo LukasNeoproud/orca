@@ -30,6 +30,9 @@ export const QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY = 'quality-gates.subscri
 // subscribed workspace at the foreground interval.
 export const QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY =
   'quality-gates.subscribe-cadence.v1' as const
+// qualityGates.setFeedbackLoop exists and qualityGates.status carries `feedbackLoop`.
+export const QUALITY_GATES_FEEDBACK_LOOP_RUNTIME_CAPABILITY =
+  'quality-gates.feedback-loop.v1' as const
 
 export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
@@ -40,6 +43,7 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   QUALITY_GATES_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
+  QUALITY_GATES_FEEDBACK_LOOP_RUNTIME_CAPABILITY,
   EMULATOR_MOBILE_STREAM_RUNTIME_CAPABILITY,
   'backlog.v1',
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,

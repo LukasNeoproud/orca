@@ -3,6 +3,8 @@
  * record of each time the owning host ran one. Kept free of `node:` imports for the web build.
  */
 
+import type { QualityGateFeedbackLoopStatus } from './quality-gate-feedback-loop'
+
 export const QUALITY_GATE_LIMITS = {
   maxGates: 20,
   maxNameLength: 80,
@@ -154,6 +156,8 @@ export type QualityGateRunStarter =
   | { kind: 'desktop' }
   | { kind: 'local-cli' }
   | { kind: 'paired-device'; deviceId: string }
+  /** The host itself, after an agent finished a step with the feedback loop on. */
+  | { kind: 'feedback-loop' }
 
 export type QualityGateRun = {
   id: string
@@ -246,6 +250,8 @@ export type QualityGateStatusResult = {
   /** The worktree as it is now. */
   source: QualityGateSourceState
   gates: { gate: QualityGateDefinition; latestRun: QualityGateRunView | null }[]
+  /** Absent from a host that predates the loop; read it with `readQualityGateFeedbackLoopStatus`. */
+  feedbackLoop?: QualityGateFeedbackLoopStatus
 }
 
 export type QualityGateRunStartResult = {

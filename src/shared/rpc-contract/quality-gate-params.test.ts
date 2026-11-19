@@ -23,6 +23,7 @@ describe('quality gate RPC params', () => {
       'qualityGates.list',
       'qualityGates.output',
       'qualityGates.run',
+      'qualityGates.setFeedbackLoop',
       'qualityGates.status',
       'qualityGates.subscribe',
       'qualityGates.unsubscribe'

@@ -1,4 +1,8 @@
 import { parseExecutionHostId } from '../../shared/execution-host'
+import {
+  normalizeQualityGateFeedbackLoopSettings,
+  type QualityGateFeedbackLoopSettings
+} from '../../shared/quality-gate-feedback-loop'
 import { isFolderRepo } from '../../shared/repo-kind'
 import type { QualityGateDefinition } from '../../shared/quality-gate-types'
 import { normalizeQualityGateDefinitions } from '../../shared/quality-gate-types'
@@ -16,6 +20,8 @@ export type QualityGateTarget = {
   worktreeId: string
   worktreePath: string
   gates: QualityGateDefinition[]
+  /** From the same repository row as the gates; off when the row says nothing. */
+  feedbackLoop: QualityGateFeedbackLoopSettings
   launch: QualityGateLaunchTarget
   source: QualityGateSourceTarget
 }
@@ -67,6 +73,7 @@ export async function resolveQualityGateTarget(
     worktreePath: worktree.path,
     // Normalized again on the way out: the store may hold a row written by another build.
     gates: normalizeQualityGateDefinitions(repo?.qualityGates) ?? [],
+    feedbackLoop: normalizeQualityGateFeedbackLoopSettings(repo?.qualityGateFeedbackLoop),
     launch: wsl
       ? { kind: 'wsl', cwd: wsl.linuxPath, distro: wsl.distro }
       : { kind: 'native', cwd: worktree.path },

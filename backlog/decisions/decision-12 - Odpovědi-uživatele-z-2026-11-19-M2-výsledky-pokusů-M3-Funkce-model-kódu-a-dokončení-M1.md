@@ -82,3 +82,5 @@ Lokalizace M6:
 
 - **Folder workspace skupiny projektů zůstává bez oddílu Local gates.** Nepatří k němu repozitář s nastavením bran. Brány má jen workspace, ke kterému repozitář patří, včetně složky bez gitu.
 - **Prázdný oddíl Local gates se u repozitáře bez bran ukazuje dál** s odkazem „Set up gates“, aby brány byly k nalezení i mimo nastavení.
+- **Karta workspace neukazuje značku bran, dokud žádná brána neběžela** (z TASK-121); sidebar zůstává klidný.
+- **Při ztrátě spojení se vzdáleným hostitelem karta ukáže „nelze ověřit“ i místo dokončeného výsledku** a poslední známý stav nechá v tooltipu (z TASK-121).

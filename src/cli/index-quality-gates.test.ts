@@ -183,6 +183,7 @@ describe('gates CLI', () => {
     expect(specs.map((spec) => spec.path.join(' ')).sort()).toEqual([
       'gates cancel',
       'gates list',
+      'gates loop',
       'gates run',
       'gates status'
     ])

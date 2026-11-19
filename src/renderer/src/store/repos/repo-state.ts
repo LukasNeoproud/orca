@@ -39,6 +39,7 @@ export type RepoUpdate = Partial<
     | 'upstream'
     | 'hookSettings'
     | 'qualityGates'
+    | 'qualityGateFeedbackLoop'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
     | 'simplifiedWorktreeLayout'

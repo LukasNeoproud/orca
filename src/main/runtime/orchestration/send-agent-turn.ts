@@ -56,7 +56,7 @@ export type StructuredSessionTurnSend = {
  * What the typed text is, which decides how it is typed. A dispatch preamble leads with the
  * coordinator's task line; no other kind of message may borrow that.
  */
-export type TerminalTurnPurpose = 'dispatch-preamble'
+export type TerminalTurnPurpose = 'dispatch-preamble' | 'quality-gate-feedback'
 
 /** A terminal has one write: whether a mid-turn prompt waits is the agent TUI's own behaviour. */
 export type TerminalTurn = {
@@ -117,6 +117,14 @@ function terminalTurnOptions(turn: TerminalTurn): DispatchPreambleSendOptions {
   switch (turn.purpose) {
     case 'dispatch-preamble':
       return dispatchPreambleSendOptions(turn.operationId)
+    case 'quality-gate-feedback':
+      // No lead line: that is a coordinator's. Accepted once typed; the loop reads the turn off hooks.
+      return {
+        inputKind: 'driving',
+        acceptQueued: true,
+        observationTimeoutMs: 0,
+        requestId: turn.operationId
+      }
   }
 }
 

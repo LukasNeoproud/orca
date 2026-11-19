@@ -6,6 +6,7 @@ import type { ForkSyncMode } from './git-fork-sync'
 import type { GitRemoteIdentity } from './git-remote-identity'
 import type { RepoSourceControlAiOverrides } from './source-control-ai-types'
 import type { RepoProjectHostSetupMethod } from './project-types'
+import type { QualityGateFeedbackLoopSettings } from './quality-gate-feedback-loop'
 import type { QualityGateDefinition } from './quality-gate-types'
 
 // ─── Repo ────────────────────────────────────────────────────────────
@@ -130,6 +131,8 @@ export type Repo = {
   projectHostSetupMethod?: RepoProjectHostSetupMethod
   /** Quality gates the user set up in Orca. Never read from the repository, never written over RPC. */
   qualityGates?: QualityGateDefinition[]
+  /** Feedback loop of the gates; absent means off. Written like the gates, never over RPC. */
+  qualityGateFeedbackLoop?: QualityGateFeedbackLoopSettings
 }
 
 /**

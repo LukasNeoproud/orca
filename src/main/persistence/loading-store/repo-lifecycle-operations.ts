@@ -144,6 +144,7 @@ export class RepoLifecycleOperations {
         | 'hostLocalProjectId'
         | 'hookSettings'
         | 'qualityGates'
+        | 'qualityGateFeedbackLoop'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'

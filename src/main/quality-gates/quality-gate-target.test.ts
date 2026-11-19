@@ -51,6 +51,7 @@ describe('resolveQualityGateTarget', () => {
       worktreeId: 'repo::/work',
       worktreePath: root,
       gates: [lint],
+      feedbackLoop: { enabled: false, maxRounds: 3 },
       launch: { kind: 'native', cwd: root },
       source: { path: root, git: true }
     })
@@ -74,6 +75,7 @@ describe('resolveQualityGateTarget', () => {
     expect(target).toMatchObject({
       repoId: '',
       gates: [],
+      feedbackLoop: { enabled: false, maxRounds: 3 },
       launch: { kind: 'native', cwd: root },
       source: { path: root, git: false }
     })

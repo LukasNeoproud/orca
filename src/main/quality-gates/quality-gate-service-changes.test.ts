@@ -33,6 +33,7 @@ const target: QualityGateTarget = {
   worktreeId: 'repo::/work',
   worktreePath: '/work',
   gates: [lint, tests],
+  feedbackLoop: { enabled: false, maxRounds: 3 },
   launch: { kind: 'native', cwd: '/work' },
   source: { path: '/work', git: true }
 }

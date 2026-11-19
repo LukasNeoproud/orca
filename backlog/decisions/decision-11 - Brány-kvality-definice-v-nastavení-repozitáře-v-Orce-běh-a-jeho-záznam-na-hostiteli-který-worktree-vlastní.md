@@ -42,7 +42,7 @@ Definice je ve sdíleném kódu (`src/shared/quality-gate-types.ts`).
 - **Proč ne přes RPC ani CLI:** runtime socketem volá agent. Kdyby směl bránu definovat, kontroloval by svou práci příkazem, který si sám napsal, a výsledek „prošla“ by nic neříkal. Spustit bránu, kterou nastavil uživatel, agent smí; to je záměr.
 - **Proč ne z repozitáře:** soubor v checkoutu mění agent i cizí pull request. Brána načtená z `orca.yaml` by v review worktree spustila kód autora změny.
 - **Testy:**
-  - Existuje právě sedm metod `qualityGates.*` (pět z TASK-85 a odběr se zrušením z TASK-86) a žádná nepíše.
+  - Existuje právě osm metod `qualityGates.*` (pět z TASK-85, odběr se zrušením z TASK-86 a vypínač smyčky u workspace z TASK-87) a žádná nepíše definici brány.
   - `command` nebo `gates` podstrčené do požadavku na spuštění se ignorují.
   - `repo.update` pole zahodí u volajícího z runtime socketu, z okna i ze spárovaného zařízení.
   - Zdrojáky RPC schémat, CLI a runtime pole `qualityGates` nejmenují.
@@ -156,10 +156,45 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 
 - **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje.
 - **Signál změny (TASK-86):** `qualityGates.subscribe` je proud bez stavu: rámec `ready` s id odběru, `changed` po změně běhu nebo stromu, `end`. Končí ho `qualityGates.unsubscribe`, zrušení přenosu nebo konec spojení. Hostitel ho hlásí schopností `quality-gates.subscribe.v1`; klient se na ni zeptá dřív, než odběr otevře, a neznámý rámec ignoruje. Definici brány nezapisuje ani tato dvojice metod.
+- **Vypínač smyčky (TASK-87):** `qualityGates.setFeedbackLoop` za schopností `quality-gates.feedback-loop.v1`, viz oddíl Smyčka zpětné vazby.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem. Řádek běhu končí jeho id.
 - **`orca gates run` čeká** a u každé brány vypíše výsledek, návratový kód a konec výstupu. Skončí kódem 0, jen když prošly všechny povinné brány; volitelná brána výsledek nemění. Ukončení CLI běh nezastaví.
 - **`orca gates run --no-wait`** vypíše běhy hned, jak je hostitel zařadil (id, stav, případně že brána už běžela), a skončí kódem 0. Průběh a výsledek pak ukáže `orca gates status` (u běžící brány i dosavadní dobu).
 - **`orca gates cancel`** zastaví čekající i běžící brány workspace, nebo jen jmenované (jedno volání `qualityGates.cancel` na bránu), a vypíše zastavené běhy. Když nic neběželo, řekne to a skončí kódem 0. Běh, jehož konec hostitel do 15 s nepotvrdí, vypíše s upozorněním a odkazem na `status`. (TASK-120; metody RPC ani jejich parametry se nezměnily.)
+
+### Smyčka zpětné vazby (TASK-87)
+
+Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a selhání pošle agentovi zpět. Ovládání a zobrazení v rozhraní staví TASK-138.
+
+- **Výchozí stav je vypnuto.** Nastavení `qualityGateFeedbackLoop` (`enabled`, `maxRounds` 1 až 10, výchozí 3) je na řádku repozitáře vedle `qualityGates` a píše ho jen okno aplikace kanálem `repos:update`. `repo.update` pole zahazuje, stejně jako brány: zapnutí utrácí tokeny za uživatele. Cokoli jiného než výslovné `enabled: true` se čte jako vypnuto.
+- **Vypnutí u workspace:** hostitel si drží seznam vypnutých workspaces v souboru `quality-gate-feedback-loop.json` ve svých datech. Vypnout smí každý volající, i agent přes `orca gates loop off`, protože tím jen přestanou chodit zprávy. Zapnout zpět smí jen okno aplikace nebo spárované zařízení; volání z runtime socketu hostitel odmítne. Smyčku pro repozitář touto cestou zapnout nejde.
+- **Spouštěč:** přechod řádku stavu agenta v úložišti hook serveru do `done`, který hostitel viděl naživo po stavu jiném než `done`. Čte se složený stav řádku, takže dokončení podagenta ani konec hlavního agenta, za kterým ještě běží podagent, krok nedokončí. Přehrané a obnovené řádky, začátek sezení a řádek poprvé viděný už jako `done` se nepočítají. Smyčka je další odběratel `subscribeEnrichedStatus`; pamatuje si jen poslední stav každého panelu.
+- **Jeden řetěz na worktree.** Řetěz patří agentovi, jehož krok ho začal. Krok jiného agenta během kontroly nebo během čekání na opravu nespustí nic. Tutéž bránu služba nespustí dvakrát (běžící běh se vrátí se `started: false`).
+- **Co se spouští:** jen povinné brány, pořadím z nastavení, s `startedBy: { kind: 'feedback-loop' }`.
+- **Výsledek kontroly:**
+
+| Výsledek | Co hostitel udělá | Stav smyčky |
+| --- | --- | --- |
+| všechny povinné brány prošly | nic nepošle | `passed` |
+| brána selhala nebo jí vypršel limit | pošle jednu zprávu a čeká na další dokončený krok | `awaiting-agent` |
+| selhání po dosažení limitu kol | nic nepošle | `needs-user`, důvod `round-limit` |
+| kolo nic nezměnilo | nic nepošle | `needs-user`, důvod `no-improvement` |
+| agentovi nejde poslat zprávu | nic nepošle | `needs-user`, důvod `not-deliverable` nebo `user-input` |
+| brána se nespustila, byla zastavena nebo její konec není znám | nic nepošle | `stopped`, důvod `gates-inconclusive` |
+
+- **Kolo bez zlepšení:** selhává víc bran než minule, nebo stejný počet se stejným výsledkem (brány, stavy, návratové kódy a konce výstupu po vymazání trvání a časů). Méně selhávajících bran nebo jiný výstup se počítá jako pohyb; ten omezuje limit kol. Výstup se na jednotlivé nálezy nerozebírá (M3).
+- **Zpráva:** název brány, příkaz, výsledek, návratový kód a konec výstupu jako JSON data s pokynem, že jsou to nedůvěryhodná data, ne pokyny (vzor `buildFixBrokenChecksPrompt`). Konec výstupu je nejvýš 150 řádků a 6 000 znaků na bránu, 16 000 znaků celkem. První řádek nese číslo kola a značku, podle které hostitel pozná vlastní zprávu v náhledu promptu z hooku.
+- **Doručení** jde cestou `sendAgentTurn`:
+  - **Terminál:** hostitel počká na `tui-idle` stávajícími pravidly (nejvýš 15 s), před zápisem ověří, že v popředí běží agent (`createLaunchedAgentWriteGuard`), a nepíše nic, pokud do terminálu od začátku dokončeného tahu přišel psaný vstup. Obrazovku terminálu smyčka nečte a žádné nové pravidlo nad ní nepřibylo.
+  - **Strukturovaný chat:** zpráva s `from` označujícím odesílatele „Quality gates“, doručení `queue` (do sezení jako `queue-if-active`), aby se při souběhu s novým tahem zařadila jako karta a tah neovlivnila.
+  - **Kdo zprávu dostat nemůže:** agent bez terminálu na tomto hostiteli, neznámý druh agenta, terminál s dialogem nebo shellem v popředí. Workspace pak jen ukazuje stav bran a `needs-user`.
+- **Zastavení:** zpráva uživatele agentovi (tah, který nezačal zprávou smyčky), přerušení agenta, zánik jeho panelu a vypnutí u workspace nebo v repozitáři řetěz ukončí (`stopped` s důvodem). Výsledek kontroly, která při zastavení ještě běžela, se zahodí. Další dokončený krok začíná nový řetěz od prvního kola.
+- **Vlastní zpráva a zpráva uživatele:** tah, jehož náhled promptu nese značku poslední zprávy smyčky, je její vlastní. První tah po odeslání se bere jako vlastní i bez značky, protože hooky některých agentů text promptu nenesou; jinak by každé kolo vypadalo jako zásah uživatele a limit kol by se nikdy nenaplnil. Každý další tah bez značky je zpráva uživatele.
+- **Po `needs-user`:** další dokončený krok téhož agenta nespustí nic, dokud v něm někdo nezačne nový tah. Pak se jeho krok kontroluje jako nový řetěz.
+- **Stav:** `qualityGates.status` nese nepovinné pole `feedbackLoop` (zapnuto, zapnuto v repozitáři, vypnuto u workspace, limit kol, stav, kolo, důvod, selhávající brány). Změnu hostitel hlásí stávajícím rámcem `changed`; nový rámec ani opcode nepřibyl. Stav řetězu je jen v paměti hostitele: po jeho restartu je `idle`, výsledky bran zůstávají v úložišti běhů.
+- **Starší protějšky:** starší klient pole `feedbackLoop` a hodnotu `startedBy.kind: 'feedback-loop'` nečte. Starší hostitel pole neposílá a klient to čte jako „o smyčce nic nevím“ (`readQualityGateFeedbackLoopStatus`), stejně jako stav, který nezná. `qualityGates.setFeedbackLoop` na starším hostiteli skončí `method_not_found`; CLI to přeloží na výzvu k aktualizaci.
+- **SSH:** worktree dosažený přes SSH vlastní orcad na vzdáleném stroji; smyčka se instaluje i tam a týká se terminálových agentů. Strukturovaný chat orcad nemá.
+- **Neověřeno:** se skutečným Claude Code ani Codexem smyčka neběžela, lokálně ani přes SSH. Testy používají smyšleného agenta (řádky stavu, jaké publikuje hook server) a náhradu běhového prostředí terminálu.
 
 ### Co záznam nese pro pozdější důkaz
 
@@ -185,7 +220,7 @@ Brány kvality jsou seznam příkazů na řádku repozitáře v Orce. Píše je 
 
 ## Consequences
 
-- **Brány se samy nespouštějí.** Stav v postranním panelu (TASK-86), spuštění po kroku agenta (TASK-87) a běh brány jako důkaz nálezu (TASK-88) navazují.
+- **Brány se samy nespouštějí,** dokud uživatel u repozitáře nezapne smyčku zpětné vazby (TASK-87). Běh brány jako důkaz nálezu (TASK-88) navazuje.
 - **Repozitář u jiného hostitele** má brány jen ke čtení; nastavit je jde v Orce na tom hostiteli. Zápis na dálku by potřeboval cestu, kterou agent nepoužije, a tu zatím nikdo nerozhodl.
 - **Řádné ukončení aplikace běžící příkaz zastaví** i s potomky a záznam říká proč. Po pádu nebo vynuceném ukončení je záznam `unverifiable` a proces může doběhnout bez záznamu výsledku. Převzetí běžícího příkazu novou instancí se nestaví.
 - **Zrušení ve WSL** ukončí `wsl.exe`; že skončí i potomci uvnitř hosta, ověřené není.

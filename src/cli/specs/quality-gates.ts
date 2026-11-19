@@ -65,5 +65,20 @@ export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
       WORKTREE_NOTE
     ],
     examples: ['orca gates cancel', 'orca gates cancel build --json']
+  },
+  {
+    path: ['gates', 'loop'],
+    summary: 'Turn the feedback loop of quality gates off for a workspace',
+    usage: 'orca gates loop off [--worktree <selector>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'state'],
+    positionalArgs: ['state'],
+    notes: [
+      'With the loop on, Orca runs the required gates when an agent finishes a step and sends what failed back to that agent.',
+      'The loop is turned on per repository in the Orca app. This command only turns it off for one workspace; a chain in progress stops and the agent gets no further message.',
+      'Turning it back on for the workspace is done in the Orca app; orca gates loop on is refused from the command line.',
+      'orca gates status shows whether the loop is on and what it last did.',
+      WORKTREE_NOTE
+    ],
+    examples: ['orca gates loop off', 'orca gates loop off --worktree id:repo::/work --json']
   }
 ]

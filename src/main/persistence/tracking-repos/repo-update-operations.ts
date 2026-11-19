@@ -86,6 +86,7 @@ export class RepoUpdatePersistenceOperations {
         | 'hostLocalProjectId'
         | 'hookSettings'
         | 'qualityGates'
+        | 'qualityGateFeedbackLoop'
         | 'worktreeBaseRef'
         | 'worktreeBasePath'
         | 'simplifiedWorktreeLayout'

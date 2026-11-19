@@ -9,6 +9,7 @@ import { sanitizeRepoIcon } from '../../../shared/repo-icon'
 import { normalizeGhAccountBinding } from '../../../shared/github/account-binding'
 import type { GhAccountBinding } from '../../../shared/github/account-binding'
 import { normalizeRepoSourceControlAiOverrides } from '../../../shared/source-control-ai'
+import { normalizeQualityGateFeedbackLoopSettings } from '../../../shared/quality-gate-feedback-loop'
 import { normalizeQualityGateDefinitions } from '../../../shared/quality-gate-types'
 import {
   normalizeCustomWorktreeVisibilitySources,
@@ -35,6 +36,7 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
             | 'upstream'
             | 'hookSettings'
             | 'qualityGates'
+            | 'qualityGateFeedbackLoop'
             | 'worktreeBaseRef'
             | 'worktreeBasePath'
             | 'simplifiedWorktreeLayout'
@@ -228,6 +230,12 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
         } else {
           updates.qualityGates = qualityGates
         }
+      }
+      // Same channel, same reason: turning the loop on spends tokens on the user's behalf.
+      if ('qualityGateFeedbackLoop' in updates) {
+        updates.qualityGateFeedbackLoop = normalizeQualityGateFeedbackLoopSettings(
+          updates.qualityGateFeedbackLoop
+        )
       }
       const hostId = args.hostId ? normalizeExecutionHostId(args.hostId) : null
       if (args.hostId && !hostId) {

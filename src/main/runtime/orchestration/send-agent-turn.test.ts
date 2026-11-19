@@ -221,6 +221,25 @@ describe('sendAgentTurn to a terminal', () => {
     )
   })
 
+  it('types quality gate feedback as driving input with no dispatch lead line', async () => {
+    const runtime = { sendTerminalAgentPrompt: vi.fn(async () => ({ handle: 'term_1' })) }
+    const beforeWrite = vi.fn(async () => {})
+    await sendAgentTurn({
+      kind: 'terminal',
+      runtime,
+      handle: 'term_1',
+      turn: { purpose: 'quality-gate-feedback', body: 'gates failed', operationId: 'req-2' },
+      beforeWrite
+    })
+    expect(runtime.sendTerminalAgentPrompt).toHaveBeenCalledWith('term_1', 'gates failed', {
+      inputKind: 'driving',
+      acceptQueued: true,
+      observationTimeoutMs: 0,
+      requestId: 'req-2',
+      beforeWrite
+    })
+  })
+
   it('propagates a failed write as the primitive threw it', async () => {
     const failure = new Error('terminal_not_writable')
     const runtime = {

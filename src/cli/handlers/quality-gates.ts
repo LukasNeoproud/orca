@@ -1,3 +1,4 @@
+import type { QualityGateSetFeedbackLoopResult } from '../../shared/quality-gate-feedback-loop'
 import type {
   QualityGateCancelResult,
   QualityGateDefinition,
@@ -8,6 +9,7 @@ import type {
 import type { CommandHandler, HandlerContext } from '../dispatch'
 import { getRepeatedStringFlag } from '../flags'
 import { printResult } from '../format'
+import { formatQualityGateFeedbackLoop } from '../quality-gate-feedback-loop-format'
 import {
   formatQualityGateCancelResult,
   formatQualityGateList,
@@ -138,5 +140,21 @@ export const QUALITY_GATE_HANDLERS: Record<string, CommandHandler> = {
     if (response) {
       printResult({ ...response, result: { cancelled } }, context.json, format)
     }
+  },
+  'gates loop': async (context) => {
+    const state = context.flags.get('state')
+    if (state !== 'on' && state !== 'off') {
+      throw new RuntimeClientError('invalid_argument', 'Use orca gates loop off (or on).')
+    }
+    const call = gateCaller(context.client)
+    const response = await call<QualityGateSetFeedbackLoopResult>('qualityGates.setFeedbackLoop', {
+      worktree: await worktreeSelector(context),
+      enabled: state === 'on'
+    })
+    printResult(
+      response,
+      context.json,
+      (result) => formatQualityGateFeedbackLoop(result.feedbackLoop) ?? 'Feedback loop updated.'
+    )
   }
 }

@@ -289,6 +289,11 @@ async function startOrcadRuntime(
     console.info(`[orcad] agent state rules ${rules.version} (${rules.source})`)
   )
 
+  // Why here too: a worktree reached over SSH is owned by this host, agents and gates included.
+  const { installQualityGateFeedbackLoop } =
+    await import('../quality-gates/quality-gate-feedback-loop-host')
+  registerCleanup(installQualityGateFeedbackLoop(runtime, agentHookServer))
+
   // Why here too and not only on the desktop: nothing else republishes `session.tabs` when a
   // pane's status row changes, and orcad's whole job is serving paired clients.
   uninstallHookStatusRepublish = installHookStatusSessionTabsRepublish(
