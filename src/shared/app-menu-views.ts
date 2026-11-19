@@ -2,7 +2,12 @@ import type { KeybindingActionId } from './keybindings'
 import type { ActiveRightSidebarTab } from './ui-chrome-types'
 
 /** What the active workspace must be for a view to have something to show. */
-export type AppMenuViewRequirement = 'git' | 'folder-workspace' | 'ssh-host'
+export type AppMenuViewRequirement =
+  | 'git'
+  | 'folder-workspace'
+  | 'ssh-host'
+  /** The Checks tab: a git workspace, or a folder whose repository has quality gates to show. */
+  | 'git-or-quality-gates'
 
 export type AppMenuViewTarget =
   | { kind: 'right-sidebar-tab'; tab: ActiveRightSidebarTab; requires?: AppMenuViewRequirement }
@@ -53,7 +58,7 @@ export const APP_MENU_VIEW_ITEMS: readonly AppMenuViewItem[] = [
     labelKey: 'auto.components.right.sidebar.index.83a10e3c44',
     label: 'Checks',
     shortcutActionId: 'sidebar.checks.toggle',
-    target: { kind: 'right-sidebar-tab', tab: 'checks', requires: 'git' }
+    target: { kind: 'right-sidebar-tab', tab: 'checks', requires: 'git-or-quality-gates' }
   },
   {
     id: 'ports',
@@ -104,6 +109,13 @@ export const APP_MENU_VIEW_ITEMS: readonly AppMenuViewItem[] = [
     labelKey: 'menu.pullRequests',
     label: 'Pull requests',
     target: { kind: 'right-sidebar-tab', tab: 'pull-requests' }
+  },
+  {
+    id: 'quality-gates',
+    menu: 'review',
+    labelKey: 'qualityGates.title',
+    label: 'Quality Gates',
+    target: { kind: 'right-sidebar-tab', tab: 'checks', requires: 'git-or-quality-gates' }
   },
   {
     id: 'git-graph',

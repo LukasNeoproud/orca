@@ -28,6 +28,7 @@ import {
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
 import { AgentSessionHistoryIcon } from './agent-session-history-icon'
+import { checksTabShowsQualityGates } from '../quality-gates/checks-tab-quality-gates'
 import type { ActivityBarItem } from './activity-bar-buttons'
 
 export type RightSidebarActivityItems = {
@@ -57,6 +58,8 @@ export function useRightSidebarActivityItems({
   const activeWorkspaceScope = parseWorkspaceKey(activeWorktreeId ?? '')
   const isFolderWorkspace = activeWorkspaceScope?.type === 'folder'
   const isFolder = isFolderWorkspace || (activeRepo ? isFolderRepo(activeRepo) : false)
+  // A folder has no hosted checks, but the gates of its repository are shown in the same panel.
+  const checksShowQualityGates = checksTabShowsQualityGates(isFolderWorkspace, activeRepo)
   // Why the owner: a managed server's workspace names its server, not an SSH connection.
   const hasSshHost = useAppStore((s) =>
     portsPanelReachesSshHost(
@@ -127,7 +130,7 @@ export function useRightSidebarActivityItems({
         icon: ListChecks,
         title: translate('auto.components.right.sidebar.index.83a10e3c44', 'Checks'),
         shortcut: checksShortcut === 'Unassigned' ? '' : checksShortcut,
-        gitOnly: true
+        gitOnly: !checksShowQualityGates
       },
       {
         id: 'ports',
@@ -148,6 +151,7 @@ export function useRightSidebarActivityItems({
     ],
     [
       checksShortcut,
+      checksShowQualityGates,
       explorerShortcut,
       pluginPanelErrors,
       visiblePluginPanels,

@@ -1,12 +1,20 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
+import { createQualityGateChangeFeed, type QualityGateChangeFeed } from './quality-gate-change-feed'
 import { runQualityGateCommand } from './quality-gate-command-run'
 import { createQualityGateRunStore, defaultQualityGateRunStorePath } from './quality-gate-run-store'
 import { createQualityGateService, type QualityGateService } from './quality-gate-service'
 import { readQualityGateSourceState } from './quality-gate-source-state'
 
 let service: QualityGateService | null = null
+let changeFeed: QualityGateChangeFeed | null = null
+
+/** What `qualityGates.subscribe` listens to; the service of this process reports its runs into it. */
+export function getQualityGateChangeFeed(): QualityGateChangeFeed {
+  changeFeed ??= createQualityGateChangeFeed({ readSource: readQualityGateSourceState })
+  return changeFeed
+}
 
 /** The gate runner of this host process: its own queue, its own records, its own data directory. */
 export function getQualityGateService(): QualityGateService {
@@ -17,7 +25,8 @@ export function getQualityGateService(): QualityGateService {
     readSource: readQualityGateSourceState,
     runnerDirectory: join(getAppEnvironment().getPath('userData'), 'quality-gate-runners'),
     now: Date.now,
-    newRunId: randomUUID
+    newRunId: randomUUID,
+    onRunChanged: (worktreeId) => getQualityGateChangeFeed().notify(worktreeId)
   })
   return service
 }
@@ -45,4 +54,9 @@ export async function stopQualityGatesForShutdown(): Promise<void> {
 /** @internal - tests install a service over a temp store. */
 export function _setQualityGateServiceForTests(next: QualityGateService | null): void {
   service = next
+}
+
+/** @internal - tests install a feed with a short watch interval. */
+export function _setQualityGateChangeFeedForTests(next: QualityGateChangeFeed | null): void {
+  changeFeed = next
 }

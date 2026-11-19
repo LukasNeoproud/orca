@@ -24,6 +24,8 @@ export const AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY =
 
 // qualityGates.* runs the gates of a repository on the host that owns the worktree.
 export const QUALITY_GATES_RUNTIME_CAPABILITY = 'quality-gates.v1' as const
+// qualityGates.subscribe signals a change instead of the client asking on an interval.
+export const QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY = 'quality-gates.subscribe.v1' as const
 
 export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
@@ -32,6 +34,7 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
   QUALITY_GATES_RUNTIME_CAPABILITY,
+  QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY,
   EMULATOR_MOBILE_STREAM_RUNTIME_CAPABILITY,
   'backlog.v1',
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,

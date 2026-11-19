@@ -6,7 +6,7 @@ const { state, toastInfo, reachesSshHost, openWorktreeSnapshotDiff } = vi.hoiste
   const workspace: {
     activeView: string
     activeWorktreeId: string | null
-    repos: { id: string; kind?: 'git' | 'folder' }[]
+    repos: { id: string; kind?: 'git' | 'folder'; qualityGates?: unknown }[]
   } = { activeView: 'terminal', activeWorktreeId: null, repos: [] }
   return {
     state: {
@@ -103,6 +103,9 @@ describe('openAppMenuView', () => {
   it.each([
     ['source-control', FOLDER_REPO_WORKTREE, 'Source Control'],
     ['checks', folderWorkspaceKey('fw-1'), 'Checks'],
+    ['checks', FOLDER_REPO_WORKTREE, 'Checks'],
+    ['quality-gates', FOLDER_REPO_WORKTREE, 'Quality Gates'],
+    ['quality-gates', folderWorkspaceKey('fw-1'), 'Quality Gates'],
     ['git-graph', FOLDER_REPO_WORKTREE, 'Git graph'],
     ['git-graph', null, 'Git graph'],
     ['snapshots', folderWorkspaceKey('fw-1'), 'Snapshots'],
@@ -125,6 +128,23 @@ describe('openAppMenuView', () => {
     }
   )
 
+  it('opens Checks for a folder whose repository has quality gates, but not Source Control', () => {
+    state.activeWorktreeId = FOLDER_REPO_WORKTREE
+    state.repos = [
+      {
+        id: 'repo-folder',
+        kind: 'folder',
+        qualityGates: [{ id: 'lint', name: 'Lint', command: 'echo ok' }]
+      }
+    ]
+
+    expect(openAppMenuView('quality-gates')).toBe(true)
+    expect(openAppMenuView('checks')).toBe(true)
+    expect(openAppMenuView('source-control')).toBe(false)
+
+    expect(state.setRightSidebarTab.mock.calls.map(([tab]) => tab)).toEqual(['checks', 'checks'])
+  })
+
   it('opens the folder-workspace panels in a folder workspace and Ports on an SSH host', () => {
     state.activeWorktreeId = folderWorkspaceKey('fw-1')
     reachesSshHost.mockReturnValue(true)
@@ -143,7 +163,7 @@ describe('openAppMenuView', () => {
   it('has a target for every registered item and ignores unknown ids', () => {
     state.activeWorktreeId = folderWorkspaceKey('fw-1')
     reachesSshHost.mockReturnValue(true)
-    const gitOnly = new Set(['source-control', 'checks', 'git-graph', 'snapshots'])
+    const gitOnly = new Set(['source-control', 'checks', 'quality-gates', 'git-graph', 'snapshots'])
     for (const item of APP_MENU_VIEW_ITEMS.filter((entry) => !gitOnly.has(entry.id))) {
       expect(openAppMenuView(item.id), item.id).toBe(true)
     }

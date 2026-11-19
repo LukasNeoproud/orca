@@ -24,3 +24,8 @@ export const QualityGateCancelParams = QualityGateWorktreeParams.extend({
   runId: RunId.optional(),
   gateId: GateId.optional()
 })
+
+/** Ends a `qualityGates.subscribe` stream; the id comes from that stream's `ready` frame. */
+export const QualityGateUnsubscribeParams = z.object({
+  subscriptionId: z.string().min(1).max(128)
+})

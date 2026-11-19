@@ -19884,6 +19884,18 @@
     "output": "Sortie",
     "outputFailed": "La sortie n'a pas pu être lue depuis l'hôte.",
     "outputTruncated": "Seule la fin de la sortie est conservée.",
-    "outputEmpty": "La commande n'a rien affiché."
+    "outputEmpty": "La commande n'a rien affiché.",
+    "stoppedByQuit": "Arrêté parce qu'Orca a été fermé pendant l'exécution du contrôle.",
+    "panelTitle": "Contrôles locaux",
+    "runAll": "Tout exécuter",
+    "runOne": "Exécuter {{value0}}",
+    "stopOne": "Arrêter {{value0}}",
+    "openSettings": "Configurer les contrôles",
+    "summaryRunning": "{{value0}} en cours",
+    "summaryFailed": "{{value0}} échoués",
+    "summaryUnknown": "{{value0}} inconnus",
+    "summaryOutdated": "{{value0}} obsolètes",
+    "summaryPassed": "{{value0}} réussis",
+    "summaryMissing": "{{value0}} non exécutés"
   }
 }

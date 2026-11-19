@@ -3,15 +3,20 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { fetchQualityGateOutput } from '@/lib/quality-gate-client'
-import type {
-  QualityGateRunOutput,
-  QualityGateRunStatus,
-  QualityGateRunView
+import {
+  qualityGateRunHasResult,
+  type QualityGateRunOutput,
+  type QualityGateRunStatus,
+  type QualityGateRunView
 } from '../../../../shared/quality-gate-types'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { LoadingSpinner } from '../LoadingSpinner'
 import { Button } from '../ui/button'
-import { qualityGateFreshnessLabel, qualityGateStatusLabel } from './quality-gate-labels'
+import {
+  qualityGateFreshnessLabel,
+  qualityGateRunNote,
+  qualityGateStatusLabel
+} from './quality-gate-labels'
 
 const STATUS_TONE: Record<QualityGateRunStatus, string> = {
   queued: 'text-muted-foreground',
@@ -98,7 +103,12 @@ export function QualityGateRunResult({
     )
   }
 
-  const freshness = qualityGateFreshnessLabel(run.freshness)
+  // An older host reports a stopped run as up to date; it checked nothing, so nothing is shown.
+  const freshness = qualityGateRunHasResult(run.status)
+    ? qualityGateFreshnessLabel(run.freshness)
+    : null
+  const note = qualityGateRunNote(run)
+  const endedAt = run.finishedAt ?? run.startedAt
   const shownOutput = output?.runId === run.id ? output : null
   const duration =
     run.startedAt !== null && run.finishedAt !== null
@@ -120,6 +130,15 @@ export function QualityGateRunResult({
           </span>
         ) : null}
         {duration ? <span className="text-muted-foreground">{duration}</span> : null}
+        {endedAt !== null ? (
+          <time
+            className="text-muted-foreground"
+            dateTime={new Date(endedAt).toISOString()}
+            data-quality-gate-run-time
+          >
+            {new Date(endedAt).toLocaleString()}
+          </time>
+        ) : null}
         {run.source?.head ? (
           <span className="font-mono text-muted-foreground">{run.source.head.slice(0, 10)}</span>
         ) : null}
@@ -146,7 +165,7 @@ export function QualityGateRunResult({
           </Button>
         ) : null}
       </div>
-      {run.error ? <p className="text-xs text-muted-foreground select-text">{run.error}</p> : null}
+      {note ? <p className="text-xs text-muted-foreground select-text">{note}</p> : null}
       {open && finished && shownOutput ? (
         shownOutput.state === 'loading' ? null : shownOutput.state === 'failed' ? (
           <p role="alert" className="text-xs text-destructive">

@@ -42,7 +42,7 @@ Definice je ve sdíleném kódu (`src/shared/quality-gate-types.ts`).
 - **Proč ne přes RPC ani CLI:** runtime socketem volá agent. Kdyby směl bránu definovat, kontroloval by svou práci příkazem, který si sám napsal, a výsledek „prošla“ by nic neříkal. Spustit bránu, kterou nastavil uživatel, agent smí; to je záměr.
 - **Proč ne z repozitáře:** soubor v checkoutu mění agent i cizí pull request. Brána načtená z `orca.yaml` by v review worktree spustila kód autora změny.
 - **Testy:**
-  - Existuje právě pět metod `qualityGates.*` a žádná nepíše.
+  - Existuje právě sedm metod `qualityGates.*` (pět z TASK-85 a odběr se zrušením z TASK-86) a žádná nepíše.
   - `command` nebo `gates` podstrčené do požadavku na spuštění se ignorují.
   - `repo.update` pole zahodí u volajícího z runtime socketu, z okna i ze spárovaného zařízení.
   - Zdrojáky RPC schémat, CLI a runtime pole `qualityGates` nejmenují.
@@ -75,12 +75,12 @@ Hostitel si k záznamu navíc drží konec výstupu (posledních 16 KiB z každ�
 | `failed` | jiný návratový kód | `exited` |
 | `timed-out` | vypršel limit; strom procesů je ukončen a kód se neuvádí | `exited` |
 | `not-started` | shell příkaz nenašel nebo nespustil (126 a 127, v `cmd.exe` 9009), proces nešel založit, worktree neexistuje, na Windows příkaz začíná `#!` | `exited` |
-| `cancelled` | zastavila ho Orca na pokyn, nebo proto, že se ukončovala (důvod v `error`); kód se neuvádí | `exited` |
+| `cancelled` | zastavila ho Orca na pokyn, nebo proto, že se ukončovala (důvod v `error` a od TASK-86 v nepovinném poli `stopReason`: `requested` nebo `app-quit`); kód se neuvádí | `exited` |
 | `unverifiable` | nikdo, koho se dá zeptat, neví, jestli příkaz běží | `unverifiable` |
 
 ### Zastaralý výsledek
 
-Čerstvost se počítá při čtení a neukládá se.
+Čerstvost se počítá při čtení a neukládá se. Má ji jen běh s výsledkem (`passed`, `failed`, `timed-out`); zastavený a nespuštěný běh nic neověřil a čerstvost nemá (TASK-86).
 
 | Čerstvost | Kdy |
 | --- | --- |
@@ -155,6 +155,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 ### RPC a CLI
 
 - **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje.
+- **Signál změny (TASK-86):** `qualityGates.subscribe` je proud bez stavu: rámec `ready` s id odběru, `changed` po změně běhu nebo stromu, `end`. Končí ho `qualityGates.unsubscribe`, zrušení přenosu nebo konec spojení. Hostitel ho hlásí schopností `quality-gates.subscribe.v1`; klient se na ni zeptá dřív, než odběr otevře, a neznámý rámec ignoruje. Definici brány nezapisuje ani tato dvojice metod.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem. Řádek běhu končí jeho id.
 - **`orca gates run` čeká** a u každé brány vypíše výsledek, návratový kód a konec výstupu. Skončí kódem 0, jen když prošly všechny povinné brány; volitelná brána výsledek nemění. Ukončení CLI běh nezastaví.
 - **`orca gates run --no-wait`** vypíše běhy hned, jak je hostitel zařadil (id, stav, případně že brána už běžela), a skončí kódem 0. Průběh a výsledek pak ukáže `orca gates status` (u běžící brány i dosavadní dobu).

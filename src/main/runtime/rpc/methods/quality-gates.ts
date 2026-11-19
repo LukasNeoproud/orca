@@ -2,12 +2,17 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from '../../../../shared/rpc-contract/quality-gate-params'
+import type { QualityGateChangeFrame } from '../../../../shared/quality-gate-change-stream'
 import type { QualityGateRunStarter } from '../../../../shared/quality-gate-types'
-import { getQualityGateService } from '../../../quality-gates/quality-gate-host'
+import {
+  getQualityGateChangeFeed,
+  getQualityGateService
+} from '../../../quality-gates/quality-gate-host'
 import { resolveQualityGateTarget } from '../../../quality-gates/quality-gate-target'
-import { defineMethod } from '../core'
+import { defineMethod, defineStreamingMethod } from '../core'
 import type { RpcCallerIdentity } from '../rpc-caller-identity'
 
 /** A run records who asked for it, so a caller the transport could not name starts none. */
@@ -19,6 +24,12 @@ function runStarter(caller: RpcCallerIdentity | undefined): QualityGateRunStarte
     ? { kind: 'paired-device', deviceId: caller.deviceId }
     : { kind: caller.kind }
 }
+
+let subscriptionSeq = 0
+
+// Keyed by the caller's connection, so only the subscriber's own connection can end the stream.
+const cleanupKey = (connectionId: string | undefined, subscriptionId: string): string =>
+  `quality-gates:${connectionId ?? 'local'}:${subscriptionId}`
 
 // Why no method writes a gate: the runtime socket is what agents and the CLI call through, and a
 // caller that could define the command would be checking its own work with a command of its choice.
@@ -70,5 +81,47 @@ export const QUALITY_GATE_METHODS = [
         runId: params.runId,
         gateId: params.gateId
       })
+  }),
+  // A signal, not a state stream: the frames carry nothing, and the reader asks for the status.
+  defineStreamingMethod({
+    name: 'qualityGates.subscribe',
+    permission: 'workspace',
+    params: QualityGateWorktreeParams,
+    handler: async (params, { runtime, connectionId, signal }, emitFrame) => {
+      const emit = (frame: QualityGateChangeFrame): void => emitFrame(frame)
+      const target = await resolveQualityGateTarget(runtime, params.worktree)
+      await new Promise<void>((resolve) => {
+        const subscriptionId = `quality-gates-${connectionId ?? 'inproc'}-${++subscriptionSeq}`
+        const key = cleanupKey(connectionId, subscriptionId)
+        const release = (): void => runtime.cleanupSubscription(key)
+        const unsubscribe = getQualityGateChangeFeed().subscribe(target, () =>
+          emit({ type: 'changed' })
+        )
+        runtime.registerSubscriptionCleanup(
+          key,
+          () => {
+            unsubscribe()
+            signal?.removeEventListener('abort', release)
+            emit({ type: 'end' })
+            resolve()
+          },
+          connectionId
+        )
+        signal?.addEventListener('abort', release, { once: true })
+        emit({ type: 'ready', subscriptionId })
+        if (signal?.aborted) {
+          release()
+        }
+      })
+    }
+  }),
+  defineMethod({
+    name: 'qualityGates.unsubscribe',
+    permission: 'workspace',
+    params: QualityGateUnsubscribeParams,
+    handler: async (params, { runtime, connectionId }) => {
+      runtime.cleanupSubscription(cleanupKey(connectionId, params.subscriptionId))
+      return { unsubscribed: true }
+    }
   })
 ]

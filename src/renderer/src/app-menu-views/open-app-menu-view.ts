@@ -15,6 +15,7 @@ import {
   type AppMenuViewRequirement,
   type AppMenuViewTarget
 } from '../../../shared/app-menu-views'
+import { hasQualityGateDefinitions } from '../../../shared/quality-gate-types'
 import { isFolderRepo } from '../../../shared/repo-kind'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 
@@ -30,10 +31,17 @@ function meetsRequirement(state: AppState, requirement: AppMenuViewRequirement):
         portsPanelHostForOwnerKey(getPortsPanelOwnerKey(state, worktreeId)),
         state.runtimeEnvironments
       )
-    case 'git': {
+    case 'git':
+    case 'git-or-quality-gates': {
       const repoId = worktreeId ? state.getKnownWorktreeById(worktreeId)?.repoId : undefined
       const repo = repoId ? getIndexedRepoMap(state.repos).get(repoId) : undefined
-      return !isFolderWorkspace && !(repo && isFolderRepo(repo))
+      if (isFolderWorkspace) {
+        return false
+      }
+      return (
+        !(repo && isFolderRepo(repo)) ||
+        (requirement === 'git-or-quality-gates' && hasQualityGateDefinitions(repo.qualityGates))
+      )
     }
   }
 }

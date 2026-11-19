@@ -4,6 +4,7 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
 } from './quality-gate-params'
 import { RPC_PARAMS_BY_METHOD } from './rpc-params-catalog.generated'
@@ -21,8 +22,19 @@ describe('quality gate RPC params', () => {
       'qualityGates.list',
       'qualityGates.output',
       'qualityGates.run',
-      'qualityGates.status'
+      'qualityGates.status',
+      'qualityGates.subscribe',
+      'qualityGates.unsubscribe'
     ])
+  })
+
+  it('opens the change stream with a worktree and nothing else, and ends it by its id', () => {
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.subscribe']).toBe(QualityGateWorktreeParams)
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.unsubscribe']).toBe(QualityGateUnsubscribeParams)
+    expect(QualityGateUnsubscribeParams.safeParse({}).success).toBe(false)
+    expect(
+      QualityGateUnsubscribeParams.parse({ subscriptionId: 'quality-gates-conn-1', command: 'x' })
+    ).toEqual({ subscriptionId: 'quality-gates-conn-1' })
   })
 
   it('needs a worktree selector', () => {

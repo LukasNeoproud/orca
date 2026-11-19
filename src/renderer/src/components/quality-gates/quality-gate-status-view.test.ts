@@ -6,6 +6,7 @@ import type {
 import {
   QUALITY_GATE_LIVE_POLL_MS,
   QUALITY_GATE_LOST_CONTACT_POLL_MS,
+  QUALITY_GATE_WATCH_POLL_MS,
   emptyQualityGateStatusView,
   hasLiveQualityGateRun,
   nextQualityGatePollDelay,
@@ -111,5 +112,42 @@ describe('quality gate status view', () => {
         unsupported: true
       })
     ).toBeNull()
+  })
+
+  describe('a panel that follows the workspace', () => {
+    const settled = { ...emptyQualityGateStatusView(scope), status: status(passed) }
+    const live = { ...emptyQualityGateStatusView(scope), status: status(run()) }
+
+    it('asks nothing on an interval while the host signals changes itself', () => {
+      const mode = { watch: true, streaming: true }
+      expect(nextQualityGatePollDelay(settled, mode)).toBeNull()
+      expect(nextQualityGatePollDelay(live, mode)).toBeNull()
+    })
+
+    it('asks an older host on an interval, so a commit or an edit still shows up', () => {
+      const mode = { watch: true, streaming: false }
+      expect(nextQualityGatePollDelay(settled, mode)).toBe(QUALITY_GATE_WATCH_POLL_MS)
+      expect(nextQualityGatePollDelay(live, mode)).toBe(QUALITY_GATE_LIVE_POLL_MS)
+      expect(nextQualityGatePollDelay(emptyQualityGateStatusView(scope), mode)).toBe(
+        QUALITY_GATE_WATCH_POLL_MS
+      )
+    })
+
+    it('keeps asking a host that stopped answering, with or without a run in progress', () => {
+      for (const streaming of [true, false]) {
+        expect(
+          nextQualityGatePollDelay({ ...settled, contactLost: true }, { watch: true, streaming })
+        ).toBe(QUALITY_GATE_LOST_CONTACT_POLL_MS)
+      }
+    })
+
+    it('never asks a host that has no gates at all', () => {
+      expect(
+        nextQualityGatePollDelay(
+          { ...emptyQualityGateStatusView(scope), unsupported: true },
+          { watch: true, streaming: false }
+        )
+      ).toBeNull()
+    })
   })
 })

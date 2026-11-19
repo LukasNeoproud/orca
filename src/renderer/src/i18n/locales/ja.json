@@ -19883,6 +19883,18 @@
     "output": "出力",
     "outputFailed": "ホストから出力を読み取れませんでした。",
     "outputTruncated": "出力の末尾のみ保持されます。",
-    "outputEmpty": "コマンドは何も出力しませんでした。"
+    "outputEmpty": "コマンドは何も出力しませんでした。",
+    "stoppedByQuit": "ゲートの実行中に Orca が終了したため停止しました。",
+    "panelTitle": "ローカルゲート",
+    "runAll": "すべて実行",
+    "runOne": "{{value0}} を実行",
+    "stopOne": "{{value0}} を停止",
+    "openSettings": "ゲートを設定",
+    "summaryRunning": "実行中 {{value0}}",
+    "summaryFailed": "失敗 {{value0}}",
+    "summaryUnknown": "不明 {{value0}}",
+    "summaryOutdated": "古い結果 {{value0}}",
+    "summaryPassed": "合格 {{value0}}",
+    "summaryMissing": "未実行 {{value0}}"
   }
 }

@@ -206,13 +206,15 @@ describe.skipIf(process.platform === 'win32')('qualityGates RPC', () => {
   describe('defining a gate', () => {
     const evil = { id: 'evil', name: 'Evil', command: 'echo pwned > pwned.txt', required: true }
 
-    it('exposes run, read and cancel methods only', () => {
+    it('exposes run, read, cancel and change-signal methods only', () => {
       expect(QUALITY_GATE_METHODS.map((method) => method.name).sort()).toEqual([
         'qualityGates.cancel',
         'qualityGates.list',
         'qualityGates.output',
         'qualityGates.run',
-        'qualityGates.status'
+        'qualityGates.status',
+        'qualityGates.subscribe',
+        'qualityGates.unsubscribe'
       ])
       expect(
         ALL_RPC_METHODS.map((method) => method.name).filter((name) => /quality/i.test(name))

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   QUALITY_GATE_LIMITS,
   deriveQualityGateFreshness,
+  hasQualityGateDefinitions,
   normalizeQualityGateDefinitions,
+  qualityGateRunHasResult,
   qualityGateRunLiveness,
   type QualityGateSourceState
 } from './quality-gate-types'
@@ -149,5 +151,32 @@ describe('deriveQualityGateFreshness', () => {
     expect(deriveQualityGateFreshness({ ...run, source: null }, clean, gate)).toEqual({
       state: 'unknown'
     })
+  })
+})
+
+describe('qualityGateRunHasResult', () => {
+  it('counts only a command that ran to a verdict', () => {
+    const withResult = (
+      [
+        'queued',
+        'running',
+        'passed',
+        'failed',
+        'timed-out',
+        'not-started',
+        'cancelled',
+        'unverifiable'
+      ] as const
+    ).filter(qualityGateRunHasResult)
+    expect(withResult).toEqual(['passed', 'failed', 'timed-out'])
+  })
+})
+
+describe('hasQualityGateDefinitions', () => {
+  it('is true only for a row with a usable gate', () => {
+    expect(hasQualityGateDefinitions([gate])).toBe(true)
+    expect(hasQualityGateDefinitions([])).toBe(false)
+    expect(hasQualityGateDefinitions([{ ...gate, command: '' }])).toBe(false)
+    expect(hasQualityGateDefinitions(undefined)).toBe(false)
   })
 })

@@ -1,6 +1,12 @@
 import { callRuntimeRpc, runtimeEnvironmentSupportsCapability } from '@/runtime/runtime-rpc-client'
 import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
-import { QUALITY_GATES_RUNTIME_CAPABILITY } from '../../../shared/host-feature-runtime-capabilities'
+import { subscribeRuntimeRpc } from '@/runtime/runtime-rpc-subscribe'
+import {
+  QUALITY_GATES_RUNTIME_CAPABILITY,
+  QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY
+} from '../../../shared/host-feature-runtime-capabilities'
+import { readQualityGateChangeFrame } from '../../../shared/quality-gate-change-stream'
+import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type {
   QualityGateCancelResult,
   QualityGateRunOutput,
@@ -87,9 +93,82 @@ export function fetchQualityGateOutput(
   return call(target, 'qualityGates.output', worktreeId, { runId })
 }
 
+/** Stops every queued or running gate of the workspace, or only the named one. */
 export function cancelQualityGates(
   target: RuntimeClientTarget,
-  worktreeId: string
+  worktreeId: string,
+  gateId?: string
 ): Promise<QualityGateCancelResult> {
-  return call(target, 'qualityGates.cancel', worktreeId)
+  return call(target, 'qualityGates.cancel', worktreeId, gateId ? { gateId } : {})
+}
+
+/** Whether the host signals changes itself; a host from before the stream is asked on an interval. */
+export async function qualityGateChangesSupported(target: RuntimeClientTarget): Promise<boolean> {
+  if (target.kind === 'local') {
+    return true
+  }
+  return runtimeEnvironmentSupportsCapability(
+    target.environmentId,
+    QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY,
+    CAPABILITY_TIMEOUT_MS
+  )
+}
+
+export type QualityGateChangeHandlers = {
+  /** The stream opened, or the host said the runs or the tree moved: read the status again. */
+  onChanged: () => void
+  /** The stream is over. `unsupported`: the host has no such stream and never will on this build. */
+  onLost: (unsupported: boolean) => void
+}
+
+/**
+ * `qualityGates.subscribe` for one workspace. The frames carry no state, so a frame this build
+ * does not know is ignored and a lost stream costs nothing but the signal.
+ */
+export async function subscribeQualityGateChanges(
+  target: RuntimeClientTarget,
+  worktreeId: string,
+  handlers: QualityGateChangeHandlers
+): Promise<{ close: () => void }> {
+  let subscriptionId: string | null = null
+  let over = false
+  const lose = (unsupported: boolean): void => {
+    if (!over) {
+      over = true
+      handlers.onLost(unsupported)
+    }
+  }
+  const handle = await subscribeRuntimeRpc(
+    target,
+    'qualityGates.subscribe',
+    { worktree: `id:${worktreeId}` },
+    {
+      onEvent: (result) => {
+        const frame = readQualityGateChangeFrame(result)
+        if (!frame || over) {
+          return
+        }
+        if (frame.type === 'end') {
+          lose(false)
+          return
+        }
+        if (frame.type === 'ready') {
+          subscriptionId = frame.subscriptionId
+        }
+        handlers.onChanged()
+      },
+      onError: (error) => lose(hasRuntimeRpcErrorCode(error, 'method_not_found')),
+      onClose: () => lose(false)
+    }
+  )
+  return {
+    close: () => {
+      over = true
+      handle.unsubscribe()
+      // A remote transport shares one connection, so the host is told which stream to end.
+      if (target.kind === 'environment' && subscriptionId) {
+        void callRuntimeRpc(target, 'qualityGates.unsubscribe', { subscriptionId }).catch(() => {})
+      }
+    }
+  }
 }

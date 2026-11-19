@@ -15,7 +15,7 @@ Taby pravého sidebaru (`STATIC_RIGHT_SIDEBAR_TABS` v `shared/rpc-contract/clien
 | Vault (historie agentů) | vlevo | Sezení napříč workspaces projektu |
 | Workspaces (připojené worktrees) | zrušit | Splyne s řádkem workspace vlevo |
 | Source control | vpravo | Commit v aktuálním workspace, rozdělený po platformách |
-| Checks, PR checks | vpravo | CI a stav PR aktuálního workspace |
+| Checks, PR checks | vpravo | místní brány kvality, CI a stav PR aktuálního workspace |
 | Search | vpravo | Hledání v aktuálním workspace s volbou rozsahu |
 | Ports | vpravo | Běžící procesy aktuálního workspace |
 | Panely pluginů | vpravo | Uživatel je může přesunout |

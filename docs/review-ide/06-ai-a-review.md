@@ -53,7 +53,7 @@ Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepši
 - **Výsledek:** stav bran je vidět u workspace a v PR; review nedostává chyby kompilace ani lintu.
 - **Nastavení:** které brány jsou povinné, je v nastavení projektu v Orce.
 
-**Stav po TASK-85:**
+**Stav po TASK-85 a TASK-86:**
 
 - **Hotovo:** brány se nastavují u repozitáře v Orce (název, příkaz, povinná nebo volitelná, časový limit, pořadí) a spouštějí se jen na pokyn: tlačítkem v nastavení repozitáře nebo příkazem `orca gates run`. Git repozitář i složka bez gitu.
 - **Výsledek brány:** prošla, selhala, vypršel limit, nešla spustit nebo zastavena; k tomu návratový kód a konec výstupu.
@@ -62,7 +62,10 @@ Agent dostane od nástrojů zpětnou vazbu o kvalitě kódu a může ho vylepši
 - **Bezpečnost:** příkazy bran se nikdy nečtou z repozitáře ani z `orca.yaml` a přes RPC ani CLI je nejde založit ani změnit. Agent smí přes CLI spustit jen bránu, kterou nastavil uživatel.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. `run` čeká na konec a skončí kódem 0, jen když prošly všechny povinné brány; s `--no-wait` vrátí hned id běhů a průběh pak ukáže `status`. `cancel` zastaví běžící brány workspace nebo jmenované a bez běžící brány skončí úspěšně (TASK-120).
 - **Ukončení Orky:** běžící brána se zastaví i s procesy, které spustila, a po startu je „zastavena, protože se Orca ukončila“. Po pádu je „nelze ověřit“ (TASK-119).
-- **Zbývá:** stav bran u workspace a panel výsledků (TASK-86), spuštění po kroku agenta, smyčka s limitem opakování a vrácení nálezů agentovi (TASK-87), ostatní kontroly (diagnostika language serveru, pravidla vrstev) a běh brány jako důkaz nálezu (TASK-88). Zápis stavu bran do pull requestu rozhodnutý není. Brány repozitáře u jiného hostitele jdou nastavit jen v Orce na něm.
+- **Panel Checks (TASK-86):** oddíl Local gates nad částí pull requestu ukazuje u každé brány výsledek, čas, commit, čerstvost a na vyžádání konec výstupu; jde spustit vše, jednu bránu a běh zastavit. Oddíl nezávisí na pull requestu ani na jeho poskytovateli. Složka bez gitu má záložku Checks, jakmile má její repozitář aspoň jednu bránu; folder workspace skupiny projektů brány nemá, protože k němu nepatří nastavení repozitáře. V menu je Review → Quality Gates.
+- **Obnova stavu (TASK-86):** hostitel hlásí změnu proudem `qualityGates.subscribe` (schopnost `quality-gates.subscribe.v1`): po každé změně běhu a po commitu nebo úpravě souboru, kterou sám hlídá jen po dobu odběru (čtení stavu stromu po 3 s). Proud nenese stav, klient si po signálu přečte `qualityGates.status`. Starší hostitel proud nemá a panel se ho ptá po 5 s.
+- **Zastavený běh (TASK-86):** nemá čerstvost, protože nic neověřil. Důvod zastavení nese nepovinné pole `stopReason` (`requested`, `app-quit`); text v `error` zůstává pro starší klienty.
+- **Zbývá:** stav bran na kartě workspace v sidebaru (TASK-121), spuštění po kroku agenta, smyčka s limitem opakování a vrácení nálezů agentovi (TASK-87), ostatní kontroly (diagnostika language serveru, pravidla vrstev) a běh brány jako důkaz nálezu (TASK-88). Zápis stavu bran do pull requestu rozhodnutý není. Brány repozitáře u jiného hostitele jdou nastavit jen v Orce na něm.
 
 Model brány a běhu, úložiště a vlastníka běhu popisuje [decision-11](../../backlog/decisions/decision-11%20-%20Br%C3%A1ny-kvality-definice-v-nastaven%C3%AD-repozit%C3%A1%C5%99e-v-Orce-b%C4%9Bh-a-jeho-z%C3%A1znam-na-hostiteli-kter%C3%BD-worktree-vlastn%C3%AD.md).
 

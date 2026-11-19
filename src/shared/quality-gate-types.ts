@@ -97,6 +97,11 @@ export function normalizeQualityGateDefinitions(
   return gates
 }
 
+/** Whether a repository row carries at least one usable gate. */
+export function hasQualityGateDefinitions(value: unknown): boolean {
+  return (normalizeQualityGateDefinitions(value)?.length ?? 0) > 0
+}
+
 /**
  * `queued` and `running` are live on the host that owns the run. The rest are final, except
  * `unverifiable`: nobody who can still be asked knows whether the command is running.
@@ -119,6 +124,14 @@ export function qualityGateRunLiveness(status: QualityGateRunStatus): QualityGat
   }
   return status === 'unverifiable' ? 'unverifiable' : 'exited'
 }
+
+/** Whether the command ran to a verdict. A stopped or never started run says nothing about the code. */
+export function qualityGateRunHasResult(status: QualityGateRunStatus): boolean {
+  return status === 'passed' || status === 'failed' || status === 'timed-out'
+}
+
+/** Why a `cancelled` run was stopped. Absent on records written before the field existed. */
+export type QualityGateStopReason = 'requested' | 'app-quit'
 
 /** What the worktree held when the command started. */
 export type QualityGateSourceState = {
@@ -161,6 +174,8 @@ export type QualityGateRun = {
   /** Why the command never started, or why its end was not observed. */
   error: string | null
   outputTruncated: boolean
+  /** Optional so a record from an older host stays valid; readers fall back to `error`. */
+  stopReason?: QualityGateStopReason
 }
 
 export type QualityGateFreshnessReason = 'head-changed' | 'tree-changed' | 'gate-changed'
@@ -214,7 +229,7 @@ export function deriveQualityGateFreshness(
 
 export type QualityGateRunView = QualityGateRun & {
   liveness: QualityGateRunLiveness
-  /** Null while the run is live or unverifiable: there is no result to be stale yet. */
+  /** Null unless the run has a result: a live, stopped or unobserved run has nothing to be stale. */
   freshness: QualityGateFreshness | null
 }
 

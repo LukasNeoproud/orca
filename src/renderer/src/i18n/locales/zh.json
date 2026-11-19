@@ -19897,6 +19897,18 @@
     "output": "输出",
     "outputFailed": "无法从主机读取输出。",
     "outputTruncated": "仅保留输出的末尾。",
-    "outputEmpty": "命令没有输出任何内容。"
+    "outputEmpty": "命令没有输出任何内容。",
+    "stoppedByQuit": "Orca 在质量门运行期间退出，因此已停止。",
+    "panelTitle": "本地质量门",
+    "runAll": "全部运行",
+    "runOne": "运行 {{value0}}",
+    "stopOne": "停止 {{value0}}",
+    "openSettings": "设置质量门",
+    "summaryRunning": "{{value0}} 项运行中",
+    "summaryFailed": "{{value0}} 项失败",
+    "summaryUnknown": "{{value0}} 项未知",
+    "summaryOutdated": "{{value0}} 项已过期",
+    "summaryPassed": "{{value0}} 项通过",
+    "summaryMissing": "{{value0}} 项未运行"
   }
 }

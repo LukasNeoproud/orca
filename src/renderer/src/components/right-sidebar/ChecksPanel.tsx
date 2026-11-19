@@ -38,6 +38,7 @@ import { useChecksPanelCreateReview } from './checks-panel/use-checks-panel-crea
 import { ChecksPanelEmptyContent } from './checks-panel/empty-content'
 import { ChecksPanelActiveContent } from './checks-panel/active-content'
 import { HostedReviewUnlinkMenuItem } from '@/components/HostedReviewUnlinkMenuItem'
+import { WorkspaceQualityGatesSection } from '../quality-gates/WorkspaceQualityGatesSection'
 
 type ChecksPanelReviewHeaderProps = {
   review: ChecksPanelReview
@@ -183,9 +184,26 @@ export default function ChecksPanel(): React.JSX.Element {
   )
   const model = Object.assign(branchActionsModel, useChecksPanelCreateReview(branchActionsModel))
 
+  // Why above both branches: local gates do not depend on a hosted review being found.
+  const localGates = (
+    <WorkspaceQualityGatesSection
+      worktreeId={model.activeWorktreeId}
+      visible={model.isPanelVisible}
+    />
+  )
   if (!model.activeWorktree || model.isFolder || !model.activeReview) {
-    return <ChecksPanelEmptyContent model={model} />
+    return (
+      <>
+        {localGates}
+        <ChecksPanelEmptyContent model={model} />
+      </>
+    )
   }
 
-  return <ChecksPanelActiveContent model={model} ReviewHeaderComponent={ChecksPanelReviewHeader} />
+  return (
+    <>
+      {localGates}
+      <ChecksPanelActiveContent model={model} ReviewHeaderComponent={ChecksPanelReviewHeader} />
+    </>
+  )
 }

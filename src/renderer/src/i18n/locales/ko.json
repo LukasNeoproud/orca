@@ -19883,6 +19883,18 @@
     "output": "출력",
     "outputFailed": "호스트에서 출력을 읽지 못했습니다.",
     "outputTruncated": "출력의 끝부분만 보관됩니다.",
-    "outputEmpty": "명령이 아무것도 출력하지 않았습니다."
+    "outputEmpty": "명령이 아무것도 출력하지 않았습니다.",
+    "stoppedByQuit": "게이트 실행 중 Orca가 종료되어 중지되었습니다.",
+    "panelTitle": "로컬 게이트",
+    "runAll": "모두 실행",
+    "runOne": "{{value0}} 실행",
+    "stopOne": "{{value0}} 중지",
+    "openSettings": "게이트 설정",
+    "summaryRunning": "실행 중 {{value0}}",
+    "summaryFailed": "실패 {{value0}}",
+    "summaryUnknown": "알 수 없음 {{value0}}",
+    "summaryOutdated": "오래된 결과 {{value0}}",
+    "summaryPassed": "통과 {{value0}}",
+    "summaryMissing": "미실행 {{value0}}"
   }
 }

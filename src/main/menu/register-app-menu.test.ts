@@ -638,7 +638,7 @@ describe('registerAppMenu', () => {
       vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
     })
 
-    it('puts Review between View and Window with Pull requests and Git graph', () => {
+    it('puts Review between View and Window with Pull requests, Quality Gates and Git graph', () => {
       registerAppMenu(buildMenuOptions())
 
       const labels = getTemplate().map((item) => item.label)
@@ -649,6 +649,7 @@ describe('registerAppMenu', () => {
       ])
       expect(getSubmenu(getTemplate(), 'Review').map((item) => item.label)).toEqual([
         'Pull requests',
+        'Quality Gates',
         'Git graph'
       ])
     })

@@ -1,6 +1,7 @@
 import { errorMessage } from '../../shared/error-message'
 import {
   deriveQualityGateFreshness,
+  qualityGateRunHasResult,
   qualityGateRunLiveness,
   type QualityGateCancelResult,
   type QualityGateDefinition,
@@ -26,6 +27,8 @@ export type QualityGateServiceDeps = {
   runnerDirectory: string
   now: () => number
   newRunId: () => string
+  /** Told after every change of a run, so a subscriber does not have to ask on an interval. */
+  onRunChanged?: (worktreeId: string) => void
 }
 
 type LiveRun = {
@@ -63,8 +66,9 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       status,
       error: orphaned ? OWNER_GONE : run.error,
       liveness,
+      // A stopped or never started run checked nothing, so it is neither current nor stale.
       freshness:
-        liveness === 'exited' && current
+        qualityGateRunHasResult(status) && current
           ? deriveQualityGateFreshness(run, current, definition)
           : null
     }
@@ -77,6 +81,7 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       // The run itself is not undone by a full disk; the live map still answers for it.
       console.error('[quality-gates] could not persist a run:', errorMessage(error))
     }
+    deps.onRunChanged?.(run.worktreeId)
   }
 
   async function execute(entry: LiveRun, target: QualityGateTarget): Promise<void> {
@@ -101,8 +106,9 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
         runnerDirectory: deps.runnerDirectory
       })
       Object.assign(entry.run, result)
-      if (entry.stoppedByQuit && result.status === 'cancelled') {
-        entry.run.error = QUALITY_GATE_STOPPED_BY_QUIT
+      if (result.status === 'cancelled') {
+        entry.run.stopReason = entry.stoppedByQuit ? 'app-quit' : 'requested'
+        entry.run.error = entry.stoppedByQuit ? QUALITY_GATE_STOPPED_BY_QUIT : entry.run.error
       }
     } catch (error) {
       entry.run.status = 'not-started'
@@ -181,6 +187,7 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       if (entry.run.status === 'queued') {
         entry.run.status = 'cancelled'
         entry.run.error = entry.stoppedByQuit ? QUALITY_GATE_STOPPED_BY_QUIT : null
+        entry.run.stopReason = entry.stoppedByQuit ? 'app-quit' : 'requested'
         entry.run.finishedAt = deps.now()
         live.delete(entry.run.id)
         save(entry.run)

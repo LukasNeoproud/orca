@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import {
   QUALITY_GATE_LIMITS,
   type QualityGateFreshness,
+  type QualityGateRun,
   type QualityGateRunStatus
 } from '../../../../shared/quality-gate-types'
 import type { QualityGateDraftErrors } from './quality-gate-settings-draft'
@@ -25,6 +26,19 @@ export function qualityGateStatusLabel(status: QualityGateRunStatus): string {
     case 'unverifiable':
       return translate('qualityGates.statusUnverifiable', 'Outcome unknown')
   }
+}
+
+/** The line under a run: why it was stopped or never started. A host from before `stopReason` only has `error`. */
+export function qualityGateRunNote(
+  run: Pick<QualityGateRun, 'error' | 'stopReason'>
+): string | null {
+  if (run.stopReason === 'app-quit') {
+    return translate(
+      'qualityGates.stoppedByQuit',
+      'Stopped because Orca quit while the gate was running.'
+    )
+  }
+  return run.error
 }
 
 function staleReasonLabel(reason: string): string {

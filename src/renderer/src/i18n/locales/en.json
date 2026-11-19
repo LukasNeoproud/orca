@@ -20900,6 +20900,18 @@
     "output": "Output",
     "outputFailed": "The output could not be read from the host.",
     "outputTruncated": "Only the end of the output is kept.",
-    "outputEmpty": "The command printed nothing."
+    "outputEmpty": "The command printed nothing.",
+    "stoppedByQuit": "Stopped because Orca quit while the gate was running.",
+    "panelTitle": "Local gates",
+    "runAll": "Run all",
+    "runOne": "Run {{value0}}",
+    "stopOne": "Stop {{value0}}",
+    "openSettings": "Set up gates",
+    "summaryRunning": "{{value0}} running",
+    "summaryFailed": "{{value0}} failed",
+    "summaryUnknown": "{{value0}} unknown",
+    "summaryOutdated": "{{value0}} out of date",
+    "summaryPassed": "{{value0}} passed",
+    "summaryMissing": "{{value0}} not run"
   }
 }
