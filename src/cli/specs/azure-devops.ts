@@ -9,9 +9,9 @@ const LOCATION_FLAGS = ['file', 'line', 'end-line', 'side']
 const FINDING_FLAGS = ['severity', 'evidence', 'evidence-file']
 
 const FINDING_NOTES = [
-  '--severity says how serious the finding is: error, warning, suggestion or nit.',
+  '--severity says how serious the finding is: error, warning, suggestion or nit. A reply without it answers its thread and is not a finding.',
   '--evidence takes JSON, --evidence-file a file with it: a list of {"kind":"code-citation","filePath","startLine","endLine","quote","note"} quoting code as it is at the commit of the draft.',
-  'Orca compares every citation with the file: the reviewer sees a draft without evidence as uncertain and one whose quote is not in the file as contradicted. `--json` shows the outcome in `.result.draft.evidenceChecks` and `.result.draft.certainty`.'
+  'Orca compares every citation with the file: the reviewer sees a finding without evidence as uncertain and any draft whose quote is not in the file as contradicted. `--json` shows the outcome in `.result.draft.evidenceChecks` and `.result.draft.certainty`.'
 ]
 
 const JSON_ENVELOPE_NOTE = '`--json` wraps the answer as `{ "ok": true, "result": … }`.'

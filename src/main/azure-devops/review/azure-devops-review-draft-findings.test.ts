@@ -168,6 +168,22 @@ describe('describeAzureDevOpsReviewDraftFindings', () => {
     expect(described).not.toHaveProperty('certainty')
   })
 
+  it('gives an answer of an agent in a thread no certainty unless its citation is refuted', async () => {
+    const reply = { kind: 'reply', filePath: null, anchor: null, threadId: 7 } as const
+    const unproven = await describeOne(draft(reply))
+    expect(unproven).not.toHaveProperty('certainty')
+    const confirmed = await describeOne(draft({ ...reply, evidence: [cite('sum += item')] }))
+    expect(confirmed.evidenceChecks).toEqual([{ status: 'confirmed' }])
+    expect(confirmed).not.toHaveProperty('certainty')
+    const refuted = await describeOne(draft({ ...reply, evidence: [cite('sum -= item')] }))
+    expect(refuted.evidenceChecks?.[0]?.status).toBe('refuted')
+    expect(refuted.certainty).toBe('contradicted')
+    expect(await describeOne(draft({ ...reply, severity: 'warning' }))).toHaveProperty(
+      'certainty',
+      'uncertain'
+    )
+  })
+
   it('leaves a published draft as it is', async () => {
     const readFile = reader(cartAtLatest)
     const published = draft({ state: 'published', evidence: [cite('sum += item')] })

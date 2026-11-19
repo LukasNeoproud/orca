@@ -39,13 +39,13 @@ const FINDING_PROPERTIES = {
     type: 'string',
     enum: [...REVIEW_FINDING_SEVERITIES],
     description:
-      'How serious the finding is: error = wrong or unsafe, warning = probably a problem, suggestion = a better way, nit = style or wording'
+      'How serious the finding is: error = wrong or unsafe, warning = probably a problem, suggestion = a better way, nit = style or wording. Leave it out on a reply that only answers its thread: a reply with a severity is a finding.'
   },
   evidence: {
     type: 'array',
     maxItems: REVIEW_FINDING_LIMITS.evidenceItems,
     description:
-      'Proof of the finding. Orca compares every citation with the file at the commit of the draft: the reviewer sees a finding without evidence as uncertain and one whose quote is not in the file as contradicted.',
+      'Proof of the finding. Orca compares every citation with the file at the commit of the draft: the reviewer sees a finding without evidence as uncertain and any draft whose quote is not in the file as contradicted.',
     items: {
       type: 'object',
       properties: {

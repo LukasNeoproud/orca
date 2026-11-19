@@ -6,11 +6,11 @@ import type {
 import { mapWithConcurrency } from '../../../shared/map-with-concurrency'
 import { checkReviewCodeCitation } from '../../../shared/review-code-citation-match'
 import {
-  deriveReviewFindingCertainty,
   isReviewCodeCitation,
   type ReviewEvidenceCheck,
   type ReviewFindingEvidence
 } from '../../../shared/review-finding'
+import { azureDevOpsReviewDraftCertainty } from './azure-devops-review-draft-certainty'
 import type {
   AzureDevOpsReviewFileAtCommit,
   AzureDevOpsReviewFileReader
@@ -132,13 +132,11 @@ export async function describeAzureDevOpsReviewDraftFindings(args: {
     const path = excerptPath(draft)
     const codeExcerpt =
       path && commit ? excerptOf(draft, files.get(versionKey(path, commit))) : null
+    const certainty = azureDevOpsReviewDraftCertainty(draft, evidenceChecks)
     return {
       ...draft,
       ...(evidence.length > 0 ? { evidenceChecks } : {}),
-      // Why agents only: what a person writes is their own judgement, not a claim to check.
-      ...(draft.author.kind === 'agent'
-        ? { certainty: deriveReviewFindingCertainty(evidence, evidenceChecks) }
-        : {}),
+      ...(certainty ? { certainty } : {}),
       ...(codeExcerpt ? { codeExcerpt } : {})
     }
   })

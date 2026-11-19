@@ -33,7 +33,7 @@ export type AzureDevOpsReviewDraftCodeExcerpt = {
 export type AzureDevOpsReviewDraftFindingView = {
   /** The host's check of `evidence[i]`; absent on published drafts and from older hosts. */
   evidenceChecks?: ReviewEvidenceCheck[]
-  /** Unpublished agent drafts only: how far the host could back the finding. */
+  /** Unpublished agent findings, and agent replies with refuted evidence: how far the host could back it. */
   certainty?: ReviewFindingCertainty
   codeExcerpt?: AzureDevOpsReviewDraftCodeExcerpt
 }

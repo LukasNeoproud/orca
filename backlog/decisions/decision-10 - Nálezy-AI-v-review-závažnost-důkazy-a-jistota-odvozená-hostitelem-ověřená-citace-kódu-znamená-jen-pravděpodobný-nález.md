@@ -49,6 +49,11 @@ Jistotu počítá čistá funkce `deriveReviewFindingCertainty`. Pravidla se vyh
 - **`verified` je vyhrazené** pro důkaz, který Orca sama vyrobila nebo strojově potvrdila spuštěním. Takový druh v tomto sestavení není, takže `verified` nevznikne. Citát, který v souboru je, dokazuje jen to, že kód existuje, ne že je nález správný.
 - **Jeden vyvrácený důkaz přebije všechny ostatní.** Agent, který si citát vymyslel, si nezaslouží důvěru ani u zbytku nálezu.
 - **Jistotu má jen nepublikovaný draft agenta.** Ručně psaný draft ji nemá, ani když mu uživatel nastaví závažnost.
+- **Jistotu má jen nález, ne odpověď ve vlákně (TASK-118).** Draft agenta je nález, když není odpovědí (`kind` není `reply`), nebo když odpověď nese závažnost. Odpověď bez závažnosti odpovídá na vlákno: jistotu nemá a pole `certainty` hostitel vynechá, s jedinou výjimkou: když některý její důkaz vyvrátí, dostane `contradicted`. Vymyšlený citát je chyba agenta, ne chybějící důkaz, a má být vidět i u odpovědi. Kontroly důkazů (`evidenceChecks`) hostitel počítá u všech draftů jako dřív.
+  - **Proč druh draftu nestačí:** prompt AI review dovoluje nálezy i jako odpovědi do existujících vláken a u každého nálezu žádá závažnost. Prompt odpovědí na komentáře (vlastní pull request) závažnost nezmiňuje a popis závažnosti v nástrojích agenta říká, že odpověď, která jen odpovídá na vlákno, ji nemá. Druh draftu se po vytvoření nemění a odpověď má vždy `threadId`.
+  - **Kde:** pravidlo je jedna čistá funkce hostitele (`azureDevOpsReviewDraftCertainty` v `src/main/azure-devops/review/azure-devops-review-draft-certainty.ts`), kterou volá popis draftů pro detail, seznam, vytvoření i úpravu. Desktop, CLI i MCP čtou výsledek ze stejné odpovědi. Pravidla v `deriveReviewFindingCertainty` se nemění.
+  - **Mez:** odpověď z AI review, u které agent závažnost vynechá, se ukáže jako odpověď bez značky. Odpověď, které uživatel nastaví závažnost, se stane nálezem a jistotu dostane.
+  - **Starší peer:** nová hodnota nevzniká, jen chybí u odpovědí. Starší klient a mobil odpověď bez `certainty` ukážou bez značky; novější klient nad starším hostitelem ukáže `uncertain` jako dřív.
 - **Test** prochází všechny seznamy do tří důkazů (dva druhy, dvanáct stavů kontroly) a ověřuje pravidlo i to, že `verified` z výchozí tabulky nevznikne.
 
 ### Ověření citace kódu
@@ -95,5 +100,5 @@ Draft review nese nepovinnou závažnost a seznam důkazů. Jistotu nálezu odvo
 - **`verified` se zatím neobjeví.** Přinesou ho až druhy důkazu, které Orca sama vyrobí (test, emulátor, language server).
 - **Starší sestavení důkazy nezachová.** Kdo střídá starou a novou Orcu nad stejnými drafty, přijde po úpravě draftu ve staré o závažnost a důkazy, ne o draft.
 - **Každý draft s citací stojí čtení souboru.** Platí se jednou na verzi souboru; při stovkách draftů nad různými soubory se část ověří až při dalším načtení.
-- **Jistotu mají všechny drafty agenta, i odpovědi ve vláknech.** Agent, který odpovídá na komentáře k vlastnímu pull requestu, důkazy zatím nepřikládá, a jeho odpovědi jsou proto nejisté.
+- **Odpovědi ve vláknech jistotu nemají** (TASK-118), pokud nenesou závažnost; vyvrácená citace se u nich ukáže jako rozporná.
 - **Mobilní aplikace** nová pole přenáší, ale nezobrazuje.

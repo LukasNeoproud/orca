@@ -105,6 +105,37 @@ const cite = (quote: string) => ({
   note: NOTE
 })
 
+function servePullRequest(
+  electronApp: ElectronApplication,
+  threads: Record<string, unknown>[] = []
+): Promise<void> {
+  return serveFakeAzureDevOpsPullRequest(electronApp, {
+    repositoryId: REPOSITORY_ID,
+    pullRequestId: PULL_REQUEST_ID,
+    baseCommit: BASE_COMMIT,
+    sourceCommit: SOURCE_COMMIT,
+    title: 'Sum the cart in one pass',
+    changes: [{ changeTrackingId: 1, changeType: 'edit', item: { path: `/${FILE_PATH}` } }],
+    files: {
+      [`${BASE_COMMIT}:/${FILE_PATH}`]: `${BASE_LINES.join('\n')}\n`,
+      [`${SOURCE_COMMIT}:/${FILE_PATH}`]: `${SOURCE_LINES.join('\n')}\n`
+    },
+    threads
+  })
+}
+
+/** Saves a screenshot once animations end, under ORCA_E2E_SCREENSHOT_DIR or a temp folder. */
+function screenshots(page: Page, task: string): (name: string) => Promise<void> {
+  const dir = process.env.ORCA_E2E_SCREENSHOT_DIR ?? path.join(os.tmpdir(), 'orca-review-ide', task)
+  mkdirSync(dir, { recursive: true })
+  return async (name) => {
+    await page.evaluate(() =>
+      Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => null)))
+    )
+    await page.screenshot({ path: path.join(dir, name) })
+  }
+}
+
 async function openPullRequest(electronApp: ElectronApplication, page: Page): Promise<void> {
   // The way a clicked review-request notification opens the page.
   await electronApp.evaluate(({ BrowserWindow }, key) => {
@@ -121,27 +152,8 @@ test('agent drafts show severity, certainty and checked evidence', async ({
 }) => {
   test.setTimeout(180_000)
   await waitForSessionReady(orcaPage)
-  await serveFakeAzureDevOpsPullRequest(electronApp, {
-    repositoryId: REPOSITORY_ID,
-    pullRequestId: PULL_REQUEST_ID,
-    baseCommit: BASE_COMMIT,
-    sourceCommit: SOURCE_COMMIT,
-    title: 'Sum the cart in one pass',
-    changes: [{ changeTrackingId: 1, changeType: 'edit', item: { path: `/${FILE_PATH}` } }],
-    files: {
-      [`${BASE_COMMIT}:/${FILE_PATH}`]: `${BASE_LINES.join('\n')}\n`,
-      [`${SOURCE_COMMIT}:/${FILE_PATH}`]: `${SOURCE_LINES.join('\n')}\n`
-    }
-  })
-  const screenshotDir =
-    process.env.ORCA_E2E_SCREENSHOT_DIR ?? path.join(os.tmpdir(), 'orca-review-ide', 'task-84')
-  mkdirSync(screenshotDir, { recursive: true })
-  const shot = async (name: string): Promise<void> => {
-    await orcaPage.evaluate(() =>
-      Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => null)))
-    )
-    await orcaPage.screenshot({ path: path.join(screenshotDir, name) })
-  }
+  await servePullRequest(electronApp)
+  const shot = screenshots(orcaPage, 'task-84')
   await openPullRequest(electronApp, orcaPage)
 
   // The host answers every new draft with what it made of the evidence.
@@ -300,4 +312,133 @@ test('agent drafts show severity, certainty and checked evidence', async ({
   expect(JSON.stringify(posted[0].body)).not.toMatch(
     /severity|warning|evidence|code-citation|prices\.reduce|Adds every price/
   )
+})
+
+const ANSWER = 'Kept reduce: it sums in one pass.'
+const ANSWER_CITED = 'The refund path already skips this total.'
+const ANSWER_WRONG = 'Fixed: the total now starts from the first price.'
+const FINDING_REPLY = 'This still adds refunds as prices.'
+
+function reviewerThread(id: number, content: string, line: number | null) {
+  return {
+    id,
+    status: 'active',
+    ...(line === null
+      ? {}
+      : {
+          threadContext: {
+            filePath: `/${FILE_PATH}`,
+            rightFileStart: { line, offset: 1 },
+            rightFileEnd: { line, offset: 40 }
+          },
+          pullRequestThreadContext: {
+            changeTrackingId: 1,
+            iterationContext: { firstComparingIteration: 1, secondComparingIteration: 1 }
+          }
+        }),
+    comments: [
+      {
+        id: 1,
+        parentCommentId: 0,
+        content,
+        commentType: 'text',
+        publishedDate: '2026-11-17T10:00:00Z',
+        author: { id: 'ada-guid', displayName: 'Ada Example' }
+      }
+    ]
+  }
+}
+
+test('an agent answer in a thread shows no certainty unless its citation is refuted', async ({
+  electronApp,
+  orcaPage
+}) => {
+  test.setTimeout(180_000)
+  await waitForSessionReady(orcaPage)
+  await servePullRequest(electronApp, [
+    reviewerThread(7, 'Why reduce and not a loop?', CITED_LINE),
+    reviewerThread(8, 'Do refunds reach this total?', null)
+  ])
+  const shot = screenshots(orcaPage, 'task-118')
+  await openPullRequest(electronApp, orcaPage)
+
+  const reply = (threadId: number, body: string, extra: Record<string, unknown> = {}) =>
+    callReview(orcaPage, 'createDraft', {
+      pullRequestKey: PULL_REQUEST_KEY,
+      kind: 'reply',
+      threadId,
+      body,
+      author: agent,
+      ...extra
+    }).then(draftOf)
+
+  // An answer is not a finding: no certainty, but its evidence is still checked.
+  const answer = await reply(7, ANSWER, { threadStatus: 'byDesign' })
+  expect(answer.certainty).toBeUndefined()
+  const answerCited = await reply(8, ANSWER_CITED, { evidence: [cite(CITED_CODE)] })
+  expect(answerCited.certainty).toBeUndefined()
+  expect(answerCited.evidenceChecks).toEqual([{ status: 'confirmed' }])
+  // A made-up quote is the agent's error and shows on an answer too.
+  const answerWrong = await reply(7, ANSWER_WRONG, {
+    threadStatus: 'fixed',
+    evidence: [cite('export const total = prices[0]')]
+  })
+  expect(answerWrong).toMatchObject({
+    certainty: 'contradicted',
+    evidenceChecks: [{ status: 'refuted', reason: 'text-mismatch' }]
+  })
+  // A reply with a severity is a finding of an AI review and keeps its certainty.
+  const findingReply = await reply(7, FINDING_REPLY, { severity: 'warning' })
+  expect(findingReply.certainty).toBe('uncertain')
+
+  // Agent tools and the CLI read the same answer.
+  const listed = await callReview(orcaPage, 'drafts', { pullRequestKey: PULL_REQUEST_KEY })
+  const result = listed.result
+  const drafts: unknown[] =
+    result && typeof result === 'object' && 'drafts' in result && Array.isArray(result.drafts)
+      ? result.drafts
+      : []
+  const certaintyOf = (id: string): unknown =>
+    drafts
+      .filter((item) => item && typeof item === 'object' && 'id' in item && item.id === id)
+      .map((item) =>
+        item && typeof item === 'object' && 'certainty' in item ? item.certainty : null
+      )
+  expect(certaintyOf(answer.id)).toEqual([null])
+  expect(certaintyOf(answerCited.id)).toEqual([null])
+  expect(certaintyOf(answerWrong.id)).toEqual(['contradicted'])
+  expect(certaintyOf(findingReply.id)).toEqual(['uncertain'])
+
+  await orcaPage.getByRole('button', { name: 'Reload pull request' }).click()
+  await orcaPage.getByRole('tab', { name: 'Drafts (4)' }).click()
+  const card = (body: string): Locator => orcaPage.getByRole('listitem').filter({ hasText: body })
+  const certainty = (body: string): Locator => card(body).locator('[data-certainty]')
+
+  await expect(card(ANSWER)).toBeVisible()
+  await expect(certainty(ANSWER)).toHaveCount(0)
+  await expect(certainty(ANSWER_CITED)).toHaveCount(0)
+  await expect(certainty(ANSWER_WRONG)).toHaveAttribute('data-certainty', 'contradicted')
+  await expect(certainty(FINDING_REPLY)).toHaveAttribute('data-certainty', 'uncertain')
+  // The refuted citation shows its reason without a click.
+  await expect(card(ANSWER_WRONG).getByText('Not in the file')).toBeVisible()
+  await expect(card(ANSWER_WRONG).getByLabel('Code in the file')).toContainText('prices.reduce')
+  await card(ANSWER_CITED).getByRole('button', { name: 'Evidence (1)' }).click()
+  await expect(card(ANSWER_CITED).getByText('In the file')).toBeVisible()
+  await shot('11-answer-cards.png')
+
+  // In the diff the answers sit under the thread's line with the same marks.
+  await card(ANSWER_WRONG).getByRole('button', { name: 'Open in diff' }).click()
+  const editor = orcaPage.locator('.monaco-diff-editor .editor.modified')
+  await expect(editor.locator('.view-line').filter({ hasText: 'prices.reduce' })).toBeVisible({
+    timeout: 20_000
+  })
+  const meta = (body: string): Locator =>
+    orcaPage
+      .locator('.orca-diff-comment-card')
+      .filter({ hasText: body })
+      .locator('.orca-diff-comment-meta-group')
+  await expect(meta(ANSWER)).toHaveText(/reply to #7$/)
+  await expect(meta(ANSWER_WRONG)).toHaveText(/reply to #7 · Contradicted$/)
+  await expect(meta(FINDING_REPLY)).toHaveText(/reply to #7 · Warning · Uncertain$/)
+  await shot('12-answers-in-diff.png')
 })

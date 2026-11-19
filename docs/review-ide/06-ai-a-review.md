@@ -114,6 +114,7 @@ Každý draft nálezu od AI nese ověření, aby bylo méně falešných nález�
 - **Hotovo:** draft nese závažnost (chyba, upozornění, návrh, drobnost) a seznam důkazů. První druh důkazu je citace kódu: soubor, řádky a citovaný text na commitu draftu. Hostitel citaci porovná se souborem a z výsledku odvodí jistotu nálezu.
 - **Jistota:** bez důkazu nejisté, s citací, která v souboru je, pravděpodobné, s citací, která tam není, rozporné s důvodem. „Ověřeno“ zatím nevznikne; je vyhrazené pro důkazy, které Orca sama spustí.
 - **Kde je to vidět:** karta draftu (závažnost, jistota, úryvek komentovaného kódu, rozbalovací důkazy s otevřením v diffu) a komentář draftu v diffu. Závažnost může uživatel změnit; ručně psaný draft jistotu nemá.
+- **Odpovědi ve vláknech (TASK-118):** jistotu má jen nález. Odpověď agenta do vlákna bez závažnosti (například odpověď na komentáře k vlastnímu pull requestu) značku „nejisté“ ani „pravděpodobné“ nenese; když ale přiloží citaci, která v souboru není, je označená jako rozporná. Odpověď se závažností je nález, jak ho píše AI review.
 - **Agent:** závažnost a důkazy ukládá přes `ado_create_draft` a `ado_update_draft` (MCP i rozšíření pro Pi) a přes `orca ado draft create` a `update`. Prompt AI review je žádá u každého nálezu a říká, co se stane bez nich.
 - **Publikace:** do Azure DevOps odchází jen text draftu.
 - **Zbývá:** ostatní druhy důkazu (reference a typy z language serveru, výsledek testu, reprodukce v emulátoru, kontrakt jiné platformy), zobrazení na mobilu a rozhodnutí, jestli publikovaný komentář ponese závažnost a důkaz.
