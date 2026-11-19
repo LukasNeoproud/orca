@@ -4,12 +4,11 @@ title: 'Brány forku: zbylé nálezy pnpm lint ve starším kódu forku mimo Rev
 status: To Do
 assignee: []
 created_date: '2026-11-18T22:36:00Z'
-updated_date: '2026-11-19T11:41:00Z'
+updated_date: '2026-11-19T15:37:00Z'
 labels:
   - review-ide
   - effort-high
   - model-opus
-  - ceka-na-uzivatele
 milestone: m-1
 dependencies: []
 priority: low
@@ -63,4 +62,6 @@ Z TASK-83 a TASK-77 (2026-11-19): při širším běhu vitestu padají testy mim
 Z TASK-85 (2026-11-19): host-operation-ownership.test.ts neklasifikuje androidAppRun.*; check:focus-read-ratchet a check:layout-writer-ratchets hlásí pět souborů mimo Review IDE (například TerminalPaneBranchMenu.tsx, use-android-build-directory.ts); profile-state-crash-recovery.test.ts končí časovým limitem v projektu node-runtime (na čistém stromu neověřeno).
 
 Odpověď uživatele 2026-11-19 (decision-12): opravit, ale až po akceptaci M1. Uživatel zároveň chce akceptaci M1 až po dokončení TASK-80, 109 a 112; rozpor je otázka na uživatele.
+
+Odpověď uživatele 2026-11-19 (decision-12, doplnění): opravit před akceptací M1.
 <!-- SECTION:NOTES:END -->

@@ -4,7 +4,7 @@ title: 'Publikace review: hlas spolu s vybranými drafty'
 status: Done
 assignee: []
 created_date: '2026-11-18T15:16:00Z'
-updated_date: '2026-11-19T02:56:00Z'
+updated_date: '2026-11-19T15:37:00Z'
 labels:
   - review-ide
   - effort-high
@@ -73,6 +73,8 @@ Stav 1/3 (hostitel a protokol hotové, testy procházejí): src/shared/azure-dev
 Dokončeno workerem 2026-11-19, čeká na ověření koordinátorem. Hotovo vše z plánu: hostitel a protokol, dialog publikace (AzureDevOpsReviewPublishDialog + AzureDevOpsReviewPublishReport), nabídka hlasu jen při schopnosti hostitele a na cizím otevřeném PR (use-azure-devops-review-vote-offered), hlas v hlavičce stránky, obnova seznamu po odeslaném hlasu, podvržený server (přijímá nová vlákna a hlas, zaznamenává požadavky, volitelně odpovídá na seznam PR), e2e tests/e2e/pull-request-publish-vote.spec.ts, lokalizace 33 klíčů v 6 jazycích, docs/review-ide/05-funkce.md. Ověření: pnpm tc, oxlint, check:code-quality:changed, mobile typecheck a lint, 62 souborů testů kolem Azure DevOps (385 testů), e2e 5 specifikací ve skrytém okně (nová + 4 dosavadní pull-request-*). Snímky a logy: ~/.cache/orca-review-ide/task-83. Vědomá rozhodnutí: hostitel přijme hlas jen od volajícího desktop nebo paired-device a odmítne ho z lokálního socketu (CLI, MCP, Pi); hlas na vlastním nebo zavřeném PR zastaví celou publikaci dřív, než odejde komentář; zrušení hlasu (bez hlasu) Orca neumí; hlas se nikde neukládá. Body k ověření proti skutečné organizaci jsou v poznámkách TASK-68.
 
 Otázky pro uživatele (2026-11-19): 1) smí hlas odeslat i spárované zařízení (webový klient, vzdálený desktop, později mobil)? Současný stav ano; hostitel odmítá hlas jen z místního socketu, kterým mluví CLI, MCP a agentní rozšíření. Přísnější varianta je jen okno aplikace. 2) má Orca umět hlas zrušit? Teď ne (doporučeno nechat). Navržené navazující práce bez tiketu: výběr hlasu v mobilním potvrzení publikace (hostitel i schopnost jsou připravené); množné číslo v textech publikace.
+
+Odpověď uživatele 2026-11-19 (decision-12, doplnění): hlas z okna Orky i ze spárovaného zařízení, vždy po ručním potvrzení uživatelem, agent nikdy. Odpovídá současnému stavu.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

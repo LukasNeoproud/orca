@@ -67,3 +67,9 @@ Lokalizace M6:
 - decision-1 se mění na variantu B; decision-2, 3, 4, 7, 8 jsou přijaté a decision-9 je přijatý s doplňkem o volitelném Gradlu a MSBuildu. decision-6 platí pro tarif Plus a jeho limity podle dokumentace.
 - Nové tikety: závažnost na začátku publikovaného komentáře, oprava dokumentace záložek stránky pull requestu, pokus s oznámením na telefon bez push serveru upstreamu, pokus s tree-sitter před M4.
 - Rozpis M3 a M4 a plánování ostatních milníků dál čeká na pořadí milníků po M2.
+
+## Doplnění 2026-11-19 odpoledne
+
+- Krok u vlákna na vlastním pull requestu (TASK-101): opravu kódu smí agent připravit, commitnout a odeslat automaticky. Odpověď revieweru je vždy draft, který uživatel upraví a schválí ručně; bez jeho potvrzení neodejde a vlákno se nevyřeší.
+- Hlas u pull requestu (TASK-83) smí odejít z okna Orky i ze spárovaného zařízení, vždy jen po ručním potvrzení uživatelem; agent hlasovat nesmí. To odpovídá současnému stavu.
+- Oprava starších nálezů lintu forku (TASK-112) proběhne před akceptací M1; akceptace M1 čeká na TASK-80, TASK-112 a TASK-133.
