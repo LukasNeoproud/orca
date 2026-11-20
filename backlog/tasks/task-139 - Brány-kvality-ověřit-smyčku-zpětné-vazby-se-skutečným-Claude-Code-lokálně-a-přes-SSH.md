@@ -6,10 +6,10 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-19T22:05:00Z'
+updated_date: '2026-11-20T12:41:00Z'
 labels:
   - review-ide
   - effort-high
-  - ceka-na-uzivatele
 milestone: m-2
 dependencies:
   - TASK-87
@@ -49,3 +49,9 @@ Povolení ke krátkým zkušebním spuštěním skutečného Claude Code se zapn
 - [ ] #4 Rozepsaný vstup uživatele v terminálu zprávu zadrží; chování po hookovém done na skutečném terminálu odpovídá pravidlu tui-idle
 - [ ] #5 Codex je posouzený jen podle dokumentace a je to zapsané
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-20: uživatel povolil krátká zkušební spuštění skutečného Claude Code pro tento tiket. SSH hostitel pro zkoušku: kontejner v Dockeru na tomto počítači (Docker 28.5.1 běží), vytvoří ho worker; soubory kontejneru mimo repozitář v ~/.cache/orca-review-ide/task-139.
+<!-- SECTION:NOTES:END -->
