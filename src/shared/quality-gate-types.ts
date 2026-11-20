@@ -27,7 +27,7 @@ export type QualityGateDefinition = {
   timeoutSeconds: number
 }
 
-const GATE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
+export const QUALITY_GATE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
 function normalizeTimeoutSeconds(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -54,7 +54,7 @@ function normalizeQualityGateDefinition(value: unknown): QualityGateDefinition |
   const name = typeof rawName === 'string' ? rawName.trim() : ''
   const command = typeof rawCommand === 'string' ? rawCommand.trim() : ''
   if (
-    !GATE_ID_PATTERN.test(id) ||
+    !QUALITY_GATE_ID_PATTERN.test(id) ||
     !name ||
     name.length > QUALITY_GATE_LIMITS.maxNameLength ||
     !command ||

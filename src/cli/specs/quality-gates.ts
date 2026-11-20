@@ -4,7 +4,7 @@ import { GLOBAL_FLAGS } from '../args'
 const WORKTREE_NOTE =
   'Without --worktree the workspace that contains the current directory is used.'
 const DEFINITION_NOTE =
-  'Gates are set up in the repository settings of the Orca app. No command defines or changes one.'
+  'Gates are set up in the repository settings of the Orca app. No command defines or changes one; orca gates propose only suggests.'
 
 export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
   {
@@ -80,5 +80,23 @@ export const QUALITY_GATE_COMMAND_SPECS: CommandSpec[] = [
       WORKTREE_NOTE
     ],
     examples: ['orca gates loop off', 'orca gates loop off --worktree id:repo::/work --json']
+  },
+  {
+    path: ['gates', 'propose'],
+    summary: 'Propose quality gates for the repository of a workspace, for the user to accept',
+    usage:
+      'orca gates propose (--gates <json> | --file <path>) [--rationale <text>] [--worktree <selector>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'gates', 'file', 'rationale'],
+    notes: [
+      'A proposal changes nothing and runs nothing. The user accepts it, whole or gate by gate, or dismisses it in the repository settings of the Orca app; no command does that.',
+      '--gates is a JSON array of {"name","command"} objects. Optional per gate: "required" (default true), "timeoutSeconds" (default 600), "rationale", and "gateId" to propose a change of an existing gate (its id from orca gates list) instead of a new one.',
+      '--file reads the same array, or {"gates": [...], "rationale": "..."}, from a JSON file.',
+      'A new proposal replaces the one still pending for the repository. At most 20 gates per proposal.',
+      WORKTREE_NOTE
+    ],
+    examples: [
+      `orca gates propose --gates '[{"name":"Lint","command":"pnpm lint","rationale":"The project lints with oxlint"}]'`,
+      'orca gates propose --file gates.json --rationale "Checks found in package.json"'
+    ]
   }
 ]

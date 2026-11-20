@@ -163,6 +163,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  gates run                 Run them and wait, or start them with --no-wait',
   '  gates status              Show the latest run of each gate',
   '  gates cancel              Stop the gates running in a workspace',
+  '  gates propose             Propose gates for the user to accept in the Orca app',
   '',
   'Mobile Emulator (iOS Simulator):',
   '  emulator list             List available/running emulators (Orca-managed + raw serve-sim)',

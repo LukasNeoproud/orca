@@ -184,10 +184,14 @@ describe('gates CLI', () => {
       'gates cancel',
       'gates list',
       'gates loop',
+      'gates propose',
       'gates run',
       'gates status'
     ])
-    const flags = new Set(specs.flatMap((spec) => spec.allowedFlags))
+    // `gates propose` carries gates as a proposal the host only stores; its own test covers it.
+    const flags = new Set(
+      specs.filter((spec) => spec.path[1] !== 'propose').flatMap((spec) => spec.allowedFlags)
+    )
     for (const flag of ['command', 'name', 'required', 'timeout', 'script', 'file']) {
       expect(flags.has(flag)).toBe(false)
     }

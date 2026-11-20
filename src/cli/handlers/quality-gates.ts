@@ -1,4 +1,5 @@
 import type { QualityGateSetFeedbackLoopResult } from '../../shared/quality-gate-feedback-loop'
+import type { QualityGateProposalResult } from '../../shared/quality-gate-proposal'
 import type {
   QualityGateCancelResult,
   QualityGateDefinition,
@@ -17,22 +18,24 @@ import {
   formatQualityGateRunStarted,
   formatQualityGateStatus
 } from '../quality-gate-format'
+import { formatQualityGateProposal } from '../quality-gate-proposal-format'
+import { readQualityGateProposalInput } from '../quality-gate-proposal-input'
 import { waitForQualityGateRuns, type QualityGateRpcCall } from '../quality-gate-run-wait'
 import { RuntimeClientError, type RuntimeRpcSuccess } from '../runtime-client'
 import { getOptionalWorktreeSelector, resolveCurrentWorktreeSelector } from '../selectors'
 
 // Why: a host from before the gate methods answers method_not_found, which reads as an Orca bug
 // rather than as a host that needs updating.
-function gateCaller(client: HandlerContext['client']): QualityGateRpcCall {
+function gateCaller(
+  client: HandlerContext['client'],
+  unsupported = 'This Orca host does not support quality gates yet. Update Orca on the execution host.'
+): QualityGateRpcCall {
   return async (method, params) => {
     try {
       return await client.call(method, params)
     } catch (error) {
       if (error instanceof RuntimeClientError && error.code === 'method_not_found') {
-        throw new RuntimeClientError(
-          'incompatible_runtime',
-          'This Orca host does not support quality gates yet. Update Orca on the execution host.'
-        )
+        throw new RuntimeClientError('incompatible_runtime', unsupported)
       }
       throw error
     }
@@ -140,6 +143,17 @@ export const QUALITY_GATE_HANDLERS: Record<string, CommandHandler> = {
     if (response) {
       printResult({ ...response, result: { cancelled } }, context.json, format)
     }
+  },
+  'gates propose': async (context) => {
+    const call = gateCaller(
+      context.client,
+      'This Orca host does not take proposals of quality gates yet. Update Orca on the execution host.'
+    )
+    const response = await call<QualityGateProposalResult>('qualityGates.propose', {
+      worktree: await worktreeSelector(context),
+      ...readQualityGateProposalInput(context.flags, context.cwd)
+    })
+    printResult(response, context.json, formatQualityGateProposal)
   },
   'gates loop': async (context) => {
     const state = context.flags.get('state')

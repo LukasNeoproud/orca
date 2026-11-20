@@ -3,6 +3,9 @@ import { QUALITY_GATE_LIMITS } from '../quality-gate-types'
 import {
   QualityGateCancelParams,
   QualityGateOutputParams,
+  QualityGateProposalParams,
+  QualityGateProposeParams,
+  QualityGateResolveProposalParams,
   QualityGateRunParams,
   QualityGateSetRepositorySettingsParams,
   QualityGateSubscribeParams,
@@ -23,6 +26,9 @@ describe('quality gate RPC params', () => {
       'qualityGates.cancel',
       'qualityGates.list',
       'qualityGates.output',
+      'qualityGates.proposal',
+      'qualityGates.propose',
+      'qualityGates.resolveProposal',
       'qualityGates.run',
       'qualityGates.setFeedbackLoop',
       'qualityGates.setRepositorySettings',
@@ -120,6 +126,47 @@ describe('quality gate RPC params', () => {
     expect(
       QualityGateSetRepositorySettingsParams.safeParse({ repo: 'id:repo', gates: 'pnpm lint' })
         .success
+    ).toBe(false)
+  })
+
+  it('takes a proposal as bounded gates of a workspace, and an answer by proposal and item ids', () => {
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.propose']).toBe(QualityGateProposeParams)
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.proposal']).toBe(QualityGateProposalParams)
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.resolveProposal']).toBe(
+      QualityGateResolveProposalParams
+    )
+    const gate = { name: ' Lint ', command: ' pnpm lint ' }
+    expect(QualityGateProposeParams.parse({ worktree, gates: [gate] })).toEqual({
+      worktree,
+      gates: [{ name: 'Lint', command: 'pnpm lint' }]
+    })
+    expect(QualityGateProposeParams.safeParse({ gates: [gate] }).success).toBe(false)
+    expect(QualityGateProposeParams.safeParse({ worktree, gates: [] }).success).toBe(false)
+    expect(
+      QualityGateProposeParams.safeParse({
+        worktree,
+        gates: Array.from({ length: QUALITY_GATE_LIMITS.maxGates + 1 }, () => gate)
+      }).success
+    ).toBe(false)
+    expect(
+      QualityGateProposeParams.safeParse({ worktree, gates: [{ ...gate, required: 'yes' }] })
+        .success
+    ).toBe(false)
+    expect(
+      QualityGateProposeParams.safeParse({ worktree, gates: [gate], rationale: 'r'.repeat(1001) })
+        .success
+    ).toBe(false)
+
+    const answer = { repo: 'id:repo', proposalId: 'p1', action: 'accept' }
+    expect(QualityGateResolveProposalParams.parse({ ...answer, itemIds: ['item-1'] })).toEqual({
+      ...answer,
+      itemIds: ['item-1']
+    })
+    expect(QualityGateResolveProposalParams.safeParse({ ...answer, itemIds: [] }).success).toBe(
+      false
+    )
+    expect(
+      QualityGateResolveProposalParams.safeParse({ repo: 'id:repo', action: 'accept' }).success
     ).toBe(false)
   })
 })

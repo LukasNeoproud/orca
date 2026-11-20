@@ -42,7 +42,7 @@ Definice je ve sdíleném kódu (`src/shared/quality-gate-types.ts`).
 - **Proč ne přes RPC ani CLI:** runtime socketem volá agent. Kdyby směl bránu definovat, kontroloval by svou práci příkazem, který si sám napsal, a výsledek „prošla“ by nic neříkal. Spustit bránu, kterou nastavil uživatel, agent smí; to je záměr.
 - **Proč ne z repozitáře:** soubor v checkoutu mění agent i cizí pull request. Brána načtená z `orca.yaml` by v review worktree spustila kód autora změny.
 - **Testy:**
-  - Existuje právě devět metod `qualityGates.*` (pět z TASK-85, odběr se zrušením z TASK-86, vypínač smyčky u workspace z TASK-87 a zápis nastavení repozitáře z TASK-151). Definici píše jen poslední a volání z runtime socketu odmítne.
+  - Existuje právě dvanáct metod `qualityGates.*` (pět z TASK-85, odběr se zrušením z TASK-86, vypínač smyčky u workspace z TASK-87, zápis nastavení repozitáře z TASK-151 a tři metody návrhu z TASK-148). Definici píše jen zápis nastavení a přijetí návrhu (`resolveProposal`); obojí volání z runtime socketu odmítne. Návrh (`propose`) definici nepíše, viz decision-13.
   - `command` nebo `gates` podstrčené do požadavku na spuštění se ignorují.
   - `repo.update` pole zahodí u volajícího z runtime socketu, z okna i ze spárovaného zařízení.
   - Zdrojáky RPC schémat, CLI a runtime pole `qualityGates` nejmenují.
@@ -182,7 +182,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 
 ### RPC a CLI
 
-- **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje. Definice nese jen `qualityGates.setRepositorySettings` (TASK-151), viz Zápis na dálku.
+- **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje. Definice nese jen `qualityGates.setRepositorySettings` (TASK-151), viz Zápis na dálku. Návrh bran od agenta (`qualityGates.propose`, TASK-148) definicí není, dokud ho uživatel nepřijme; popisuje ho decision-13.
 - **Signál změny (TASK-86):** `qualityGates.subscribe` je proud bez stavu: rámec `ready` s id odběru, `changed` po změně běhu nebo stromu, `end`. Končí ho `qualityGates.unsubscribe`, zrušení přenosu nebo konec spojení. Hostitel ho hlásí schopností `quality-gates.subscribe.v1`; klient se na ni zeptá dřív, než odběr otevře, a neznámý rámec ignoruje. Definici brány nezapisuje ani tato dvojice metod.
 - **Vypínač smyčky (TASK-87):** `qualityGates.setFeedbackLoop` za schopností `quality-gates.feedback-loop.v1`, viz oddíl Smyčka zpětné vazby.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem. Řádek běhu končí jeho id.

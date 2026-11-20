@@ -37,6 +37,9 @@ export const QUALITY_GATES_FEEDBACK_LOOP_RUNTIME_CAPABILITY =
 // repository this host keeps. A host without it has them set up in its own Orca only.
 export const QUALITY_GATES_REPOSITORY_SETTINGS_RUNTIME_CAPABILITY =
   'quality-gates.repository-settings.v1' as const
+// qualityGates.propose, proposal and resolveProposal exist: an agent proposes gates, the user
+// accepts or dismisses them in an Orca app.
+export const QUALITY_GATES_PROPOSALS_RUNTIME_CAPABILITY = 'quality-gates.proposals.v1' as const
 
 export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   HOST_SYSTEM_RUNTIME_CAPABILITY,
@@ -49,6 +52,7 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
   QUALITY_GATES_FEEDBACK_LOOP_RUNTIME_CAPABILITY,
   QUALITY_GATES_REPOSITORY_SETTINGS_RUNTIME_CAPABILITY,
+  QUALITY_GATES_PROPOSALS_RUNTIME_CAPABILITY,
   EMULATOR_MOBILE_STREAM_RUNTIME_CAPABILITY,
   'backlog.v1',
   BACKLOG_TASK_ASSOCIATIONS_RUNTIME_CAPABILITY,

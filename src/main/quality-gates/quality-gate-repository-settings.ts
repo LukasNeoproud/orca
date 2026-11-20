@@ -35,6 +35,21 @@ function settingsOf(row: RepositorySettingsRow): QualityGateRepositorySettings {
   }
 }
 
+/** The row of a repository this host keeps, which is where its gates and their proposal live. */
+export async function showQualityGateRepositoryOfThisHost(
+  runtime: Pick<OrcaRuntimeService, 'showRepo'>,
+  selector: string
+): Promise<Repo> {
+  const repo = await runtime.showRepo(selector)
+  // A row of another host is a copy: its gates run from that host's row, not from this one.
+  if (getRepoExecutionHostId(repo) !== LOCAL_EXECUTION_HOST_ID) {
+    throw new Error(
+      'This repository belongs to another host. Its quality gates are kept in Orca on that host.'
+    )
+  }
+  return repo
+}
+
 /**
  * Writes the gates and the loop of a repository this host keeps, for a paired Orca app whose user
  * set them up in its window. Same row and same normalizers as the host's own `repos:update`.
@@ -45,13 +60,7 @@ export async function writeQualityGateRepositorySettings(
   params: { repo: string; gates?: unknown; feedbackLoop?: unknown }
 ): Promise<QualityGateRepositorySettings> {
   assertQualityGateRepositorySettingsCaller(caller)
-  const repo = await runtime.showRepo(params.repo)
-  // A row of another host is a copy: its gates run from that host's row, not from this one.
-  if (getRepoExecutionHostId(repo) !== LOCAL_EXECUTION_HOST_ID) {
-    throw new Error(
-      'This repository belongs to another host. Its quality gates are kept in Orca on that host.'
-    )
-  }
+  const repo = await showQualityGateRepositoryOfThisHost(runtime, params.repo)
   const updates: RepositorySettingsRow = {}
   if (params.gates !== undefined) {
     const gates = normalizeQualityGateDefinitions(params.gates)

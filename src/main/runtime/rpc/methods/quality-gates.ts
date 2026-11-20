@@ -1,6 +1,9 @@
 import {
   QualityGateCancelParams,
   QualityGateOutputParams,
+  QualityGateProposalParams,
+  QualityGateProposeParams,
+  QualityGateResolveProposalParams,
   QualityGateRunParams,
   QualityGateSetFeedbackLoopParams,
   QualityGateSetRepositorySettingsParams,
@@ -22,6 +25,11 @@ import {
   getQualityGateChangeFeed,
   getQualityGateService
 } from '../../../quality-gates/quality-gate-host'
+import {
+  proposeQualityGates,
+  readPendingQualityGateProposal,
+  resolveQualityGateProposal
+} from '../../../quality-gates/quality-gate-proposals'
 import { writeQualityGateRepositorySettings } from '../../../quality-gates/quality-gate-repository-settings'
 import { resolveQualityGateTarget } from '../../../quality-gates/quality-gate-target'
 import { defineMethod, defineStreamingMethod } from '../core'
@@ -46,7 +54,9 @@ const cleanupKey = (connectionId: string | undefined, subscriptionId: string): s
 // Why the runtime socket writes no gate: it is what agents and the CLI call through, and a caller
 // that could define the command would be checking its own work with a command of its choice. Gates
 // are written by the app's own window (repos:update) and, for a repository this host keeps for a
-// paired Orca app, by `setRepositorySettings`, which refuses every caller but an app.
+// paired Orca app, by `setRepositorySettings`, which refuses every caller but an app. What the
+// socket may send is a proposal (`propose`): stored, never run, and turned into gates only by
+// `resolveProposal`, which takes the same callers as `setRepositorySettings`.
 export const QUALITY_GATE_METHODS = [
   defineMethod({
     name: 'qualityGates.list',
@@ -169,5 +179,23 @@ export const QUALITY_GATE_METHODS = [
     params: QualityGateSetRepositorySettingsParams,
     handler: (params, { runtime, caller }) =>
       writeQualityGateRepositorySettings(runtime, caller, params)
+  }),
+  defineMethod({
+    name: 'qualityGates.propose',
+    permission: 'workspace',
+    params: QualityGateProposeParams,
+    handler: (params, { runtime, caller }) => proposeQualityGates(runtime, caller, params)
+  }),
+  defineMethod({
+    name: 'qualityGates.proposal',
+    permission: 'workspace',
+    params: QualityGateProposalParams,
+    handler: (params, { runtime }) => readPendingQualityGateProposal(runtime, params)
+  }),
+  defineMethod({
+    name: 'qualityGates.resolveProposal',
+    permission: 'settings-write',
+    params: QualityGateResolveProposalParams,
+    handler: (params, { runtime, caller }) => resolveQualityGateProposal(runtime, caller, params)
   })
 ]
