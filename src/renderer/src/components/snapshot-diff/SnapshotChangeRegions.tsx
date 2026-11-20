@@ -27,9 +27,12 @@ export function SnapshotChangeRegionOverlay({
             aria-hidden="true"
             data-snapshot-region={index + 1}
             data-current={index === activeIndex ? 'true' : undefined}
+            // Why neutral: red and green mark removed and added pixels inside the outline.
             className={cn(
-              'pointer-events-none absolute border-destructive',
-              index === activeIndex ? 'border-2 bg-destructive/10' : 'border'
+              'pointer-events-none absolute',
+              index === activeIndex
+                ? 'border-2 border-ring bg-ring/20'
+                : 'border border-foreground/60'
             )}
             style={{
               left: `${frame.x}%`,
@@ -38,7 +41,7 @@ export function SnapshotChangeRegionOverlay({
               height: `${frame.height}%`
             }}
           >
-            <span className="absolute -left-px -top-px rounded-br-sm bg-destructive px-1 text-3xs font-semibold leading-4 tabular-nums text-background">
+            <span className="absolute -left-px -top-px rounded-br-sm bg-foreground px-1 text-3xs font-semibold leading-4 tabular-nums text-background">
               {index + 1}
             </span>
           </div>

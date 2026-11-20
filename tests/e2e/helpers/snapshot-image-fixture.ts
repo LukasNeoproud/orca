@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { deflateSync } from 'node:zlib'
+import { textDots } from './snapshot-fixture-text'
 
 /** Invented screens of an invented shop app, drawn here so no real project image enters the repo. */
 
@@ -74,6 +75,9 @@ const MUTED: Rgb = [176, 180, 190]
 const BRAND: Rgb = [38, 92, 190]
 const WHITE: Rgb = [255, 255, 255]
 
+/** Where the moved label of the payment screen is printed before and after the change. */
+export const MOVED_LABEL = { text: 'ORDER TOTAL', x: 20, y: 380, afterY: 390, scale: 2 } as const
+
 function paymentScreen(version: 'before' | 'after'): Buffer {
   const after = version === 'after'
   return drawSnapshotPng(360, 640, PAPER, [
@@ -88,7 +92,12 @@ function paymentScreen(version: 'before' | 'after'): Buffer {
     // Area 2: the amount line gets longer.
     { x: 20, y: 280, width: after ? 230 : 150, height: 14, color: INK },
     { x: 20, y: 310, width: 280, height: 10, color: MUTED },
-    // Area 3: the button changes colour.
+    // Area 3: a label moves down by less than its height, so old and new overlap.
+    ...textDots(MOVED_LABEL.text, {
+      ...MOVED_LABEL,
+      y: after ? MOVED_LABEL.afterY : MOVED_LABEL.y
+    }).map((dot) => ({ ...dot, color: INK })),
+    // Area 4: the button changes colour.
     { x: 40, y: 540, width: 280, height: 48, color: after ? [24, 140, 90] : BRAND },
     { x: 140, y: 558, width: 80, height: 12, color: WHITE }
   ])

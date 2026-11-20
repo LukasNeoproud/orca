@@ -172,11 +172,11 @@ test('shows the snapshot images a pull request changes on its page', async ({
   ])
 
   const detail = view.getByTestId('snapshot-diff-detail')
-  await expect(detail.getByTestId('snapshot-diff-summary')).toContainText('Change areas: 3', {
+  await expect(detail.getByTestId('snapshot-diff-summary')).toContainText('Change areas: 5', {
     timeout: 20_000
   })
   await expect(detail.locator('img')).toHaveCount(3)
-  await expect(detail.locator('[data-snapshot-region]')).toHaveText(['1', '2', '3'])
+  await expect(detail.locator('[data-snapshot-region]')).toHaveText(['1', '2', '3', '4', '5'])
   await orcaPage.screenshot({ path: path.join(screenshotDir, 'pull-request-snapshots.png') })
 
   await rows.nth(1).click()

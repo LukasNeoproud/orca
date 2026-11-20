@@ -1,5 +1,6 @@
 import { imagePixelDifference } from '../editor/image-pixel-difference'
 import { findSnapshotChangeRegions } from './snapshot-change-regions'
+import { paintSnapshotChangeSides, splitSnapshotChangeSides } from './snapshot-change-sides'
 import type {
   SnapshotDiffRequest,
   SnapshotDiffResult,
@@ -72,16 +73,21 @@ async function compare(request: SnapshotDiffRequest): Promise<SnapshotDiffResult
   const modifiedPixels = pixelsOf(modified)
   const changedMask = new Uint8Array(width * height)
   const { pixels, changedPixels } = imagePixelDifference(originalPixels, modifiedPixels, {
-    changedRgba: request.changedRgba,
     changedMask
   })
   const regions = findSnapshotChangeRegions(changedMask, width, height)
+  splitSnapshotChangeSides(
+    { original: originalPixels, modified: modifiedPixels, width, height },
+    changedMask,
+    regions
+  )
+  paintSnapshotChangeSides(pixels, changedMask, request)
   const image = new ImageData(pixels, width, height)
   context.putImageData(image, 0, 0)
   const highlightContent = await pngOf(canvas)
   // Why in place: a second result buffer would add 4 bytes per pixel for one encode.
   for (let pixel = 0; pixel < changedMask.length; pixel += 1) {
-    if (changedMask[pixel] === 1) {
+    if (changedMask[pixel] !== 0) {
       const index = pixel * 4
       pixels[index] = modifiedPixels[index]
       pixels[index + 1] = modifiedPixels[index + 1]

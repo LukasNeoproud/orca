@@ -1,22 +1,17 @@
 import { useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
-import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useDocumentDarkTheme } from '@/hooks/use-document-dark-theme'
 import { ImageDiffPane } from '@/components/editor/ImageDiffPane'
-import { formatChangedPixelPercent } from '@/components/editor/image-pixel-difference'
 import { syncImageSurfaceScroll } from '@/components/editor/image-surface-scroll-sync'
-import {
-  IMAGE_VIEWER_ZOOM_STEP,
-  MAX_IMAGE_VIEWER_ZOOM,
-  MIN_IMAGE_VIEWER_ZOOM,
-  clampImageViewerZoom
-} from '@/components/editor/image-viewer-zoom'
+import { clampImageViewerZoom } from '@/components/editor/image-viewer-zoom'
 import type { ImageReviewRegion } from '../../../../shared/diff-comment-types'
 import type { SnapshotDiffEntry, SnapshotDiffImages } from './snapshot-diff-entries'
+import type { SnapshotDiffDisplay } from './snapshot-diff-display'
 import { MAX_SNAPSHOT_DIFF_PIXELS, readSnapshotImageDimensions } from './snapshot-diff-size-limit'
 import { scrollSurfaceToFrame, snapshotRegionFrame } from './snapshot-region-frame'
+import { SnapshotBlendPane } from './SnapshotBlendPane'
 import { SnapshotChangeRegionList, SnapshotChangeRegionOverlay } from './SnapshotChangeRegions'
+import { SnapshotDiffToolbar } from './SnapshotDiffToolbar'
 import { useSnapshotDiff, type SnapshotDiffState } from './use-snapshot-diff'
 
 const NO_REGIONS: readonly ImageReviewRegion[] = []
@@ -74,17 +69,17 @@ function differenceNoticeText(diff: Exclude<SnapshotDiffState, { kind: 'ready' }
   }
 }
 
-/** One snapshot as before, after and difference, with its numbered change areas. */
+/** One snapshot as before, after and difference or a blend, with its numbered change areas. */
 export function SnapshotDiffDetail({
   entry,
   images,
-  highlight,
-  onHighlightChange
+  display,
+  onDisplayChange
 }: {
   entry: SnapshotDiffEntry
   images: SnapshotDiffImages
-  highlight: boolean
-  onHighlightChange: (highlight: boolean) => void
+  display: SnapshotDiffDisplay
+  onDisplayChange: (display: SnapshotDiffDisplay) => void
 }): JSX.Element {
   const isDark = useDocumentDarkTheme()
   const diff = useSnapshotDiff(images, isDark)
@@ -101,6 +96,8 @@ export function SnapshotDiffDetail({
     }),
     [images]
   )
+  // Blending needs no pixel comparison, so it also serves an image above the limit.
+  const blend = display.mode === 'blend' && diff.kind !== 'one-sided'
   const frameOn = (size: { width: number; height: number } | null): ImageReviewRegion | null => {
     if (!activeRegion || !result) {
       return null
@@ -114,77 +111,30 @@ export function SnapshotDiffDetail({
   const selectRegion = (index: number): void => {
     setActiveIndex(index)
     const region = result?.regions[index]
-    const [before, after, difference] = surfacesRef.current
-    const surface = difference ?? after ?? before
+    const [before, after, third] = surfacesRef.current
+    const surface = third ?? after ?? before
     if (!region || !result || !surface) {
       return
     }
     scrollSurfaceToFrame(surface, snapshotRegionFrame(region, result))
     syncScroll(surface)
   }
-  const changeZoom = (next: (current: number) => number): void =>
-    setZoom((current) => clampImageViewerZoom(next(current)))
   const pane = { filePath: entry.path, zoom, layout: 'fill', annotating: false } as const
+  const thirdSurface = (surface: HTMLDivElement | null): void => {
+    surfacesRef.current[2] = surface
+  }
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="snapshot-diff-detail">
-      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => changeZoom((current) => current / IMAGE_VIEWER_ZOOM_STEP)}
-          disabled={zoom <= MIN_IMAGE_VIEWER_ZOOM}
-          aria-label={translate('auto.components.editor.ImageViewer.be27304574', 'Zoom out')}
-        >
-          <ZoomOut className="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => changeZoom(() => 1)}
-          disabled={zoom === 1}
-          aria-label={translate('auto.components.editor.ImageViewer.6c89c73d9f', 'Reset zoom')}
-        >
-          <RotateCcw className="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => changeZoom((current) => current * IMAGE_VIEWER_ZOOM_STEP)}
-          disabled={zoom >= MAX_IMAGE_VIEWER_ZOOM}
-          aria-label={translate('auto.components.editor.ImageViewer.3c9217f5a6', 'Zoom in')}
-        >
-          <ZoomIn className="size-3.5" />
-        </Button>
-        <span className="w-10 tabular-nums">{Math.round(zoom * 100)}%</span>
-        <Button
-          variant={highlight ? 'secondary' : 'ghost'}
-          size="xs"
-          aria-pressed={highlight}
-          onClick={() => onHighlightChange(!highlight)}
-        >
-          {translate('snapshotDiff.highlight', 'Highlight changes')}
-        </Button>
-        <span className="ml-2 min-w-0 flex-1 truncate font-mono" title={entry.path}>
-          {entry.path}
-        </span>
-        {result && (
-          <span className="shrink-0" data-testid="snapshot-diff-summary">
-            {result.changedPixels === 0
-              ? translate('snapshotDiff.noPixelChange', 'No visible pixel difference.')
-              : translate(
-                  'snapshotDiff.changedSummary',
-                  'Changed pixels: {{percent}} % · Change areas: {{areas}}',
-                  {
-                    percent: formatChangedPixelPercent(
-                      (result.changedPixels / (result.width * result.height)) * 100
-                    ),
-                    areas: result.regions.length
-                  }
-                )}
-          </span>
-        )}
-      </div>
+      <SnapshotDiffToolbar
+        zoom={zoom}
+        onZoomChange={(next) => setZoom((current) => clampImageViewerZoom(next(current)))}
+        display={display}
+        onDisplayChange={onDisplayChange}
+        canBlend={diff.kind !== 'one-sided'}
+        path={entry.path}
+        result={result}
+      />
       <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 p-3">
         <ImageDiffPane
           {...pane}
@@ -212,16 +162,27 @@ export function SnapshotDiffDetail({
             surfacesRef.current[1] = surface
           }}
         />
-        {diff.kind === 'ready' ? (
+        {blend ? (
+          <SnapshotBlendPane
+            images={images}
+            sizes={sideSizes}
+            afterPercent={display.afterPercent}
+            filePath={entry.path}
+            zoom={zoom}
+            region={frameOn(sideSizes.original)}
+            onScroll={syncScroll}
+            onSurface={thirdSurface}
+          />
+        ) : diff.kind === 'ready' ? (
           <ImageDiffPane
             {...pane}
             label={translate('snapshotDiff.difference', 'Difference')}
-            content={highlight ? diff.result.highlightContent : diff.result.plainContent}
+            content={display.highlight ? diff.result.highlightContent : diff.result.plainContent}
             mimeType="image/png"
-            region={highlight ? null : frameOn(diff.result)}
+            region={display.highlight ? null : frameOn(diff.result)}
             savedRegions={NO_REGIONS}
             overlay={
-              highlight ? (
+              display.highlight ? (
                 <SnapshotChangeRegionOverlay
                   regions={diff.result.regions}
                   image={diff.result}
@@ -231,9 +192,7 @@ export function SnapshotDiffDetail({
             }
             onRegion={ignoreRegion}
             onScroll={syncScroll}
-            onSurface={(surface) => {
-              surfacesRef.current[2] = surface
-            }}
+            onSurface={thirdSurface}
           />
         ) : (
           <DifferenceNotice label={translate('snapshotDiff.difference', 'Difference')}>

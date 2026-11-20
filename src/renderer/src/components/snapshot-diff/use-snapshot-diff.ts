@@ -15,8 +15,9 @@ export type SnapshotDiffState =
   | ({ kind: 'too-large' } & RasterImageDimensions)
   | { kind: 'ready'; result: SnapshotDiffReady }
 
-// The one colour a changed pixel is painted with; it follows the theme.
-const CHANGED_PIXEL_TOKEN = '--destructive'
+// Removed and added as in a code diff, matching the legend; they follow the theme.
+const SNAPSHOT_REMOVED_PIXEL_TOKEN = '--git-decoration-deleted'
+const SNAPSHOT_ADDED_PIXEL_TOKEN = '--git-decoration-added'
 
 // Why keyed by the images object: the view keeps loaded images per snapshot, so
 // going back to one reuses its comparison without hashing megabytes of base64.
@@ -67,14 +68,16 @@ export function useSnapshotDiff(images: SnapshotDiffImages, isDark: boolean): Sn
     if (immediate) {
       return
     }
-    let changedRgba: SnapshotDiffRgba
+    let removedRgba: SnapshotDiffRgba
+    let addedRgba: SnapshotDiffRgba
     try {
-      changedRgba = resolveTokenColor(CHANGED_PIXEL_TOKEN)
+      removedRgba = resolveTokenColor(SNAPSHOT_REMOVED_PIXEL_TOKEN)
+      addedRgba = resolveTokenColor(SNAPSHOT_ADDED_PIXEL_TOKEN)
     } catch {
       setSettled({ images, isDark, state: { kind: 'failed' } })
       return
     }
-    const colorKey = changedRgba.join(',')
+    const colorKey = `${removedRgba.join(',')}/${addedRgba.join(',')}`
     const cached = comparisonCache.get(images)
     if (cached?.colorKey === colorKey) {
       setSettled({ images, isDark, state: { kind: 'ready', result: cached.result } })
@@ -82,7 +85,7 @@ export function useSnapshotDiff(images: SnapshotDiffImages, isDark: boolean): Sn
     }
     const client = new SnapshotDiffWorkerClient()
     client
-      .compare({ ...images, changedRgba, maxPixels: MAX_SNAPSHOT_DIFF_PIXELS })
+      .compare({ ...images, removedRgba, addedRgba, maxPixels: MAX_SNAPSHOT_DIFF_PIXELS })
       .then((result): SnapshotDiffState => {
         if (result.kind === 'ready') {
           comparisonCache.set(images, { colorKey, result })

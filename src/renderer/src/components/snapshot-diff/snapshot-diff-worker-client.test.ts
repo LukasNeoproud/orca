@@ -36,7 +36,8 @@ const REQUEST: SnapshotDiffRequest = {
   mimeType: 'image/png',
   originalContent: 'AAAA',
   modifiedContent: 'BBBB',
-  changedRgba: [228, 0, 20, 255],
+  removedRgba: [173, 7, 7, 255],
+  addedRgba: [88, 124, 12, 255],
   maxPixels: 1_000
 }
 const TOO_LARGE: SnapshotDiffResult = { kind: 'too-large', width: 100, height: 100 }

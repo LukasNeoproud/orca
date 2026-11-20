@@ -7,6 +7,7 @@ import {
   splitSnapshotPath,
   type SnapshotDiffEntry
 } from './snapshot-diff-entries'
+import { DEFAULT_SNAPSHOT_DIFF_DISPLAY } from './snapshot-diff-display'
 import { SnapshotDiffDetail } from './SnapshotDiffDetail'
 import { useSnapshotImages, type SnapshotImagesLoader } from './use-snapshot-images'
 
@@ -58,7 +59,7 @@ function CenteredNote({ children }: { children: ReactNode }): JSX.Element {
   )
 }
 
-/** Changed snapshot test images of one diff: a list, and the chosen one as before, after and difference. */
+/** Changed snapshot test images of one diff: a list, and the chosen one as before, after and difference or blend. */
 export function SnapshotDiffView({
   entries,
   loadImages,
@@ -76,7 +77,7 @@ export function SnapshotDiffView({
   leading?: ReactNode
 }): JSX.Element {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [highlight, setHighlight] = useState(true)
+  const [display, setDisplay] = useState(DEFAULT_SNAPSHOT_DIFF_DISPLAY)
   // Why the fallback: open on the first snapshot instead of an empty pane.
   const selected = entries.find((entry) => entry.key === selectedKey) ?? entries[0] ?? null
   const { state, retry } = useSnapshotImages(selected, loadImages, revisionKey)
@@ -123,8 +124,8 @@ export function SnapshotDiffView({
               key={selected.key}
               entry={selected}
               images={state.images}
-              highlight={highlight}
-              onHighlightChange={setHighlight}
+              display={display}
+              onDisplayChange={setDisplay}
             />
           ) : state.kind === 'loading' ? (
             <CenteredNote>

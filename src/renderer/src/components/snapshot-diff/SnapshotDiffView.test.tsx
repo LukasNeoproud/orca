@@ -143,6 +143,73 @@ describe('SnapshotDiffView', () => {
     expect(screen.getByTestId('pane-Difference').getAttribute('data-content')).toBe('PLAIN')
   })
 
+  it('explains the removed and added colors while changes are highlighted', async () => {
+    renderView([PAYMENT])
+    await waitFor(() => expect(screen.getByTestId('pane-Difference')).toBeTruthy())
+
+    const legend = screen.getByRole('list', { name: 'Difference colors' })
+    expect(Array.from(legend.querySelectorAll('li')).map((item) => item.textContent)).toEqual([
+      'Removed (before)',
+      'Added or changed (after)'
+    ])
+    expect(
+      Array.from(legend.querySelectorAll('span[aria-hidden]')).map((swatch) => swatch.className)
+    ).toEqual([
+      expect.stringContaining('var(--git-decoration-deleted)'),
+      expect.stringContaining('var(--git-decoration-added)')
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Highlight changes' }))
+    expect(screen.queryByTestId('snapshot-diff-legend')).toBeNull()
+  })
+
+  it('blends the after image over the before image and keeps the blend between snapshots', async () => {
+    renderView([PAYMENT, { ...CART, status: 'modified' }])
+    await waitFor(() => expect(screen.getByTestId('pane-Difference')).toBeTruthy())
+
+    const blend = screen.getByRole('button', { name: 'Blend' })
+    fireEvent.click(blend)
+    expect(blend.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByTestId('pane-Difference')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Highlight changes' })).toBeNull()
+    expect(screen.queryByTestId('snapshot-diff-legend')).toBeNull()
+
+    const pane = screen.getByTestId('pane-Blend')
+    expect(pane.getAttribute('data-content')).toBe('BEFORE')
+    const after = (): HTMLImageElement | null =>
+      pane.ownerDocument.querySelector('[data-testid="snapshot-blend-after"]')
+    expect(after()?.getAttribute('src')).toBe('data:image/png;base64,AFTER')
+    expect(after()?.style.opacity).toBe('0.5')
+
+    const slider = screen.getByRole('slider', { name: 'Share of the after image' })
+    expect(slider.getAttribute('aria-valuetext')).toBe('50 % after')
+    fireEvent.keyDown(slider, { key: 'End' })
+    expect(after()?.style.opacity).toBe('1')
+    fireEvent.keyDown(slider, { key: 'Home' })
+    expect(after()?.style.opacity).toBe('0')
+
+    fireEvent.click(screen.getAllByTestId('snapshot-diff-entry')[1])
+    await waitFor(() => expect(screen.getByTestId('pane-Blend')).toBeTruthy())
+    expect(after()?.style.opacity).toBe('0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Difference' }))
+    expect(screen.getByTestId('pane-Difference')).toBeTruthy()
+  })
+
+  it('offers a blend above the comparison limit, and none for a snapshot with one side', async () => {
+    mocks.diff.current = { kind: 'too-large', width: 4000, height: 2100 }
+    renderView([PAYMENT, CART])
+    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Blend' }))
+    expect(screen.getByTestId('pane-Blend')).toBeTruthy()
+
+    mocks.diff.current = { kind: 'one-sided', side: 'added' }
+    fireEvent.click(screen.getAllByTestId('snapshot-diff-entry')[1])
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('New snapshot'))
+    expect(screen.queryByRole('button', { name: 'Blend' })).toBeNull()
+    expect(screen.queryByTestId('pane-Blend')).toBeNull()
+  })
+
   it('jumps to a change area from the list and marks it in every pane', async () => {
     renderView([PAYMENT])
     await waitFor(() => expect(screen.getByTestId('pane-Difference')).toBeTruthy())
