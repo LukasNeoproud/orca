@@ -7,6 +7,7 @@ import { isAgentPromptStalledError } from '../runtime/agent-prompt-submission-ve
 import { createLaunchedAgentWriteGuard } from '../runtime/launched-agent-write-guard'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { sendAgentTurn } from '../runtime/orchestration/send-agent-turn'
+import { isAgentComposerProvablyEmpty } from './quality-gate-agent-composer'
 import type {
   QualityGateFeedbackDelivery,
   QualityGateLoopAgent
@@ -26,6 +27,7 @@ export type QualityGateFeedbackDeliveryRuntime = Pick<
   | 'readLaunchedAgentForeground'
   | 'subscribeToTerminalData'
   | 'launchedAgentHostProvesAgent'
+  | 'serializeAuthoritativeTerminalBuffer'
 > & { terminalRunFacts: Pick<OrcaRuntimeService['terminalRunFacts'], 'readLastInputAt'> }
 
 export type QualityGateFeedbackDeliveryDeps = {
@@ -67,8 +69,10 @@ async function deliverToTerminal(
   const guard = createLaunchedAgentWriteGuard(runtime, agentType, {
     unprovableHost: 'write-unless-shell'
   })
-  // Typed input after the turn began may be an unsent draft; only the first write can tell,
-  // because the paste itself counts as input for the Enter that follows it.
+  // Typed input after the turn began may be an unsent draft or only an answer to the agent's own
+  // question; the agent's input field on this host's screen tells them apart, and an unread field
+  // counts as a draft. Only the first write can tell, because the paste itself counts as input for
+  // the Enter that follows it.
   const inputFloor = agent.turnStartedAt ?? agent.completedAt
   let checkedInput = false
   try {
@@ -81,7 +85,11 @@ async function deliverToTerminal(
         if (!checkedInput) {
           checkedInput = true
           const lastInputAt = runtime.terminalRunFacts.readLastInputAt(ptyId)
-          if (lastInputAt !== null && lastInputAt > inputFloor) {
+          if (
+            lastInputAt !== null &&
+            lastInputAt > inputFloor &&
+            !(await isAgentComposerProvablyEmpty(runtime, agentType, ptyId))
+          ) {
             throw new Error(USER_INPUT_ERROR)
           }
         }

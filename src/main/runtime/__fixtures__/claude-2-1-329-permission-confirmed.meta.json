@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-11-20T15:09:52.856Z",
+  "platform": "darwin",
+  "command": [
+    "claude",
+    "--model",
+    "haiku",
+    "--setting-sources",
+    "project",
+    "--strict-mcp-config",
+    "--permission-mode",
+    "default"
+  ],
+  "cols": 100,
+  "rows": 30,
+  "note": "Claude Code 2.1.329, haiku, manual permission mode; one Bash permission dialog confirmed with Enter, nothing else typed; ends idle with a dimmed prompt suggestion in the composer",
+  "exitCode": 129
+}

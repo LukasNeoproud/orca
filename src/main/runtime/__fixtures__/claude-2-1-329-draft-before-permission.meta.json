@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-11-20T15:11:05.008Z",
+  "platform": "darwin",
+  "command": [
+    "claude",
+    "--model",
+    "haiku",
+    "--setting-sources",
+    "project",
+    "--strict-mcp-config",
+    "--permission-mode",
+    "default"
+  ],
+  "cols": 100,
+  "rows": 30,
+  "note": "Claude Code 2.1.329, haiku, manual permission mode; \"my unsent note\" typed while the agent worked, then the Bash permission dialog confirmed with Enter; ends idle with the unsent draft in the composer",
+  "exitCode": 129
+}

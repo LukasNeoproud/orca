@@ -7,6 +7,11 @@ import {
   type QualityGateFeedbackDeliveryRuntime
 } from './quality-gate-feedback-delivery'
 import type { QualityGateLoopAgent } from './quality-gate-feedback-loop'
+import {
+  COMPOSER_TRANSCRIPTS,
+  finalComposerScreen,
+  type ComposerTranscriptName
+} from './quality-gate-agent-composer-transcripts'
 
 type PromptOptions = Parameters<QualityGateFeedbackDeliveryRuntime['sendTerminalAgentPrompt']>[2]
 
@@ -24,6 +29,8 @@ function terminal(
     lastInputAt?: number | null
     foreground?: 'agent' | 'shell'
     handleForPane?: string | null
+    /** The captured run whose last screen the host holds for the terminal; none by default. */
+    screen?: ComposerTranscriptName
   } = {}
 ) {
   const written: { handle: string; prompt: string; options: PromptOptions }[] = []
@@ -48,6 +55,9 @@ function terminal(
     readLaunchedAgentForeground: vi.fn(async () => options.foreground ?? 'agent'),
     subscribeToTerminalData: vi.fn(() => () => {}),
     launchedAgentHostProvesAgent: vi.fn(() => true),
+    serializeAuthoritativeTerminalBuffer: vi.fn(async () =>
+      options.screen ? finalComposerScreen(options.screen) : null
+    ),
     terminalRunFacts: {
       // The paste itself counts as input by the time Enter is checked.
       readLastInputAt: vi.fn(() => (written.length > 0 ? 9_999 : (options.lastInputAt ?? null)))
@@ -86,13 +96,65 @@ describe('delivery of quality gate feedback', () => {
     expect(written[0].handle).toBe('term-9')
   })
 
-  it('writes nothing when somebody typed into the terminal since the turn began', async () => {
+  it('writes nothing when somebody typed since the turn began and the host has no screen', async () => {
     const { deliver, written } = terminal({ lastInputAt: 1_500 })
     expect(await deliver(agent, 'gates failed')).toMatchObject({
       kind: 'not-deliverable',
       reason: 'user-input'
     })
     expect(written).toEqual([])
+  })
+
+  it("sends after a confirmed permission dialog left the agent's input field empty", async () => {
+    const { deliver, runtime, written } = terminal({
+      lastInputAt: 1_500,
+      screen: COMPOSER_TRANSCRIPTS.permissionConfirmed
+    })
+    expect(await deliver(agent, 'gates failed')).toEqual({ kind: 'sent' })
+    expect(written).toHaveLength(1)
+    // Read once: the paste is input too, and Enter must not be held back by it.
+    expect(runtime.serializeAuthoritativeTerminalBuffer).toHaveBeenCalledTimes(1)
+    expect(runtime.serializeAuthoritativeTerminalBuffer).toHaveBeenCalledWith('pty-1', {
+      scrollbackRows: 0
+    })
+  })
+
+  it.each([
+    ['before', COMPOSER_TRANSCRIPTS.draftBeforePermission],
+    ['after', COMPOSER_TRANSCRIPTS.draftAfterPermission]
+  ])(
+    'never sends alongside a draft typed %s the permission dialog was confirmed',
+    async (_when, screen) => {
+      const { deliver, written } = terminal({ lastInputAt: 1_500, screen })
+      expect(await deliver(agent, 'gates failed')).toMatchObject({
+        kind: 'not-deliverable',
+        reason: 'user-input'
+      })
+      expect(written).toEqual([])
+    }
+  )
+
+  it('keeps holding back for an agent whose screen has no captured rule', async () => {
+    // Codex: no transcript of this state exists, so typed input alone still decides.
+    const { deliver, runtime, written } = terminal({
+      lastInputAt: 1_500,
+      screen: COMPOSER_TRANSCRIPTS.permissionConfirmed
+    })
+    expect(await deliver({ ...agent, agentType: 'codex' }, 'gates failed')).toMatchObject({
+      kind: 'not-deliverable',
+      reason: 'user-input'
+    })
+    expect(written).toEqual([])
+    expect(runtime.serializeAuthoritativeTerminalBuffer).not.toHaveBeenCalled()
+  })
+
+  it('does not read the screen when nothing was typed since the turn began', async () => {
+    const { deliver, runtime } = terminal({
+      lastInputAt: 900,
+      screen: COMPOSER_TRANSCRIPTS.draftAfterPermission
+    })
+    expect(await deliver(agent, 'gates failed')).toEqual({ kind: 'sent' })
+    expect(runtime.serializeAuthoritativeTerminalBuffer).not.toHaveBeenCalled()
   })
 
   it('writes nothing while the terminal is not idle or a prompt is in the way', async () => {
