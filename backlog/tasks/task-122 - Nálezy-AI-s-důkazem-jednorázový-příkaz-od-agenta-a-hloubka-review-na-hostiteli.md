@@ -1,11 +1,12 @@
 ---
 id: TASK-122
 title: >-
-  Nálezy AI s důkazem: jednorázový příkaz od agenta a hloubka review na
-  hostiteli
+  Hloubka review na hostiteli: spuštění bran v review worktree jen při zvolené
+  hloubce
 status: To Do
 assignee: []
 created_date: '2026-11-19T09:36:00Z'
+updated_date: '2026-11-20T16:20:00Z'
 labels:
   - review-ide
   - effort-high
@@ -24,20 +25,17 @@ ordinal: 208100
 <!-- SECTION:DESCRIPTION:BEGIN -->
 ### Cíl
 
-Agent má mít možnost doložit nález během jednoho příkazu, který není nastavenou bránou (například jeden test), a Orca má spouštění kódu v review worktree povolit jen při hloubce review, kterou uživatel zvolil. Dnes je hloubka jen text v promptu a nic ji nevynucuje.
+Orca má spouštění kódu v review worktree povolit jen při hloubce review, kterou uživatel zvolil. Dnes je hloubka jen text v promptu a nic ji nevynucuje; v review worktree přitom běží kód autora pull requestu.
 
 ### Rozsah
 
-- Jednorázový příkaz: rozšíření `orca gates` (`src/cli/specs/quality-gates.ts`, `src/cli/handlers/quality-gates.ts`, `src/main/quality-gates/`) o spuštění příkazu, který není nastavenou bránou, se stejným záznamem běhu. Záznam říká, že šlo o příkaz zadaný agentem.
-- Důkaz z takového běhu přijme ověření z TASK-88, ale dá nejvýš jistotu pravděpodobné: Orca potvrdí, že příkaz proběhl a jak skončil, ne že zkouší to, co nález tvrdí. Jistotu ověřeno důkazem dává jen běh brány, kterou nastavil uživatel.
-- Hloubka review: dnes jen text v promptu (`src/shared/azure-devops-review-options.ts`). Aby šlo spuštění při statickém review odmítnout, musí si ji Orca u review pull requestu zapamatovat na hostiteli (vedle `src/main/azure-devops/review/azure-devops-review-worktree-registry.ts`) a podle ní spuštění brány i jednorázového příkazu v review worktree povolit nebo odmítnout.
-- Karta draftu (`src/renderer/src/components/azure-devops-review/AzureDevOpsReviewDraftCard.tsx`): u důkazu z jednorázového příkazu celý příkaz.
+- Hloubka review: dnes jen text v promptu (`src/shared/azure-devops-review-options.ts`). Orca si ji u review pull requestu zapamatuje na hostiteli (vedle `src/main/azure-devops/review/azure-devops-review-worktree-registry.ts`) a podle ní spuštění brány v review worktree povolí nebo odmítne. Týká se `qualityGates.run`, `orca gates run`, nástroje `ado_run_gate` z TASK-88 i smyčky zpětné vazby.
+- Rozhodnutí navrhni tak, aby se jím řídil i jednorázový příkaz z TASK-161.
 
 ### Mimo rozsah
 
-- Druh důkazu z běhu brány, ověření v hlavním procesu, karta draftu s důkazem, nástroje agenta a prompt: TASK-88.
-- Důkazy z language serveru (M3), z emulátoru (M8) a z kontraktu jiné platformy (M7).
-- Rozbor výstupu testů na jednotlivé případy.
+- Jednorázový příkaz od agenta a strop jistoty jeho důkazu: TASK-161. Karta draftu: TASK-159 a TASK-162.
+- Druh důkazu z běhu brány a jeho ověření: TASK-88 (hotovo).
 
 ### Omezení
 
@@ -49,10 +47,15 @@ Agent má mít možnost doložit nález během jednoho příkazu, který není n
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Review agent spustí v review worktree jednorázový příkaz přes orca gates a dostane identifikátor běhu, návratový kód a konec výstupu; záznam běhu říká, že příkaz zadal agent
-- [ ] #2 Draft s důkazem odkazujícím na běh jednorázového příkazu dostane nejvýš jistotu pravděpodobné, i když běh splňuje ostatní pravidla ověření z TASK-88; karta draftu ukazuje příkaz celý a nezkrácený
-- [ ] #3 Při statickém review Orka spuštění brány i jednorázového příkazu v review worktree odmítne s vysvětlením; spuštění je možné jen při hloubce, kterou uživatel zvolil v možnostech review
-- [ ] #4 Hloubka review je zapamatovaná na hostiteli review worktree; v SSH review worktree o spuštění rozhoduje vzdálený hostitel podle své zapamatované hloubky
-- [ ] #5 Výstup jednorázového příkazu se agentovi i v rozhraní předává jako data; pokyny v něm nic nespustí
-- [ ] #6 Testy pokrývají odmítnutí při statickém review, záznam příkazu od agenta a strop jistoty; průchod je ověřený ve skrytém okně na smyšleném repozitáři
+- [ ] #1 Při statickém review Orka spuštění brány v review worktree odmítne s vysvětlením, ať přijde z okna, CLI, nástroje agenta nebo smyčky zpětné vazby; spuštění je možné jen při hloubce, kterou uživatel zvolil v možnostech review
+- [ ] #2 Hloubka review je zapamatovaná na hostiteli review worktree; v SSH review worktree o spuštění rozhoduje vzdálený hostitel podle své zapamatované hloubky
+- [ ] #3 Worktree, který není review worktree, se pravidlo netýká; review worktree bez zapamatované hloubky (vzniklý ve starším sestavení) se chová jako statický a hláška říká, jak hloubku zvolit
+- [ ] #4 Starší klient i starší hostitel fungují dál; nové pole je nepovinné a test kompatibility to dokládá
+- [ ] #5 Testy pokrývají odmítnutí při statickém review pro každou cestu spuštění a povolení při zvolené hloubce
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Rozděleno 2026-11-20 podle pravidla velikosti: jednorázový příkaz od agenta převzal TASK-161, jeho zobrazení na kartě draftu TASK-162.
+<!-- SECTION:NOTES:END -->
