@@ -33,6 +33,7 @@ import {
   validateQualityGateDraft,
   type QualityGateDraft
 } from './quality-gate-settings-draft'
+import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
 
@@ -186,7 +187,11 @@ export function RepositoryQualityGatesSection({
   ) : null
 
   return (
-    <section className="space-y-4" data-quality-gates-section={repo.id}>
+    <section
+      id={getRepositoryQualityGatesSectionId(repo.id)}
+      className="space-y-4"
+      data-quality-gates-section={repo.id}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">

@@ -10,6 +10,7 @@ import {
 } from '@/lib/quality-gate-client'
 import { useWorktreeGitOwnerTarget } from '../right-sidebar/worktree-git-owner-target'
 import { Button } from '../ui/button'
+import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
 import { WorkspaceQualityGateRow } from './WorkspaceQualityGateRow'
@@ -157,7 +158,11 @@ export function WorkspaceQualityGatesSection({
               variant="link"
               size="xs"
               onClick={() => {
-                openSettingsTarget({ pane: 'repo', repoId: repo.id })
+                openSettingsTarget({
+                  pane: 'repo',
+                  repoId: repo.id,
+                  sectionId: getRepositoryQualityGatesSectionId(repo.id)
+                })
                 openSettingsPage()
               }}
             >

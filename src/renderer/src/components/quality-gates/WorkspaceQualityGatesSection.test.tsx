@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import type { QualityGateStatusView } from './quality-gate-status-view'
+import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 
 const mocks = vi.hoisted(() => {
   const state: {
@@ -251,13 +252,17 @@ describe('WorkspaceQualityGatesSection', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Orca is quitting'))
   })
 
-  it('leads to the repository settings when no gate is set up', () => {
+  it('leads to the quality gates section of the repository settings when no gate is set up', () => {
     show({ status: gateStatus() })
     expect(screen.queryByRole('button', { name: 'Run all' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Set up gates' }))
 
-    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({ pane: 'repo', repoId: 'repo' })
+    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({
+      pane: 'repo',
+      repoId: 'repo',
+      sectionId: getRepositoryQualityGatesSectionId('repo')
+    })
     expect(mocks.openSettingsPage).toHaveBeenCalledTimes(1)
   })
 
