@@ -88,3 +88,4 @@ Lokalizace M6:
 ## Doplnění 2026-11-20 (připomínky z akceptace M1)
 
 - **Rozdíl snapshotů má dvě barvy** (odebráno z původního, přidáno nebo změněno v novém); třetí barva pro změnu barvy na místě se nepřidává (z TASK-145).
+- **M1 přijat 2026-11-20** na commitu 2f37ea38b7 (sloučen do `personal`, bez push) a archivován. Open in v Exploreru (TASK-150) přišel až po přijetí.
