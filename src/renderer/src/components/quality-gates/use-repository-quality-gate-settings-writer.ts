@@ -7,6 +7,7 @@ import {
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../shared/execution-host'
 import type { QualityGateFeedbackLoopSettings } from '../../../../shared/quality-gate-feedback-loop'
 import type { QualityGateDefinition } from '../../../../shared/quality-gate-types'
+import type { Repo } from '../../../../shared/repo-types'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { repoMatchesHostIdentity } from '../../store/slices/repo-host-identity'
 
@@ -27,6 +28,19 @@ export type RepositoryQualityGateSettingsSave = (
 export type RepositoryQualityGateSettingsPlace = 'this-computer' | 'host' | 'read-only' | 'checking'
 
 const RECHECK_AFTER_LOST_CONTACT_MS = 15_000
+
+/** Puts what a host stored into this app's row of that host's repository, and only that row. */
+export function showStoredQualityGateSettings(
+  repoId: string,
+  hostId: ExecutionHostId,
+  stored: Partial<Pick<Repo, 'qualityGates' | 'qualityGateFeedbackLoop'>>
+): void {
+  useAppStore.setState((state) => ({
+    repos: state.repos.map((row) =>
+      repoMatchesHostIdentity(row, repoId, hostId) ? { ...row, ...stored } : row
+    )
+  }))
+}
 
 /**
  * Where the gates of a repository are written from this window. A repository of another host is
@@ -92,13 +106,10 @@ export function useRepositoryQualityGateSettingsWriter(
           : { feedbackLoop: updates.qualityGateFeedbackLoop }
       )
       // What the host stored, not what was sent: its build may read a field differently.
-      useAppStore.setState((state) => ({
-        repos: state.repos.map((row) =>
-          repoMatchesHostIdentity(row, repoId, hostId)
-            ? { ...row, qualityGates: stored.gates, qualityGateFeedbackLoop: stored.feedbackLoop }
-            : row
-        )
-      }))
+      showStoredQualityGateSettings(repoId, hostId, {
+        qualityGates: stored.gates,
+        qualityGateFeedbackLoop: stored.feedbackLoop
+      })
       return true
     },
     [environmentId, hostId]

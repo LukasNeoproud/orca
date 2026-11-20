@@ -16,6 +16,7 @@ import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-targ
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
 import { WorkspaceQualityGateFeedbackLoop } from './WorkspaceQualityGateFeedbackLoop'
+import { WorkspaceQualityGateProposalNotice } from './WorkspaceQualityGateProposalNotice'
 import { WorkspaceQualityGateRow } from './WorkspaceQualityGateRow'
 import {
   summarizeWorkspaceQualityGates,
@@ -137,6 +138,7 @@ export function WorkspaceQualityGatesSection({
         )}
       </div>
 
+      <WorkspaceQualityGateProposalNotice repo={repo ?? null} visible={visible} />
       {view.unsupported ? (
         <Note>
           {translate(

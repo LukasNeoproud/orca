@@ -71,6 +71,6 @@ Schopnost `quality-gates.proposals.v1`.
 
 ### Co hostitel nedělá
 
-- Změnu návrhu nehlásí proudem `qualityGates.subscribe`; rozhraní (TASK-149) si návrh přečte při otevření nastavení.
+- Změnu návrhu nehlásí proudem `qualityGates.subscribe`; rozhraní (TASK-149) si návrh přečte při otevření nastavení nebo oddílu Local gates a pak po 15 s, dokud je vidět.
 - Návrh nemá platnost v čase a po odebrání repozitáře zůstane v souboru, dokud ho nevytlačí novější.
 

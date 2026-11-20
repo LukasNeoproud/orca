@@ -23,6 +23,11 @@ import {
 import { Button } from '../ui/button'
 import { QualityGateDraftEditor } from './QualityGateDraftEditor'
 import { QualityGateRunBar } from './QualityGateRunBar'
+import {
+  openQualityGateProposalEdit,
+  RepositoryQualityGateProposal,
+  type QualityGateProposalEdit
+} from './RepositoryQualityGateProposal'
 import { RepositoryQualityGateFeedbackLoopSettings } from './RepositoryQualityGateFeedbackLoopSettings'
 import { QualityGateSettingsRow } from './QualityGateSettingsRow'
 import {
@@ -36,6 +41,7 @@ import {
 } from './quality-gate-settings-draft'
 import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
+import { usePendingQualityGateProposal } from './use-pending-quality-gate-proposal'
 import { useQualityGateStatus } from './use-quality-gate-status'
 import {
   useRepositoryQualityGateSettingsWriter,
@@ -117,6 +123,11 @@ export function RepositoryQualityGatesSection({
   const [saveFailed, setSaveFailed] = useState(false)
   const [runPending, setRunPending] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
+  const proposal = usePendingQualityGateProposal(repo, editable)
+  const [proposalEdit, setProposalEdit] = useState<QualityGateProposalEdit | null>(null)
+  // One editor at a time: a gate of the section's own, or an item of the proposal.
+  const editorOpen =
+    draft !== null || openQualityGateProposalEdit(proposal.proposal, proposalEdit) !== null
 
   const { view, refresh } = useQualityGateStatus(
     gates.length > 0 ? target : null,
@@ -219,7 +230,7 @@ export function RepositoryQualityGatesSection({
             type="button"
             variant="outline"
             size="sm"
-            disabled={draft !== null || saving || gates.length >= QUALITY_GATE_LIMITS.maxGates}
+            disabled={editorOpen || saving || gates.length >= QUALITY_GATE_LIMITS.maxGates}
             onClick={() => setDraft(newQualityGateDraft())}
           >
             <Plus className="size-3.5" />
@@ -248,6 +259,21 @@ export function RepositoryQualityGatesSection({
         <Notice tone="error">
           {translate('qualityGates.saveFailed', 'The gates could not be saved.')}
         </Notice>
+      ) : null}
+
+      {editable && proposal.proposal && proposal.target ? (
+        <RepositoryQualityGateProposal
+          repo={repo}
+          gates={gates}
+          proposal={proposal.proposal}
+          target={proposal.target}
+          busy={saving || draft !== null}
+          saveGates={persist}
+          onAnswered={proposal.replace}
+          onStale={proposal.refresh}
+          editing={proposalEdit}
+          onEditingChange={setProposalEdit}
+        />
       ) : null}
 
       {draft?.id === null ? draftEditor : null}
@@ -306,7 +332,7 @@ export function RepositoryQualityGatesSection({
                 isFirst={index === 0}
                 isLast={index === gates.length - 1}
                 editable={editable}
-                busy={saving || draft !== null}
+                busy={saving || editorOpen}
                 result={
                   target && workspaceId && status
                     ? {

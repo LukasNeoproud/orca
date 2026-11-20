@@ -64,6 +64,10 @@ vi.mock('@/lib/quality-gate-client', () => ({
   fetchQualityGateOutput: mocks.fetchQualityGateOutput,
   classifyQualityGateCallFailure: mocks.classifyQualityGateCallFailure
 }))
+// Its own test covers it; here it must not reach a host.
+vi.mock('./WorkspaceQualityGateProposalNotice', () => ({
+  WorkspaceQualityGateProposalNotice: () => null
+}))
 vi.mock('./use-quality-gate-status', () => ({
   useQualityGateStatus: (...args: unknown[]) => {
     mocks.statusArgs.push(args)

@@ -26,6 +26,10 @@ vi.mock('@/lib/quality-gate-client', () => ({
   // An older host: it does not take the settings from this app.
   qualityGateRepositorySettingsSupported: vi.fn().mockResolvedValue(false)
 }))
+// No proposal waits; RepositoryQualityGatesSection.proposal.test.tsx covers one.
+vi.mock('@/lib/quality-gate-proposal-client', () => ({
+  qualityGateProposalsSupported: vi.fn().mockResolvedValue(false)
+}))
 vi.mock('./use-quality-gate-status', async () => {
   const { emptyQualityGateStatusView } = await import('./quality-gate-status-view')
   return {
