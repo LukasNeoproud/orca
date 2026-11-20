@@ -198,6 +198,7 @@ export function FileExplorerFilesTreePane({
           flashingPath={flashingPath}
           deleteShortcutLabel={deletion.deleteShortcutLabel}
           connectionId={activeRepo?.connectionId ?? null}
+          worktreePath={worktreePath}
           sourceWorkspaceId={tree.sourceWorkspaceId}
           dirCache={tree.dirCache}
           runtimeDownloadContext={runtimeDownloadContext}

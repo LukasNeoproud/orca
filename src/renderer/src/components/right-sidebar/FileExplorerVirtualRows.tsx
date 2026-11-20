@@ -31,6 +31,7 @@ type FileExplorerVirtualRowsProps = {
   flashingPath: string | null
   deleteShortcutLabel: string
   connectionId?: string | null
+  worktreePath?: string | null
   sourceWorkspaceId?: string | null
   /** Listings behind the projection, so a drag can name the owner of a selected
    *  path whose row is currently hidden. */
@@ -127,6 +128,7 @@ export function FileExplorerVirtualRows(props: FileExplorerVirtualRowsProps): Re
     flashingPath,
     deleteShortcutLabel,
     connectionId,
+    worktreePath,
     sourceWorkspaceId,
     dirCache,
     runtimeDownloadContext,
@@ -241,6 +243,7 @@ export function FileExplorerVirtualRows(props: FileExplorerVirtualRowsProps): Re
               isIgnored={isIgnored}
               deleteShortcutLabel={deleteShortcutLabel}
               connectionId={connectionId}
+              worktreePath={worktreePath}
               sourceWorkspaceId={sourceWorkspaceId}
               resolveDragSourceOwner={resolveSourceOwner}
               runtimeDownloadContext={runtimeDownloadContext}

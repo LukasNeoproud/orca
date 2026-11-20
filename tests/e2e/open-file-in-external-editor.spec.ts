@@ -12,6 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type { Page } from '@stablyai/playwright-test'
 import { expect, test } from './helpers/orca-app'
+import { openFileExplorer } from './helpers/file-explorer'
 import { waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 import {
   cleanupGoldenWorktree,
@@ -142,6 +143,54 @@ async function openCombinedDiff(
     },
     { worktreeId, worktreePath, paths }
   )
+}
+
+// Why: a folder workspace has no git and no repo row, so its root comes only from the catalog.
+async function openFolderWorkspace(page: Page, folderPath: string): Promise<string> {
+  return page.evaluate(async (folderPath) => {
+    const state = window.__store?.getState()
+    if (!state) {
+      throw new Error('window.__store is not available')
+    }
+    const group = await window.api.projectGroups.create({
+      name: 'Notes',
+      parentPath: folderPath,
+      createdFrom: 'folder-scan'
+    })
+    await state.fetchProjectGroups({ runtimeEnvironmentId: null, throwOnError: true })
+    const workspace = await state.createFolderWorkspace(
+      { projectGroupId: group.id, name: 'Notes', folderPath },
+      { runtimeEnvironmentId: null }
+    )
+    if (!workspace) {
+      throw new Error('Could not create folder workspace')
+    }
+    const worktreeId = `folder:${workspace.id}`
+    state.setActiveWorktree(worktreeId)
+    return worktreeId
+  }, folderPath)
+}
+
+// Why: the Open in submenu slides in, and a screenshot taken mid-animation shows it translucent.
+async function openExplorerRowInRecorder(page: Page, rowName: string, shot: string): Promise<void> {
+  await openFileExplorer(page)
+  const row = page
+    .locator('[data-orca-explorer-shell]')
+    .getByRole('button', { name: rowName, exact: true })
+  await expect(row).toBeVisible({ timeout: 15_000 })
+  await row.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Open in', exact: true }).click()
+  const openInApp = page.getByRole('menuitem', { name: APP_LABEL })
+  await expect(openInApp).toBeVisible()
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-slot="context-menu-sub-content"]')
+        .evaluate((menu) => menu.getAnimations().every((a) => a.playState === 'finished'))
+    )
+    .toBe(true)
+  await page.screenshot({ path: shot })
+  await openInApp.click()
 }
 
 function numberedLines(): string {
@@ -302,28 +351,10 @@ test.describe('Open file in external editor', () => {
     )
     const filePath = path.join(folderPath, 'notes.ts')
     writeFileSync(filePath, numberedLines())
+    const worktreeId = await openFolderWorkspace(orcaPage, folderPath)
     await orcaPage.evaluate(
-      async ({ folderPath, filePath }) => {
-        const state = window.__store?.getState()
-        if (!state) {
-          throw new Error('window.__store is not available')
-        }
-        const group = await window.api.projectGroups.create({
-          name: 'Notes',
-          parentPath: folderPath,
-          createdFrom: 'folder-scan'
-        })
-        await state.fetchProjectGroups({ runtimeEnvironmentId: null, throwOnError: true })
-        const workspace = await state.createFolderWorkspace(
-          { projectGroupId: group.id, name: 'Notes', folderPath },
-          { runtimeEnvironmentId: null }
-        )
-        if (!workspace) {
-          throw new Error('Could not create folder workspace')
-        }
-        const worktreeId = `folder:${workspace.id}`
-        state.setActiveWorktree(worktreeId)
-        state.openFile({
+      ({ filePath, worktreeId }) => {
+        window.__store?.getState().openFile({
           filePath,
           relativePath: 'notes.ts',
           worktreeId,
@@ -332,7 +363,7 @@ test.describe('Open file in external editor', () => {
           mode: 'edit'
         })
       },
-      { folderPath, filePath }
+      { filePath, worktreeId }
     )
 
     await rightClickGutterLine(orcaPage, '.monaco-editor', 3)
@@ -378,6 +409,53 @@ test.describe('Open file in external editor', () => {
     await expect
       .poll(recorder.receipt)
       .toEqual([worktreePath, path.join(worktreePath, GOLDEN_CHANGED_PATH)])
+  })
+
+  test('the File Explorer menu opens a file in its worktree window and a folder as a folder', async ({
+    orcaPage
+  }, testInfo) => {
+    const worktreePath = await readWorktreePath(orcaPage, await waitForActiveWorktree(orcaPage))
+    const fileName = 'open-in-explorer.ts'
+    const filePath = path.join(worktreePath, fileName)
+    writeFileSync(filePath, numberedLines())
+    try {
+      await openExplorerRowInRecorder(
+        orcaPage,
+        fileName,
+        testInfo.outputPath('file-explorer-open-in.png')
+      )
+      await expect.poll(recorder.receipt).toEqual([worktreePath, filePath])
+
+      await openExplorerRowInRecorder(
+        orcaPage,
+        'src',
+        testInfo.outputPath('file-explorer-folder-open-in.png')
+      )
+      await expect.poll(recorder.receipt).toEqual([path.join(worktreePath, 'src')])
+    } finally {
+      rmSync(filePath, { force: true })
+    }
+  })
+
+  test('the File Explorer menu opens a folder workspace file in its folder window', async ({
+    orcaPage,
+    registerPostElectronShutdownCleanup
+  }, testInfo) => {
+    const folderPath = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'orca-open-in-folder-')))
+    registerPostElectronShutdownCleanup(async () =>
+      rmSync(folderPath, { recursive: true, force: true })
+    )
+    const filePath = path.join(folderPath, 'notes.ts')
+    writeFileSync(filePath, numberedLines())
+    await openFolderWorkspace(orcaPage, folderPath)
+
+    await openExplorerRowInRecorder(
+      orcaPage,
+      'notes.ts',
+      testInfo.outputPath('file-explorer-folder-workspace-open-in.png')
+    )
+
+    await expect.poll(recorder.receipt).toEqual([folderPath, filePath])
   })
 
   test('the settings offer the editors found on this computer', async ({ orcaPage }, testInfo) => {

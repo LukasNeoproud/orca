@@ -12,7 +12,10 @@ const storeState = vi.hoisted(
     activeWorktreeId: string
     activeWorkspaceExecutionHostId: 'local' | `runtime:${string}` | null
     openMarkdownPreview: () => void
-    settings: { activeRuntimeEnvironmentId: string | null }
+    settings: {
+      activeRuntimeEnvironmentId: string | null
+      openInApplications: { id: string; label: string; command: string }[]
+    }
     worktreesByRepo: Record<string, { id: string; repoId: string; hostId: 'local' }[]>
     folderWorkspaces: { id: string; projectGroupId: string }[]
     projectGroups: { id: string }[]
@@ -20,13 +23,14 @@ const storeState = vi.hoisted(
     activeWorktreeId: 'wt-1',
     activeWorkspaceExecutionHostId: null,
     openMarkdownPreview: () => {},
-    settings: { activeRuntimeEnvironmentId: null },
+    settings: { activeRuntimeEnvironmentId: null, openInApplications: [] },
     worktreesByRepo: { 'repo-1': [{ id: 'wt-1', repoId: 'repo-1', hostId: 'local' }] },
     folderWorkspaces: [{ id: 'fw-1', projectGroupId: 'group-1' }],
     projectGroups: [{ id: 'group-1' }]
   })
 )
 const revealInFileManager = vi.hoisted(() => vi.fn())
+const openWorktreePath = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/ui/context-menu', async () => {
   const React_ = await import('react')
@@ -39,9 +43,19 @@ vi.mock('@/components/ui/context-menu', async () => {
       return React_.createElement(React_.Fragment, null, props.children)
     },
     ContextMenuSeparator: () => null,
-    ContextMenuShortcut: () => null
+    ContextMenuShortcut: () => null,
+    ContextMenuSub: passthrough,
+    ContextMenuSubContent: passthrough,
+    ContextMenuSubTrigger: passthrough
   }
 })
+
+vi.mock(import('@/components/sidebar/WorktreeOpenInMenu'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  openWorktreePath
+}))
+
+vi.mock('@/lib/open-in-app-catalog', () => ({ OpenInApplicationIcon: () => null }))
 
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: typeof storeState) => unknown) => selector(storeState)
@@ -76,7 +90,10 @@ const fileNode: TreeNode = {
 
 function renderRevealItem(
   owner: Partial<
-    Pick<React.ComponentProps<typeof FileExplorerRowContextMenu>, 'connectionId' | 'node'>
+    Pick<
+      React.ComponentProps<typeof FileExplorerRowContextMenu>,
+      'connectionId' | 'node' | 'worktreePath'
+    >
   > = {}
 ): ItemProps | undefined {
   renderToStaticMarkup(
@@ -118,7 +135,9 @@ describe('FileExplorerRowContextMenu host capabilities', () => {
     storeState.activeWorktreeId = 'wt-1'
     storeState.activeWorkspaceExecutionHostId = null
     storeState.settings.activeRuntimeEnvironmentId = null
+    storeState.settings.openInApplications = []
     revealInFileManager.mockReset()
+    openWorktreePath.mockReset()
   })
 
   it.each(['runtime:remote', 'ssh:nested'] as const)(
@@ -182,5 +201,95 @@ describe('FileExplorerRowContextMenu host capabilities', () => {
     storeState.activeWorktreeId = 'folder:fw-1'
 
     expect(renderRevealItem()?.disabled).toBe(false)
+  })
+})
+
+function findItem(label: string): ItemProps | undefined {
+  return items.list.find((item) => React.Children.toArray(item.children).includes(label))
+}
+
+function findApplicationItem(label: string): ItemProps | undefined {
+  return items.list.find((item) =>
+    renderToStaticMarkup(<>{item.children}</>).startsWith(`<span class="min-w-0 truncate">${label}`)
+  )
+}
+
+describe('FileExplorerRowContextMenu Open in', () => {
+  beforeEach(() => {
+    items.list = []
+    storeState.activeWorktreeId = 'wt-1'
+    storeState.activeWorkspaceExecutionHostId = null
+    storeState.settings.activeRuntimeEnvironmentId = null
+    storeState.settings.openInApplications = [
+      { id: 'code', label: 'Code', command: 'code' },
+      { id: 'studio', label: 'Android Studio', command: 'studio' }
+    ]
+    openWorktreePath.mockReset()
+  })
+
+  it('offers the Open in applications and the settings shortcut', () => {
+    renderRevealItem({ worktreePath: '/repo' })
+
+    expect(findApplicationItem('Code')?.disabled).toBe(false)
+    expect(findApplicationItem('Android Studio')?.disabled).toBe(false)
+    expect(findItem('Customize apps...')).toBeDefined()
+  })
+
+  it('opens a file in the window of the worktree the tree lists', () => {
+    renderRevealItem({ worktreePath: '/repo' })
+
+    findApplicationItem('Android Studio')?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith({
+      target: 'external-editor',
+      worktreePath: '/repo/src/index.ts',
+      connectionId: null,
+      runtimeEnvironmentId: null,
+      ownerUnresolved: false,
+      command: 'studio',
+      projectRoot: '/repo'
+    })
+  })
+
+  it('opens a file of a folder workspace in that folder window', () => {
+    storeState.activeWorktreeId = 'folder:fw-1'
+    renderRevealItem({ worktreePath: '/notes', node: { ...fileNode, path: '/notes/todo.md' } })
+
+    findApplicationItem('Code')?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreePath: '/notes/todo.md', projectRoot: '/notes' })
+    )
+  })
+
+  it('opens a folder as a folder, without a workspace root', () => {
+    renderRevealItem({
+      worktreePath: '/repo',
+      node: { ...fileNode, name: 'src', path: '/repo/src', relativePath: 'src', isDirectory: true }
+    })
+
+    findApplicationItem('Code')?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreePath: '/repo/src', projectRoot: null })
+    )
+  })
+
+  it('opens an SSH file through Remote SSH without a root and keeps other apps local-only', () => {
+    renderRevealItem({ worktreePath: '/srv/repo', connectionId: 'ssh-1' })
+
+    const code = findApplicationItem('Code')
+    expect(code?.disabled).toBe(false)
+    expect(renderToStaticMarkup(<>{code?.children}</>)).toContain('Remote SSH')
+    expect(findApplicationItem('Android Studio')?.disabled).toBe(true)
+    code?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'ssh-1', projectRoot: null })
+    )
+  })
+
+  it('disables every application for a workspace a remote runtime owns', () => {
+    storeState.activeWorkspaceExecutionHostId = 'runtime:env-1'
+    renderRevealItem({ worktreePath: '/repo' })
+
+    expect(findApplicationItem('Code')?.disabled).toBe(true)
+    expect(findApplicationItem('Android Studio')?.disabled).toBe(true)
   })
 })

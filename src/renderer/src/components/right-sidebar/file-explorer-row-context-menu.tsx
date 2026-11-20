@@ -35,6 +35,7 @@ import {
 } from '@/lib/reveal-in-file-manager'
 import { isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { ExternalEditorPathContextSubMenu } from '@/components/external-editor-file-open/ExternalEditorPathContextSubMenu'
 import type { FileExplorerRowProps } from './FileExplorerRow'
 import {
   shouldShowCollapseFolderAction,
@@ -64,6 +65,7 @@ type FileExplorerRowContextMenuProps = Pick<
   | 'isExpanded'
   | 'deleteShortcutLabel'
   | 'connectionId'
+  | 'worktreePath'
   | 'runtimeDownloadContext'
   | 'supportsFolderDownload'
   | 'canOpenInOrcaBrowser'
@@ -89,6 +91,7 @@ export function FileExplorerRowContextMenu({
   isExpanded,
   deleteShortcutLabel,
   connectionId,
+  worktreePath = null,
   runtimeDownloadContext,
   supportsFolderDownload,
   canOpenInOrcaBrowser,
@@ -275,6 +278,11 @@ export function FileExplorerRowContextMenu({
           ) : null}
         </ContextMenuItem>
       )}
+      <ExternalEditorPathContextSubMenu
+        path={node.path}
+        owner={revealOwner}
+        workspaceRoot={node.isDirectory ? null : worktreePath}
+      />
       <ContextMenuItem
         disabled={revealBlocked}
         onSelect={() => void revealInFileManager(node.path, revealOwner)}

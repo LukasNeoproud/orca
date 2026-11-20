@@ -46,6 +46,8 @@ export type FileExplorerRowProps = {
   isIgnored: boolean
   deleteShortcutLabel: string
   connectionId?: string | null
+  /** Root of the worktree or folder workspace the tree lists; Open in opens a file in its window. */
+  worktreePath?: string | null
   sourceWorkspaceId?: string | null
   /** Resolved at dragstart so the virtualized list pays nothing per render. */
   resolveDragSourceOwner?: (
@@ -95,6 +97,7 @@ export function FileExplorerRow({
   isIgnored,
   deleteShortcutLabel,
   connectionId,
+  worktreePath,
   sourceWorkspaceId,
   resolveDragSourceOwner,
   runtimeDownloadContext,
@@ -293,6 +296,7 @@ export function FileExplorerRow({
         isExpanded={isExpanded}
         deleteShortcutLabel={deleteShortcutLabel}
         connectionId={connectionId}
+        worktreePath={worktreePath}
         runtimeDownloadContext={runtimeDownloadContext}
         supportsFolderDownload={supportsFolderDownload}
         canOpenInOrcaBrowser={canOpenInOrcaBrowser}
