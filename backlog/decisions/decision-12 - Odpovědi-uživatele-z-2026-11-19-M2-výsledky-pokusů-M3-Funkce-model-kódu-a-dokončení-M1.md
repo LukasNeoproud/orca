@@ -91,3 +91,4 @@ Lokalizace M6:
 - **M1 přijat 2026-11-20** na commitu 2f37ea38b7 (sloučen do `personal`, bez push) a archivován. Open in v Exploreru (TASK-150) přišel až po přijetí.
 - **Rozhodnutí uživatele 2026-11-20:** potvrzení dotazu agenta klávesou smí smyčku zpětné vazby v tom tahu zastavit, dokud to neopraví TASK-143. Nalezená IDE se do nabídky Open in nepřidávají sama; uživatel je přidá v nastavení. Kontextové menu editoru zůstává s neprůhledným povrchem, průsvitnost menu Orky se nepřebírá.
 - **Zkoušky se skutečným Claude Code (TASK-139)** dělá agent sám; vzdálený hostitel pro zkoušku SSH je kontejner v Dockeru na tomto počítači.
+- **Zkouška smyčky se skutečným Claude Code přes SSH se přeskakuje** (uživatel 2026-11-20, TASK-152 archivován). Smyčka přes SSH zůstává ověřená jen se smyšleným agentem; nastavení bran pro vzdáleného hostitele řeší TASK-151.
