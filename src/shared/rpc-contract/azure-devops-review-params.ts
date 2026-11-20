@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { azureDevOpsReviewDepthFromChoice } from '../azure-devops-review-depth-execution'
 import { normalizeAzureDevOpsReviewOptions } from '../azure-devops-review-options'
 import { AZURE_DEVOPS_REVIEW_CASTABLE_VOTES } from '../azure-devops-review-vote'
 import {
@@ -111,7 +112,15 @@ export const AzureDevOpsReviewPublishParams = z
 
 export const AzureDevOpsReviewOpenWorktreeParams = z.object({
   pullRequestKey: PullRequestKey,
-  discardChanges: z.boolean().optional()
+  discardChanges: z.boolean().optional(),
+  /**
+   * The depth the user just chose for this review. The host remembers it only from an Orca app
+   * and refuses it from the runtime socket; left out, the remembered depth stays as it is.
+   */
+  depth: z
+    .unknown()
+    .optional()
+    .transform((value) => (value == null ? undefined : azureDevOpsReviewDepthFromChoice(value)))
 })
 
 const ReviewOptions = z.unknown().transform((value) => normalizeAzureDevOpsReviewOptions(value))

@@ -19938,6 +19938,7 @@
     "loopReasonAgentGone": "l'agent s'est fermé",
     "loopReasonDisabled": "elle a été désactivée",
     "loopReasonGatesInconclusive": "un contrôle n'a donné aucun résultat",
+    "loopReasonRunRefused": "les contrôles ne s'exécutent pas dans une revue statique ; choisissez « Build » ou « Build and run tests » dans une nouvelle revue IA",
     "loopCardLabel": "Boucle de correction : {{value0}}",
     "proposalTitle": "Contrôles proposés",
     "proposalFrom": "Depuis {{value0}}",

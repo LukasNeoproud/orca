@@ -16,7 +16,7 @@ import type {
   QualityGateLoopAgent,
   QualityGateLoopAgentEvent
 } from './quality-gate-loop-agent'
-import { collectQualityGateFailures } from './quality-gate-run-failures'
+import { collectQualityGateFailures, gateStartStopReason } from './quality-gate-run-failures'
 import type { QualityGateService } from './quality-gate-service'
 import type { QualityGateTarget } from './quality-gate-target'
 
@@ -106,7 +106,7 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
     const generation = chain.generation
     const current = (): boolean =>
       chains.get(worktreeId) === chain && chain.generation === generation
-    let failures: QualityGateFeedbackFailure[] | 'inconclusive'
+    let failures: QualityGateFeedbackFailure[] | 'gates-inconclusive' | 'run-refused'
     try {
       const required = target.gates.filter((gate) => gate.required).map((gate) => gate.id)
       const started = deps.service.run(target, required, { kind: 'feedback-loop' })
@@ -117,13 +117,13 @@ export function createQualityGateFeedbackLoop(deps: QualityGateFeedbackLoopDeps)
       )
     } catch (error) {
       console.warn('[quality-gates] feedback loop could not run the gates:', errorMessage(error))
-      failures = 'inconclusive'
+      failures = gateStartStopReason(error)
     }
     if (!current()) {
       return
     }
-    if (failures === 'inconclusive') {
-      settle(worktreeId, chain, 'stopped', 'gates-inconclusive')
+    if (typeof failures === 'string') {
+      settle(worktreeId, chain, 'stopped', failures)
       return
     }
     chain.failingGateIds = failures.map((failure) => failure.run.gateId)

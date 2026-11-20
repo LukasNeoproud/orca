@@ -52,7 +52,12 @@ const STOP_REASON_LABELS: Record<QualityGateFeedbackLoopStopReason, () => string
   'agent-gone': () => translate('qualityGates.loopReasonAgentGone', 'the agent closed'),
   disabled: () => translate('qualityGates.loopReasonDisabled', 'it was turned off'),
   'gates-inconclusive': () =>
-    translate('qualityGates.loopReasonGatesInconclusive', 'a gate gave no result')
+    translate('qualityGates.loopReasonGatesInconclusive', 'a gate gave no result'),
+  'run-refused': () =>
+    translate(
+      'qualityGates.loopReasonRunRefused',
+      'gates do not run in a static review; choose Build or Build and run tests in a new AI review'
+    )
 }
 
 function isKnownStopReason(reason: string): reason is QualityGateFeedbackLoopStopReason {

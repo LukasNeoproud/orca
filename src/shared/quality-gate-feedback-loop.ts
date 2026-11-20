@@ -73,6 +73,8 @@ export type QualityGateFeedbackLoopStopReason =
   | 'disabled'
   /** A gate was stopped, never started or its end was not observed: no verdict to act on. */
   | 'gates-inconclusive'
+  /** The host refused to start the gates, as in a review worktree whose review is static. */
+  | 'run-refused'
 
 export type QualityGateFeedbackLoopStatus = {
   /** Whether a finished agent step is checked: on for the repository and not off for the workspace. */

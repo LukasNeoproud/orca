@@ -99,4 +99,11 @@ describe('readQualityGateFeedbackLoop', () => {
     }
     expect(read({ workspaceDisabled: true }, true)?.tone).toBe('unknown')
   })
+
+  it('says why the host started no gate in a static review', () => {
+    expect(read({ state: 'stopped', stopReason: 'run-refused' })).toEqual({
+      tone: 'stopped',
+      text: 'Stopped: gates do not run in a static review; choose Build or Build and run tests in a new AI review'
+    })
+  })
 })

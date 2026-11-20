@@ -1,6 +1,7 @@
 // Azure DevOps pull request review: wire types shared by the host runtime,
 // the desktop renderer, the paired mobile client and the `orca ado` CLI.
 
+import type { AzureDevOpsReviewDepth } from './azure-devops-review-options'
 import type { AzureDevOpsReviewVoteOutcome } from './azure-devops-review-vote'
 import type {
   AzureDevOpsReviewDraftFinding,
@@ -275,6 +276,11 @@ export type AzureDevOpsReviewWorktreeInfo = {
   path: string
   pullRequestKey: string | null
   commit: string | null
+  /**
+   * The depth the host remembers for this review; it decides whether code may run here. Null when
+   * none was chosen, absent from a host that remembers none.
+   */
+  reviewDepth?: AzureDevOpsReviewDepth | null
 }
 
 export type AzureDevOpsReviewDetail = {

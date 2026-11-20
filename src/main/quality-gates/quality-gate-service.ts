@@ -14,6 +14,7 @@ import {
   type QualityGateStatusResult
 } from '../../shared/quality-gate-types'
 import type { runQualityGateCommand } from './quality-gate-command-run'
+import { QualityGateRunRefusedError, type QualityGateRunRefusal } from './quality-gate-run-refusal'
 import type { QualityGateRunStore, StoredQualityGateRun } from './quality-gate-run-store'
 import type { QualityGateSourceReader } from './quality-gate-source-reader'
 import type { QualityGateTarget } from './quality-gate-target'
@@ -29,6 +30,8 @@ export type QualityGateServiceDeps = {
   newRunId: () => string
   /** Told after every change of a run, so a subscriber does not have to ask on an interval. */
   onRunChanged?: (worktreeId: string) => void
+  /** Asked before every start, whoever the starter is: the window, the CLI, an agent or the loop. */
+  refuseRun?: QualityGateRunRefusal
 }
 
 type LiveRun = {
@@ -235,6 +238,10 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
     ): QualityGateRunStartResult {
       if (quitting) {
         throw new Error('Orca is quitting; quality gates cannot start now.')
+      }
+      const refusal = deps.refuseRun?.(target.worktreeId)
+      if (refusal) {
+        throw new QualityGateRunRefusedError(refusal)
       }
       const selected = gateIds
         ? gateIds.map((gateId) => {

@@ -12,7 +12,9 @@ const STOP_REASONS: Record<string, string> = {
   'agent-interrupted': 'the agent was interrupted',
   'agent-gone': 'the agent is gone',
   disabled: 'the loop was turned off',
-  'gates-inconclusive': 'a gate was stopped or could not run'
+  'gates-inconclusive': 'a gate was stopped or could not run',
+  'run-refused':
+    'Orca runs no gates in a static review; choose Build or Build and run tests in a new AI review in the Orca app'
 }
 
 function because(status: QualityGateFeedbackLoopStatus): string {

@@ -1,4 +1,6 @@
 import { gitExecFileAsync, promptGuardGitEnv } from '../../git/runner'
+import { readAzureDevOpsReviewDepth } from '../../../shared/azure-devops-review-depth-execution'
+import type { AzureDevOpsReviewDepth } from '../../../shared/azure-devops-review-options'
 import type {
   AzureDevOpsReviewPullRequest,
   AzureDevOpsReviewWorktreeInfo,
@@ -130,6 +132,7 @@ async function fetchPullRequestCommit(
 type PickedReviewWorktree = {
   worktree: { id: string; path: string }
   reviewIndex: number
+  reviewDepth: AzureDevOpsReviewDepth | null
 }
 
 /**
@@ -148,7 +151,11 @@ async function pickReviewWorktree(
     if (!worktree) {
       forgetRegistryEntry(entry.worktreeId)
     } else if (!picked && entry.pullRequestKey === pullRequestKey) {
-      picked = { worktree, reviewIndex: entry.reviewIndex ?? 1 }
+      picked = {
+        worktree,
+        reviewIndex: entry.reviewIndex ?? 1,
+        reviewDepth: readAzureDevOpsReviewDepth(entry.reviewDepth)
+      }
     }
   }
   return picked
@@ -185,6 +192,8 @@ type OpenReviewWorktreeArgs = {
   source: AzureDevOpsReviewRepoSource
   pullRequest: AzureDevOpsReviewPullRequest
   discardChanges: boolean
+  /** The depth the user just chose in an Orca app; undefined keeps what the worktree remembers. */
+  depth?: AzureDevOpsReviewDepth
 }
 
 async function openReviewWorktree(
@@ -269,7 +278,8 @@ async function openReviewWorktree(
     repoId: source.primaryRepo.id,
     path: worktree.path,
     pullRequestKey: pullRequest.key,
-    commit
+    commit,
+    reviewDepth: args.depth ?? picked?.reviewDepth ?? null
   }
   saveRegistryEntry({ ...info, repoKey: source.key, reviewIndex })
   return { ok: true, worktree: info, created }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
+import { refuseAzureDevOpsReviewWorktreeExecution } from '../azure-devops/review/azure-devops-review-worktree-execution'
 import { createQualityGateChangeFeed, type QualityGateChangeFeed } from './quality-gate-change-feed'
 import { runQualityGateCommand } from './quality-gate-command-run'
 import { createQualityGateRunStore, defaultQualityGateRunStorePath } from './quality-gate-run-store'
@@ -37,7 +38,9 @@ export function getQualityGateService(): QualityGateService {
     runnerDirectory: join(getAppEnvironment().getPath('userData'), 'quality-gate-runners'),
     now: Date.now,
     newRunId: randomUUID,
-    onRunChanged: (worktreeId) => getQualityGateChangeFeed().notify(worktreeId)
+    onRunChanged: (worktreeId) => getQualityGateChangeFeed().notify(worktreeId),
+    // A review worktree runs the pull request author's code, so only at a depth the user chose.
+    refuseRun: refuseAzureDevOpsReviewWorktreeExecution
   })
   return service
 }

@@ -30,7 +30,7 @@ export async function runAzureDevOpsReviewInBackground(
   confirm: ConfirmationDialogContextValue
 ): Promise<void> {
   try {
-    const worktree = await switchAzureDevOpsReviewWorktree(pullRequest.key, confirm)
+    const worktree = await switchAzureDevOpsReviewWorktree(pullRequest.key, confirm, options.depth)
     if (!worktree) {
       return
     }

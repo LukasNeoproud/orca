@@ -67,8 +67,43 @@ describe('runAzureDevOpsReviewAgentRequest', () => {
     await expect(
       runAzureDevOpsReviewAgentRequest({ kind: 'review', pullRequestKey: 'pr', options })
     ).resolves.toEqual({ kind: 'started', worktreeId: 'wt' })
-    expect(mocks.open).toHaveBeenCalledWith('pr', false)
+    expect(mocks.open).toHaveBeenCalledWith('pr', false, undefined)
     expect(mocks.start).toHaveBeenCalledWith(pullRequest, worktree, options, undefined)
+  })
+
+  describe('review depth', () => {
+    const build = { ...DEFAULT_AZURE_DEVOPS_REVIEW_OPTIONS, depth: 'build' as const }
+    const review = { kind: 'review' as const, pullRequestKey: 'pr', options: build }
+
+    it('has the host remember the depth of a review the user started in an Orca app', async () => {
+      await runAzureDevOpsReviewAgentRequest({ ...review, depthChosenByUser: true })
+      expect(mocks.open).toHaveBeenCalledWith('pr', false, 'build')
+      expect(mocks.start).toHaveBeenCalledWith(pullRequest, worktree, build, undefined)
+    })
+
+    it.each([false, undefined])(
+      'sends no depth and briefs the agent as static when the host stamped %s',
+      async (depthChosenByUser) => {
+        await runAzureDevOpsReviewAgentRequest({ ...review, depthChosenByUser })
+        expect(mocks.open).toHaveBeenCalledWith('pr', false, undefined)
+        expect(mocks.start.mock.calls[0][2]).toMatchObject({ depth: 'static' })
+      }
+    )
+
+    it('briefs such an agent at the depth the host already remembers', async () => {
+      mocks.open.mockResolvedValue({
+        ok: true,
+        worktree: { ...worktree, reviewDepth: 'build-and-test' },
+        created: false
+      })
+      await runAzureDevOpsReviewAgentRequest({ ...review, depthChosenByUser: false })
+      expect(mocks.start.mock.calls[0][2]).toMatchObject({ depth: 'build-and-test' })
+    })
+
+    it('never sends a depth with a rework: its options are the last ones used, not a choice', async () => {
+      await runAzureDevOpsReviewAgentRequest({ ...rework, options: build, depthChosenByUser: true })
+      expect(mocks.open).toHaveBeenCalledWith('pr', false, undefined)
+    })
   })
 
   it('reports a dirty review workspace instead of discarding it', async () => {

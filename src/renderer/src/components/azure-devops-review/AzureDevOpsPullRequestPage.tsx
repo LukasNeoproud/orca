@@ -93,7 +93,12 @@ export function AzureDevOpsPullRequestPage({
     try {
       const worktree = ownPullRequest
         ? await openAzureDevOpsFeedbackWorkspace(pullRequestKey)
-        : await switchAzureDevOpsReviewWorktree(pullRequestKey, confirm)
+        : await switchAzureDevOpsReviewWorktree(
+            pullRequestKey,
+            confirm,
+            // Why not with a prompt: those launches reuse the last options, nobody chose a depth.
+            mode === 'agent' && !prompt ? options?.depth : undefined
+          )
       if (!worktree) {
         return false
       }

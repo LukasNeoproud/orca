@@ -40,6 +40,7 @@ vi.mock('child_process', async () => {
   return createChildProcessModuleMock(spawnMock)
 })
 
+import { azureDevOpsReviewExecutionRefusal } from '../shared/azure-devops-review-depth-execution'
 import { COMMAND_SPECS } from './specs'
 import { main } from './index'
 import { useWorktreeAwarenessEnvironment } from './index-test-harness'
@@ -176,6 +177,24 @@ describe('gates CLI', () => {
     await main(['gates', 'run', 'deploy', '--worktree', worktree], '/tmp/api')
     expect(methods()).not.toContain('qualityGates.run')
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('No quality gate "deploy"'))
+  })
+
+  it('prints why the host runs nothing in a static review and exits 1', async () => {
+    mockHost()
+    const answer = callMock.getMockImplementation()
+    callMock.mockImplementation(async (method: string, params: unknown) => {
+      if (method === 'qualityGates.run') {
+        throw new RuntimeClientError('runtime_error', azureDevOpsReviewExecutionRefusal('static'))
+      }
+      return answer?.(method, params)
+    })
+    await main(['gates', 'run', '--worktree', worktree], '/tmp/api')
+    expect(callMock).toHaveBeenCalledWith('qualityGates.run', { worktree })
+    expect(methods()).not.toContain('qualityGates.output')
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('choose Build or Build and run tests')
+    )
+    expect(process.exitCode).toBe(1)
   })
 
   it('has no command or flag that defines a gate', () => {

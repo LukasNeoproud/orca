@@ -9,6 +9,11 @@ export type AzureDevOpsReviewAgentRequest = {
   pullRequestKey: string
   /** Reopens the pull request's review workspace even when it has uncommitted changes. */
   discardChanges?: boolean
+  /**
+   * Set by the host from the caller's transport, never read from the request: true when an Orca
+   * app sent it. Anything else starts the review at the depth the host already remembers.
+   */
+  depthChosenByUser?: boolean
 } & (
   | { kind: 'review'; options: AzureDevOpsReviewOptions }
   | {

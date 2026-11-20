@@ -167,9 +167,23 @@ Každý draft nálezu od AI nese ověření, aby bylo méně falešných nález�
 - **Novější iterace:** jakmile pull request dostane novější iteraci, běh ze staršího commitu je zastaralý a jistota klesne, u draftu přesunutého i nepřesunutého. Agent bránu spustí znovu a u draftu vymění id běhu.
 - **Data pro rozhraní:** kontrola nese shrnutí běhu (název a příkaz brány, stav, návratový kód, commit, čistota stromu, čas, id běhu a worktree). Výstup nenese; čte se od hostitele stávající metodou `qualityGates.output` podle id z kontroly. Zobrazení na kartě draftu dodá TASK-159; do té doby karta ukáže druh `command-run` se stavem bez vlastního textu.
 - **Nástroje agenta:** `ado_list_gates`, `ado_run_gate` a `ado_get_gate_run` (MCP i rozšíření pro Pi) spouští brány ve workspace, kde agent běží, přes stávající metody bran; příkaz ani worktree jim zadat nejde. Odpověď nese id běhu, stav, návratový kód, commit, čistotu stromu a konec výstupu označený jako data. Nástroj čeká nejvýš zadanou dobu (výchozí 45 s) a běžící bránu vrátí jako běžící. Agent jen s CLI použije `orca gates run --gate <id> --json`.
-- **Prompt:** při hloubce Build a Build and test vede agenta ke spuštění přes brány a k přiložení běhu jako důkazu; při statickém review o branách neříká nic. Vynucení hloubky na hostiteli je TASK-122.
+- **Prompt:** při hloubce Build a Build and test vede agenta ke spuštění přes brány a k přiložení běhu jako důkazu; při statickém review o branách neříká nic. Hloubku vynucuje hostitel (TASK-122, níže).
 - **Starší protějšky:** hostitel to hlásí schopností `azure-devops-review.gate-run-evidence.v1`. Starší hostitel důkaz uloží jako neznámý druh a neověří ho. Starší klient ukáže „ověřeno“ (hodnotu zná od TASK-84) a u důkazu stav bez vysvětlení.
 - **Meze:** ověření říká, že brána na tom commitu selhala, ne že selhala kvůli tomu, co nález tvrdí. Soubory ignorované gitem (závislosti, mezipaměti buildu) se do čistoty stromu nepočítají. Záznamy běhů mají retenci (5 dokončených na bránu a worktree); po vytlačení záznamu jistota klesne.
+
+**Stav po TASK-122 (hloubka review na hostiteli):**
+
+- **Co se pamatuje:** hloubku review (statické, Build, Build and run tests) si hostitel ukládá u review worktree do svého registru review worktrees. Dřív byla jen větou v promptu.
+- **Kdo ji zapíše:** jen spuštění AI review, při kterém ji uživatel zvolil v možnostech review v aplikaci Orca (desktop, spárovaný telefon nebo spárovaný desktop). Požadavek z runtime socketu, kterým volá `orca`, jeho MCP servery a rozšíření agentů, hostitel s hloubkou odmítne. Agent tedy hloubku nezvýší ani nesníží.
+- **Co se nemění samo:** otevření review worktree bez nového výběru (Open in workspace, předání draftů agentovi) zapamatovanou hloubku nechá. Nové AI review ji přepíše, i směrem dolů.
+- **Co hostitel odmítne:** při statickém review nespustí v review worktree žádnou bránu, ať o ni žádá okno aplikace, `orca gates run`, nástroj `ado_run_gate` nebo smyčka zpětné vazby. Odpověď říká proč a jak hloubku změnit: spustit nové AI review a zvolit Build nebo Build and run tests. Smyčka se zastaví s důvodem `run-refused` a agentovi nic nepošle. Seznam bran a jejich stav se čtou dál.
+- **Starší review worktree:** worktree vzniklý před tímto sestavením zapamatovanou hloubku nemá a chová se jako statický.
+- **Ostatní worktrees:** pravidlo se týká jen review worktree. Workspace autora (odpovědi na komentáře k vlastnímu pull requestu) a běžné worktrees spouští brány jako dřív.
+- **Build proti Build and run tests:** obě hloubky spouštění dovolují. Orca neví, co příkaz brány dělá, takže mezi nimi rozlišuje jen prompt.
+- **SSH:** registr i služba bran jsou v jednom procesu hostitele, který review worktree vlastní; na vzdáleném stroji rozhoduje jeho Orca podle svého registru a klient jí hloubku při spuštění brány neposílá.
+- **Jednorázový příkaz (TASK-161):** zeptá se stejné funkce hostitele (`azureDevOpsReviewWorktreeExecution`) jako brány.
+- **Starší protějšky:** hostitel hlásí schopnost `azure-devops-review.depth.v1`. Starší hostitel pole `depth` zahodí a nic nevynucuje, jako dosud. Starší klient hloubku neposílá, takže review, které spustí, je pro hostitele statické, dokud uživatel nespustí review z novějšího klienta. Důvod `run-refused` starší klient ukáže jako zastavenou smyčku bez důvodu.
+- **Meze:** pravidlo hlídá, co spouští Orca. Agent s vlastním shellem může příkaz pustit sám; tomu brání jen prompt a oprávnění agenta. Kdo smí zapisovat do dat Orky na disku, hloubku přepíše; stejná mez jako u nastavení bran.
 
 Model, druhy důkazu a pravidla jistoty popisuje [decision-10](../../backlog/decisions/decision-10%20-%20N%C3%A1lezy-AI-v-review-z%C3%A1va%C5%BEnost-d%C5%AFkazy-a-jistota-odvozen%C3%A1-hostitelem-ov%C4%9B%C5%99en%C3%A1-citace-k%C3%B3du-znamen%C3%A1-jen-pravd%C4%9Bpodobn%C3%BD-n%C3%A1lez.md).
 

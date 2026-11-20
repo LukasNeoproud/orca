@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { durableWriteTempPath, writeFileDurableSync } from '../../durable-file-write'
+import { readAzureDevOpsReviewDepth } from '../../../shared/azure-devops-review-depth-execution'
 import type { AzureDevOpsReviewWorktreeInfo } from '../../../shared/azure-devops-review-types'
 
 // Why reviewIndex: names each extra worktree of a repo (`-review-2`) so concurrent reviews never collide.
+// `reviewDepth` is absent on an entry written before depths were remembered.
 export type AzureDevOpsReviewWorktreeEntry = AzureDevOpsReviewWorktreeInfo & {
   repoKey: string
   reviewIndex?: number
@@ -79,8 +81,19 @@ function toInfo(entry: AzureDevOpsReviewWorktreeEntry): AzureDevOpsReviewWorktre
     repoId: entry.repoId,
     path: entry.path,
     pullRequestKey: entry.pullRequestKey,
-    commit: entry.commit
+    commit: entry.commit,
+    reviewDepth: readAzureDevOpsReviewDepth(entry.reviewDepth)
   }
+}
+
+/** The review worktree with this id, as this host's registry holds it; null for any other worktree. */
+export function findAzureDevOpsReviewWorktreeById(
+  worktreeId: string
+): AzureDevOpsReviewWorktreeInfo | null {
+  const entry = loadAzureDevOpsReviewWorktreeRegistry().worktrees.find(
+    (candidate) => candidate.worktreeId === worktreeId
+  )
+  return entry ? toInfo(entry) : null
 }
 
 /**

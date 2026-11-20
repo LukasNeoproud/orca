@@ -3,6 +3,7 @@ import {
   AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY
 } from '../../../shared/host-feature-runtime-capabilities'
+import type { AzureDevOpsReviewDepth } from '../../../shared/azure-devops-review-options'
 import type { AzureDevOpsReviewCastableVote } from '../../../shared/azure-devops-review-vote'
 import type { RuntimeStatus } from '../../../shared/runtime-types'
 import type {
@@ -115,14 +116,16 @@ export function azureDevOpsReviewHostKeepsFindings(): Promise<boolean> {
   return hostHasCapability(AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY)
 }
 
+/** `depth` is the user's choice for a review that is starting; without it the host keeps its own. */
 export function openAzureDevOpsReviewWorktree(
   pullRequestKey: string,
-  discardChanges = false
+  discardChanges = false,
+  depth?: AzureDevOpsReviewDepth
 ): Promise<AzureDevOpsReviewWorktreeResult> {
   return callRuntimeRpc(
     LOCAL,
     'azureDevOpsReview.openWorktree',
-    { pullRequestKey, discardChanges },
+    { pullRequestKey, discardChanges, ...(depth ? { depth } : {}) },
     { timeoutMs: WORKTREE_TIMEOUT_MS }
   )
 }

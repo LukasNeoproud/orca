@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { azureDevOpsReviewExecutionRefusal } from '../shared/azure-devops-review-depth-execution'
 import { AZURE_DEVOPS_REVIEW_GATE_TOOLS } from '../shared/azure-devops-review-gate-tools'
 import { AZURE_DEVOPS_REVIEW_TOOLS } from '../shared/azure-devops-review-tools'
 import type { QualityGateRunOutput, QualityGateRunView } from '../shared/quality-gate-types'
@@ -274,6 +275,23 @@ describe('the gate tools of a review agent', () => {
     await expect(runTool(setup, 'ado_get_gate_run', { runId: 'r9' })).rejects.toThrow(
       'was not found for this workspace'
     )
+  })
+
+  it('passes on why the host runs nothing in a static review, and starts no wait', async () => {
+    const refusal = azureDevOpsReviewExecutionRefusal('static')
+    const setup = host([])
+    const call = setup.client.call
+    setup.client.call = async (method, params) => {
+      if (method === 'qualityGates.run') {
+        setup.calls.push({ method, params })
+        throw new RuntimeClientError('runtime_error', refusal)
+      }
+      return call(method, params)
+    }
+    await expect(runTool(setup, 'ado_run_gate', { gateId: 'test' })).rejects.toThrow(refusal)
+    expect(setup.calls).toEqual([
+      { method: 'qualityGates.run', params: { worktree: WORKTREE, gateIds: ['test'] } }
+    ])
   })
 
   it.each([

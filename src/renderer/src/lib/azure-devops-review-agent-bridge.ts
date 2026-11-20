@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { useAzureDevOpsReviewChatLinks } from '@/store/azure-devops-review-chat-links'
 import { readAzureDevOpsReviewOptions } from '@/store/azure-devops-review-options'
+import { normalizeAzureDevOpsReviewOptions } from '../../../shared/azure-devops-review-options'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { deliverAzureDevOpsDraftReworkPrompt } from '@/components/azure-devops-review/azure-devops-draft-rework-delivery'
 import { findAzureDevOpsReviewChatTab } from './azure-devops-review-chat'
@@ -60,9 +61,12 @@ export async function runAzureDevOpsReviewAgentRequest(
         : { kind: 'failed', message: delivery.message }
     }
   }
+  // Why only then: a rework reuses the desktop's last options, and the runtime socket may be the agent.
+  const depthChosen = request.kind === 'review' && request.depthChosenByUser === true
   const opened = await openAzureDevOpsReviewWorktree(
     pullRequestKey,
-    request.discardChanges === true
+    request.discardChanges === true,
+    depthChosen ? request.options.depth : undefined
   )
   if (!opened.ok) {
     return opened.reason === 'dirty'
@@ -72,10 +76,17 @@ export async function runAzureDevOpsReviewAgentRequest(
   useAzureDevOpsReviewChatLinks
     .getState()
     .setWorktreePullRequest(opened.worktree.worktreeId, opened.worktree.pullRequestKey)
-  const options =
+  const asked =
     request.kind === 'review'
       ? request.options
       : (request.options ?? readAzureDevOpsReviewOptions())
+  // The prompt follows what the host enforces, so the agent is not told to run what gets refused.
+  const options = depthChosen
+    ? asked
+    : normalizeAzureDevOpsReviewOptions({
+        ...asked,
+        depth: opened.worktree.reviewDepth ?? 'static'
+      })
   const launch = await startAzureDevOpsReviewAgentInBackground(
     detail.pullRequest,
     { ...opened.worktree, piExtensionPath: opened.piExtensionPath },

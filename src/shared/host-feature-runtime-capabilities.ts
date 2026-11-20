@@ -25,6 +25,9 @@ export const AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY =
 // host without it keeps such evidence as an unknown kind and never checks it.
 export const AZURE_DEVOPS_REVIEW_GATE_RUN_EVIDENCE_RUNTIME_CAPABILITY =
   'azure-devops-review.gate-run-evidence.v1' as const
+// azureDevOpsReview.openWorktree reads `depth` and the host runs code in a review worktree only at
+// a depth it remembers; a host without it drops the field and enforces nothing.
+export const AZURE_DEVOPS_REVIEW_DEPTH_RUNTIME_CAPABILITY = 'azure-devops-review.depth.v1' as const
 
 // qualityGates.* runs the gates of a repository on the host that owns the worktree.
 export const QUALITY_GATES_RUNTIME_CAPABILITY = 'quality-gates.v1' as const
@@ -52,6 +55,7 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_GATE_RUN_EVIDENCE_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_DEPTH_RUNTIME_CAPABILITY,
   QUALITY_GATES_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,

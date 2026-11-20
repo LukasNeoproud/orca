@@ -35,6 +35,10 @@ import {
   openAzureDevOpsFeedbackWorktree,
   type AzureDevOpsFeedbackWorktreeHost
 } from '../../../azure-devops/review/azure-devops-feedback-worktree'
+import {
+  assertAzureDevOpsReviewDepthCaller,
+  azureDevOpsReviewCallerIsApp
+} from '../../../azure-devops/review/azure-devops-review-worktree-execution'
 import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure-devops-review-file-diff'
 import { ensureAzureDevOpsReviewPiExtension } from '../../../azure-devops/review/azure-devops-review-pi-extension'
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
@@ -226,13 +230,17 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     name: 'azureDevOpsReview.openWorktree',
     permission: 'workspace',
     params: AzureDevOpsReviewOpenWorktreeParams,
-    handler: async (params, { runtime }) => {
+    handler: async (params, { runtime, caller }) => {
+      if (params.depth !== undefined) {
+        assertAzureDevOpsReviewDepthCaller(caller)
+      }
       const { source, pullRequest } = await resolveFreshPullRequest(runtime, params.pullRequestKey)
       const result = await openAzureDevOpsReviewWorktree({
         host: reviewWorktreeHost(runtime),
         source,
         pullRequest,
-        discardChanges: params.discardChanges === true
+        discardChanges: params.discardChanges === true,
+        depth: params.depth
       })
       const piExtensionPath = result.ok ? ensureAzureDevOpsReviewPiExtension() : null
       return piExtensionPath ? { ...result, piExtensionPath } : result
@@ -259,6 +267,12 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     name: 'azureDevOpsReview.runAgent',
     permission: 'workspace',
     params: AzureDevOpsReviewRunAgentParams,
-    handler: async (params, { runtime }) => runtime.runAzureDevOpsReviewAgent(params)
+    // Why stamped here: the window relays the request as the desktop, so it cannot tell an app
+    // from the runtime socket, and only the user's own choice of depth is remembered.
+    handler: async (params, { runtime, caller }) =>
+      runtime.runAzureDevOpsReviewAgent({
+        ...params,
+        depthChosenByUser: azureDevOpsReviewCallerIsApp(caller)
+      })
   })
 ]

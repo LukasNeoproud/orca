@@ -19937,6 +19937,7 @@
     "loopReasonAgentGone": "Agent が終了しました",
     "loopReasonDisabled": "オフにされました",
     "loopReasonGatesInconclusive": "結果を出さなかったゲートがあります",
+    "loopReasonRunRefused": "静的レビューではゲートを実行しません。新しい AI レビューで「Build」または「Build and run tests」を選んでください",
     "loopCardLabel": "修正ループ: {{value0}}",
     "proposalTitle": "提案されたゲート",
     "proposalFrom": "{{value0}} から",

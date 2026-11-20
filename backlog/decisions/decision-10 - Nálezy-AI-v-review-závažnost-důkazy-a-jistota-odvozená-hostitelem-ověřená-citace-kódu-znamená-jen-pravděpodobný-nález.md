@@ -98,9 +98,25 @@ Pravidla se vyhodnocují shora dolů (`checkAzureDevOpsReviewGateRunEvidence`); 
   - Stav, který git nevidí: soubory ignorované gitem (závislosti, mezipaměti buildu), soubory označené `assume-unchanged` nebo `skip-worktree`, lokální `.git/info/exclude` a prostředí stroje. Prompt úpravy souborů zakazuje; vynucené to není.
   - Data Orky na disku. Kdo smí zapisovat do souboru s běhy, záznam podvrhne; stejná mez jako u nastavení bran v decision-11.
 - **Retence:** úložiště drží 5 dokončených běhů na bránu a worktree. Když záznam vypadne, kontrola je `run-not-found` a jistota klesne.
-- **Rozšíření:** další zdroj běhu (jednorázový příkaz z TASK-122) je nová hodnota `source` a nové úložiště záznamů, ne nový druh důkazu. Běh ze zdroje, který sestavení nezná, se uchová jako neznámý důkaz.
+- **Rozšíření:** další zdroj běhu (jednorázový příkaz z TASK-161) je nová hodnota `source` a nové úložiště záznamů, ne nový druh důkazu. Běh ze zdroje, který sestavení nezná, se uchová jako neznámý důkaz.
 - **Starší protějšky:** hostitel hlásí schopnost `azure-devops-review.gate-run-evidence.v1`. Starší hostitel `command-run` uloží jako neznámý druh (`unknown-kind`) a `verified` nedá. Starší klient hodnotu `verified` zná, důvody začínající `run-` čte jako „neověřeno“ bez vysvětlení a pole `run` ignoruje. Nástroje agenta ze starší instalace `command-run` odmítnou dřív, než se zeptají hostitele. Protokol RPC se nezměnil.
 - **Testy:** pravidla (`azure-devops-review-gate-run-evidence.test.ts`), celá cesta se skutečným příkazem nad smyšleným repozitářem (`azure-devops-review-gate-run-evidence.real-run.test.ts`), data draftu (`azure-devops-review-draft-findings.gate-run.test.ts`), nástroje agenta (`azure-devops-review-gate-tool-calls.test.ts`), kompatibilita oběma směry (`review-command-run-evidence-compatibility.test.ts`).
+
+### Hloubka review a spouštění kódu (TASK-122)
+
+V review worktree je kód autora pull requestu. Orca v něm spouští jen při hloubce review, kterou uživatel zvolil; `static` nespouští nic.
+
+- **Kde je hloubka:** pole `reviewDepth` u záznamu review worktree v registru hostitele (`~/.orca/azure-devops-review-worktrees.json`). Hostitel review je i hostitel, který worktree vlastní a brány spouští, takže rozhodnutí čte registr ve vlastním procesu, i když je sám vzdálený stroj.
+- **Kdo ji zapisuje:** jen `azureDevOpsReview.openWorktree` s nepovinným polem `depth` od volajícího, kterého transport označil jako aplikaci (`desktop`, `paired-device`). Od runtime socketu (`local-cli`: `orca`, MCP servery, rozšíření agentů) a od volajícího bez identity hostitel pole odmítne chybou, a to i když hloubku snižuje. Bez pole zůstane zapamatovaná hloubka.
+- **`azureDevOpsReview.runAgent`:** požadavek provede okno desktopu a to volá jako `desktop`. Hostitel proto do požadavku sám dopíše `depthChosenByUser` podle volajícího; hodnotu z požadavku schéma zahodí. Okno pošle hloubku jen u požadavku `review` s tímto příznakem. Jinak hloubku neposílá a agenta zadá podle hloubky, kterou hostitel už pamatuje.
+- **Klient:** hloubku posílá jen spuštění z dialogu možností review. Spuštění s hotovým promptem (předání draftů, odpovědi na komentáře) bere poslední použité možnosti, což není volba pro tento pull request.
+- **Rozhodnutí:** jedna funkce hostitele `azureDevOpsReviewWorktreeExecution(worktreeId)` v `azure-devops-review-worktree-execution.ts`. Bere jen id worktree, které hostitel sám vyhodnotil, a čte jen registr. Vrací, jestli jde o review worktree, jestli smí spouštět, hloubku a text odmítnutí.
+- **Vynucení u bran:** `QualityGateService.run` se před každým startem zeptá přes závislost `refuseRun`, kterou zapojuje `quality-gate-host.ts`. Okno, CLI, `ado_run_gate` i smyčka zpětné vazby startují přes tuto jednu metodu. Odmítnutí je `QualityGateRunRefusedError`; smyčka z něj udělá stav `stopped` s důvodem `run-refused`.
+- **Neznámá hodnota:** hloubka, kterou sestavení nezná, se při zápisu uloží jako `static` (uživatel předchozí volbu nahradil) a při čtení registru se čte jako žádná.
+- **Záznam bez hloubky:** review worktree ze staršího sestavení se chová jako statický. Starší sestavení, které záznam přepíše, hloubku zahodí; směr je bezpečný.
+- **Mez registru:** záznam smazaného review worktree zmizí až při dalším otevření review v tom repozitáři. Běžný worktree vytvořený mezitím na stejné cestě by se do té doby choval jako statické review.
+- **Jednorázový příkaz (TASK-161)** volá stejnou funkci před spuštěním; nové pravidlo nepotřebuje.
+- **Testy:** rozhodnutí a registr (`azure-devops-review-worktree-execution.test.ts`), každá cesta spuštění (`azure-devops-review-worktree-execution.paths.test.ts`), zapojení do služby hostitele (`quality-gate-host-review-depth.test.ts`), volající RPC (`azure-devops-review-depth-caller.test.ts`), kompatibilita oběma směry (`azure-devops-review-depth-compatibility.test.ts`).
 
 ### Hranice důvěry
 

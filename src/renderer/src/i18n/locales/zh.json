@@ -19951,6 +19951,7 @@
     "loopReasonAgentGone": "代理已关闭",
     "loopReasonDisabled": "已被关闭",
     "loopReasonGatesInconclusive": "有质量门没有给出结果",
+    "loopReasonRunRefused": "静态审查不运行质量门；请在新的 AI 审查中选择“Build”或“Build and run tests”",
     "loopCardLabel": "修复循环：{{value0}}",
     "proposalTitle": "提议的质量门",
     "proposalFrom": "来自 {{value0}}",

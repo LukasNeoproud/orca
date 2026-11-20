@@ -20954,6 +20954,7 @@
     "loopReasonAgentGone": "the agent closed",
     "loopReasonDisabled": "it was turned off",
     "loopReasonGatesInconclusive": "a gate gave no result",
+    "loopReasonRunRefused": "gates do not run in a static review; choose Build or Build and run tests in a new AI review",
     "loopCardLabel": "Feedback loop: {{value0}}",
     "proposalTitle": "Proposed gates",
     "proposalFrom": "From {{value0}}",

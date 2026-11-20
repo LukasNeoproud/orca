@@ -19937,6 +19937,7 @@
     "loopReasonAgentGone": "에이전트가 종료되었습니다",
     "loopReasonDisabled": "꺼졌습니다",
     "loopReasonGatesInconclusive": "결과를 내지 않은 게이트가 있습니다",
+    "loopReasonRunRefused": "정적 리뷰에서는 게이트를 실행하지 않습니다. 새 AI 리뷰에서 \"Build\" 또는 \"Build and run tests\"를 선택하세요",
     "loopCardLabel": "수정 루프: {{value0}}",
     "proposalTitle": "제안된 게이트",
     "proposalFrom": "{{value0}}에서",

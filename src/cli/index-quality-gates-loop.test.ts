@@ -186,4 +186,12 @@ describe('gates loop', () => {
     )
     expect(formatQualityGateFeedbackLoop({ state: 'unknown-state' })).toBeNull()
   })
+
+  it('says why the host started no gate in a static review', () => {
+    expect(
+      formatQualityGateFeedbackLoop(loop({ state: 'stopped', stopReason: 'run-refused' }))
+    ).toBe(
+      'Feedback loop: on, stopped: Orca runs no gates in a static review; choose Build or Build and run tests in a new AI review in the Orca app.'
+    )
+  })
 })
