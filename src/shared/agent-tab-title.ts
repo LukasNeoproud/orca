@@ -1,3 +1,5 @@
+import { agentStatusPromptDisplayText } from './agent-status-prompt-display'
+
 export const GENERATED_TAB_TITLE_MAX_LENGTH = 40
 export const GENERATED_TAB_TITLE_SOURCE_SCAN_LIMIT = 512
 
@@ -71,7 +73,9 @@ function isGeneratedTabTitleWhitespace(code: number): boolean {
 export function deriveGeneratedTabTitle(prompt: string): string | null {
   // Why: agent prompts can be paste-sized. Generated tab titles are previews,
   // so title cleanup must not scan the full prompt on the renderer state path.
-  const promptPreview = prompt.slice(0, GENERATED_TAB_TITLE_SOURCE_SCAN_LIMIT)
+  const promptPreview = agentStatusPromptDisplayText(
+    prompt.slice(0, GENERATED_TAB_TITLE_SOURCE_SCAN_LIMIT)
+  )
   const firstClause = promptPreview
     .trim()
     // Strip URLs before markdown punctuation: a GitLab URL like

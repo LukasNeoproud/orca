@@ -1,3 +1,4 @@
+import { agentStatusPromptDisplayText } from '../../../shared/agent-status-prompt-display'
 import type {
   AgentStateHistoryEntry,
   AgentStatusEntry,
@@ -34,7 +35,7 @@ function taskTitleFromPrompt(prompt: string): string | null {
     const preview = getAgentRowPrimaryText({ prompt })
     return preview || null
   }
-  const trimmed = prompt.trim()
+  const trimmed = agentStatusPromptDisplayText(prompt)
   if (!trimmed || isTerseAgentFollowUpPrompt(trimmed)) {
     return null
   }

@@ -1,3 +1,4 @@
+import { agentStatusPromptDisplayText } from '../../../shared/agent-status-prompt-display'
 import type { AgentStatusEntry } from '../../../shared/agent-status-types'
 import {
   findOrcaDispatchPreambleStart,
@@ -61,7 +62,7 @@ export function getAgentRowPrimaryText(
   if (isOrcaDispatchPrompt(entry.prompt)) {
     return getOrcaDispatchTaskPreview(entry.prompt)
   }
-  return entry.prompt.trim()
+  return agentStatusPromptDisplayText(entry.prompt)
 }
 
 export function getAgentRowGeneratedTitleText(

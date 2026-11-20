@@ -186,6 +186,21 @@ describe('agentDisplayLabel', () => {
     ).toBe('Monitoring background tasks')
   })
 
+  // Same cases as src/shared/agent-status-prompt-display.test.ts, which this file mirrors inline.
+  it('shows a prompt Claude Code reported as a paste without the paste tag', () => {
+    const label = (prompt: string) => agentDisplayLabel(row({ prompt }), 0)
+    expect(label('<pasted_content id="fbf3"> Orca quality gates fai')).toBe(
+      'Orca quality gates fai'
+    )
+    expect(label('see this: <pasted_content id="a"> body </pasted_content id="a">')).toBe(
+      'see this: body'
+    )
+    expect(label('<pasted_content>\nbody\n</pasted_content>')).toBe('body')
+    expect(label('  fix <pasted_content id="a b> parsing  ')).toBe(
+      'fix <pasted_content id="a b> parsing'
+    )
+  })
+
   it("says Stopping while the host says a person's Stop is ending the turn", () => {
     const stopping = row({
       lastAssistantMessage: 'hello there',

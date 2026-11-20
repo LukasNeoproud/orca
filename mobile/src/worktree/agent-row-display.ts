@@ -139,11 +139,21 @@ export function agentDisplayLabel(row: RuntimeWorktreeAgentRow, now: number): st
   if (message) {
     return message
   }
-  const prompt = row.prompt.trim()
+  const prompt = agentStatusPromptDisplayText(row.prompt)
   if (prompt) {
     return prompt
   }
   return agentStateLabel(agentDotState(row, now))
+}
+
+// Mirrors src/shared/agent-status-prompt-display.ts, inline for the same single-file copy.
+const CLAUDE_PASTE_TAG = /\s*<\/?pasted_content(?: id="[^"<>\r\n]{1,64}")?>\s*/g
+
+function agentStatusPromptDisplayText(prompt: string): string {
+  if (!prompt.includes('pasted_content')) {
+    return prompt.trim()
+  }
+  return prompt.replace(CLAUDE_PASTE_TAG, ' ').trim()
 }
 
 // Short agent identity label by type (Claude/Codex/Gemini/…), used when no
