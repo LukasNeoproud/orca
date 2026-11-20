@@ -1,0 +1,70 @@
+/* Adopted into the shadow root Monaco draws its context menu in, after Monaco's own sheet, so
+   equal selectors win. Values follow the ContextMenu primitive in components/ui. */
+
+.context-view.monaco-menu-container {
+  --vscode-menu-background: var(--popover);
+  --vscode-menu-foreground: var(--popover-foreground);
+  --vscode-menu-border: var(--border);
+  --vscode-menu-separatorBackground: color-mix(in srgb, var(--border) 60%, transparent);
+  --vscode-menu-selectionBackground: color-mix(in srgb, var(--popover-foreground) 8%, transparent);
+  --vscode-menu-selectionForeground: var(--accent-foreground);
+  --vscode-menu-selectionBorder: transparent;
+  --vscode-disabledForeground: color-mix(in srgb, var(--popover-foreground) 50%, transparent);
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+:host-context(.dark) .context-view.monaco-menu-container {
+  --vscode-menu-selectionBackground: color-mix(in srgb, var(--popover-foreground) 14%, transparent);
+}
+
+/* Why !important: Monaco writes the radius and shadow inline on each menu's scroll element. */
+.monaco-menu-container .monaco-scrollable-element {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-floating) !important;
+}
+
+.monaco-menu {
+  min-width: 11rem;
+  font-size: var(--text-xs);
+}
+
+.monaco-menu .monaco-action-bar.vertical .action-menu-item {
+  height: auto;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  font-weight: 450;
+  line-height: 17px;
+}
+
+.monaco-menu .monaco-action-bar.vertical .action-menu-item.checked {
+  padding-left: 28px;
+}
+
+.monaco-menu .monaco-action-bar.vertical .action-label:not(.separator) {
+  padding: 0;
+  line-height: inherit;
+}
+
+.monaco-menu .monaco-action-bar.vertical .keybinding {
+  padding: 0 0 0 16px;
+  font-size: var(--text-2xs);
+  line-height: inherit;
+  color: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
+  opacity: 1;
+}
+
+.monaco-menu .monaco-action-bar.vertical .submenu-indicator {
+  padding: 0;
+}
+
+.monaco-menu .monaco-action-bar.vertical .submenu-indicator.codicon::before {
+  margin-right: 0;
+}
+
+/* Why !important: Monaco sets the separator margin with !important. */
+.monaco-menu .monaco-action-bar.vertical .action-label.separator {
+  width: auto;
+  flex: 1 1 auto;
+  margin: 3px 4px !important;
+}

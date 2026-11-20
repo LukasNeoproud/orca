@@ -84,3 +84,7 @@ Lokalizace M6:
 - **Prázdný oddíl Local gates se u repozitáře bez bran ukazuje dál** s odkazem „Set up gates“, aby brány byly k nalezení i mimo nastavení.
 - **Karta workspace neukazuje značku bran, dokud žádná brána neběžela** (z TASK-121); sidebar zůstává klidný.
 - **Při ztrátě spojení se vzdáleným hostitelem karta ukáže „nelze ověřit“ i místo dokončeného výsledku** a poslední známý stav nechá v tooltipu (z TASK-121).
+
+## Doplnění 2026-11-20 (připomínky z akceptace M1)
+
+- **Rozdíl snapshotů má dvě barvy** (odebráno z původního, přidáno nebo změněno v novém); třetí barva pro změnu barvy na místě se nepřidává (z TASK-145).
