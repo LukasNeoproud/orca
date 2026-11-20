@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
+import { parseAgentSessionOperationTimestamp } from '../../shared/agent-session-host-authority'
 import {
   createQualityGateFeedbackDelivery,
+  newQualityGateFeedbackOperationId,
   type QualityGateFeedbackDeliveryRuntime
 } from './quality-gate-feedback-delivery'
 import type { QualityGateLoopAgent } from './quality-gate-feedback-loop'
@@ -175,6 +177,13 @@ describe('delivery of quality gate feedback', () => {
         }
       })
       expect(JSON.stringify(mutation)).toContain('"s-1"')
+    })
+
+    it('mints an operation id the chat host admits', () => {
+      // A bare UUID is refused as agent_session_operation_invalid (seen with a real chat).
+      const id = newQualityGateFeedbackOperationId()
+      expect(parseAgentSessionOperationTimestamp(id)).toBeGreaterThan(0)
+      expect(newQualityGateFeedbackOperationId()).not.toBe(id)
     })
 
     it('reports a refusal and a session this host does not hold as not deliverable', async () => {

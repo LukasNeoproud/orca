@@ -3,6 +3,7 @@ import type { EnrichedAgentHookEventPayload } from '../agent-hooks/server/server
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import {
   createQualityGateFeedbackDelivery,
+  newQualityGateFeedbackOperationId,
   type QualityGateFeedbackDeliveryRuntime
 } from './quality-gate-feedback-delivery'
 import {
@@ -88,7 +89,7 @@ export function installQualityGateFeedbackLoop(
     deliver: createQualityGateFeedbackDelivery({
       runtime,
       structuredHost,
-      newOperationId: randomUUID
+      newOperationId: newQualityGateFeedbackOperationId
     })
   }
   const events = createQualityGateLoopAgentEvents()

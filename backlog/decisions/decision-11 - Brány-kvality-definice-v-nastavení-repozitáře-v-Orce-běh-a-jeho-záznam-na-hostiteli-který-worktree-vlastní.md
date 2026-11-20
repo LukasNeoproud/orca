@@ -195,7 +195,7 @@ Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a se
 - **Stav:** `qualityGates.status` nese nepovinné pole `feedbackLoop` (zapnuto, zapnuto v repozitáři, vypnuto u workspace, limit kol, stav, kolo, důvod, selhávající brány). Změnu hostitel hlásí stávajícím rámcem `changed`; nový rámec ani opcode nepřibyl. Stav řetězu je jen v paměti hostitele: po jeho restartu je `idle`, výsledky bran zůstávají v úložišti běhů.
 - **Starší protějšky:** starší klient pole `feedbackLoop` a hodnotu `startedBy.kind: 'feedback-loop'` nečte. Starší hostitel pole neposílá a klient to čte jako „o smyčce nic nevím“ (`readQualityGateFeedbackLoopStatus`), stejně jako stav, který nezná. `qualityGates.setFeedbackLoop` na starším hostiteli skončí `method_not_found`; CLI to přeloží na výzvu k aktualizaci.
 - **SSH:** worktree dosažený přes SSH vlastní orcad na vzdáleném stroji; smyčka se instaluje i tam a týká se terminálových agentů. Strukturovaný chat orcad nemá.
-- **Neověřeno:** se skutečným Claude Code ani Codexem smyčka neběžela, lokálně ani přes SSH. Testy používají smyšleného agenta (řádky stavu, jaké publikuje hook server) a náhradu běhového prostředí terminálu.
+- **Ověření se skutečným agentem (TASK-139):** s Claude Code 2.1.329 lokálně prošel terminál (zpráva, oprava, prošlo; zadržení při psaném vstupu) i strukturovaný chat (karta od Quality gates; id operace musí nést čas, jinak ho hostitel chatu odmítne). Přes SSH a s Codexem smyčka se skutečným agentem neběžela; Codex je posouzen jen podle dokumentace hooků.
 
 ### Co záznam nese pro pozdější důkaz
 

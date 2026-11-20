@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
+import { createStructuredAgentSessionOperationId } from '../../shared/structured-agent-session-mutation'
 import { isTuiAgent } from '../../shared/tui-agent-config'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import { isAgentPromptStalledError } from '../runtime/agent-prompt-submission-verification'
@@ -32,6 +34,10 @@ export type QualityGateFeedbackDeliveryDeps = {
   structuredHost: () => StructuredAgentSessionHost | null
   newOperationId: () => string
 }
+
+/** The chat host refuses an operation id that does not carry its time; a bare UUID is one. */
+export const newQualityGateFeedbackOperationId = (): string =>
+  createStructuredAgentSessionOperationId(randomUUID)
 
 const refused = (
   detail: string,
