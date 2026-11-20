@@ -18,7 +18,7 @@ async function isExistingDirectory(pathValue: string): Promise<boolean> {
 
 /**
  * The renderer's workspace root for `filePath`, or undefined unless it is an existing absolute
- * folder that holds the file. Undefined keeps today's launch without a folder.
+ * folder that holds the file and `filePath` is not a folder. Undefined launches without a folder.
  */
 export async function resolveExternalEditorProjectRoot(
   projectRoot: unknown,
@@ -44,5 +44,7 @@ export async function resolveExternalEditorProjectRoot(
   ) {
     return undefined
   }
-  return (await (deps.isDirectory ?? isExistingDirectory)(root)) ? root : undefined
+  const isDirectory = deps.isDirectory ?? isExistingDirectory
+  // Why: a folder target is its own project; a root before it would open two windows.
+  return (await isDirectory(root)) && !(await isDirectory(filePath)) ? root : undefined
 }

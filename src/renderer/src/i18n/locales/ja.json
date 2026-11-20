@@ -18931,7 +18931,8 @@
       "openInApp": "{{value0}} で開く",
       "launchFailed": "{{value0}} でファイルを開けませんでした。",
       "launchFailedDetail": "設定でこのアプリのコマンドを確認してください。",
-      "unavailableDeleted": "このファイルは削除されているため、開くものがありません。"
+      "unavailableDeleted": "このファイルは削除されているため、開くものがありません。",
+      "installedApps": "インストール済み"
     }
   },
   "dashboardPopout": {

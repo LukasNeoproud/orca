@@ -18945,7 +18945,8 @@
       "openInApp": "在 {{value0}} 中打开",
       "launchFailed": "无法在 {{value0}} 中打开文件。",
       "launchFailedDetail": "请在设置中检查为此应用配置的命令。",
-      "unavailableDeleted": "此文件已删除，没有可打开的内容。"
+      "unavailableDeleted": "此文件已删除，没有可打开的内容。",
+      "installedApps": "已安装"
     }
   },
   "dashboardPopout": {

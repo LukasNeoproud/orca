@@ -5,6 +5,7 @@ import type {
   ShellOpenLocalPathResult
 } from '../../shared/shell-open-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
+import type { OpenInApplication } from '../../shared/ui-chrome-types'
 import type { PreloadApi } from '../api-types'
 
 export const shellApi = {
@@ -21,6 +22,9 @@ export const shellApi = {
     request: ShellOpenExternalEditorRequest
   ): Promise<ShellOpenExternalEditorResult> =>
     ipcRenderer.invoke('shell:openInExternalEditor', request),
+
+  detectOpenInApplications: (): Promise<OpenInApplication[]> =>
+    ipcRenderer.invoke('shell:detectOpenInApplications'),
 
   openUrl: (url: string): Promise<void> => ipcRenderer.invoke('shell:openUrl', url),
 

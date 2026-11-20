@@ -18931,7 +18931,8 @@
       "openInApp": "Abrir en {{value0}}",
       "launchFailed": "No se pudo abrir el archivo en {{value0}}.",
       "launchFailedDetail": "Comprueba el comando configurado para esta app en Ajustes.",
-      "unavailableDeleted": "Este archivo se ha eliminado, así que no hay nada que abrir."
+      "unavailableDeleted": "Este archivo se ha eliminado, así que no hay nada que abrir.",
+      "installedApps": "Instaladas"
     }
   },
   "dashboardPopout": {

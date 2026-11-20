@@ -38,6 +38,7 @@ import { registerComputerUsePermissionHandlers } from '../computer-use-permissio
 import { setAgentBrowserBridgeRef, registerBrowserHandlers } from '../browser'
 import { setTrustedBrowserRendererWebContentsId } from '../browser-renderer-trust'
 import { registerSessionHandlers } from '../session'
+import { registerOpenInDetectionHandlers } from '../../open-in-installed-apps/open-in-detection-ipc'
 import { registerSettingsHandlers } from '../settings'
 import { registerDiagnosticsHandlers } from '../diagnostics'
 import { registerSkillsHandlers } from '../skills'
@@ -228,6 +229,7 @@ export function registerCoreHandlers(
   })
   registerBrowserHandlers()
   registerShellHandlers(store)
+  registerOpenInDetectionHandlers()
   registerPetHandlers()
   registerSessionHandlers(store, runtime)
   registerUIHandlers(store, { isDashboardPopoutRenderer })

@@ -13,7 +13,7 @@ const storeState = vi.hoisted(
       openInApplications: OpenInApplication[]
       activeRuntimeEnvironmentId: string | null
     }
-    worktreesByRepo: Record<string, { id: string; repoId: string; hostId: string }[]>
+    worktreesByRepo: Record<string, { id: string; repoId: string; hostId: string; path?: string }[]>
   } => ({
     settings: { openInApplications: [], activeRuntimeEnvironmentId: null },
     worktreesByRepo: { 'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'local' }] }
@@ -196,8 +196,35 @@ describe('SourceControlEntryContextMenu', () => {
       connectionId: null,
       runtimeEnvironmentId: 'env-2',
       ownerUnresolved: false,
-      command: 'zed'
+      command: 'zed',
+      projectRoot: null
     })
+  })
+
+  it('opens a local file in the window of the worktree that holds it', () => {
+    storeState.worktreesByRepo = {
+      'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'local', path: '/repo' }]
+    }
+    storeState.settings.openInApplications = [{ id: 'code', label: 'Code', command: 'code' }]
+    renderMenu()
+
+    items.list.find((item) => childrenText(item.children) === 'Code')?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreePath: '/repo/src/example.ts', projectRoot: '/repo' })
+    )
+  })
+
+  it('sends no worktree root for a file on an SSH host', () => {
+    storeState.worktreesByRepo = {
+      'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'ssh:ssh-9', path: '/srv/repo' }]
+    }
+    storeState.settings.openInApplications = [{ id: 'code', label: 'Code', command: 'code' }]
+    renderMenu()
+
+    items.list.find((item) => childrenText(item.children) === 'Code')?.onSelect?.()
+    expect(openWorktreePath).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'ssh-9', projectRoot: null })
+    )
   })
 
   it('routes a repo the catalog places on an SSH host there, even with no connection prop', () => {

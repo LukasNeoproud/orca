@@ -1,29 +1,24 @@
 import type React from 'react'
 import { useState } from 'react'
-import { Check, ChevronDown, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { OpenInApplication } from '../../../../shared/ui-chrome-types'
 import { OPEN_IN_APPLICATIONS_MAX } from '../../../../shared/open-in-applications'
 import { Button } from '../ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger
-} from '../ui/dropdown-menu'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { cn } from '@/lib/utils'
 import {
   getOpenInAppPreset,
   isOpenInAppPresetAdded,
-  OpenInApplicationIcon,
-  getOpenInAppPresets,
-  type OpenInAppPreset
+  OpenInApplicationIcon
 } from '@/lib/open-in-app-catalog'
 import { translate } from '@/i18n/i18n'
 import { createBrowserUuid } from '@/lib/browser-uuid'
+import { OpenInAddAppMenu } from '../open-in-installed-apps/OpenInAddAppMenu'
+import { createAddedOpenInApplication } from '../open-in-installed-apps/open-in-add-app-entries'
+
+export { createPresetOpenInApplication } from '../open-in-installed-apps/open-in-add-app-entries'
 
 type OpenInMenuSettingProps = {
   applications: OpenInApplication[] | undefined
@@ -40,14 +35,6 @@ function createOpenInApplication(): OpenInApplication {
     id: createBrowserUuid(),
     label: '',
     command: ''
-  }
-}
-
-export function createPresetOpenInApplication(preset: OpenInAppPreset): OpenInApplication {
-  return {
-    id: preset.id,
-    label: preset.label,
-    command: preset.command
   }
 }
 
@@ -270,11 +257,11 @@ export function OpenInMenuSetting({
     commit(nextDraft)
   }
 
-  const addPreset = (preset: OpenInAppPreset): void => {
-    if (isAtLimit || isOpenInAppPresetAdded(draft, preset)) {
+  const addApplication = (application: OpenInApplication): void => {
+    if (isAtLimit || isOpenInAppPresetAdded(draft, application)) {
       return
     }
-    applyDraft([...draft, createPresetOpenInApplication(preset)])
+    applyDraft([...draft, createAddedOpenInApplication(application, draft, createBrowserUuid)])
   }
 
   const addCustomApp = (): void => {
@@ -301,48 +288,12 @@ export function OpenInMenuSetting({
           </p>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isAtLimit}
-              className="h-8 shrink-0 gap-1.5"
-            >
-              {translate('auto.components.settings.OpenInMenuSetting.e4064916aa', 'Add app')}
-              <ChevronDown className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            {getOpenInAppPresets().map((preset) => {
-              const isAdded = isOpenInAppPresetAdded(draft, preset)
-              return (
-                <DropdownMenuItem
-                  key={preset.id}
-                  disabled={isAdded || isAtLimit}
-                  onSelect={() => addPreset(preset)}
-                  className="gap-2"
-                >
-                  <OpenInApplicationIcon application={preset} size={14} />
-                  <span className="min-w-0 truncate">{preset.label}</span>
-                  {isAdded && (
-                    <DropdownMenuShortcut className="inline-flex items-center gap-1">
-                      <Check className="size-3" />
-                      {translate('auto.components.settings.OpenInMenuSetting.c1d817e027', 'Added')}
-                    </DropdownMenuShortcut>
-                  )}
-                </DropdownMenuItem>
-              )
-            })}
-            <DropdownMenuItem disabled={isAtLimit} onSelect={addCustomApp} className="gap-2">
-              <OpenInApplicationIcon application={{ command: '' }} size={14} />
-              <span className="min-w-0 truncate">
-                {translate('auto.components.settings.OpenInMenuSetting.03b00b1f64', 'Custom app')}
-              </span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <OpenInAddAppMenu
+          draft={draft}
+          isAtLimit={isAtLimit}
+          onAddApplication={addApplication}
+          onAddCustomApp={addCustomApp}
+        />
       </div>
 
       {draft.length > 0 && (

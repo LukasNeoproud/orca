@@ -35,6 +35,14 @@ describe('OpenInMenuSetting presets', () => {
     expect(isOpenInAppPresetAdded([{ command: ' cursor ' }], cursor)).toBe(true)
   })
 
+  it('shows the icon of a known editor given as a path to its launcher', () => {
+    const icon = OpenInApplicationIcon({
+      application: { command: '/Applications/Android Studio.app/Contents/MacOS/studio' }
+    })
+
+    expect(icon.props.src).toContain('developer.android.com')
+  })
+
   it('keeps the Zed icon visible on dark menus', () => {
     const icon = OpenInApplicationIcon({ application: { command: 'zed' } })
 

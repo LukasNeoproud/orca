@@ -4,13 +4,17 @@ import path, { posix, win32 } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { resolveExternalEditorProjectRoot } from './external-editor-project-root'
 
-const existingFolder = async (): Promise<boolean> => true
+// Why: every path but the target file is an existing folder.
+const foldersExcept =
+  (file: string) =>
+  async (candidate: string): Promise<boolean> =>
+    candidate !== file
 
 describe('resolveExternalEditorProjectRoot on POSIX paths', () => {
   const resolveRoot = (root: unknown, file: string): Promise<string | undefined> =>
     resolveExternalEditorProjectRoot(root, file, {
       pathApi: posix,
-      isDirectory: existingFolder
+      isDirectory: foldersExcept(file)
     })
 
   it('accepts the folder that holds the file', async () => {
@@ -40,6 +44,15 @@ describe('resolveExternalEditorProjectRoot on POSIX paths', () => {
     await expect(resolveRoot('/work/repo', '/work/repo/..env')).resolves.toBe('/work/repo')
   })
 
+  it('refuses a root when the target is a folder itself', async () => {
+    await expect(
+      resolveExternalEditorProjectRoot('/work/repo', '/work/repo/src', {
+        pathApi: posix,
+        isDirectory: async () => true
+      })
+    ).resolves.toBeUndefined()
+  })
+
   it('refuses a root that is not an existing folder', async () => {
     await expect(
       resolveExternalEditorProjectRoot('/work/repo', '/work/repo/App.kt', {
@@ -52,7 +65,10 @@ describe('resolveExternalEditorProjectRoot on POSIX paths', () => {
 
 describe('resolveExternalEditorProjectRoot on Windows paths', () => {
   const resolveRoot = (root: string, file: string): Promise<string | undefined> =>
-    resolveExternalEditorProjectRoot(root, file, { pathApi: win32, isDirectory: existingFolder })
+    resolveExternalEditorProjectRoot(root, file, {
+      pathApi: win32,
+      isDirectory: foldersExcept(file)
+    })
 
   it('accepts the folder that holds the file', async () => {
     await expect(
@@ -106,6 +122,12 @@ describe('resolveExternalEditorProjectRoot against the disk', () => {
     const gone = path.join(dir, 'gone')
     await expect(
       resolveExternalEditorProjectRoot(gone, path.join(gone, 'todo.md'))
+    ).resolves.toBeUndefined()
+  })
+
+  it('refuses a root for a folder inside it', async () => {
+    await expect(
+      resolveExternalEditorProjectRoot(dir, path.join(dir, 'notes'))
     ).resolves.toBeUndefined()
   })
 

@@ -232,6 +232,23 @@ describe('WorktreeOpenInMenu', () => {
     })
   })
 
+  it('sends the workspace root that holds a file', async () => {
+    await openWorktreePath({
+      target: 'external-editor',
+      worktreePath: '/tmp/workspace/src/App.kt',
+      connectionId: null,
+      command: 'studio',
+      projectRoot: '/tmp/workspace'
+    })
+    expect(openInExternalEditorMock).toHaveBeenCalledWith({
+      path: '/tmp/workspace/src/App.kt',
+      projectRoot: '/tmp/workspace',
+      command: 'studio',
+      connectionId: null,
+      ownerHostId: 'local'
+    })
+  })
+
   it('blocks configured launchers in remote context before calling main IPC', async () => {
     await openWorktreePath({
       target: 'external-editor',

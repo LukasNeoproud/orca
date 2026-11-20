@@ -27,6 +27,7 @@ import {
   openOpenInAppsSettings,
   openWorktreePath
 } from '@/components/sidebar/WorktreeOpenInMenu'
+import { useExternalEditorProjectRoot } from '@/components/external-editor-file-open/external-editor-file-target'
 
 type SourceControlEntryContextMenuProps = {
   currentWorktreeId: string
@@ -65,6 +66,8 @@ export function SourceControlEntryContextMenu({
   )
   const revealBlocked = isLocalPathOpenBlocked(revealOwner)
   const openInRoute = useMemo(() => getRouteForLocalPathOpenOwner(revealOwner), [revealOwner])
+  // Why: the file opens in its worktree's window, as Open in from the editor does.
+  const projectRoot = useExternalEditorProjectRoot(currentWorktreeId, revealOwner)
 
   const handleCopyPath = useCallback(() => {
     if (!absolutePath) {
@@ -102,10 +105,11 @@ export function SourceControlEntryContextMenu({
         target: 'external-editor',
         worktreePath: absolutePath,
         ...openInRoute,
-        command
+        command,
+        projectRoot
       })
     },
-    [absolutePath, openInRoute]
+    [absolutePath, openInRoute, projectRoot]
   )
 
   return (

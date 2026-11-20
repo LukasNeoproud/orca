@@ -18931,7 +18931,8 @@
       "openInApp": "{{value0}}에서 열기",
       "launchFailed": "{{value0}}에서 파일을 열 수 없습니다.",
       "launchFailedDetail": "설정에서 이 앱의 명령을 확인하세요.",
-      "unavailableDeleted": "이 파일은 삭제되어 열 수 있는 내용이 없습니다."
+      "unavailableDeleted": "이 파일은 삭제되어 열 수 있는 내용이 없습니다.",
+      "installedApps": "설치됨"
     }
   },
   "dashboardPopout": {

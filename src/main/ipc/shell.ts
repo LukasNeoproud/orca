@@ -125,8 +125,7 @@ async function openInExternalEditor(
   if (!target.ok) {
     return target
   }
-  const projectRoot =
-    location && (await resolveExternalEditorProjectRoot(request.projectRoot, target.path))
+  const projectRoot = await resolveExternalEditorProjectRoot(request.projectRoot, target.path)
   try {
     await launchExternalEditor(
       resolveExternalEditorLaunchSpec(request.command, target.path, { location, projectRoot })

@@ -1,4 +1,5 @@
 import type { ExecutionHostId } from '../../shared/execution-host'
+import type { OpenInApplication } from '../../shared/ui-chrome-types'
 import type {
   ShellOpenExternalEditorRequest,
   ShellOpenExternalEditorResult,
@@ -21,6 +22,8 @@ export type ShellApi = {
   openInExternalEditor: (
     request: ShellOpenExternalEditorRequest
   ) => Promise<ShellOpenExternalEditorResult>
+  /** Known editors installed on this computer, with the command that opens each. */
+  detectOpenInApplications: () => Promise<OpenInApplication[]>
   openUrl: (url: string) => Promise<void>
   openFilePath: (path: string, ownerHostId: ExecutionHostId) => Promise<boolean>
   openFileUri: (uri: string, ownerHostId: ExecutionHostId) => Promise<void>

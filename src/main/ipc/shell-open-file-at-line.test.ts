@@ -216,9 +216,23 @@ describe('shell:openInExternalEditor with a file location', () => {
       expect(spawnMock.mock.calls[1]?.[1]).toEqual(spawnedArgs())
     })
 
-    it('does not check the folder when there is no line to open', async () => {
-      await open({ line: undefined, column: undefined, projectRoot: root })
-      expect(statMock).not.toHaveBeenCalledWith(normalize(root))
+    it.each([
+      ['code', [normalize(root), normalize(filePath)]],
+      ['studio', [normalize(root), normalize(filePath)]],
+      ['rider', [normalize(filePath)]]
+    ])('opens a file without a line through %s like one with a line', async (command, args) => {
+      await open({ command, line: undefined, column: undefined, projectRoot: root })
+      expect(spawnedArgs()).toEqual(args)
+    })
+
+    it('leaves the folder out when the target is a folder itself', async () => {
+      const folder = resolve('work', 'repo', 'src')
+      statMock.mockImplementation(async () => ({ isDirectory: () => true }))
+      await getHandler()(
+        {},
+        { path: folder, command: 'code', ownerHostId: 'local', projectRoot: root }
+      )
+      expect(spawnedArgs()).toEqual([normalize(folder)])
     })
 
     it('leaves the folder out of an SSH launch', async () => {

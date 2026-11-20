@@ -645,15 +645,32 @@ describe('opening a file at a line', () => {
       )
     })
 
-    it('ignores the project root when opening a folder', () => {
-      expect(
-        resolveExternalEditorLaunchSpec('code', file, {
-          platform,
-          projectRoot: '/repo',
-          fileExists: () => false
-        }).spawnArgs
-      ).toEqual([file])
-    })
+    it.each(['code', 'studio'])(
+      'opens a file without a line in the window of its project root through %s',
+      (command) => {
+        const root = platform === 'win32' ? 'C:\\Users\\Ada Lovelace\\repo' : '/repo'
+        expect(
+          resolveExternalEditorLaunchSpec(command, file, {
+            platform,
+            projectRoot: root,
+            fileExists: () => false
+          }).spawnArgs
+        ).toEqual([root, file])
+      }
+    )
+
+    it.each(['cursor', 'rider', 'zed', 'xed'])(
+      'keeps a file without a line on the bare launch through %s',
+      (command) => {
+        expect(
+          resolveExternalEditorLaunchSpec(command, file, {
+            platform,
+            projectRoot: '/repo',
+            fileExists: () => false
+          }).spawnArgs
+        ).toEqual(resolveExternalEditorLaunchSpec(command, file, { platform }).spawnArgs)
+      }
+    )
 
     it.each(['zed', 'zeditor'])('gives %s the file with line and column', (command) => {
       expect(argsFor(command, file, platform)).toEqual([`${file}:42:7`])
@@ -733,6 +750,25 @@ describe('opening a file at a line', () => {
         'win32'
       )
     ).toEqual(['--line', '42', '--column', '6', 'C:\\repo\\Program.cs'])
+  })
+
+  it('opens a file in its project through the Toolbox script that settings found', () => {
+    const script = '/Users/ada/Library/Application Support/JetBrains/Toolbox/scripts/studio'
+    const options = {
+      platform: 'darwin' as const,
+      projectRoot: '/Users/ada/repo',
+      fileExists: (candidate: string) => candidate === script
+    }
+    expect(resolveExternalEditorLaunchSpec(script, '/Users/ada/repo/App.kt', options)).toEqual({
+      kind: 'executable',
+      hideWindowsConsole: true,
+      spawnCmd: script,
+      spawnArgs: ['/Users/ada/repo', '/Users/ada/repo/App.kt']
+    })
+    expect(
+      resolveExternalEditorLaunchSpec(script, '/Users/ada/repo/App.kt', { ...options, location })
+        .spawnArgs
+    ).toEqual(['/Users/ada/repo', '--line', '42', '--column', '6', '/Users/ada/repo/App.kt'])
   })
 
   it('passes the project root through JetBrains launchers given by path or shim', () => {

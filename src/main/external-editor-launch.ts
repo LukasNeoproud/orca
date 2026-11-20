@@ -111,9 +111,7 @@ function buildExecutableArgs(
   const isWslFile = platform === 'win32' && parseWslUncPath(pathValue) !== null
   const targetArgs = [
     ...target.remoteArgs,
-    ...(isWslFile
-      ? []
-      : buildExternalEditorProjectRootArgs(editorCommand, projectRoot, location, platform)),
+    ...(isWslFile ? [] : buildExternalEditorProjectRootArgs(editorCommand, projectRoot, platform)),
     ...buildExternalEditorTargetArgs(editorCommand, target.path, platform, location)
   ]
   // Why: Cursor can route bare folder launches through the last active
@@ -225,8 +223,8 @@ type ExternalEditorLaunchOptions = {
   /** Set when `pathValue` is a file to open at a line instead of a folder. */
   location?: ExternalEditorFileLocation
   /**
-   * Worktree or folder workspace that holds the file; honored only with `location`.
-   * Never applied to compound commands, where `--reuse-window` would replace another folder.
+   * Worktree or folder workspace that holds the file at `pathValue`; callers pass it only for
+   * a file. Never applied to compound commands, where `--reuse-window` would replace another folder.
    */
   projectRoot?: string
 }

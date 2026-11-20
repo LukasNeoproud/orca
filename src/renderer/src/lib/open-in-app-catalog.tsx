@@ -1,6 +1,12 @@
 import type React from 'react'
 import { AppWindow } from 'lucide-react'
 import type { OpenInApplication } from '../../../shared/ui-chrome-types'
+import {
+  KNOWN_OPEN_IN_APPLICATIONS,
+  findKnownOpenInApplication,
+  getOpenInLauncherIdentity,
+  type KnownOpenInApplication
+} from '../../../shared/open-in-known-applications'
 import { cn } from './utils'
 import { translate } from '@/i18n/i18n'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
@@ -13,43 +19,57 @@ export type OpenInAppPreset = {
   iconClassName?: string
 }
 
-export const getOpenInAppPresets = createLocalizedCatalog(() => [
-  {
-    id: 'vscode',
-    label: translate('auto.lib.open.in.app.catalog.173553f73a', 'VS Code'),
-    command: 'code',
-    faviconDomain: 'code.visualstudio.com'
-  },
-  {
-    id: 'cursor',
-    label: translate('auto.lib.open.in.app.catalog.d62b12e98a', 'Cursor'),
-    command: 'cursor',
-    faviconDomain: 'cursor.com'
-  },
-  {
-    id: 'zed',
-    label: translate('auto.lib.open.in.app.catalog.f8b8ca2711', 'Zed'),
-    command: 'zed',
-    faviconDomain: 'zed.dev',
-    // Why: Zed's favicon is a black transparent mark, which disappears on dark menus.
-    iconClassName: 'dark:invert'
-  }
-])
+// Why: Zed's favicon is a black transparent mark, which disappears on dark menus.
+const ICON_CLASS_NAMES: Readonly<Record<string, string>> = { zed: 'dark:invert' }
 
+function toPreset(app: KnownOpenInApplication, label: string): OpenInAppPreset {
+  return {
+    id: app.id,
+    label,
+    command: app.command,
+    faviconDomain: app.faviconDomain,
+    iconClassName: ICON_CLASS_NAMES[app.id]
+  }
+}
+
+// Why: these stay on offer whether or not they are installed, as they always were.
+const getAlwaysOfferedLabels = (): Record<string, string> => ({
+  vscode: translate('auto.lib.open.in.app.catalog.173553f73a', 'VS Code'),
+  cursor: translate('auto.lib.open.in.app.catalog.d62b12e98a', 'Cursor'),
+  zed: translate('auto.lib.open.in.app.catalog.f8b8ca2711', 'Zed')
+})
+
+export const getOpenInAppPresets = createLocalizedCatalog(() => {
+  const labels = getAlwaysOfferedLabels()
+  return KNOWN_OPEN_IN_APPLICATIONS.flatMap((app) => {
+    const label = labels[app.id]
+    return label ? [toPreset(app, label)] : []
+  })
+})
+
+/** The known editor a command launches, also when given as a path or a Toolbox script. */
 export function getOpenInAppPreset(
   application: Pick<OpenInApplication, 'command'>
 ): OpenInAppPreset | null {
-  const command = application.command.trim().toLowerCase()
-  return getOpenInAppPresets().find((preset) => preset.command === command) ?? null
+  const app = findKnownOpenInApplication(application.command)
+  if (!app) {
+    return null
+  }
+  return getOpenInAppPresets().find((preset) => preset.id === app.id) ?? toPreset(app, app.label)
+}
+
+// Why: `studio`, `studio64` and a Toolbox script path all launch the same editor.
+function getOpenInAppKey(command: string): string {
+  const app = findKnownOpenInApplication(command)
+  return app ? `known:${app.id}` : getOpenInLauncherIdentity(command)
 }
 
 export function isOpenInAppPresetAdded(
   applications: readonly Pick<OpenInApplication, 'command'>[],
-  preset: OpenInAppPreset
+  preset: Pick<OpenInAppPreset, 'command'>
 ): boolean {
-  return applications.some(
-    (application) => application.command.trim().toLowerCase() === preset.command
-  )
+  const key = getOpenInAppKey(preset.command)
+  return applications.some((application) => getOpenInAppKey(application.command) === key)
 }
 
 export function OpenInApplicationIcon({

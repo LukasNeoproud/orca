@@ -19520,7 +19520,8 @@
       "openInApp": "Open in {{value0}}",
       "launchFailed": "Could not open the file in {{value0}}.",
       "launchFailedDetail": "Check the command configured for this app in Settings.",
-      "unavailableDeleted": "This file is deleted, so there is nothing to open."
+      "unavailableDeleted": "This file is deleted, so there is nothing to open.",
+      "installedApps": "Installed"
     }
   },
   "dashboardPopout": {

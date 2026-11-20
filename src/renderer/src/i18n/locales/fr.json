@@ -19033,7 +19033,8 @@
       "openInApp": "Ouvrir dans {{value0}}",
       "launchFailed": "Impossible d’ouvrir le fichier dans {{value0}}.",
       "launchFailedDetail": "Vérifiez la commande configurée pour cette application dans les paramètres.",
-      "unavailableDeleted": "Ce fichier est supprimé, il n’y a donc rien à ouvrir."
+      "unavailableDeleted": "Ce fichier est supprimé, il n’y a donc rien à ouvrir.",
+      "installedApps": "Installées"
     }
   },
   "dashboardPopout": {

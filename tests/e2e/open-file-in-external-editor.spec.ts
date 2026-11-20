@@ -13,6 +13,13 @@ import path from 'node:path'
 import type { Page } from '@stablyai/playwright-test'
 import { expect, test } from './helpers/orca-app'
 import { waitForActiveWorktree, waitForSessionReady } from './helpers/store'
+import {
+  cleanupGoldenWorktree,
+  createGoldenWorktree,
+  GOLDEN_CHANGED_PATH,
+  openGoldenSourceControl,
+  seedGoldenSourceEdit
+} from './helpers/golden-source-control'
 import { quotePosixShell } from '../../src/shared/wsl-login-shell-command'
 
 /**
@@ -336,6 +343,77 @@ test.describe('Open file in external editor', () => {
     await openInApp.click()
 
     await expect.poll(recorder.receipt).toEqual([folderPath, '--goto', `${filePath}:3`])
+  })
+
+  test('the Source Control menu opens a changed file in its worktree window', async ({
+    orcaPage,
+    testRepoPath,
+    registerPostElectronShutdownCleanup
+  }, testInfo) => {
+    const fixture = createGoldenWorktree(testRepoPath, 'open-in-scm')
+    registerPostElectronShutdownCleanup(async () => cleanupGoldenWorktree(testRepoPath, fixture))
+    seedGoldenSourceEdit(fixture.worktreePath)
+    await openGoldenSourceControl(orcaPage, testRepoPath, fixture)
+    const worktreePath = await readWorktreePath(orcaPage, await waitForActiveWorktree(orcaPage))
+
+    const changedFile = orcaPage
+      .locator('[data-testid="source-control-entry"]')
+      .filter({ hasText: path.basename(GOLDEN_CHANGED_PATH) })
+    await expect(changedFile).toBeVisible({ timeout: 15_000 })
+    await changedFile.click({ button: 'right' })
+    await orcaPage.getByRole('menuitem', { name: 'Open in', exact: true }).click()
+    const openInApp = orcaPage.getByRole('menuitem', { name: APP_LABEL })
+    await expect(openInApp).toBeVisible()
+    await expect
+      .poll(() =>
+        orcaPage
+          .locator('[data-slot="context-menu-sub-content"]')
+          .evaluate((menu) => menu.getAnimations().every((a) => a.playState === 'finished'))
+      )
+      .toBe(true)
+    await orcaPage.screenshot({ path: testInfo.outputPath('source-control-open-in.png') })
+    await openInApp.click()
+
+    // Why no line: the row names a file, so the editor gets the worktree and the bare file.
+    await expect
+      .poll(recorder.receipt)
+      .toEqual([worktreePath, path.join(worktreePath, GOLDEN_CHANGED_PATH)])
+  })
+
+  test('the settings offer the editors found on this computer', async ({ orcaPage }, testInfo) => {
+    const installed = await orcaPage.evaluate(() => window.api.shell.detectOpenInApplications())
+    await orcaPage.evaluate(() => {
+      const state = window.__store?.getState()
+      if (!state) {
+        throw new Error('window.__store is not available')
+      }
+      state.openSettingsTarget({ pane: 'general', repoId: null, sectionId: 'general-open-in-apps' })
+      state.openSettingsPage()
+    })
+    await orcaPage.getByRole('button', { name: 'Add app' }).click()
+    await expect(orcaPage.getByRole('menuitem', { name: 'Custom app' })).toBeVisible()
+    const menu = orcaPage.locator('[data-slot="dropdown-menu-content"]')
+    for (const application of installed) {
+      await expect(menu.getByRole('menuitem', { name: application.label })).toBeVisible()
+    }
+    await expect(menu.getByText('Installed', { exact: true })).toHaveCount(
+      installed.length > 0 ? 1 : 0
+    )
+    await waitForMenuAnimation(orcaPage)
+    await orcaPage.screenshot({ path: testInfo.outputPath('settings-add-app-installed.png') })
+    // Why not VS Code: the recorder is named `code`, so VS Code already counts as added.
+    const addable = installed.find((application) => application.id !== 'vscode')
+    if (!addable) {
+      return
+    }
+    await menu.getByRole('menuitem', { name: addable.label }).click()
+    await expect
+      .poll(() =>
+        orcaPage.evaluate(() =>
+          (window.__store?.getState().settings?.openInApplications ?? []).map((app) => app.command)
+        )
+      )
+      .toEqual([recorder.command, addable.command])
   })
 
   test('the combined diff says why a deleted file cannot be opened', async ({

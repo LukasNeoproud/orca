@@ -220,6 +220,9 @@ export function GeneralWorkspaceSettingsSection({
             'zed',
             'command',
             'vscode',
+            'android studio',
+            'jetbrains',
+            'xcode',
             'finder',
             'file explorer'
           ]}

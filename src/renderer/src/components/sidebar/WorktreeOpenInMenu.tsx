@@ -112,6 +112,8 @@ export async function openWorktreePath(args: {
   runtimeEnvironmentId?: string | null
   ownerUnresolved?: boolean
   command?: string
+  /** Workspace that holds the file at `worktreePath`, so the editor opens it in that window. */
+  projectRoot?: string | null
 }): Promise<void> {
   const owner = getLocalPathOpenOwnerForRoute({
     connectionId: args.connectionId,
@@ -149,6 +151,7 @@ export async function openWorktreePath(args: {
       ? await window.api.shell.openInFileManager(args.worktreePath, owner)
       : await window.api.shell.openInExternalEditor({
           path: args.worktreePath,
+          ...(args.projectRoot ? { projectRoot: args.projectRoot } : {}),
           command: args.command,
           connectionId: args.connectionId,
           ownerHostId: owner

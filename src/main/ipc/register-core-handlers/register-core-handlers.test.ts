@@ -269,6 +269,10 @@ vi.mock('../shell', () => ({
   registerShellHandlers: registerShellHandlersMock
 }))
 
+vi.mock('../../open-in-installed-apps/open-in-detection-ipc', () => ({
+  registerOpenInDetectionHandlers: vi.fn()
+}))
+
 vi.mock('../pet', () => ({
   registerPetHandlers: registerPetHandlersMock
 }))

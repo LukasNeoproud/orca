@@ -109,16 +109,15 @@ export function buildExternalEditorTargetArgs(
 }
 
 /**
- * Folder argv that puts a file opened at a line into that folder's window instead of the
- * last active one. Empty for editors where this is unverified.
+ * Folder argv that puts a file, with or without a line, into that folder's window instead of
+ * the last active one. Empty for editors where this is unverified.
  */
 export function buildExternalEditorProjectRootArgs(
   command: string,
   projectRoot: string | undefined,
-  location: ExternalEditorFileLocation | undefined,
   platform: NodeJS.Platform
 ): string[] {
-  if (!projectRoot || !location) {
+  if (!projectRoot) {
     return []
   }
   // Why: verified in VS Code and Android Studio; the JetBrains IDE asks about trust and the window on first open.
