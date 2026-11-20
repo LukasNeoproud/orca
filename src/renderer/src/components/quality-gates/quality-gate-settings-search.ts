@@ -18,7 +18,8 @@ export function getQualityGateSettingsSearchEntries(repo: Repo): SettingsSearchE
         ...translateSearchKeyword('qualityGates.searchKeywordCheck', 'check'),
         ...translateSearchKeyword('qualityGates.searchKeywordLint', 'lint'),
         ...translateSearchKeyword('qualityGates.searchKeywordTests', 'tests'),
-        ...translateSearchKeyword('qualityGates.searchKeywordBuild', 'build')
+        ...translateSearchKeyword('qualityGates.searchKeywordBuild', 'build'),
+        ...translateSearchKeyword('qualityGates.searchKeywordLoop', 'feedback loop')
       ]
     }
   ]

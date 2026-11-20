@@ -7,6 +7,7 @@ import {
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY
 } from '../../../shared/host-feature-runtime-capabilities'
 import { readQualityGateChangeFrame } from '../../../shared/quality-gate-change-stream'
+import type { QualityGateSetFeedbackLoopResult } from '../../../shared/quality-gate-feedback-loop'
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type {
   QualityGateCancelResult,
@@ -101,6 +102,18 @@ export function cancelQualityGates(
   gateId?: string
 ): Promise<QualityGateCancelResult> {
   return call(target, 'qualityGates.cancel', worktreeId, gateId ? { gateId } : {})
+}
+
+/**
+ * The workspace's own switch of the feedback loop. Only reached from a status that carries
+ * `feedbackLoop`, which the host sends exactly when it has this method.
+ */
+export function setQualityGateFeedbackLoop(
+  target: RuntimeClientTarget,
+  worktreeId: string,
+  enabled: boolean
+): Promise<QualityGateSetFeedbackLoopResult> {
+  return call(target, 'qualityGates.setFeedbackLoop', worktreeId, { enabled })
 }
 
 /** Whether the host signals changes itself; a host from before the stream is asked on an interval. */

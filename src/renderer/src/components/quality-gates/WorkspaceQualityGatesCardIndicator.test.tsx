@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, unknown>) =>
-    fallback.replace('{{value0}}', String(values?.value0 ?? ''))
+    fallback.replace(/\{\{(value\d)\}\}/g, (_match, name: string) => String(values?.[name] ?? ''))
 }))
 vi.mock('../ui/tooltip', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -41,7 +41,12 @@ vi.mock('./use-quality-gate-status', () => ({
   }
 }))
 
-import { gateRun, gateStatus, liveGateRun } from './quality-gate-status-test-fixtures'
+import {
+  feedbackLoopStatus,
+  gateRun,
+  gateStatus,
+  liveGateRun
+} from './quality-gate-status-test-fixtures'
 import { emptyQualityGateStatusView } from './quality-gate-status-view'
 import { WorkspaceQualityGatesCardIndicator } from './WorkspaceQualityGatesCardIndicator'
 
@@ -138,6 +143,35 @@ describe('WorkspaceQualityGatesCardIndicator', () => {
     mocks.activeWorktreeId = WORKTREE
     show(gateStatus(gateRun()))
     expect(lastStatusArgs()[3]).toEqual({ watch: true, background: false })
+  })
+
+  it('counts the round while the feedback loop waits for the fix of an SSH workspace', () => {
+    mocks.target = { kind: 'environment', environmentId: 'env-ssh' }
+    show(
+      {
+        ...gateStatus(gateRun({ status: 'failed', exitCode: 1 })),
+        feedbackLoop: feedbackLoopStatus({ state: 'awaiting-agent', round: 2 })
+      },
+      {},
+      'not-held-here'
+    )
+
+    expect(glyph()?.dataset.workspaceQualityGatesCard).toBe('loop')
+    expect(glyph()?.querySelector('svg')?.getAttribute('class')).toContain('text-muted-foreground')
+    expect(document.querySelector('[data-workspace-quality-gates-card-round]')?.textContent).toBe(
+      '2/3'
+    )
+    const loopLine = "Feedback loop: Round 2 of 3: waiting for the agent's fix"
+    expect(screen.getByRole('img', { name: `Local gates: 1 failed · ${loopLine}` })).toBe(glyph())
+    expect(screen.getByTestId('tooltip').textContent).toBe(`Local gates: 1 failed${loopLine}`)
+  })
+
+  it('shows no loop line or round for a host from before the loop', () => {
+    show(gateStatus(gateRun({ status: 'failed', exitCode: 1 })))
+
+    expect(glyph()?.dataset.workspaceQualityGatesCard).toBe('failed')
+    expect(document.querySelector('[data-workspace-quality-gates-card-round]')).toBeNull()
+    expect(screen.getByTestId('tooltip').textContent).toBe('Local gates: 1 failed')
   })
 
   it('renders nothing when the owner of the workspace cannot be resolved', () => {

@@ -2,10 +2,15 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, unknown>) =>
-    fallback.replace('{{value0}}', String(values?.value0 ?? ''))
+    fallback.replace(/\{\{(value\d)\}\}/g, (_match, name: string) => String(values?.[name] ?? ''))
 }))
 
-import { gateRun, gateStatus, liveGateRun } from './quality-gate-status-test-fixtures'
+import {
+  feedbackLoopStatus,
+  gateRun,
+  gateStatus,
+  liveGateRun
+} from './quality-gate-status-test-fixtures'
 import { emptyQualityGateStatusView, type QualityGateStatusView } from './quality-gate-status-view'
 import { readWorkspaceQualityGatesForCard } from './workspace-quality-gates-card-state'
 
@@ -53,7 +58,12 @@ describe('readWorkspaceQualityGatesForCard', () => {
   it('names the counts in the label', () => {
     expect(
       readWorkspaceQualityGatesForCard(view({ status: gateStatus(failed, passed, null) }))
-    ).toEqual({ state: 'failed', label: 'Local gates: 1 failed · 1 passed · 1 not run' })
+    ).toEqual({
+      state: 'failed',
+      label: 'Local gates: 1 failed · 1 passed · 1 not run',
+      loopLabel: null,
+      loopRound: null
+    })
   })
 
   it('reads a host that stopped answering as unknown, never as failed, passed or running', () => {
@@ -66,5 +76,76 @@ describe('readWorkspaceQualityGatesForCard', () => {
     }
     // Nothing was ever seen: whether the workspace has gates is not known either.
     expect(readWorkspaceQualityGatesForCard(view({ contactLost: true }))).toBeNull()
+  })
+
+  it('shows a loop in progress with its round instead of the failure the agent is fixing', () => {
+    const reading = readWorkspaceQualityGatesForCard(
+      view({
+        status: {
+          ...gateStatus(failed),
+          feedbackLoop: feedbackLoopStatus({ state: 'awaiting-agent', round: 1 })
+        }
+      })
+    )
+    expect(reading).toEqual({
+      state: 'loop',
+      label: 'Local gates: 1 failed',
+      loopLabel: "Feedback loop: Round 1 of 3: waiting for the agent's fix",
+      loopRound: { round: 1, maxRounds: 3 }
+    })
+    // The first check of a step has sent nothing yet: no round to count.
+    expect(
+      readWorkspaceQualityGatesForCard(
+        view({
+          status: {
+            ...gateStatus(liveGateRun()),
+            feedbackLoop: feedbackLoopStatus({ state: 'checking' })
+          }
+        })
+      )
+    ).toMatchObject({ state: 'loop', loopRound: null })
+  })
+
+  it('keeps the gates reading once the loop is over, and adds the loop line', () => {
+    const over = (
+      run: ReturnType<typeof gateRun>,
+      loop: Parameters<typeof feedbackLoopStatus>[0]
+    ) =>
+      readWorkspaceQualityGatesForCard(
+        view({ status: { ...gateStatus(run), feedbackLoop: feedbackLoopStatus(loop) } })
+      )
+    expect(over(passed, { state: 'passed', round: 1 })).toMatchObject({
+      state: 'passed',
+      loopLabel: 'Feedback loop: Passed after round 1 of 3',
+      loopRound: null
+    })
+    expect(
+      over(failed, { state: 'needs-user', round: 3, stopReason: 'round-limit' })
+    ).toMatchObject({
+      state: 'failed',
+      loopLabel: 'Feedback loop: Findings wait for you: the round limit was reached'
+    })
+    // Quiet before the first step, and nothing at all while the repository has it off.
+    expect(over(passed, {})?.loopLabel).toBeNull()
+    expect(
+      over(failed, { repoEnabled: false, enabled: false, state: 'stopped' })?.loopLabel
+    ).toBeNull()
+  })
+
+  it('reads a loop in progress on a host that stopped answering as unknown', () => {
+    const reading = readWorkspaceQualityGatesForCard(
+      view({
+        status: {
+          ...gateStatus(liveGateRun()),
+          feedbackLoop: feedbackLoopStatus({ state: 'checking', round: 1 })
+        },
+        contactLost: true
+      })
+    )
+    expect(reading).toMatchObject({
+      state: 'unknown',
+      loopLabel: 'Feedback loop: Unknown until the host answers',
+      loopRound: null
+    })
   })
 })

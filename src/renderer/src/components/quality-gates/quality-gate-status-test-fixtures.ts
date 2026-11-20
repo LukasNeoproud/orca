@@ -1,3 +1,4 @@
+import type { QualityGateFeedbackLoopStatus } from '../../../../shared/quality-gate-feedback-loop'
 import type {
   QualityGateRunView,
   QualityGateStatusResult
@@ -35,6 +36,22 @@ export function liveGateRun(overrides: Partial<QualityGateRunView> = {}): Qualit
     freshness: null,
     ...overrides
   })
+}
+
+/** A repository with the loop on, nothing checked yet. */
+export function feedbackLoopStatus(
+  overrides: Partial<QualityGateFeedbackLoopStatus> = {}
+): QualityGateFeedbackLoopStatus {
+  return {
+    enabled: true,
+    repoEnabled: true,
+    workspaceDisabled: false,
+    maxRounds: 3,
+    state: 'idle',
+    round: 0,
+    failingGateIds: [],
+    ...overrides
+  }
 }
 
 /** One gate per entry, named `gate-<index>`; `required` alternates off for odd indexes. */

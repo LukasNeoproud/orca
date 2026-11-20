@@ -6,13 +6,16 @@ import { translate } from '@/i18n/i18n'
 import {
   cancelQualityGates,
   classifyQualityGateCallFailure,
+  setQualityGateFeedbackLoop,
   startQualityGates
 } from '@/lib/quality-gate-client'
 import { useWorktreeGitOwnerTarget } from '../right-sidebar/worktree-git-owner-target'
 import { Button } from '../ui/button'
+import { readQualityGateFeedbackLoop } from './quality-gate-feedback-loop-view'
 import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
+import { WorkspaceQualityGateFeedbackLoop } from './WorkspaceQualityGateFeedbackLoop'
 import { WorkspaceQualityGateRow } from './WorkspaceQualityGateRow'
 import {
   summarizeWorkspaceQualityGates,
@@ -70,16 +73,19 @@ export function WorkspaceQualityGatesSection({
   const running = !view.contactLost && hasLiveQualityGateRun(view.status)
   const canAsk = !pending && !view.unsupported && !view.contactLost
 
-  const callHost = async (request: () => Promise<unknown>): Promise<void> => {
+  /** True once the host took the request. */
+  const callHost = async (request: () => Promise<unknown>): Promise<boolean> => {
     setPending(true)
     setRequestError(null)
     try {
       await request()
+      return true
     } catch (error) {
       // An older or unreachable host is shown by the status read that follows.
       if (classifyQualityGateCallFailure(error) === 'refused') {
         setRequestError(error instanceof Error ? error.message : String(error))
       }
+      return false
     } finally {
       setPending(false)
       refresh()
@@ -87,6 +93,7 @@ export function WorkspaceQualityGatesSection({
   }
 
   const error = requestError ?? view.error
+  const loop = gates.length > 0 ? readQualityGateFeedbackLoop(view) : null
   return (
     <section
       className="shrink-0 border-b border-border px-3 pt-2"
@@ -147,6 +154,15 @@ export function WorkspaceQualityGatesSection({
         </Note>
       ) : null}
       {error ? <Note alert>{error}</Note> : null}
+      {loop ? (
+        <WorkspaceQualityGateFeedbackLoop
+          reading={loop}
+          disabled={view.contactLost}
+          onToggle={(enabled) =>
+            callHost(() => setQualityGateFeedbackLoop(target, worktreeId, enabled))
+          }
+        />
+      ) : null}
       {status && gates.length === 0 ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pb-2">
           <p className="text-xs text-muted-foreground">

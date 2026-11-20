@@ -22,6 +22,7 @@ import {
 } from './workspace-quality-gates-card-state'
 
 const GLYPH: Record<WorkspaceQualityGatesCardState, { Icon: LucideIcon; tone: string }> = {
+  loop: { Icon: ShieldEllipsis, tone: 'text-muted-foreground' },
   running: { Icon: ShieldEllipsis, tone: 'text-muted-foreground' },
   failed: { Icon: ShieldX, tone: 'text-destructive' },
   unknown: { Icon: ShieldQuestionMark, tone: 'text-status-warning' },
@@ -60,20 +61,31 @@ export function WorkspaceQualityGatesCardIndicator({
     return null
   }
   const { Icon, tone } = GLYPH[reading.state]
+  const { loopLabel, loopRound } = reading
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
           role="img"
-          aria-label={reading.label}
-          className="inline-flex shrink-0 items-center"
+          aria-label={loopLabel ? `${reading.label} · ${loopLabel}` : reading.label}
+          className="inline-flex shrink-0 items-center gap-0.5"
           data-workspace-quality-gates-card={reading.state}
         >
           <Icon className={cn('size-3', tone)} aria-hidden="true" />
+          {loopRound ? (
+            <span
+              className="text-3xs leading-none text-muted-foreground tabular-nums"
+              aria-hidden="true"
+              data-workspace-quality-gates-card-round
+            >
+              {loopRound.round}/{loopRound.maxRounds}
+            </span>
+          ) : null}
         </span>
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={8}>
-        {reading.label}
+        <div>{reading.label}</div>
+        {loopLabel ? <div>{loopLabel}</div> : null}
       </TooltipContent>
     </Tooltip>
   )

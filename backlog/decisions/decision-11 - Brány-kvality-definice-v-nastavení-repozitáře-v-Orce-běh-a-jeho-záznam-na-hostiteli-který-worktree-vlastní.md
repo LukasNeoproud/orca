@@ -165,7 +165,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 
 ### Smyčka zpětné vazby (TASK-87)
 
-Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a selhání pošle agentovi zpět. Ovládání a zobrazení v rozhraní staví TASK-138.
+Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a selhání pošle agentovi zpět. Ovládání a zobrazení v rozhraní postavil TASK-138 (viz poslední bod oddílu).
 
 - **Výchozí stav je vypnuto.** Nastavení `qualityGateFeedbackLoop` (`enabled`, `maxRounds` 1 až 10, výchozí 3) je na řádku repozitáře vedle `qualityGates` a píše ho jen okno aplikace kanálem `repos:update`. `repo.update` pole zahazuje, stejně jako brány: zapnutí utrácí tokeny za uživatele. Cokoli jiného než výslovné `enabled: true` se čte jako vypnuto.
 - **Vypnutí u workspace:** hostitel si drží seznam vypnutých workspaces v souboru `quality-gate-feedback-loop.json` ve svých datech. Vypnout smí každý volající, i agent přes `orca gates loop off`, protože tím jen přestanou chodit zprávy. Zapnout zpět smí jen okno aplikace nebo spárované zařízení; volání z runtime socketu hostitel odmítne. Smyčku pro repozitář touto cestou zapnout nejde.
@@ -195,6 +195,7 @@ Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a se
 - **Stav:** `qualityGates.status` nese nepovinné pole `feedbackLoop` (zapnuto, zapnuto v repozitáři, vypnuto u workspace, limit kol, stav, kolo, důvod, selhávající brány). Změnu hostitel hlásí stávajícím rámcem `changed`; nový rámec ani opcode nepřibyl. Stav řetězu je jen v paměti hostitele: po jeho restartu je `idle`, výsledky bran zůstávají v úložišti běhů.
 - **Starší protějšky:** starší klient pole `feedbackLoop` a hodnotu `startedBy.kind: 'feedback-loop'` nečte. Starší hostitel pole neposílá a klient to čte jako „o smyčce nic nevím“ (`readQualityGateFeedbackLoopStatus`), stejně jako stav, který nezná. `qualityGates.setFeedbackLoop` na starším hostiteli skončí `method_not_found`; CLI to přeloží na výzvu k aktualizaci.
 - **SSH:** worktree dosažený přes SSH vlastní orcad na vzdáleném stroji; smyčka se instaluje i tam a týká se terminálových agentů. Strukturovaný chat orcad nemá.
+- **Rozhraní (TASK-138):** nastavení repozitáře píše `qualityGateFeedbackLoop` kanálem `repos:update` jako dosud, jen u repozitáře na tomto počítači. Přepínač u workspace volá `qualityGates.setFeedbackLoop` u hostitele, který worktree vlastní, a ukazuje se jen tehdy, když stav bran nese `feedbackLoop` se zapnutou smyčkou v repozitáři; tím je zároveň splněná podmínka schopnosti `quality-gates.feedback-loop.v1`, takže klient se na ni zvlášť neptá. Při ztrátě spojení klient stav smyčky ukazuje jako neznámý a přepínač zakáže. Na drátě se nic nezměnilo.
 - **Ověření se skutečným agentem (TASK-139):** s Claude Code 2.1.329 lokálně prošel terminál (zpráva, oprava, prošlo; zadržení při psaném vstupu) i strukturovaný chat (karta od Quality gates; id operace musí nést čas, jinak ho hostitel chatu odmítne). Přes SSH a s Codexem smyčka se skutečným agentem neběžela; Codex je posouzen jen podle dokumentace hooků.
 
 ### Co záznam nese pro pozdější důkaz

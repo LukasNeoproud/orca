@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     refresh: vi.fn(),
     startQualityGates: vi.fn(),
     cancelQualityGates: vi.fn(),
+    setQualityGateFeedbackLoop: vi.fn(),
     fetchQualityGateOutput: vi.fn(),
     classifyQualityGateCallFailure: vi.fn(() => 'refused'),
     openSettingsTarget: vi.fn(),
@@ -32,7 +33,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, unknown>) =>
-    fallback.replace('{{value0}}', String(values?.value0 ?? ''))
+    fallback.replace(/\{\{(value\d)\}\}/g, (_match, name: string) => String(values?.[name] ?? ''))
 }))
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -59,6 +60,7 @@ vi.mock('../right-sidebar/worktree-git-owner-target', () => ({
 vi.mock('@/lib/quality-gate-client', () => ({
   startQualityGates: mocks.startQualityGates,
   cancelQualityGates: mocks.cancelQualityGates,
+  setQualityGateFeedbackLoop: mocks.setQualityGateFeedbackLoop,
   fetchQualityGateOutput: mocks.fetchQualityGateOutput,
   classifyQualityGateCallFailure: mocks.classifyQualityGateCallFailure
 }))
@@ -69,7 +71,12 @@ vi.mock('./use-quality-gate-status', () => ({
   }
 }))
 
-import { gateRun, gateStatus, liveGateRun } from './quality-gate-status-test-fixtures'
+import {
+  feedbackLoopStatus,
+  gateRun,
+  gateStatus,
+  liveGateRun
+} from './quality-gate-status-test-fixtures'
 import { emptyQualityGateStatusView } from './quality-gate-status-view'
 import { WorkspaceQualityGatesSection } from './WorkspaceQualityGatesSection'
 
@@ -96,6 +103,7 @@ describe('WorkspaceQualityGatesSection', () => {
     mocks.repo = { id: 'repo', qualityGates: [] }
     mocks.startQualityGates.mockResolvedValue({ runs: [] })
     mocks.cancelQualityGates.mockResolvedValue({ cancelled: [] })
+    mocks.setQualityGateFeedbackLoop.mockResolvedValue({ feedbackLoop: feedbackLoopStatus() })
     mocks.fetchQualityGateOutput.mockResolvedValue({
       run: gateRun({ outputTruncated: true }),
       stdout: 'last line of the build\n',
@@ -277,5 +285,114 @@ describe('WorkspaceQualityGatesSection', () => {
     mocks.target = null
     const { container } = show({ status: gateStatus(gateRun()) })
     expect(container.innerHTML).toBe('')
+  })
+
+  describe('feedback loop', () => {
+    const loopRow = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-workspace-quality-gate-feedback-loop]')
+    const loopText = (text: string): HTMLElement => {
+      const found = loopRow()
+      if (!found) {
+        throw new Error('no feedback loop row')
+      }
+      return within(found).getByText(text)
+    }
+    const loopSwitch = (): HTMLElement =>
+      screen.getByRole('switch', { name: 'Feedback loop in this workspace' })
+    const withLoop = (loop: Parameters<typeof feedbackLoopStatus>[0], runs = [gateRun()]) => ({
+      ...gateStatus(...runs),
+      feedbackLoop: feedbackLoopStatus(loop)
+    })
+
+    it('shows the round in progress next to a switch that is on', () => {
+      show({ status: withLoop({ state: 'awaiting-agent', round: 1 }) })
+
+      expect(loopRow()?.dataset.workspaceQualityGateFeedbackLoop).toBe('active')
+      expect(loopText("Round 1 of 3: waiting for the agent's fix")).toBeTruthy()
+      expect(loopSwitch().getAttribute('aria-checked')).toBe('true')
+    })
+
+    it('says when findings wait for the user, and when the loop passed', () => {
+      show({
+        status: withLoop({ state: 'needs-user', round: 3, stopReason: 'round-limit' }, [
+          gateRun({ status: 'failed', exitCode: 1 })
+        ])
+      })
+      expect(loopText('Findings wait for you: the round limit was reached')).toBeTruthy()
+      cleanup()
+
+      show({ status: withLoop({ state: 'passed', round: 1 }) })
+      expect(loopText('Passed after round 1 of 3')).toBeTruthy()
+    })
+
+    it('turns the loop off for the workspace on its own host, then re-reads the status', async () => {
+      show({ status: withLoop({ state: 'checking', round: 1 }) })
+
+      fireEvent.click(loopSwitch())
+
+      await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1))
+      expect(mocks.setQualityGateFeedbackLoop).toHaveBeenCalledWith(
+        { kind: 'local' },
+        WORKTREE,
+        false
+      )
+      // The switch holds the request until a status read shows the host took it.
+      expect(loopSwitch().getAttribute('aria-checked')).toBe('false')
+    })
+
+    it('turns it back on in an SSH workspace through the host that owns it', async () => {
+      mocks.target = { kind: 'environment', environmentId: 'env-ssh' }
+      show({ status: withLoop({ enabled: false, workspaceDisabled: true, state: 'stopped' }) })
+      expect(loopText('Off in this workspace')).toBeTruthy()
+      expect(loopSwitch().getAttribute('aria-checked')).toBe('false')
+
+      fireEvent.click(loopSwitch())
+
+      await waitFor(() => expect(mocks.refresh).toHaveBeenCalledTimes(1))
+      expect(mocks.setQualityGateFeedbackLoop).toHaveBeenCalledWith(
+        { kind: 'environment', environmentId: 'env-ssh' },
+        WORKTREE,
+        true
+      )
+    })
+
+    it('shows what the host refused and lets the switch fall back', async () => {
+      mocks.setQualityGateFeedbackLoop.mockRejectedValue(
+        new Error('The feedback loop of a workspace can only be turned back on in the Orca app.')
+      )
+      show({ status: withLoop({ enabled: false, workspaceDisabled: true, state: 'idle' }) })
+
+      fireEvent.click(loopSwitch())
+
+      await waitFor(() =>
+        expect(screen.getByRole('alert').textContent).toContain('only be turned back on')
+      )
+      expect(loopSwitch().getAttribute('aria-checked')).toBe('false')
+    })
+
+    it('reads an SSH host that stopped answering as unknown and offers no switch to flip', () => {
+      mocks.target = { kind: 'environment', environmentId: 'env-ssh' }
+      show({
+        status: withLoop({ state: 'awaiting-agent', round: 2 }, [liveGateRun()]),
+        contactLost: true
+      })
+
+      expect(loopRow()?.dataset.workspaceQualityGateFeedbackLoop).toBe('unknown')
+      expect(loopText('Unknown until the host answers')).toBeTruthy()
+      expect(loopSwitch().hasAttribute('disabled')).toBe(true)
+    })
+
+    it('shows nothing for a host without the loop, a repository with it off, or no gates', () => {
+      show({ status: gateStatus(gateRun()) })
+      expect(loopRow()).toBeNull()
+      cleanup()
+
+      show({ status: withLoop({ repoEnabled: false, enabled: false }) })
+      expect(loopRow()).toBeNull()
+      cleanup()
+
+      show({ status: { ...gateStatus(), feedbackLoop: feedbackLoopStatus() } })
+      expect(loopRow()).toBeNull()
+    })
   })
 })

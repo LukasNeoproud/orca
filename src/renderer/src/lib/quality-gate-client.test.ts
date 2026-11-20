@@ -22,6 +22,7 @@ import {
   qualityGateBackgroundChangesSupported,
   qualityGateChangesSupported,
   qualityGatesSupported,
+  setQualityGateFeedbackLoop,
   startQualityGates,
   subscribeQualityGateChanges
 } from './quality-gate-client'
@@ -69,6 +70,18 @@ describe('quality gate client', () => {
       { worktree: 'id:repo::/work', gateIds: ['lint'] },
       expect.anything()
     )
+  })
+
+  it('switches the loop of a workspace on the host that owns it, by workspace and nothing else', async () => {
+    await setQualityGateFeedbackLoop(remote, 'repo::/srv/app', false)
+    await setQualityGateFeedbackLoop(local, 'repo::/work', true)
+
+    expect(
+      callRuntimeRpc.mock.calls.map(([target, method, params]) => [target, method, params])
+    ).toEqual([
+      [remote, 'qualityGates.setFeedbackLoop', { worktree: 'id:repo::/srv/app', enabled: false }],
+      [local, 'qualityGates.setFeedbackLoop', { worktree: 'id:repo::/work', enabled: true }]
+    ])
   })
 
   it('asks a remote host for the capability and reports an older host as unsupported', async () => {

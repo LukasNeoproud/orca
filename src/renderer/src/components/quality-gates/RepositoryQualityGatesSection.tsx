@@ -23,6 +23,7 @@ import {
 import { Button } from '../ui/button'
 import { QualityGateDraftEditor } from './QualityGateDraftEditor'
 import { QualityGateRunBar } from './QualityGateRunBar'
+import { RepositoryQualityGateFeedbackLoopSettings } from './RepositoryQualityGateFeedbackLoopSettings'
 import { QualityGateSettingsRow } from './QualityGateSettingsRow'
 import {
   applyQualityGateDraft,
@@ -41,7 +42,7 @@ type RepositoryQualityGatesSectionProps = {
   repo: Repo
   updateRepo: (
     repoId: string,
-    updates: { qualityGates: QualityGateDefinition[] }
+    updates: Pick<Repo, 'qualityGates'> | Pick<Repo, 'qualityGateFeedbackLoop'>
   ) => void | Promise<boolean>
 }
 
@@ -307,6 +308,14 @@ export function RepositoryQualityGatesSection({
             )
           )}
         </div>
+      ) : null}
+
+      {editable && gates.length > 0 ? (
+        <RepositoryQualityGateFeedbackLoopSettings
+          repo={repo}
+          gates={gates}
+          updateRepo={updateRepo}
+        />
       ) : null}
     </section>
   )

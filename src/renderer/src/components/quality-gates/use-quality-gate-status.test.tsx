@@ -14,7 +14,13 @@ const client = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/quality-gate-client', () => client)
 
-import { gateRun, gateStatus, liveGateRun } from './quality-gate-status-test-fixtures'
+import { readQualityGateFeedbackLoop } from './quality-gate-feedback-loop-view'
+import {
+  feedbackLoopStatus,
+  gateRun,
+  gateStatus,
+  liveGateRun
+} from './quality-gate-status-test-fixtures'
 import { presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
 
@@ -137,6 +143,32 @@ describe('useQualityGateStatus', () => {
     await settle(5_000)
     expect(hook.result.current.view.contactLost).toBe(false)
     expect(hook.result.current.view.status?.gates[0].latestRun?.status).toBe('passed')
+  })
+
+  it('follows the feedback loop of an SSH workspace and reads it as unknown while the host is silent', async () => {
+    const withLoop = (loop: Parameters<typeof feedbackLoopStatus>[0]) => ({
+      ...gateStatus(gateRun({ status: 'failed', exitCode: 1 })),
+      feedbackLoop: feedbackLoopStatus(loop)
+    })
+    client.fetchQualityGateStatus.mockResolvedValue(withLoop({ state: 'awaiting-agent', round: 1 }))
+    const hook = watch(remote)
+    await settle()
+    expect(readQualityGateFeedbackLoop(hook.result.current.view)?.tone).toBe('active')
+
+    // The host signals the loop's own change on the stream the panel already holds.
+    client.fetchQualityGateStatus.mockResolvedValue(withLoop({ state: 'checking', round: 1 }))
+    act(() => stream?.onChanged())
+    await settle()
+    expect(readQualityGateFeedbackLoop(hook.result.current.view)?.loop.state).toBe('checking')
+
+    client.fetchQualityGateStatus.mockRejectedValue(new Error('socket hang up'))
+    act(() => stream?.onLost(false))
+    await settle()
+    expect(readQualityGateFeedbackLoop(hook.result.current.view)?.tone).toBe('unknown')
+
+    client.fetchQualityGateStatus.mockResolvedValue(withLoop({ state: 'passed', round: 1 }))
+    await settle(5_000)
+    expect(readQualityGateFeedbackLoop(hook.result.current.view)?.tone).toBe('passed')
   })
 
   it('reads once more after a signal that arrived mid-read, not in parallel', async () => {
