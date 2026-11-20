@@ -1,6 +1,13 @@
 // A review finding as every review provider in Orca models it: how serious it is, what its
 // author offers as proof, and how far a host could check that proof.
 
+import {
+  REVIEW_COMMAND_RUN_KIND,
+  type ReviewCommandRunEvidence,
+  type ReviewCommandRunSummary,
+  type ReviewCommandRunUncheckedReason
+} from './review-command-run-evidence'
+
 export const REVIEW_FINDING_SEVERITIES = ['error', 'warning', 'suggestion', 'nit'] as const
 export type ReviewFindingSeverity = (typeof REVIEW_FINDING_SEVERITIES)[number]
 
@@ -24,7 +31,10 @@ export type ReviewCodeCitation = ReviewLineRange & {
 /** Evidence of a kind this build does not know: kept as it arrived and never trusted. */
 export type ReviewUnknownEvidence = { kind: string; [field: string]: unknown }
 
-export type ReviewFindingEvidence = ReviewCodeCitation | ReviewUnknownEvidence
+export type ReviewFindingEvidence =
+  | ReviewCodeCitation
+  | ReviewCommandRunEvidence
+  | ReviewUnknownEvidence
 
 /** Fields only an Orca host writes on evidence; what clients and agents send never keeps them. */
 export const REVIEW_EVIDENCE_HOST_ONLY_FIELDS: readonly string[] = ['origin', 'check']
@@ -55,6 +65,7 @@ export type ReviewEvidenceUncheckedReason =
   | 'commit-not-in-review'
   | 'request-limit'
   | 'request-failed'
+  | ReviewCommandRunUncheckedReason
 
 /** What the host found when it compared one piece of evidence with the code. */
 export type ReviewEvidenceCheck =
@@ -62,6 +73,8 @@ export type ReviewEvidenceCheck =
       status: 'confirmed'
       /** Where the quote really is, when it is not at the cited lines. */
       foundAt?: ReviewLineRange
+      /** The host's record of the run that a command-run names. */
+      run?: ReviewCommandRunSummary
     }
   | {
       status: 'refuted'
@@ -69,7 +82,12 @@ export type ReviewEvidenceCheck =
       /** The text at the cited lines. */
       actual?: string
     }
-  | { status: 'unchecked'; reason: ReviewEvidenceUncheckedReason }
+  | {
+      status: 'unchecked'
+      reason: ReviewEvidenceUncheckedReason
+      /** Present once the run is known to belong to the review worktree of the pull request. */
+      run?: ReviewCommandRunSummary
+    }
 
 export const REVIEW_FINDING_CERTAINTIES = [
   'verified',
@@ -90,7 +108,8 @@ export type ReviewEvidenceProof = 'verified' | 'likely'
  * by running something itself; a quote that matches the file shows only that the code is there.
  */
 export const REVIEW_CONFIRMED_EVIDENCE_PROVES: ReadonlyMap<string, ReviewEvidenceProof> = new Map([
-  [REVIEW_CODE_CITATION_KIND, 'likely']
+  [REVIEW_CODE_CITATION_KIND, 'likely'],
+  [REVIEW_COMMAND_RUN_KIND, 'verified']
 ])
 
 /**

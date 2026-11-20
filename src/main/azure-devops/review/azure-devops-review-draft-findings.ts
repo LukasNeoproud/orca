@@ -5,6 +5,7 @@ import type {
 } from '../../../shared/azure-devops-review-types'
 import { mapWithConcurrency } from '../../../shared/map-with-concurrency'
 import { checkReviewCodeCitation } from '../../../shared/review-code-citation-match'
+import { isReviewCommandRunEvidence } from '../../../shared/review-command-run-evidence'
 import {
   isReviewCodeCitation,
   type ReviewEvidenceCheck,
@@ -15,6 +16,10 @@ import type {
   AzureDevOpsReviewFileAtCommit,
   AzureDevOpsReviewFileReader
 } from './azure-devops-review-file-line-cache'
+import {
+  checkAzureDevOpsReviewGateRunEvidence,
+  type AzureDevOpsReviewGateRunFacts
+} from './azure-devops-review-gate-run-evidence'
 
 const LOAD_CONCURRENCY = 4
 const MAX_EXCERPT_LINES = 12
@@ -30,8 +35,12 @@ function versionKey(path: string, commit: string): string {
 function checkEvidence(
   evidence: ReviewFindingEvidence,
   commit: string | null,
-  files: ReadonlyMap<string, LoadedFile>
+  files: ReadonlyMap<string, LoadedFile>,
+  runs: Pick<Parameters<typeof checkAzureDevOpsReviewGateRunEvidence>[0], 'iterations' | 'facts'>
 ): ReviewEvidenceCheck {
+  if (isReviewCommandRunEvidence(evidence)) {
+    return checkAzureDevOpsReviewGateRunEvidence({ evidence, draftCommit: commit, ...runs })
+  }
   if (!isReviewCodeCitation(evidence)) {
     return { status: 'unchecked', reason: 'unknown-kind' }
   }
@@ -86,6 +95,8 @@ export async function describeAzureDevOpsReviewDraftFindings(args: {
   drafts: readonly AzureDevOpsReviewDraftView[]
   iterations: readonly AzureDevOpsReviewIteration[]
   readFile: AzureDevOpsReviewFileReader
+  /** What the host knows about gate runs for this pull request; without it no run is looked up. */
+  gateRuns?: AzureDevOpsReviewGateRunFacts | null
 }): Promise<AzureDevOpsReviewDraftView[]> {
   // Why only these: a draft names its own commit, and the reader would fetch any commit it is given.
   const reviewCommits = new Set(
@@ -128,7 +139,12 @@ export async function describeAzureDevOpsReviewDraftFindings(args: {
     }
     const commit = commitOf(draft)
     const evidence = draft.evidence ?? []
-    const evidenceChecks = evidence.map((item) => checkEvidence(item, commit, files))
+    const evidenceChecks = evidence.map((item) =>
+      checkEvidence(item, commit, files, {
+        iterations: args.iterations,
+        facts: args.gateRuns ?? null
+      })
+    )
     const path = excerptPath(draft)
     const codeExcerpt =
       path && commit ? excerptOf(draft, files.get(versionKey(path, commit))) : null

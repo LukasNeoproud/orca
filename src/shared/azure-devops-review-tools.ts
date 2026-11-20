@@ -1,3 +1,5 @@
+import { AZURE_DEVOPS_REVIEW_GATE_TOOLS } from './azure-devops-review-gate-tools'
+import { REVIEW_COMMAND_RUN_KIND, REVIEW_COMMAND_RUN_SOURCES } from './review-command-run-evidence'
 import { REVIEW_CODE_CITATION_KIND, REVIEW_FINDING_SEVERITIES } from './review-finding'
 import { REVIEW_FINDING_LIMITS } from './review-finding-input'
 
@@ -44,12 +46,20 @@ const FINDING_PROPERTIES = {
   evidence: {
     type: 'array',
     maxItems: REVIEW_FINDING_LIMITS.evidenceItems,
-    description:
-      'Proof of the finding. Orca compares every citation with the file at the commit of the draft: the reviewer sees a finding without evidence as uncertain and any draft whose quote is not in the file as contradicted.',
+    description: `Proof of the finding: code citations (kind ${REVIEW_CODE_CITATION_KIND}: filePath, startLine, quote) and failed gate runs (kind ${REVIEW_COMMAND_RUN_KIND}: source, runId). Orca compares every citation with the file at the commit of the draft: the reviewer sees a finding without evidence as uncertain and any draft whose quote is not in the file as contradicted. A gate run from ado_run_gate that failed in this review workspace, on the commit of the draft and with no uncommitted change, makes the finding verified; Orca reads the outcome from its own record, so send only the runId.`,
     items: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: [REVIEW_CODE_CITATION_KIND] },
+        kind: { type: 'string', enum: [REVIEW_CODE_CITATION_KIND, REVIEW_COMMAND_RUN_KIND] },
+        source: {
+          type: 'string',
+          enum: [...REVIEW_COMMAND_RUN_SOURCES],
+          description: `${REVIEW_COMMAND_RUN_KIND} only: what Orca ran`
+        },
+        runId: {
+          type: 'string',
+          description: `${REVIEW_COMMAND_RUN_KIND} only: runId from ado_run_gate`
+        },
         filePath: {
           type: 'string',
           description:
@@ -69,10 +79,10 @@ const FINDING_PROPERTIES = {
         note: {
           type: 'string',
           maxLength: REVIEW_FINDING_LIMITS.noteChars,
-          description: 'What the quoted code shows, in one sentence'
+          description: 'What the quoted code or the failed run shows, in one sentence'
         }
       },
-      required: ['kind', 'filePath', 'startLine', 'quote']
+      required: ['kind']
     }
   }
 }
@@ -162,5 +172,6 @@ export const AZURE_DEVOPS_REVIEW_TOOLS: AzureDevOpsReviewToolDefinition[] = [
       required: ['id']
     },
     annotations: { destructiveHint: true }
-  }
+  },
+  ...AZURE_DEVOPS_REVIEW_GATE_TOOLS
 ]

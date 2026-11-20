@@ -17,6 +17,7 @@ import {
 } from './azure-devops-review-service'
 import { createAzureDevOpsReviewFileReader } from './azure-devops-review-file-line-cache'
 import { describeAzureDevOpsReviewDraftFindings } from './azure-devops-review-draft-findings'
+import { azureDevOpsReviewGateRunFacts } from './azure-devops-review-gate-run-evidence'
 import {
   createAzureDevOpsReviewReply,
   createAzureDevOpsReviewThread,
@@ -52,6 +53,8 @@ import {
 
 /** Draft views with the host's checks of their evidence, read through one request budget. */
 function withFindings(
+  host: AzureDevOpsReviewHost,
+  pullRequestKey: string,
   resolved: AzureDevOpsResolvedPullRequest,
   iterations: readonly AzureDevOpsReviewIteration[],
   drafts: readonly AzureDevOpsReviewDraftView[]
@@ -59,6 +62,7 @@ function withFindings(
   return describeAzureDevOpsReviewDraftFindings({
     drafts,
     iterations,
+    gateRuns: azureDevOpsReviewGateRunFacts(host, resolved.source.key, pullRequestKey),
     readFile: createAzureDevOpsReviewFileReader({
       ...resolved.source,
       repositoryId: resolved.target.repositoryId
@@ -78,6 +82,8 @@ export async function listAzureDevOpsReviewDrafts(
   const latest = latestAzureDevOpsReviewIteration(iterations)
   return {
     drafts: await withFindings(
+      host,
+      pullRequestKey,
       resolved,
       iterations,
       azureDevOpsReviewDraftViews(pullRequestKey, latest)
@@ -99,7 +105,7 @@ export async function createAzureDevOpsReviewDraft(
   })
   putStoredAzureDevOpsReviewDraft(draft)
   const view = toAzureDevOpsReviewDraftView(draft, latestAzureDevOpsReviewIteration(iterations))
-  return (await withFindings(resolved, iterations, [view]))[0]
+  return (await withFindings(host, input.pullRequestKey, resolved, iterations, [view]))[0]
 }
 
 function requireDraft(id: string) {
@@ -124,7 +130,8 @@ export async function updateAzureDevOpsReviewDraft(
     latestIteration: latest
   })
   putStoredAzureDevOpsReviewDraft(next)
-  return (await withFindings(resolved, iterations, [toAzureDevOpsReviewDraftView(next, latest)]))[0]
+  const view = toAzureDevOpsReviewDraftView(next, latest)
+  return (await withFindings(host, draft.pullRequestKey, resolved, iterations, [view]))[0]
 }
 
 export function deleteAzureDevOpsReviewDraft(id: string): { deleted: boolean } {

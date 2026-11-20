@@ -5,6 +5,7 @@ import type {
   AzureDevOpsReviewListResult,
   AzureDevOpsReviewThread
 } from '../shared/azure-devops-review-types'
+import { isReviewCommandRunEvidence } from '../shared/review-command-run-evidence'
 import { isReviewCodeCitation } from '../shared/review-finding'
 
 export function formatAzureDevOpsPullRequestList(result: AzureDevOpsReviewListResult): string {
@@ -43,7 +44,9 @@ function draftEvidenceLines(draft: AzureDevOpsReviewDraftView): string[] {
     const check = draft.evidenceChecks?.[index]
     const where = isReviewCodeCitation(evidence)
       ? `${evidence.filePath}:${evidence.startLine}-${evidence.endLine}`
-      : evidence.kind
+      : isReviewCommandRunEvidence(evidence)
+        ? `gate run ${evidence.runId}`
+        : evidence.kind
     const outcome = !check
       ? 'not checked'
       : check.status === 'confirmed'

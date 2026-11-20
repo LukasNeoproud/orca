@@ -21,6 +21,10 @@ export const AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY = 'azure-devops-review.
 // drop both fields without an error.
 export const AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY =
   'azure-devops-review.findings.v1' as const
+// A draft takes `command-run` evidence and its check names the host's record of the gate run; a
+// host without it keeps such evidence as an unknown kind and never checks it.
+export const AZURE_DEVOPS_REVIEW_GATE_RUN_EVIDENCE_RUNTIME_CAPABILITY =
+  'azure-devops-review.gate-run-evidence.v1' as const
 
 // qualityGates.* runs the gates of a repository on the host that owns the worktree.
 export const QUALITY_GATES_RUNTIME_CAPABILITY = 'quality-gates.v1' as const
@@ -47,6 +51,7 @@ export const HOST_FEATURE_RUNTIME_CAPABILITIES = [
   AZURE_DEVOPS_REVIEW_MOBILE_AGENT_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_VOTE_RUNTIME_CAPABILITY,
   AZURE_DEVOPS_REVIEW_FINDINGS_RUNTIME_CAPABILITY,
+  AZURE_DEVOPS_REVIEW_GATE_RUN_EVIDENCE_RUNTIME_CAPABILITY,
   QUALITY_GATES_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,

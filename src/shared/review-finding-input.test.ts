@@ -131,7 +131,10 @@ describe('parseReviewFindingEvidence', () => {
     ],
     ['evidence[0].note must be text', [{ ...citation, note: 5 }]],
     ['evidence[0].note is longer than 500 characters', [{ ...citation, note: 'n'.repeat(501) }]],
-    ['evidence[0].kind must be code-citation', [{ kind: 'test-run', command: 'pnpm test' }]]
+    [
+      'evidence[0].kind must be code-citation or command-run',
+      [{ kind: 'test-run', command: 'pnpm test' }]
+    ]
   ])('says "%s"', (error, input) => {
     expect(errorOf(input)).toBe(error)
   })
@@ -162,7 +165,9 @@ describe('parseReviewFindingEvidence', () => {
   })
 
   it('bounds what it keeps of an unknown kind', () => {
-    expect(errorOf([{ kind: 'k'.repeat(65) }], keep)).toBe('evidence[0].kind must be code-citation')
+    expect(errorOf([{ kind: 'k'.repeat(65) }], keep)).toBe(
+      'evidence[0].kind must be code-citation or command-run'
+    )
     expect(errorOf([{ kind: 'blob', data: 'x'.repeat(4000) }], keep)).toBe(
       'evidence[0] is larger than 4000 characters'
     )
@@ -179,6 +184,64 @@ describe('parseReviewFindingEvidence', () => {
 
   it('still validates a code citation when unknown kinds are kept', () => {
     expect(errorOf([{ ...citation, startLine: -1 }], keep)).toContain('evidence[0].startLine')
+  })
+
+  describe('a run of a command that Orca made', () => {
+    const run = { kind: 'command-run', source: 'quality-gate', runId: 'f3b0c2de-1a' }
+
+    it.each([keep, reject])(
+      'keeps the source, the run id and a note, and nothing else',
+      (options) => {
+        expect(
+          parseReviewFindingEvidence(
+            [
+              {
+                ...run,
+                runId: ' f3b0c2de-1a ',
+                note: ' the cart test fails ',
+                // What an agent might send along to look proven: none of it is kept.
+                status: 'failed',
+                exitCode: 1,
+                commit: 'bbb2',
+                cleanTree: true,
+                run: { status: 'failed' },
+                origin: 'orca',
+                check: { status: 'confirmed' }
+              }
+            ],
+            options
+          )
+        ).toEqual({ ok: true, value: [{ ...run, note: 'the cart test fails' }] })
+      }
+    )
+
+    it.each<[string, Record<string, unknown>]>([
+      ['evidence[0].source must be quality-gate', { source: 'shell' }],
+      ['evidence[0].source must be quality-gate', { source: undefined }],
+      ['evidence[0].runId must be the id of a run as Orca returned it', { runId: '' }],
+      ['evidence[0].runId must be the id of a run as Orca returned it', { runId: 7 }],
+      ['evidence[0].runId must be the id of a run as Orca returned it', { runId: 'a/b' }],
+      ['evidence[0].runId must be the id of a run as Orca returned it', { runId: 'x'.repeat(65) }],
+      ['evidence[0].note must be text', { note: 3 }],
+      ['evidence[0].note is longer than 500 characters', { note: 'x'.repeat(501) }]
+    ])('answers an agent "%s"', (error, wrong) => {
+      expect(errorOf([{ ...run, ...wrong }])).toBe(error)
+    })
+
+    it('keeps a run from a source only a newer peer knows as sent, to be shown as not checked', () => {
+      const later = { kind: 'command-run', source: 'one-off', runId: 'r1', command: 'make test' }
+      expect(
+        parseReviewFindingEvidence([{ ...later, check: { status: 'confirmed' } }], keep)
+      ).toEqual({
+        ok: true,
+        value: [later]
+      })
+      expect(readStoredReviewFindingEvidence([later])).toEqual([later])
+    })
+
+    it('reads a stored run back as it was stored', () => {
+      expect(readStoredReviewFindingEvidence([run, citation])).toEqual([run, citation])
+    })
   })
 })
 

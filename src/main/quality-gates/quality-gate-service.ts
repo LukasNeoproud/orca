@@ -284,6 +284,15 @@ export function createQualityGateService(deps: QualityGateServiceDeps) {
       return { run: toView(run, source, definition), stdout: run.stdout, stderr: run.stderr }
     },
 
+    /**
+     * One run by id, whichever worktree it ran in; null when this host keeps no such record.
+     * For a caller that checks the run against a workspace itself, such as evidence of a finding.
+     */
+    findRun(runId: string): QualityGateRunView | null {
+      const run = live.get(runId)?.run ?? deps.store.get(runId)
+      return run ? toView(run, null, null) : null
+    },
+
     /** Stops the live runs of a worktree, or the one named by run or gate. */
     async cancel(
       target: QualityGateTarget,

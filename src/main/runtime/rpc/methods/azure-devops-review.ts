@@ -38,12 +38,14 @@ import {
 import { getAzureDevOpsReviewFileDiff } from '../../../azure-devops/review/azure-devops-review-file-diff'
 import { ensureAzureDevOpsReviewPiExtension } from '../../../azure-devops/review/azure-devops-review-pi-extension'
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
+import { getQualityGateService } from '../../../quality-gates/quality-gate-host'
 import { mapAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-mappers'
 
 function reviewHost(runtime: OrcaRuntimeService): AzureDevOpsReviewHost {
   return {
     listRepos: () => runtime.listRepos(),
-    findReviewWorktree: findAzureDevOpsReviewWorktree
+    findReviewWorktree: findAzureDevOpsReviewWorktree,
+    findGateRun: (runId) => getQualityGateService().findRun(runId)
   }
 }
 

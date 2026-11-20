@@ -22,6 +22,7 @@ import {
   formatAzureDevOpsPullRequestList
 } from '../azure-devops-format'
 import { runAzureDevOpsReviewMcpServer } from '../azure-devops-review-mcp'
+import { resolveCurrentWorktreeSelector } from '../selectors'
 import { readAzureDevOpsDraftEvidenceFlag } from '../azure-devops-draft-evidence-flag'
 
 type DraftResult = { draft: AzureDevOpsReviewDraftView }
@@ -101,7 +102,10 @@ export const AZURE_DEVOPS_HANDLERS: Record<string, CommandHandler> = {
     })
     printResult(response, json, (result) => (result.deleted ? 'Deleted.' : 'No such draft.'))
   },
-  'ado mcp': async ({ client }) => {
-    await runAzureDevOpsReviewMcpServer(client)
+  'ado mcp': async ({ client, cwd }) => {
+    await runAzureDevOpsReviewMcpServer(client, {
+      // Why per call: the server outlives a workspace the user removes or recreates.
+      resolveWorktree: () => resolveCurrentWorktreeSelector(cwd, client)
+    })
   }
 }

@@ -69,8 +69,12 @@ describe('severity and evidence through the MCP tools', () => {
           type: 'array',
           maxItems: 10,
           items: {
-            properties: { kind: { enum: ['code-citation'] } },
-            required: ['kind', 'filePath', 'startLine', 'quote']
+            properties: {
+              kind: { enum: ['code-citation', 'command-run'] },
+              source: { enum: ['quality-gate'] },
+              runId: { type: 'string' }
+            },
+            required: ['kind']
           }
         }
       })
@@ -137,7 +141,18 @@ describe('severity and evidence through the MCP tools', () => {
       'evidence[1].quote must hold the cited lines as they are in the file',
       { evidence: [citation, { ...citation, quote: undefined }] }
     ],
-    ['evidence[0].kind must be code-citation', { evidence: [{ kind: 'test-run', exitCode: 0 }] }]
+    [
+      'evidence[0].kind must be code-citation or command-run',
+      { evidence: [{ kind: 'test-run', exitCode: 0 }] }
+    ],
+    [
+      'evidence[0].source must be quality-gate',
+      { evidence: [{ kind: 'command-run', source: 'shell', runId: 'r1' }] }
+    ],
+    [
+      'evidence[0].runId must be the id of a run as Orca returned it',
+      { evidence: [{ kind: 'command-run', source: 'quality-gate', runId: '../runs' }] }
+    ]
   ])('answers "%s" and asks the host nothing', async (error, wrong) => {
     for (const [tool, base] of [
       ['ado_create_draft', createArguments],
@@ -233,6 +248,23 @@ describe('severity and evidence through orca ado draft create and update', () =>
       expect(String(failure)).toContain(error)
     }
   })
+
+  it('stores a gate run as evidence through the tool and the flag, as the host reads it', async () => {
+    const gateRun = { kind: 'command-run', source: 'quality-gate', runId: 'run-1' }
+    const { client, calls } = fakeClient()
+    await callAzureDevOpsReviewTool(client, 'ado_create_draft', {
+      ...createArguments,
+      severity: 'error',
+      // An outcome sent with the claim goes nowhere: Orca reads its own record of the run.
+      evidence: [citation, { ...gateRun, status: 'failed', exitCode: 1 }]
+    })
+    expect(calls[0].params).toMatchObject({ evidence: [citation, gateRun] })
+    expect(asTheHostReadsIt(calls[0])).toMatchObject({ evidence: [citation, gateRun] })
+
+    const viaFlag = await run('ado draft update', { evidence: JSON.stringify(gateRun) })
+    expect(viaFlag[0].params).toEqual({ id: 'd1', patch: { evidence: [gateRun] } })
+    expect(asTheHostReadsIt(viaFlag[0])).toEqual(viaFlag[0].params)
+  })
 })
 
 describe('formatAzureDevOpsDrafts with findings', () => {
@@ -260,6 +292,19 @@ describe('formatAzureDevOpsDrafts with findings', () => {
     expect(formatAzureDevOpsDrafts([{ ...draft, author: { kind: 'user' } }])).toBe(
       'd1 [draft] src/cart.ts:5-5\n  Negative prices lower the total.'
     )
+  })
+
+  it('prints a gate run and why it proved nothing', () => {
+    expect(
+      formatAzureDevOpsDrafts([
+        {
+          ...draft,
+          certainty: 'uncertain',
+          evidence: [{ kind: 'command-run', source: 'quality-gate', runId: 'run-1' }],
+          evidenceChecks: [{ status: 'unchecked', reason: 'run-stale-commit' }]
+        }
+      ])
+    ).toContain('  evidence 1: gate run run-1 not checked (run-stale-commit)')
   })
 
   it('prints the severity, the certainty and how each piece of evidence was checked', () => {

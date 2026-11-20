@@ -7,7 +7,7 @@ import { RuntimeClientError } from './runtime-client'
 const MAX_EVIDENCE_FILE_CHARS = 200_000
 
 const EVIDENCE_FORMAT =
-  'a JSON list of {"kind":"code-citation","filePath":…,"startLine":…,"endLine":…,"quote":…,"note":…}'
+  'a JSON list of {"kind":"code-citation","filePath":…,"startLine":…,"endLine":…,"quote":…,"note":…} or {"kind":"command-run","source":"quality-gate","runId":…}'
 
 function invalid(message: string): never {
   throw new RuntimeClientError('invalid_argument', message)

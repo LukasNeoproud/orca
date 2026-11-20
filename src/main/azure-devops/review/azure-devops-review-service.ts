@@ -10,6 +10,7 @@ import {
   type AzureDevOpsReviewPullRequest,
   type AzureDevOpsReviewWorktreeInfo
 } from '../../../shared/azure-devops-review-types'
+import type { QualityGateRunView } from '../../../shared/quality-gate-types'
 import { azureDevOpsOrganizationCredentialSource } from '../azure-devops-credentials'
 import {
   collectAzureDevOpsReviewRepos,
@@ -45,6 +46,7 @@ import {
   toAzureDevOpsReviewLineLoader
 } from './azure-devops-review-file-line-cache'
 import { describeAzureDevOpsReviewDraftFindings } from './azure-devops-review-draft-findings'
+import { azureDevOpsReviewGateRunFacts } from './azure-devops-review-gate-run-evidence'
 import {
   azureDevOpsReviewThreadOrigin,
   trackAzureDevOpsReviewThreads
@@ -68,6 +70,8 @@ export type AzureDevOpsReviewHost = {
     repoKey: string,
     pullRequestKey?: string
   ) => AzureDevOpsReviewWorktreeInfo | null
+  /** This host's record of a gate run by id; without it a run cited as evidence is never looked up. */
+  findGateRun?: (runId: string) => QualityGateRunView | null
 }
 
 export type AzureDevOpsResolvedPullRequest = {
@@ -289,7 +293,8 @@ export async function getAzureDevOpsReviewDetail(
     drafts: await describeAzureDevOpsReviewDraftFindings({
       drafts: azureDevOpsReviewDraftViews(pullRequestKey, latest),
       iterations,
-      readFile
+      readFile,
+      gateRuns: azureDevOpsReviewGateRunFacts(host, resolved.source.key, pullRequestKey)
     }),
     reviewWorktree: host.findReviewWorktree?.(resolved.source.key, pullRequestKey) ?? null
   }

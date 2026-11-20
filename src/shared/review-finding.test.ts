@@ -113,8 +113,27 @@ describe('deriveReviewFindingCertainty', () => {
     }
   })
 
-  it('knows no kind of evidence that proves a finding in this build', () => {
-    expect([...REVIEW_CONFIRMED_EVIDENCE_PROVES]).toEqual([['code-citation', 'likely']])
+  it('lets only a run Orca made itself prove a finding', () => {
+    expect([...REVIEW_CONFIRMED_EVIDENCE_PROVES]).toEqual([
+      ['code-citation', 'likely'],
+      ['command-run', 'verified']
+    ])
+  })
+
+  it('says verified for a confirmed run, and nothing more than its check for any other', () => {
+    const run = { kind: 'command-run', source: 'quality-gate', runId: 'r1' }
+    expect(deriveReviewFindingCertainty([run], [CHECKS.confirmed])).toBe('verified')
+    expect(
+      deriveReviewFindingCertainty([citation, run], [CHECKS.confirmed, CHECKS.confirmed])
+    ).toBe('verified')
+    expect(deriveReviewFindingCertainty([run], [])).toBe('uncertain')
+    expect(
+      deriveReviewFindingCertainty([run], [{ status: 'unchecked', reason: 'run-passed' }])
+    ).toBe('uncertain')
+    // A quote the agent made up outweighs the run.
+    expect(
+      deriveReviewFindingCertainty([run, citation], [CHECKS.confirmed, CHECKS['text mismatch']])
+    ).toBe('contradicted')
   })
 
   // The path a kind produced by Orca itself takes once one exists.

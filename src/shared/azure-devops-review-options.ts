@@ -66,13 +66,13 @@ const DEPTH_LINES: Record<AzureDevOpsReviewDepth, string> = {
   static:
     'This is a static review: read the code and the diff only. Do not install dependencies, build, run tests or execute project code.',
   build:
-    "Build the projects the change touches with the repository's own build commands (restore dependencies first if needed). Report build errors and new warnings caused by the change as drafts. Do not run tests.",
+    "Build the projects the change touches (restore dependencies first if needed): through an Orca quality gate where one covers the build, otherwise with the repository's own build commands. Report build errors and new warnings caused by the change as drafts. Do not run tests.",
   'build-and-test':
-    "Build the projects the change touches with the repository's own build commands (restore dependencies first if needed), then run the tests that cover the changed code. Report build errors, new warnings and failing tests caused by the change as drafts, with the failing command and the relevant output."
+    "Build the projects the change touches (restore dependencies first if needed), then run the tests that cover the changed code: through Orca quality gates where they cover the build and the tests, otherwise with the repository's own commands. Report build errors, new warnings and failing tests caused by the change as drafts, with the failing command and the relevant output."
 }
 
 const CHECK_LINES: Record<AzureDevOpsReviewCheck, string> = {
-  lint: "Run the repository's linters and format checks on the changed files and report new findings.",
+  lint: "Run the repository's linters and format checks on the changed files and report new findings; use an Orca quality gate where one runs them.",
   'full-test-suite':
     'Run the full test suite, not only the tests near the change; it may take a long time, so say when it starts and how long it took.',
   'dependency-audit':

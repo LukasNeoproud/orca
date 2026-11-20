@@ -4,6 +4,7 @@ title: 'Nálezy AI s důkazem: důkaz z běhu brány na kartě draftu'
 status: To Do
 assignee: []
 created_date: '2026-11-20T15:59:00Z'
+updated_date: '2026-11-20T16:19:00Z'
 labels:
   - review-ide
   - effort-high
@@ -47,3 +48,9 @@ TASK-88 dal nálezu AI důkaz z běhu brány a jeho ověření v hlavním proces
 - [ ] #4 SSH review worktree: výstup se čte z hostitele, který běh vlastní; při ztrátě spojení karta řekne, že výstup není dostupný
 - [ ] #5 Komponenta má testy; průchod je ověřený ve skrytém okně na smyšleném repozitáři s bránou, která selže, se snímkem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Od TASK-88: kontrola důkazu v draftu nese evidenceChecks[i].reason (důvody run-*) a shrnutí běhu v poli run (src/shared/review-command-run-evidence.ts). Karta dnes u potvrzeného běhu ukáže text citace kódu (In the file) a polohu command-run; potřebuje vlastní texty pro command-run a každý důvod run-*. Výstup čti přes qualityGates.output podle worktreeId a runId z kontroly. Hostitel hlásí schopnost azure-devops-review.gate-run-evidence.v1.
+<!-- SECTION:NOTES:END -->

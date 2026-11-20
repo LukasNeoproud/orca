@@ -1,4 +1,11 @@
 import {
+  isReviewCommandRunSource,
+  REVIEW_COMMAND_RUN_ID_PATTERN,
+  REVIEW_COMMAND_RUN_KIND,
+  REVIEW_COMMAND_RUN_SOURCES,
+  type ReviewCommandRunEvidence
+} from './review-command-run-evidence'
+import {
   isReviewFindingSeverity,
   REVIEW_CODE_CITATION_KIND,
   REVIEW_EVIDENCE_HOST_ONLY_FIELDS,
@@ -68,6 +75,44 @@ function isLineNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1
 }
 
+/** A note in the author's words, or the error for a note that is not short text. */
+function parseNote(input: unknown, at: string): ReviewFindingInput<string> {
+  if (input !== undefined && input !== null && typeof input !== 'string') {
+    return fail(`${at}.note must be text`)
+  }
+  const note = typeof input === 'string' ? input.trim() : ''
+  return note.length > REVIEW_FINDING_LIMITS.noteChars
+    ? fail(`${at}.note is longer than ${REVIEW_FINDING_LIMITS.noteChars} characters`)
+    : { ok: true, value: note }
+}
+
+function parseCommandRun(
+  record: Record<string, unknown>,
+  at: string
+): ReviewFindingInput<ReviewCommandRunEvidence> {
+  const { source, runId } = record
+  if (!isReviewCommandRunSource(source)) {
+    return fail(`${at}.source must be ${REVIEW_COMMAND_RUN_SOURCES.join(' or ')}`)
+  }
+  if (typeof runId !== 'string' || !REVIEW_COMMAND_RUN_ID_PATTERN.test(runId.trim())) {
+    return fail(`${at}.runId must be the id of a run as Orca returned it`)
+  }
+  const note = parseNote(record.note, at)
+  if (!note.ok) {
+    return note
+  }
+  // Why rebuilt: an outcome sent along with the claim is dropped; the host reads its own record.
+  return {
+    ok: true,
+    value: {
+      kind: REVIEW_COMMAND_RUN_KIND,
+      source,
+      runId: runId.trim(),
+      ...(note.value ? { note: note.value } : {})
+    }
+  }
+}
+
 function parseCodeCitation(
   record: Record<string, unknown>,
   at: string
@@ -94,12 +139,9 @@ function parseCodeCitation(
   if (quote.length > REVIEW_FINDING_LIMITS.quoteChars) {
     return fail(`${at}.quote is longer than ${REVIEW_FINDING_LIMITS.quoteChars} characters`)
   }
-  if (record.note !== undefined && record.note !== null && typeof record.note !== 'string') {
-    return fail(`${at}.note must be text`)
-  }
-  const note = typeof record.note === 'string' ? record.note.trim() : ''
-  if (note.length > REVIEW_FINDING_LIMITS.noteChars) {
-    return fail(`${at}.note is longer than ${REVIEW_FINDING_LIMITS.noteChars} characters`)
+  const note = parseNote(record.note, at)
+  if (!note.ok) {
+    return note
   }
   return {
     ok: true,
@@ -109,7 +151,7 @@ function parseCodeCitation(
       startLine,
       endLine,
       quote,
-      ...(note ? { note } : {})
+      ...(note.value ? { note: note.value } : {})
     }
   }
 }
@@ -164,8 +206,15 @@ function parseEvidenceItem(
   if (kind === REVIEW_CODE_CITATION_KIND) {
     return parseCodeCitation(input, at)
   }
+  if (kind === REVIEW_COMMAND_RUN_KIND) {
+    const run = parseCommandRun(input, at)
+    // Why kept: a run from a source only a newer peer knows is stored as sent and never trusted.
+    if (run.ok || options.unknownKinds === 'reject') {
+      return run
+    }
+  }
   if (options.unknownKinds === 'reject' || kind.length > REVIEW_FINDING_LIMITS.kindChars) {
-    return fail(`${at}.kind must be ${REVIEW_CODE_CITATION_KIND}`)
+    return fail(`${at}.kind must be ${REVIEW_CODE_CITATION_KIND} or ${REVIEW_COMMAND_RUN_KIND}`)
   }
   return parseUnknownEvidence(input, kind, at, options.keepHostFields === true)
 }

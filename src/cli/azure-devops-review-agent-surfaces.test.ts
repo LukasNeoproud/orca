@@ -35,18 +35,30 @@ const TOOL_ARGUMENTS = {
   body: 'Check the rounding.',
   status: 'active',
   // An agent may try to smuggle a vote through; nothing may forward it.
-  vote: 'approved'
+  vote: 'approved',
+  gateId: 'test',
+  runId: 'run-1'
+}
+
+const FINISHED_RUN = { id: 'run-1', gate: {}, liveness: 'exited', status: 'passed' }
+/** What the host answers the gate tools, so each of them reaches its end. */
+const GATE_RESULTS: Record<string, unknown> = {
+  'qualityGates.run': { runs: [{ run: FINISHED_RUN, started: true }] },
+  'qualityGates.output': { run: FINISHED_RUN, stdout: '', stderr: '' }
 }
 
 describe('Azure DevOps review surfaces an agent can call', () => {
-  it('offers exactly the read and draft tools', () => {
+  it('offers exactly the read and draft tools, and the tools that run a gate of the settings', () => {
     expect(AZURE_DEVOPS_REVIEW_TOOLS.map((tool) => tool.name)).toEqual([
       'ado_list_pull_requests',
       'ado_get_pull_request',
       'ado_list_drafts',
       'ado_create_draft',
       'ado_update_draft',
-      'ado_delete_draft'
+      'ado_delete_draft',
+      'ado_list_gates',
+      'ado_run_gate',
+      'ado_get_gate_run'
     ])
   })
 
@@ -60,27 +72,33 @@ describe('Azure DevOps review surfaces an agent can call', () => {
     }
   })
 
-  it('calls only read and draft methods from every MCP tool and never forwards a vote', async () => {
+  it('calls only read, draft and gate-run methods from every MCP tool and never forwards a vote', async () => {
     const calls: { method: string; params: unknown }[] = []
     const client = {
       call: async (method: string, params?: unknown) => {
         calls.push({ method, params })
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the tools read only `.result` of the response, which this stub provides.
-        return { result: {} } as never
+        return { result: GATE_RESULTS[method] ?? {} } as never
       }
     }
 
     for (const tool of AZURE_DEVOPS_REVIEW_TOOLS) {
-      await callAzureDevOpsReviewTool(client, tool.name, TOOL_ARGUMENTS)
+      await callAzureDevOpsReviewTool(client, tool.name, TOOL_ARGUMENTS, {
+        resolveWorktree: async () => 'id:w1'
+      })
     }
 
-    expect(calls.map((call) => call.method).sort()).toEqual([
+    // No gate method here defines a gate or a command: those take a caller that is an Orca app.
+    expect([...new Set(calls.map((call) => call.method))].sort()).toEqual([
       'azureDevOpsReview.createDraft',
       'azureDevOpsReview.deleteDraft',
       'azureDevOpsReview.drafts',
       'azureDevOpsReview.get',
       'azureDevOpsReview.list',
-      'azureDevOpsReview.updateDraft'
+      'azureDevOpsReview.updateDraft',
+      'qualityGates.list',
+      'qualityGates.output',
+      'qualityGates.run'
     ])
     expect(JSON.stringify(calls)).not.toMatch(/"vote"/)
     await expect(callAzureDevOpsReviewTool(client, 'ado_vote', TOOL_ARGUMENTS)).rejects.toThrow(

@@ -36,7 +36,7 @@ const LOST_CONTACT =
   'Contact with the Orca host was lost while the gate was running, so its outcome was not observed. It may still be running: check orca gates status.'
 
 // A refusal the host sent is an answer; only a call that got no answer is lost contact.
-function isLostContact(error: unknown): boolean {
+export function isQualityGateLostContact(error: unknown): boolean {
   return (
     error instanceof RuntimeClientError &&
     (error.code === 'runtime_unavailable' || error.code === 'runtime_timeout')
@@ -94,7 +94,7 @@ export async function waitForQualityGateRuns(options: {
         }
       }
     } catch (error) {
-      if (!isLostContact(error)) {
+      if (!isQualityGateLostContact(error)) {
         throw error
       }
       if (++failedPolls >= QUALITY_GATE_LOST_CONTACT_POLLS) {
@@ -127,7 +127,7 @@ export async function waitForQualityGateRuns(options: {
       })
       runs.push({ ...output.result, started: entry.started })
     } catch (error) {
-      if (!isLostContact(error)) {
+      if (!isQualityGateLostContact(error)) {
         throw error
       }
       runs.push({ run: unobserved(known), started: entry.started, stdout: '', stderr: '' })
