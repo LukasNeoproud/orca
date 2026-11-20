@@ -41,6 +41,7 @@ export function BranchEntryRow({
   return (
     <SourceControlEntryContextMenu
       currentWorktreeId={currentWorktreeId}
+      worktreePath={worktreePath}
       absolutePath={joinPath(worktreePath, entry.path)}
       relativePath={entry.path}
       hasWorkingTreeFile={entry.status !== 'deleted'}

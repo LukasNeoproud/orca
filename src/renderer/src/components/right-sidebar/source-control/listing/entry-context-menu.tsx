@@ -27,10 +27,12 @@ import {
   openOpenInAppsSettings,
   openWorktreePath
 } from '@/components/sidebar/WorktreeOpenInMenu'
-import { useExternalEditorProjectRoot } from '@/components/external-editor-file-open/external-editor-file-target'
+import { getLocalExternalEditorProjectRoot } from '@/components/external-editor-file-open/external-editor-file-target'
 
 type SourceControlEntryContextMenuProps = {
   currentWorktreeId: string
+  /** Root the row's path is joined to; the file opens in this folder's editor window. */
+  worktreePath: string
   absolutePath?: string
   relativePath?: string
   /** False for a deleted entry: there is no file for the OS file manager to show. */
@@ -44,6 +46,7 @@ type SourceControlEntryContextMenuProps = {
 
 export function SourceControlEntryContextMenu({
   currentWorktreeId,
+  worktreePath,
   absolutePath,
   relativePath,
   hasWorkingTreeFile,
@@ -67,7 +70,7 @@ export function SourceControlEntryContextMenu({
   const revealBlocked = isLocalPathOpenBlocked(revealOwner)
   const openInRoute = useMemo(() => getRouteForLocalPathOpenOwner(revealOwner), [revealOwner])
   // Why: the file opens in its worktree's window, as Open in from the editor does.
-  const projectRoot = useExternalEditorProjectRoot(currentWorktreeId, revealOwner)
+  const projectRoot = getLocalExternalEditorProjectRoot(revealOwner, worktreePath)
 
   const handleCopyPath = useCallback(() => {
     if (!absolutePath) {

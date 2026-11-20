@@ -13,7 +13,7 @@ const storeState = vi.hoisted(
       openInApplications: OpenInApplication[]
       activeRuntimeEnvironmentId: string | null
     }
-    worktreesByRepo: Record<string, { id: string; repoId: string; hostId: string; path?: string }[]>
+    worktreesByRepo: Record<string, { id: string; repoId: string; hostId: string }[]>
   } => ({
     settings: { openInApplications: [], activeRuntimeEnvironmentId: null },
     worktreesByRepo: { 'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'local' }] }
@@ -105,6 +105,7 @@ function renderMenu(props: { connectionId?: string; hasWorkingTreeFile?: boolean
   renderToStaticMarkup(
     <SourceControlEntryContextMenu
       currentWorktreeId="worktree-1"
+      worktreePath="/repo"
       absolutePath="/repo/src/example.ts"
       relativePath="src/example.ts"
       hasWorkingTreeFile={props.hasWorkingTreeFile ?? true}
@@ -202,9 +203,6 @@ describe('SourceControlEntryContextMenu', () => {
   })
 
   it('opens a local file in the window of the worktree that holds it', () => {
-    storeState.worktreesByRepo = {
-      'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'local', path: '/repo' }]
-    }
     storeState.settings.openInApplications = [{ id: 'code', label: 'Code', command: 'code' }]
     renderMenu()
 
@@ -216,7 +214,7 @@ describe('SourceControlEntryContextMenu', () => {
 
   it('sends no worktree root for a file on an SSH host', () => {
     storeState.worktreesByRepo = {
-      'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'ssh:ssh-9', path: '/srv/repo' }]
+      'repo-1': [{ id: 'worktree-1', repoId: 'repo-1', hostId: 'ssh:ssh-9' }]
     }
     storeState.settings.openInApplications = [{ id: 'code', label: 'Code', command: 'code' }]
     renderMenu()

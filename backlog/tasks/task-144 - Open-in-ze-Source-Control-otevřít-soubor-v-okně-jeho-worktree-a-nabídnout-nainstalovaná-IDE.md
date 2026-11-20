@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-11-20T09:14:00Z'
-updated_date: '2026-11-20T09:40:00Z'
+updated_date: '2026-11-20T10:46:00Z'
 labels:
   - review-ide
   - effort-high
@@ -55,6 +55,8 @@ Plán (worker 2026-11-20): 1) Příčina: Source Control volá openWorktreePath 
 Stav (worker 2026-11-20): hotovo v kódu: kořen i bez řádku (main + Source Control), katalog známých IDE src/shared/open-in-known-applications.ts, detekce src/main/open-in-installed-apps, IPC shell:detectOpenInApplications, menu Přidat aplikaci s oddílem Installed (src/renderer/src/components/open-in-installed-apps), překlady, unit testy. Zbývá: brány (format, oxlint, code-quality, anti-slop, ratchety), e2e Source Control ve skrytém okně, živé ověření VS Code a Android Studia, 02-editor.md.
 
 Hotovo (worker 2026-11-20): vše v kódu, testy a brány prošly (tc, unit 394+67 souborů, e2e 8/8 ve skrytém okně, code-quality, anti-slop, ratchety, oxlint). Živě: VS Code bez řádku otevřel okno 'Ukazka.kt — okno' a další soubor stejné okno znovu (projekt ~/.cache/orca-review-ide/task-144/projekt/okno, okno zavřeno). Android Studio živě neověřeno: v IDE uživatele bylo otevřené okno vyhledávání, které by nové okno projektu zavřelo; chování bez --line doložené z bytecode CommandLineProcessor (~/.cache/orca-review-ide/task-144/bytecode/cmdline.txt). Snímky ~/.cache/orca-review-ide/task-144/e2e-output. Čeká na koordinátora.
+
+2026-11-20: celé brány po TASK-144 odhalily tři rozbité testy panelu Source Control (mock selektorů neznal nový selektor). Opraveno: kontextové menu bere kořen worktree z řádku místo čtení ze store; chování beze změny. Při převzetí pouštět celé složky dotčené oblasti, ne jen změněné testy.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

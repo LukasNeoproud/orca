@@ -90,6 +90,7 @@ export const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
   return (
     <SourceControlEntryContextMenu
       currentWorktreeId={currentWorktreeId}
+      worktreePath={worktreePath}
       absolutePath={joinPath(worktreePath, entry.path)}
       relativePath={entry.path}
       hasWorkingTreeFile={entry.status !== 'deleted'}

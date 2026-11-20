@@ -45,8 +45,11 @@ function getPreferenceKey(worktreeId: string): string {
     : getRepoIdFromWorktreeId(worktreeId)
 }
 
-// Why: only a local file can open in its workspace window; SSH and runtimes keep the bare path.
-function getLocalProjectRoot(owner: FileOwner, workspaceRoot: string | null): string | null {
+/** Workspace root sent with a file; only a local file opens in its workspace window. */
+export function getLocalExternalEditorProjectRoot(
+  owner: FileOwner,
+  workspaceRoot: string | null
+): string | null {
   return owner === LOCAL_EXECUTION_HOST_ID ? workspaceRoot : null
 }
 
@@ -59,14 +62,8 @@ function buildTarget(
     filePath: source.filePath,
     preferenceKey: getPreferenceKey(source.worktreeId),
     ...getRouteForLocalPathOpenOwner(owner),
-    projectRoot: getLocalProjectRoot(owner, workspaceRoot)
+    projectRoot: getLocalExternalEditorProjectRoot(owner, workspaceRoot)
   }
-}
-
-/** Worktree or folder workspace root sent with a file of `worktreeId` that `owner` holds. */
-export function useExternalEditorProjectRoot(worktreeId: string, owner: FileOwner): string | null {
-  const workspaceRoot = useAppStore((s) => selectMarkdownDocumentWorktreePath(s, worktreeId))
-  return getLocalProjectRoot(owner, workspaceRoot)
 }
 
 export function getExternalEditorFileTarget(
