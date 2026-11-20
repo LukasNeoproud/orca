@@ -21,7 +21,9 @@ import {
   fetchQualityGateStatus,
   qualityGateBackgroundChangesSupported,
   qualityGateChangesSupported,
+  qualityGateRepositorySettingsSupported,
   qualityGatesSupported,
+  saveQualityGateRepositorySettings,
   setQualityGateFeedbackLoop,
   startQualityGates,
   subscribeQualityGateChanges
@@ -82,6 +84,66 @@ describe('quality gate client', () => {
       [remote, 'qualityGates.setFeedbackLoop', { worktree: 'id:repo::/srv/app', enabled: false }],
       [local, 'qualityGates.setFeedbackLoop', { worktree: 'id:repo::/work', enabled: true }]
     ])
+  })
+
+  describe('settings of a repository another host keeps', () => {
+    const lint = {
+      id: 'lint',
+      name: 'Lint',
+      command: 'pnpm lint',
+      required: true,
+      timeoutSeconds: 60
+    }
+    const loop = { enabled: true, maxRounds: 3 }
+
+    it('writes them on that host with the one method that carries definitions', async () => {
+      callRuntimeRpc.mockResolvedValue({ gates: [lint], feedbackLoop: loop })
+
+      expect(await saveQualityGateRepositorySettings(remote, 'repo', { gates: [lint] })).toEqual({
+        gates: [lint],
+        feedbackLoop: loop
+      })
+      await saveQualityGateRepositorySettings(remote, 'repo', { feedbackLoop: loop })
+
+      expect(
+        callRuntimeRpc.mock.calls.map(([target, method, params]) => [target, method, params])
+      ).toEqual([
+        [remote, 'qualityGates.setRepositorySettings', { repo: 'id:repo', gates: [lint] }],
+        [remote, 'qualityGates.setRepositorySettings', { repo: 'id:repo', feedbackLoop: loop }]
+      ])
+    })
+
+    it('shows what the host stored, and nothing as saved when the reply names no gates', async () => {
+      // The host's build dropped a gate this build would have kept.
+      callRuntimeRpc.mockResolvedValueOnce({ gates: [], feedbackLoop: { enabled: false } })
+      expect(await saveQualityGateRepositorySettings(remote, 'repo', { gates: [lint] })).toEqual({
+        gates: [],
+        feedbackLoop: { enabled: false, maxRounds: 3 }
+      })
+
+      callRuntimeRpc.mockResolvedValueOnce({ repo: { id: 'repo' } })
+      await expect(
+        saveQualityGateRepositorySettings(remote, 'repo', { gates: [lint] })
+      ).rejects.toThrow('did not confirm')
+    })
+
+    it('reports an older host as unsupported before and after the call, never as saved', async () => {
+      runtimeEnvironmentSupportsCapability.mockResolvedValueOnce(false)
+      expect(await qualityGateRepositorySettingsSupported(remote)).toBe(false)
+      expect(runtimeEnvironmentSupportsCapability).toHaveBeenCalledWith(
+        'env-ssh',
+        'quality-gates.repository-settings.v1',
+        expect.any(Number)
+      )
+
+      callRuntimeRpc.mockRejectedValueOnce(refusal('method_not_found'))
+      const failure = await saveQualityGateRepositorySettings(remote, 'repo', {
+        gates: [lint]
+      }).catch((error: unknown) => error)
+      expect(classifyQualityGateCallFailure(failure)).toBe('unsupported')
+      // No fallback to repo.update, whose schema would drop the gates without an error.
+      expect(callRuntimeRpc).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('asks a remote host for the capability and reports an older host as unsupported', async () => {

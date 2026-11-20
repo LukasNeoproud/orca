@@ -2,12 +2,18 @@ import { callRuntimeRpc, runtimeEnvironmentSupportsCapability } from '@/runtime/
 import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
 import { subscribeRuntimeRpc } from '@/runtime/runtime-rpc-subscribe'
 import {
+  QUALITY_GATES_REPOSITORY_SETTINGS_RUNTIME_CAPABILITY,
   QUALITY_GATES_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_CADENCE_RUNTIME_CAPABILITY,
   QUALITY_GATES_SUBSCRIBE_RUNTIME_CAPABILITY
 } from '../../../shared/host-feature-runtime-capabilities'
 import { readQualityGateChangeFrame } from '../../../shared/quality-gate-change-stream'
 import type { QualityGateSetFeedbackLoopResult } from '../../../shared/quality-gate-feedback-loop'
+import {
+  readQualityGateRepositorySettings,
+  type QualityGateRepositorySettings,
+  type QualityGateRepositorySettingsUpdate
+} from '../../../shared/quality-gate-repository-settings'
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type {
   QualityGateCancelResult,
@@ -114,6 +120,43 @@ export function setQualityGateFeedbackLoop(
   enabled: boolean
 ): Promise<QualityGateSetFeedbackLoopResult> {
   return call(target, 'qualityGates.setFeedbackLoop', worktreeId, { enabled })
+}
+
+/** A repository another Orca host keeps. This app's own repositories are written by its window. */
+export type QualityGateRemoteHostTarget = Extract<RuntimeClientTarget, { kind: 'environment' }>
+
+/** Whether the host takes the gates and the loop of its repositories from this app. */
+export function qualityGateRepositorySettingsSupported(
+  target: QualityGateRemoteHostTarget
+): Promise<boolean> {
+  return runtimeEnvironmentSupportsCapability(
+    target.environmentId,
+    QUALITY_GATES_REPOSITORY_SETTINGS_RUNTIME_CAPABILITY,
+    CAPABILITY_TIMEOUT_MS
+  )
+}
+
+/**
+ * Writes the gates or the loop of a repository on the host that keeps it and returns what that
+ * host stored. Called from the settings window only; `repo.update` would drop both fields.
+ */
+export async function saveQualityGateRepositorySettings(
+  target: QualityGateRemoteHostTarget,
+  repoId: string,
+  update: QualityGateRepositorySettingsUpdate
+): Promise<QualityGateRepositorySettings> {
+  const stored = readQualityGateRepositorySettings(
+    await callRuntimeRpc<unknown>(
+      target,
+      'qualityGates.setRepositorySettings',
+      { repo: `id:${repoId}`, ...update },
+      { timeoutMs: CALL_TIMEOUT_MS }
+    )
+  )
+  if (!stored) {
+    throw new Error('The host did not confirm the quality gate settings it stored.')
+  }
+  return stored
 }
 
 /** Whether the host signals changes itself; a host from before the stream is asked on an interval. */

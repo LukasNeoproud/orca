@@ -37,13 +37,15 @@ import {
 import { getRepositoryQualityGatesSectionId } from './quality-gate-settings-target'
 import { hasLiveQualityGateRun, presentQualityGateStatus } from './quality-gate-status-view'
 import { useQualityGateStatus } from './use-quality-gate-status'
+import {
+  useRepositoryQualityGateSettingsWriter,
+  type RepositoryQualityGateSettingsSave
+} from './use-repository-quality-gate-settings-writer'
 
 type RepositoryQualityGatesSectionProps = {
   repo: Repo
-  updateRepo: (
-    repoId: string,
-    updates: Pick<Repo, 'qualityGates'> | Pick<Repo, 'qualityGateFeedbackLoop'>
-  ) => void | Promise<boolean>
+  /** Writes a repository this app keeps. One of another host is written on that host. */
+  updateRepo: RepositoryQualityGateSettingsSave
 }
 
 const EMPTY_WORKTREES: Worktree[] = []
@@ -84,10 +86,12 @@ export function RepositoryQualityGatesSection({
   const repos = useAppStore((state) => state.repos)
   const allWorktrees = useAppStore((state) => state.worktreesByRepo[repo.id] ?? EMPTY_WORKTREES)
   const hostId = getRepoExecutionHostId(repo)
-  // Why: gates are written only by this app into its own store; a repository on another host
-  // keeps its gates in Orca there, and nothing this app can call changes them.
-  const editable = hostId === LOCAL_EXECUTION_HOST_ID
+  const onThisComputer = hostId === LOCAL_EXECUTION_HOST_ID
   const target = useMemo(() => ipcOrRuntimeTargetForHostId(hostId), [hostId])
+  // Why: the gates live where they run. This app's own are written by this window; those of
+  // another Orca host are written on it, if its build takes them from an app.
+  const writer = useRepositoryQualityGateSettingsWriter(hostId, target, updateRepo)
+  const editable = writer.place === 'this-computer' || writer.place === 'host'
   const gates = useMemo(
     () => normalizeQualityGateDefinitions(repo.qualityGates) ?? EMPTY_GATES,
     [repo.qualityGates]
@@ -127,7 +131,7 @@ export function RepositoryQualityGatesSection({
     setSaving(true)
     setSaveFailed(false)
     try {
-      const saved = await updateRepo(repo.id, { qualityGates: next })
+      const saved = await writer.save(repo.id, { qualityGates: next })
       if (saved === false) {
         setSaveFailed(true)
         return false
@@ -199,10 +203,15 @@ export function RepositoryQualityGatesSection({
             {translate('qualityGates.title', 'Quality Gates')}
           </h3>
           <p className="text-xs text-muted-foreground">
-            {translate(
-              'qualityGates.description',
-              'Commands Orca runs in a workspace when you ask, to check the work: lint, tests, a build. They are kept in Orca on this computer and never read from the repository.'
-            )}
+            {onThisComputer
+              ? translate(
+                  'qualityGates.description',
+                  'Commands Orca runs in a workspace when you ask, to check the work: lint, tests, a build. They are kept in Orca on this computer and never read from the repository.'
+                )
+              : translate(
+                  'qualityGates.descriptionOnHost',
+                  'Commands Orca runs in a workspace when you ask, to check the work: lint, tests, a build. They are kept in Orca on the host of this repository and never read from the repository.'
+                )}
           </p>
         </div>
         {editable ? (
@@ -219,14 +228,22 @@ export function RepositoryQualityGatesSection({
         ) : null}
       </div>
 
-      {editable ? null : (
+      {writer.place === 'read-only' ? (
         <p className="text-xs text-muted-foreground">
           {translate(
             'qualityGates.remoteReadOnly',
             'This repository lives on another host. Its gates run there and are set up in Orca on that host.'
           )}
         </p>
-      )}
+      ) : null}
+      {writer.place === 'host' ? (
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'qualityGates.remoteEditable',
+            'This repository lives on another host. What you set up here is saved in Orca on that host, and the gates run there.'
+          )}
+        </p>
+      ) : null}
       {saveFailed ? (
         <Notice tone="error">
           {translate('qualityGates.saveFailed', 'The gates could not be saved.')}
@@ -314,7 +331,7 @@ export function RepositoryQualityGatesSection({
         <RepositoryQualityGateFeedbackLoopSettings
           repo={repo}
           gates={gates}
-          updateRepo={updateRepo}
+          updateRepo={writer.save}
         />
       ) : null}
     </section>

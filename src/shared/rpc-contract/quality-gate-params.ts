@@ -6,8 +6,8 @@ const GateId = z.string().min(1).max(64)
 const RunId = z.string().min(1).max(128)
 
 /**
- * Every method names a workspace and nothing else about what runs: the commands come from the
- * settings of the host that owns the workspace. No method here takes a command or a definition.
+ * Every method but the last names a workspace and nothing else about what runs: the commands come
+ * from the settings of the host that owns the workspace.
  */
 export const QualityGateWorktreeParams = z.object({
   worktree: requiredString('Missing worktree selector')
@@ -44,4 +44,15 @@ export const QualityGateUnsubscribeParams = z.object({
  */
 export const QualityGateSetFeedbackLoopParams = QualityGateWorktreeParams.extend({
   enabled: z.boolean()
+})
+
+/**
+ * The one method that carries definitions: the gates and the loop of a repository the host keeps.
+ * The host takes it only from an Orca app, never from the runtime socket. Both fields are read by
+ * the host's own normalizers, so a field left out stays as it is on the host.
+ */
+export const QualityGateSetRepositorySettingsParams = z.object({
+  repo: requiredString('Missing repo selector'),
+  gates: z.array(z.unknown()).max(200).optional(),
+  feedbackLoop: z.unknown().optional()
 })

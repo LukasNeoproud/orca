@@ -20847,6 +20847,7 @@
   "qualityGates": {
     "title": "Quality Gates",
     "description": "Commands Orca runs in a workspace when you ask, to check the work: lint, tests, a build. They are kept in Orca on this computer and never read from the repository.",
+    "descriptionOnHost": "Commands Orca runs in a workspace when you ask, to check the work: lint, tests, a build. They are kept in Orca on the host of this repository and never read from the repository.",
     "searchDescription": "Commands that check the work in a workspace: lint, tests, a build.",
     "searchKeywordGate": "gate",
     "searchKeywordCheck": "check",
@@ -20856,6 +20857,7 @@
     "addGate": "Add Gate",
     "empty": "No quality gates are set up for this repository.",
     "remoteReadOnly": "This repository lives on another host. Its gates run there and are set up in Orca on that host.",
+    "remoteEditable": "This repository lives on another host. What you set up here is saved in Orca on that host, and the gates run there.",
     "saveFailed": "The gates could not be saved.",
     "unsupported": "Orca on the host of this repository does not support quality gates yet. Update Orca on that host.",
     "contactLost": "The host of this repository did not answer. The outcome of a run that was in progress is unknown until it answers again.",

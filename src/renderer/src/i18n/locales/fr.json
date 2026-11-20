@@ -19831,6 +19831,7 @@
   "qualityGates": {
     "title": "Contrôles qualité",
     "description": "Commandes qu'Orca exécute dans un espace de travail à votre demande pour vérifier le travail : lint, tests, build. Elles sont conservées dans Orca sur cet ordinateur et ne sont jamais lues depuis le dépôt.",
+    "descriptionOnHost": "Commandes qu'Orca exécute dans un espace de travail à votre demande pour vérifier le travail : lint, tests, build. Elles sont conservées dans Orca sur l'hôte de ce dépôt et ne sont jamais lues depuis le dépôt.",
     "searchDescription": "Commandes qui vérifient le travail dans un espace de travail : lint, tests, build.",
     "searchKeywordGate": "contrôle",
     "searchKeywordCheck": "vérification",
@@ -19840,6 +19841,7 @@
     "addGate": "Ajouter un contrôle",
     "empty": "Aucun contrôle qualité n'est configuré pour ce dépôt.",
     "remoteReadOnly": "Ce dépôt se trouve sur un autre hôte. Ses contrôles s'y exécutent et se configurent dans Orca sur cet hôte.",
+    "remoteEditable": "Ce dépôt se trouve sur un autre hôte. Ce que vous configurez ici est enregistré dans Orca sur cet hôte, et les contrôles s'y exécutent.",
     "saveFailed": "Les contrôles n'ont pas pu être enregistrés.",
     "unsupported": "Orca sur l'hôte de ce dépôt ne prend pas encore en charge les contrôles qualité. Mettez Orca à jour sur cet hôte.",
     "contactLost": "L'hôte de ce dépôt n'a pas répondu. Le résultat d'une exécution qui était en cours reste inconnu jusqu'à ce qu'il réponde de nouveau.",

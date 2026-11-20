@@ -516,6 +516,7 @@ import {
   QualityGateOutputParams,
   QualityGateRunParams,
   QualityGateSetFeedbackLoopParams,
+  QualityGateSetRepositorySettingsParams,
   QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
@@ -1283,6 +1284,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'qualityGates.output': QualityGateOutputParams,
   'qualityGates.run': QualityGateRunParams,
   'qualityGates.setFeedbackLoop': QualityGateSetFeedbackLoopParams,
+  'qualityGates.setRepositorySettings': QualityGateSetRepositorySettingsParams,
   'qualityGates.status': QualityGateWorktreeParams,
   'qualityGates.subscribe': QualityGateSubscribeParams,
   'qualityGates.unsubscribe': QualityGateUnsubscribeParams,

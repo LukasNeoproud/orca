@@ -38,16 +38,43 @@ Definice je ve sdíleném kódu (`src/shared/quality-gate-types.ts`).
 ### Kde definice žije a kdo ji smí psát
 
 - **Úložiště:** pole `qualityGates` na řádku repozitáře v datech Orky na stroji, který repozitář vede, vedle `hookSettings`. Přežije restart a do repozitáře se nic nezapisuje.
-- **Zápis jen z okna aplikace**, kanálem `repos:update`. Žádná metoda `qualityGates.*` definici nepíše, schéma `repo.update` pole nezná a zahazuje ho, a CLI nemá příkaz ani přepínač, který by bránu založil nebo změnil.
+- **Zápis jen z okna aplikace.** U repozitáře na tomto počítači kanálem `repos:update`. U repozitáře, který vede jiná Orca, metodou `qualityGates.setRepositorySettings`, kterou hostitel přijme jen od aplikace (viz Zápis na dálku). Schéma `repo.update` pole nezná a zahazuje ho a CLI nemá příkaz ani přepínač, který by bránu založil nebo změnil.
 - **Proč ne přes RPC ani CLI:** runtime socketem volá agent. Kdyby směl bránu definovat, kontroloval by svou práci příkazem, který si sám napsal, a výsledek „prošla“ by nic neříkal. Spustit bránu, kterou nastavil uživatel, agent smí; to je záměr.
 - **Proč ne z repozitáře:** soubor v checkoutu mění agent i cizí pull request. Brána načtená z `orca.yaml` by v review worktree spustila kód autora změny.
 - **Testy:**
-  - Existuje právě osm metod `qualityGates.*` (pět z TASK-85, odběr se zrušením z TASK-86 a vypínač smyčky u workspace z TASK-87) a žádná nepíše definici brány.
+  - Existuje právě devět metod `qualityGates.*` (pět z TASK-85, odběr se zrušením z TASK-86, vypínač smyčky u workspace z TASK-87 a zápis nastavení repozitáře z TASK-151). Definici píše jen poslední a volání z runtime socketu odmítne.
   - `command` nebo `gates` podstrčené do požadavku na spuštění se ignorují.
   - `repo.update` pole zahodí u volajícího z runtime socketu, z okna i ze spárovaného zařízení.
   - Zdrojáky RPC schémat, CLI a runtime pole `qualityGates` nejmenují.
   - Brány zapsané v `orca.yaml`, `.orca/quality-gates.json` nebo `package.json` ve worktree se nevypíší ani nespustí.
 - **Co se nemění:** `repo.update` z runtime socketu dál přijímá `hookSettings`, jak to dělá upstream. Na brány to vliv nemá.
+
+### Zápis na dálku (TASK-151)
+
+Repozitář, jehož worktree vlastní jiná Orca, má brány na jejím řádku repozitáře. Aby je šlo nastavit z desktopové aplikace, která se k ní připojuje, přijímá hostitel zápis metodou `qualityGates.setRepositorySettings` (parametry `repo`, nepovinné `gates` a `feedbackLoop`; oprávnění `settings-write`; schopnost `quality-gates.repository-settings.v1`).
+
+- **Jak hostitel pozná, kdo volá:** podle identity, kterou volání přidělil transport (`RpcCallerIdentity`), nikdy podle parametrů.
+
+| Volající | Jak ho transport pozná | Zápis |
+| --- | --- | --- |
+| okno Orky na hostiteli | kanál IPC okna (`desktop`) | přijat |
+| spárovaná desktopová aplikace (i webový klient) | ověřené šifrované spojení spárovaného zařízení s rozsahem `runtime` (`paired-device`) | přijat |
+| `orca` CLI, jeho MCP servery, agent v terminálu hostitele, CLI přemostěné přes SSH | runtime socket (`local-cli`) | odmítnut v obsluze metody |
+| telefon | spárované zařízení s rozsahem `mobile` | odmítnut už v dispatcheru, metoda není v seznamu pro telefony |
+| volající, kterého transport nepojmenoval | žádná identita | odmítnut |
+
+- **Proč to drží záměr:** agent, jehož práci brány hlídají, běží v terminálu na hostiteli, který worktree vlastní, a do Orky tam volá jen runtime socketem. Ten definici nezapíše. Stejné pravidlo už platí pro zapnutí smyčky u workspace a pro hlas v review.
+- **Co klient posílá:** zápis odchází jen z oddílu nastavení repozitáře v okně, po akci uživatele. CLI pro metodu nemá příkaz a `repo.update` pole zahazuje dál.
+- **Meze, které transport nevidí:**
+  - Přihlašovací údaj spárovaného zařízení leží v datech Orky na počítači uživatele a používá ho i `orca --environment`. Proces, který ho přečte a sám sestaví volání, hostitel od aplikace nerozliší.
+  - Na hostiteli smí volající z runtime socketu vystavit nové párování. Agent, který by si napsal vlastního klienta, by se tak za aplikaci vydávat mohl.
+  - Kdo smí zapisovat do dat Orky na hostiteli, přepíše řádek přímo. To platí i pro místní repozitář.
+  - Pravidlo tedy brání nabízeným cestám (CLI, MCP, RPC ze socketu), ne procesu, který běží pod stejným účtem a cíleně ho obchází. Silnější důkaz (potvrzení v okně na hostiteli, klíč vázaný na aplikaci) zatím postavený není; jestli ho stavět, je otevřená otázka na uživatele (poznámky TASK-151).
+- **Co hostitel zapíše:** jen repozitář, který sám vede; řádek, který jen zrcadlí jiného hostitele, odmítne. Pole čte stejnými normalizátory jako `repos:update`: vadná brána se zahodí, smyčku zapne jen výslovné `enabled: true`. Pole, které v požadavku není, zůstane beze změny. Vrací, co uložil, a klient ukazuje to. Do logu zapíše, které zařízení nastavení zapsalo.
+- **Starší protějšky:** klient se na schopnost zeptá dřív, než zápis nabídne. Bez ní, i když hostitel neodpoví, je oddíl jen ke čtení a klient nezkouší `repo.update`, protože by pole tiše zahodil. Starší hostitel na metodu odpoví `method_not_found`. Starší klient metodu nevolá a `repo.update` mu brány dál zahodí. Odpověď bez seznamu bran klient čte jako neuloženo.
+- **Hostitel `ssh:<target>`** brány nespouští, takže se pro něj nic nezapisuje a oddíl zůstává jen ke čtení.
+- **Testy:** kdo smí zapsat a kdo ne (`quality-gates-repository-settings.test.ts`, nad skutečným dispatcherem a řadičem nastavení repozitáře), kompatibilita oběma směry (`quality-gate-repository-settings-compatibility.test.ts`), klient a oddíl nastavení (`quality-gate-client.test.ts`, `RepositoryQualityGatesSection.remote-host.test.tsx`).
+- **Ověření v kontejneru:** orcad na Linuxu v Dockeru přes SSH, zápis z okna desktopové aplikace, smyčka se smyšleným agentem v terminálu vzdáleného workspace. Definice i záznamy běhů skončily v datech Orky v kontejneru. Volání metody přímo runtime socketem v kontejneru hostitel odmítl a seznam bran se nezměnil; `repo.update` stejnou cestou prošel a brány zahodil.
 
 ### Model běhu
 
@@ -131,7 +158,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 - **Hostitel cizí workspace odmítne.** Dotaz na workspace jiného hostitele skončí chybou, příkaz se lokálně nespustí.
 - **Ztráta spojení:** běh pokračuje na hostiteli. Klient ukáže poslední známé živé běhy jako `unverifiable`, nikdy jako selhání. `orca gates run` to udělá po pěti dotazech bez odpovědi za sebou a skončí kódem 1 s výsledkem `unverifiable`.
 - **Starší hostitel:** kdo brány umí, hlásí schopnost `quality-gates.v1`. Desktop se na ni zeptá dřív, než nabídne spuštění. CLI přeloží `method_not_found` na „This Orca host does not support quality gates yet“.
-- **Definice u cizího hostitele:** brány repozitáře, který vede jiný hostitel, se nastavují v Orce na něm. Desktop je ukáže jen ke čtení a umí je spustit.
+- **Definice u cizího hostitele:** brány repozitáře, který vede jiný hostitel, žijí v Orce na něm. Desktop je tam zapisuje metodou z oddílu Zápis na dálku (TASK-151); u staršího hostitele je ukáže jen ke čtení a umí je spustit.
 
 ### Spuštění příkazu
 
@@ -155,7 +182,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 
 ### RPC a CLI
 
-- **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje.
+- **Metody:** `qualityGates.list`, `run`, `status`, `output`, `cancel`, oprávnění `workspace`. Parametry jsou jen výběr workspace, id bran a id běhu; neznámá pole schéma zahazuje. Definice nese jen `qualityGates.setRepositorySettings` (TASK-151), viz Zápis na dálku.
 - **Signál změny (TASK-86):** `qualityGates.subscribe` je proud bez stavu: rámec `ready` s id odběru, `changed` po změně běhu nebo stromu, `end`. Končí ho `qualityGates.unsubscribe`, zrušení přenosu nebo konec spojení. Hostitel ho hlásí schopností `quality-gates.subscribe.v1`; klient se na ni zeptá dřív, než odběr otevře, a neznámý rámec ignoruje. Definici brány nezapisuje ani tato dvojice metod.
 - **Vypínač smyčky (TASK-87):** `qualityGates.setFeedbackLoop` za schopností `quality-gates.feedback-loop.v1`, viz oddíl Smyčka zpětné vazby.
 - **CLI:** `orca gates list`, `orca gates run [<brána>...]`, `orca gates status`, `orca gates cancel [<brána>...]`. Bez `--worktree` se bere workspace, ve kterém příkaz běží. Brána se jmenuje id nebo jednoznačným názvem. Řádek běhu končí jeho id.
@@ -167,7 +194,7 @@ Hostitel, který worktree vlastní, bere brány ze svého nastavení repozitář
 
 Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a selhání pošle agentovi zpět. Ovládání a zobrazení v rozhraní postavil TASK-138 (viz poslední bod oddílu).
 
-- **Výchozí stav je vypnuto.** Nastavení `qualityGateFeedbackLoop` (`enabled`, `maxRounds` 1 až 10, výchozí 3) je na řádku repozitáře vedle `qualityGates` a píše ho jen okno aplikace kanálem `repos:update`. `repo.update` pole zahazuje, stejně jako brány: zapnutí utrácí tokeny za uživatele. Cokoli jiného než výslovné `enabled: true` se čte jako vypnuto.
+- **Výchozí stav je vypnuto.** Nastavení `qualityGateFeedbackLoop` (`enabled`, `maxRounds` 1 až 10, výchozí 3) je na řádku repozitáře vedle `qualityGates` a píše ho jen okno aplikace: kanálem `repos:update`, u repozitáře jiného hostitele stejnou metodou jako brány (TASK-151). `repo.update` pole zahazuje, stejně jako brány: zapnutí utrácí tokeny za uživatele. Cokoli jiného než výslovné `enabled: true` se čte jako vypnuto.
 - **Vypnutí u workspace:** hostitel si drží seznam vypnutých workspaces v souboru `quality-gate-feedback-loop.json` ve svých datech. Vypnout smí každý volající, i agent přes `orca gates loop off`, protože tím jen přestanou chodit zprávy. Zapnout zpět smí jen okno aplikace nebo spárované zařízení; volání z runtime socketu hostitel odmítne. Smyčku pro repozitář touto cestou zapnout nejde.
 - **Spouštěč:** přechod řádku stavu agenta v úložišti hook serveru do `done`, který hostitel viděl naživo po stavu jiném než `done`. Čte se složený stav řádku, takže dokončení podagenta ani konec hlavního agenta, za kterým ještě běží podagent, krok nedokončí. Přehrané a obnovené řádky, začátek sezení a řádek poprvé viděný už jako `done` se nepočítají. Smyčka je další odběratel `subscribeEnrichedStatus`; pamatuje si jen poslední stav každého panelu.
 - **Jeden řetěz na worktree.** Řetěz patří agentovi, jehož krok ho začal. Krok jiného agenta během kontroly nebo během čekání na opravu nespustí nic. Tutéž bránu služba nespustí dvakrát (běžící běh se vrátí se `started: false`).
@@ -195,7 +222,7 @@ Po dokončeném kroku agenta hostitel spustí povinné brány jeho worktree a se
 - **Stav:** `qualityGates.status` nese nepovinné pole `feedbackLoop` (zapnuto, zapnuto v repozitáři, vypnuto u workspace, limit kol, stav, kolo, důvod, selhávající brány). Změnu hostitel hlásí stávajícím rámcem `changed`; nový rámec ani opcode nepřibyl. Stav řetězu je jen v paměti hostitele: po jeho restartu je `idle`, výsledky bran zůstávají v úložišti běhů.
 - **Starší protějšky:** starší klient pole `feedbackLoop` a hodnotu `startedBy.kind: 'feedback-loop'` nečte. Starší hostitel pole neposílá a klient to čte jako „o smyčce nic nevím“ (`readQualityGateFeedbackLoopStatus`), stejně jako stav, který nezná. `qualityGates.setFeedbackLoop` na starším hostiteli skončí `method_not_found`; CLI to přeloží na výzvu k aktualizaci.
 - **SSH:** worktree dosažený přes SSH vlastní orcad na vzdáleném stroji; smyčka se instaluje i tam a týká se terminálových agentů. Strukturovaný chat orcad nemá.
-- **Rozhraní (TASK-138):** nastavení repozitáře píše `qualityGateFeedbackLoop` kanálem `repos:update` jako dosud, jen u repozitáře na tomto počítači. Přepínač u workspace volá `qualityGates.setFeedbackLoop` u hostitele, který worktree vlastní, a ukazuje se jen tehdy, když stav bran nese `feedbackLoop` se zapnutou smyčkou v repozitáři; tím je zároveň splněná podmínka schopnosti `quality-gates.feedback-loop.v1`, takže klient se na ni zvlášť neptá. Při ztrátě spojení klient stav smyčky ukazuje jako neznámý a přepínač zakáže. Na drátě se nic nezměnilo.
+- **Rozhraní (TASK-138):** nastavení repozitáře píše `qualityGateFeedbackLoop` kanálem `repos:update` jako dosud; repozitář jiného hostitele přidal TASK-151. Přepínač u workspace volá `qualityGates.setFeedbackLoop` u hostitele, který worktree vlastní, a ukazuje se jen tehdy, když stav bran nese `feedbackLoop` se zapnutou smyčkou v repozitáři; tím je zároveň splněná podmínka schopnosti `quality-gates.feedback-loop.v1`, takže klient se na ni zvlášť neptá. Při ztrátě spojení klient stav smyčky ukazuje jako neznámý a přepínač zakáže. Na drátě se nic nezměnilo.
 - **Ověření se skutečným agentem (TASK-139):** s Claude Code 2.1.329 lokálně prošel terminál (zpráva, oprava, prošlo; zadržení při psaném vstupu) i strukturovaný chat (karta od Quality gates; id operace musí nést čas, jinak ho hostitel chatu odmítne). Přes SSH a s Codexem smyčka se skutečným agentem neběžela; Codex je posouzen jen podle dokumentace hooků.
 
 ### Co záznam nese pro pozdější důkaz
@@ -223,7 +250,7 @@ Brány kvality jsou seznam příkazů na řádku repozitáře v Orce. Píše je 
 ## Consequences
 
 - **Brány se samy nespouštějí,** dokud uživatel u repozitáře nezapne smyčku zpětné vazby (TASK-87). Běh brány jako důkaz nálezu (TASK-88) navazuje.
-- **Repozitář u jiného hostitele** má brány jen ke čtení; nastavit je jde v Orce na tom hostiteli. Zápis na dálku by potřeboval cestu, kterou agent nepoužije, a tu zatím nikdo nerozhodl.
+- **Repozitář u jiného hostitele** jde nastavit z desktopové aplikace, když jeho Orca hlásí schopnost zápisu (TASK-151); jinak je jen ke čtení. Hostitel věří spojení spárované aplikace, ne obsahu požadavku, a meze toho jsou v oddílu Zápis na dálku.
 - **Řádné ukončení aplikace běžící příkaz zastaví** i s potomky a záznam říká proč. Po pádu nebo vynuceném ukončení je záznam `unverifiable` a proces může doběhnout bez záznamu výsledku. Převzetí běžícího příkazu novou instancí se nestaví.
 - **Zrušení ve WSL** ukončí `wsl.exe`; že skončí i potomci uvnitř hosta, ověřené není.
 - **Windows a skutečný vzdálený hostitel** ověřené nejsou. Sestavení spuštění pro Windows a WSL a chování klienta při ztrátě spojení pokrývají testy nad náhradami.

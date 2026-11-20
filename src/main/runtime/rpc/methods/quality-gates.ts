@@ -3,6 +3,7 @@ import {
   QualityGateOutputParams,
   QualityGateRunParams,
   QualityGateSetFeedbackLoopParams,
+  QualityGateSetRepositorySettingsParams,
   QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
@@ -21,6 +22,7 @@ import {
   getQualityGateChangeFeed,
   getQualityGateService
 } from '../../../quality-gates/quality-gate-host'
+import { writeQualityGateRepositorySettings } from '../../../quality-gates/quality-gate-repository-settings'
 import { resolveQualityGateTarget } from '../../../quality-gates/quality-gate-target'
 import { defineMethod, defineStreamingMethod } from '../core'
 import type { RpcCallerIdentity } from '../rpc-caller-identity'
@@ -41,10 +43,10 @@ let subscriptionSeq = 0
 const cleanupKey = (connectionId: string | undefined, subscriptionId: string): string =>
   `quality-gates:${connectionId ?? 'local'}:${subscriptionId}`
 
-// Why no method writes a gate: the runtime socket is what agents and the CLI call through, and a
-// caller that could define the command would be checking its own work with a command of its choice.
-// Gates are written by the app's own window (repos:update) and only run from here. The one write
-// here is the workspace switch of the feedback loop, which defines nothing and runs nothing.
+// Why the runtime socket writes no gate: it is what agents and the CLI call through, and a caller
+// that could define the command would be checking its own work with a command of its choice. Gates
+// are written by the app's own window (repos:update) and, for a repository this host keeps for a
+// paired Orca app, by `setRepositorySettings`, which refuses every caller but an app.
 export const QUALITY_GATE_METHODS = [
   defineMethod({
     name: 'qualityGates.list',
@@ -160,5 +162,12 @@ export const QUALITY_GATE_METHODS = [
       loop.workspaceSwitchChanged(target.worktreeId)
       return { feedbackLoop: loop.status(target) }
     }
+  }),
+  defineMethod({
+    name: 'qualityGates.setRepositorySettings',
+    permission: 'settings-write',
+    params: QualityGateSetRepositorySettingsParams,
+    handler: (params, { runtime, caller }) =>
+      writeQualityGateRepositorySettings(runtime, caller, params)
   })
 ]

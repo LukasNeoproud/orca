@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { ReactNode } from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Repo } from '../../../../shared/repo-types'
 
@@ -22,7 +22,9 @@ vi.mock('@/lib/quality-gate-client', () => ({
   startQualityGates: vi.fn(),
   cancelQualityGates: vi.fn(),
   fetchQualityGateOutput: vi.fn(),
-  classifyQualityGateCallFailure: vi.fn()
+  classifyQualityGateCallFailure: vi.fn(),
+  // An older host: it does not take the settings from this app.
+  qualityGateRepositorySettingsSupported: vi.fn().mockResolvedValue(false)
 }))
 vi.mock('./use-quality-gate-status', async () => {
   const { emptyQualityGateStatusView } = await import('./quality-gate-status-view')
@@ -62,7 +64,7 @@ describe('RepositoryQualityGatesSection feedback loop', () => {
     expect(loopSwitch()).toBeTruthy()
   })
 
-  it('offers no loop before a gate exists, nor for a repository whose gates live on another host', () => {
+  it('offers no loop before a gate exists, nor for a repository this app cannot write', async () => {
     show({ qualityGates: [] })
     expect(loopSwitch()).toBeNull()
     cleanup()
@@ -72,6 +74,8 @@ describe('RepositoryQualityGatesSection feedback loop', () => {
     cleanup()
 
     show({ executionHostId: 'runtime:env-1' })
+    // Let the host's answer about its build arrive.
+    await act(async () => {})
     expect(loopSwitch()).toBeNull()
   })
 })

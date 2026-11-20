@@ -19844,6 +19844,7 @@
   "qualityGates": {
     "title": "质量门",
     "description": "在你要求时，Orca 在工作区中运行的用于检查工作的命令：lint、测试、构建。它们保存在这台电脑的 Orca 中，绝不会从存储库读取。",
+    "descriptionOnHost": "在你要求时，Orca 在工作区中运行的用于检查工作的命令：lint、测试、构建。它们保存在此存储库所在主机的 Orca 中，绝不会从存储库读取。",
     "searchDescription": "检查工作区中工作的命令：lint、测试、构建。",
     "searchKeywordGate": "质量门",
     "searchKeywordCheck": "检查",
@@ -19853,6 +19854,7 @@
     "addGate": "添加质量门",
     "empty": "此存储库尚未设置质量门。",
     "remoteReadOnly": "此存储库位于另一台主机上。它的质量门在那里运行，并在该主机的 Orca 中设置。",
+    "remoteEditable": "此存储库位于另一台主机上。你在这里设置的内容会保存到该主机的 Orca 中，质量门在那里运行。",
     "saveFailed": "无法保存质量门。",
     "unsupported": "此存储库所在主机上的 Orca 尚不支持质量门。请更新该主机上的 Orca。",
     "contactLost": "此存储库的主机没有应答。在它再次应答之前，正在进行的运行结果未知。",

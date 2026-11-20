@@ -19830,6 +19830,7 @@
   "qualityGates": {
     "title": "Controles de calidad",
     "description": "Comandos que Orca ejecuta en un espacio de trabajo cuando lo pides, para comprobar el trabajo: lint, pruebas, una compilación. Se guardan en Orca en este equipo y nunca se leen del repositorio.",
+    "descriptionOnHost": "Comandos que Orca ejecuta en un espacio de trabajo cuando lo pides, para comprobar el trabajo: lint, pruebas, una compilación. Se guardan en Orca en el host de este repositorio y nunca se leen del repositorio.",
     "searchDescription": "Comandos que comprueban el trabajo en un espacio de trabajo: lint, pruebas, una compilación.",
     "searchKeywordGate": "control",
     "searchKeywordCheck": "comprobación",
@@ -19839,6 +19840,7 @@
     "addGate": "Añadir control",
     "empty": "Este repositorio no tiene controles de calidad configurados.",
     "remoteReadOnly": "Este repositorio está en otro host. Sus controles se ejecutan allí y se configuran en Orca en ese host.",
+    "remoteEditable": "Este repositorio está en otro host. Lo que configures aquí se guarda en Orca en ese host, y los controles se ejecutan allí.",
     "saveFailed": "No se pudieron guardar los controles.",
     "unsupported": "Orca en el host de este repositorio aún no admite controles de calidad. Actualiza Orca en ese host.",
     "contactLost": "El host de este repositorio no respondió. El resultado de una ejecución que estaba en curso se desconoce hasta que vuelva a responder.",

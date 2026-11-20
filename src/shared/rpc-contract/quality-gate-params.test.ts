@@ -4,6 +4,7 @@ import {
   QualityGateCancelParams,
   QualityGateOutputParams,
   QualityGateRunParams,
+  QualityGateSetRepositorySettingsParams,
   QualityGateSubscribeParams,
   QualityGateUnsubscribeParams,
   QualityGateWorktreeParams
@@ -24,6 +25,7 @@ describe('quality gate RPC params', () => {
       'qualityGates.output',
       'qualityGates.run',
       'qualityGates.setFeedbackLoop',
+      'qualityGates.setRepositorySettings',
       'qualityGates.status',
       'qualityGates.subscribe',
       'qualityGates.unsubscribe'
@@ -95,5 +97,29 @@ describe('quality gate RPC params', () => {
       worktree,
       gateId: 'lint'
     })
+  })
+
+  it('carries definitions in one method only, as the fields `gates` and `feedbackLoop`', () => {
+    expect(RPC_PARAMS_BY_METHOD['qualityGates.setRepositorySettings']).toBe(
+      QualityGateSetRepositorySettingsParams
+    )
+    const gate = { id: 'lint', name: 'Lint', command: 'pnpm lint' }
+    expect(QualityGateSetRepositorySettingsParams.safeParse({ gates: [gate] }).success).toBe(false)
+    // Either field may be left out; the host then keeps what it has.
+    expect(QualityGateSetRepositorySettingsParams.parse({ repo: 'id:repo' })).toEqual({
+      repo: 'id:repo'
+    })
+    expect(
+      QualityGateSetRepositorySettingsParams.parse({
+        repo: 'id:repo',
+        gates: [gate],
+        feedbackLoop: { enabled: true, maxRounds: 3 },
+        hookSettings: { scripts: { setup: 'echo pwned' } }
+      })
+    ).toEqual({ repo: 'id:repo', gates: [gate], feedbackLoop: { enabled: true, maxRounds: 3 } })
+    expect(
+      QualityGateSetRepositorySettingsParams.safeParse({ repo: 'id:repo', gates: 'pnpm lint' })
+        .success
+    ).toBe(false)
   })
 })
