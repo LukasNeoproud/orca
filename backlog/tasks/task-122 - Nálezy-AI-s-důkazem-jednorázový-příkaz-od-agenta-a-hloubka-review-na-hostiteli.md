@@ -6,7 +6,7 @@ title: >-
 status: Done
 assignee: []
 created_date: '2026-11-19T09:36:00Z'
-updated_date: '2026-11-20T16:34:00Z'
+updated_date: '2026-11-24T07:49:00Z'
 labels:
   - review-ide
   - effort-high
@@ -66,6 +66,8 @@ Stav: hotové sdílené typy a parametr depth, registr s reviewDepth, rozhodnut�
 Hotovo (worker 2026-11-20): implementace, testy (rozhodnutí a registr, každá cesta spuštění proti skutečné službě bran a RPC, zapojení do služby hostitele, volající RPC, kompatibilita oběma směry, bridge, popisky smyčky v okně a CLI), dokumentace 06 a decision-10. pnpm tc, oxlint, brána změněných řádků, anti-slop a ratchety prošly. Neověřeno ve skrytém okně ani na skutečném vzdáleném hostiteli. Otázky pro uživatele: odmítat i spuštění z okna při statickém review (zatím ano); review worktree bez zapamatované hloubky (zatím statický).
 
 Otevřené otázky na uživatele (položeny 2026-11-20): 1) má Orka při statickém review odmítnout i spuštění brány, které uživatel sám odklikne v okně (zatím ano); 2) review worktree vzniklý před tímto tiketem nemá zapamatovanou hloubku a chová se jako statický (zatím ano). Ve skrytém okně ani na vzdáleném hostiteli ověřeno není, jen testy.
+
+Rozhodnutí uživatele 2026-11-24: decision-15 (stav z tohoto tiketu platí).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

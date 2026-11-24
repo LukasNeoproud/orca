@@ -4,7 +4,7 @@ title: 'Brány kvality: nastavení bran a smyčky pro repozitář na vzdáleném
 status: Done
 assignee: []
 created_date: '2026-11-20T13:05:00Z'
-updated_date: '2026-11-20T14:48:00Z'
+updated_date: '2026-11-24T07:49:00Z'
 labels:
   - review-ide
   - effort-high
@@ -50,6 +50,8 @@ Stav (worker): hostitel a protokol hotové s testy (metoda qualityGates.setRepos
 Výsledek workera (2026-11-20): všechna čtyři kritéria splněná. Hostitel: qualityGates.setRepositorySettings za schopností quality-gates.repository-settings.v1, zapisuje jen volající desktop nebo paired-device s rozsahem runtime; runtime socket, telefon a nepojmenovaný volající odmítnuti. Klient: stávající oddíl nastavení a přepínač smyčky píší u hostitele runtime:<env> na hostitele, bez schopnosti zůstávají jen ke čtení. Průchod v kontejneru (orcad linux-arm64 v Dockeru přes SSH, smyšlený agent): brána selhala, zpráva doručena, oprava, prošlo; definice v /root/.orca/profiles/local-default/profile-state.db, běhy v /root/.orca/quality-gate-runs.json, v datech desktopu nic; přímé volání metody runtime socketem v kontejneru odmítnuto. Důkazy: ~/.cache/orca-review-ide/task-151 (out/timeline.log, out/shots, logs, specs/tmp-task-151-remote-gates.spec.ts, made-up-agent.py, runtime-socket-probe.js). Průchod v kontejneru běžel se sestavením před poslední úpravou hooku use-repository-quality-gate-settings-writer (rozdělení opakovaného dotazu na schopnost do dvou efektů kvůli bráně React Doctor); tu pokrývají jen jednotkové testy.
 
 Otevřená otázka na uživatele (položena při zastavení koordinátora 2026-11-20): stačí důvěra ve spojení spárované aplikace, nebo stavět silnější důkaz, že definici zapsal člověk (potvrzení v okně na hostiteli, klíč vázaný na aplikaci)? Do odpovědi platí stav z tohoto tiketu.
+
+Rozhodnutí uživatele 2026-11-24: decision-14 (telefon návrh nevyřizuje; agent smí navrhnout odebrání brány, TASK-164 a TASK-165; zápisu na dálku stačí spojení spárované aplikace).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

@@ -4,7 +4,7 @@ title: 'Nálezy AI s důkazem: důkaz z běhu nastavené brány'
 status: Done
 assignee: []
 created_date: '2026-11-18T15:17:00Z'
-updated_date: '2026-11-20T16:19:00Z'
+updated_date: '2026-11-24T07:49:00Z'
 labels:
   - review-ide
   - effort-high
@@ -71,6 +71,8 @@ Stav (worker): hotový model důkazu (review-command-run-evidence.ts), pravidla 
 Hotovo (worker, 2026-11-20). Důkaz command-run (zdroj quality-gate, id běhu) v src/shared/review-command-run-evidence.ts; potvrzený dokazuje verified. Ověření v hlavním procesu: azure-devops-review-gate-run-evidence.ts, pravidla a důvody v decision-10 (oddíl Ověření běhu brány). Běh, který nic nedokazuje, je vždy unchecked s důvodem, nikdy refuted (i když prošel): starší klient popisuje refuted textem o citátu. Přísnější než tiket: commit draftu musí být commitem poslední iterace a brána musí být dál v řádku repozitáře se stejným příkazem. Nástroje agenta ado_list_gates, ado_run_gate, ado_get_gate_run nad stávajícími qualityGates.list/run/output, bez nové metody RPC; katalog parametrů beze změny. Schopnost azure-devops-review.gate-run-evidence.v1. Renderer jsem neměnil: karta do TASK-159 ukáže u důkazu druh command-run a u potvrzeného běhu stávající text „In the file“. Ověření: pnpm tc, oxlint, check:code-quality:changed, audit:anti-slop bez nálezu; čistý běh (Node 24.21.0, Bun 1.4.2) nad src/shared, src/cli, src/main/azure-devops, src/main/quality-gates, src/main/runtime/rpc a testy rendereru a mobilu k review: 2900 souborů prošlo, selhal jen známý host-operation-ownership (androidAppRun, mimo Review IDE).
 
 Otevřené otázky na uživatele (položeny 2026-11-20): běh, který prošel, dává nejisté místo rozporné; úprava příkazu brány zneplatní starší důkazy; ověření nerozliší selhání způsobené PR od selhání, které je i v cílové větvi, a nevidí stav skrytý gitu (ignorované soubory, skip-worktree). Do odpovědi platí stav z tohoto tiketu.
+
+Rozhodnutí uživatele 2026-11-24: decision-15 (stav z tohoto tiketu platí).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

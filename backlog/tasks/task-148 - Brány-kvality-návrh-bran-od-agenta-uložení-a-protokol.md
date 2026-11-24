@@ -4,7 +4,7 @@ title: 'Brány kvality: návrh bran od agenta, uložení a protokol'
 status: Done
 assignee: []
 created_date: '2026-11-20T09:41:00Z'
-updated_date: '2026-11-20T15:37:00Z'
+updated_date: '2026-11-24T07:49:00Z'
 labels:
   - review-ide
   - effort-high
@@ -57,6 +57,8 @@ Hotovo: model, úložiště, tři metody RPC, schopnost, CLI gates propose, test
 Ověřeno: pnpm tc 0; check:code-quality:changed 0 nálezů; oxlint 0; audit:anti-slop bez mých souborů; ratchety 0; vitest 184 souborů bran, RPC, shared a CLI (2931 passed) a 50 souborů registru metod a schopností (599 passed); e2e tests/e2e/quality-gates-proposal.spec.ts ve skrytém okně 2x passed (návrh z CLI, odpověď z runtime socketu odmítnuta, z okna přijata po položce, nahrazení, zahození), snímek ~/.cache/orca-review-ide/task-148/01-accepted-item-in-settings.png. tests/e2e/quality-gates-settings.spec.ts v mém prostředí 2x selhal na kroku 'Out of date: another commit' (zůstává 'files changed'); na HEAD se mi ho ověřit nepodařilo, od TASK-128 ho žádný tiket nespouštěl. Otevřené: telefon návrh přijmout nesmí (kritérium #3 říká spárované zařízení) - otázka pro uživatele; klient v rendereru a signál změny návrhu nechány TASK-149.
 
 Otevřené otázky na uživatele (položeny při zastavení koordinátora 2026-11-20): 1) smí návrh přijmout nebo zahodit telefon (kritérium #3 říká spárované zařízení, pravidlo z TASK-151 telefon nepouští; platí TASK-151); 2) má návrh umět bránu smazat (teď jen přidat a změnit).
+
+Rozhodnutí uživatele 2026-11-24: decision-14 (telefon návrh nevyřizuje; agent smí navrhnout odebrání brány, TASK-164 a TASK-165; zápisu na dálku stačí spojení spárované aplikace).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

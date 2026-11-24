@@ -4,7 +4,7 @@ title: 'Brány kvality: schválení návrhu bran v nastavení repozitáře'
 status: Done
 assignee: []
 created_date: '2026-11-20T09:41:00Z'
-updated_date: '2026-11-20T15:58:00Z'
+updated_date: '2026-11-24T07:49:00Z'
 labels:
   - review-ide
   - effort-high
@@ -65,6 +65,8 @@ Stav (worker): hotové klient (src/renderer/src/lib/quality-gate-proposal-client
 Hotovo (worker): kritéria #2-#5 splněná a ověřená; #1 jen pro nové a změněné brány, odebrání protokol neumí (otevřená otázka z TASK-148). Ověřeno: pnpm tc 0; check:code-quality:changed 0 nálezů; oxlint 0; audit:anti-slop 0; focus-read a layout-writer ratchety 0; vitest 31 souborů (242 testů) v čistém prostředí s Node 24, i18n testy 16 souborů a verify-localization-catalogs; e2e ve skrytém okně quality-gates-proposal-ui, quality-gates-proposal, quality-gates-settings-link a quality-gates-checks-panel 4 passed po čistém buildu; snímky ~/.cache/orca-review-ide/task-149/01-05.
 
 Kritérium #1 je splněné pro nové a změněné brány. Odebranou bránu návrh nenese (TASK-148); jestli ji má nést, je otevřená otázka na uživatele položená 2026-11-20. Při odpovědi ano vznikne samostatný tiket se změnou protokolu, při ne se kritérium přepíše.
+
+Rozhodnutí uživatele 2026-11-24: decision-14 (telefon návrh nevyřizuje; agent smí navrhnout odebrání brány, TASK-164 a TASK-165; zápisu na dálku stačí spojení spárované aplikace).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
