@@ -5,7 +5,7 @@ import {
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { sessionSearchScopeCatalogFromStore } from '../ai-vault-search/session-search-store-scope-catalog'
 import { getCanonicalUserDataPath } from '../persistence/loading-store/user-data-path'
-import { app } from 'electron'
+import { app, net } from 'electron'
 import { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { getLocalPtyProvider } from '../ipc/pty/provider/registry'
 import { clearProviderPtyState } from '../ipc/pty/provider/state-cleanup'
@@ -43,6 +43,7 @@ import {
 } from '../runtime/agent-status-observed-pane-identity'
 import { startAgentStateRulesLiveUpdates } from '../runtime/agent-state-rules/agent-state-rules-live-update'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
+import { startAzureDevOpsWorkFactsRefresh } from '../azure-devops/review/azure-devops-work-facts-schedule'
 
 export function getDesktopWindowStatus(): RuntimeDesktopWindowStatus {
   const activation = state.desktopActivationGate
@@ -153,6 +154,14 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   )
   // Desktop and headless serve both own worktrees, so each checks its own agents' steps.
   installQualityGateFeedbackLoop(runtime, agentHookServer, getStructuredAgentSessionHost)
+  // Why the main process: the work flow needs these facts with no window and no automatic review.
+  app.once(
+    'will-quit',
+    startAzureDevOpsWorkFactsRefresh({
+      listRepos: () => runtime.listRepos(),
+      isOnline: () => net.isOnline()
+    })
+  )
   // Why before anything can attach: a client host that reattaches to a restarted runtime is only
   // handed its pages back if the runtime found them first.
   runtime.rehydrateClientHostedBrowserPages()

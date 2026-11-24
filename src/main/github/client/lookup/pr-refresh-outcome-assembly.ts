@@ -62,6 +62,8 @@ export function assemblePRRefreshFoundOutcome(args: {
       ...(headDivergedFromMergedPRAtOid ? { headDivergedFromMergedPRAtOid } : {}),
       ...(data.baseRefName ? { baseRefName: data.baseRefName } : {}),
       ...(data.headRefName ? { headRefName: data.headRefName } : {}),
+      ...(data.mergedAt ? { mergedAt: data.mergedAt } : {}),
+      ...(data.mergeCommit?.oid ? { mergeCommitOid: data.mergeCommit.oid } : {}),
       prRepo: dataRepo ?? undefined,
       headRepo: dataHeadRepo ?? undefined,
       conflictSummary

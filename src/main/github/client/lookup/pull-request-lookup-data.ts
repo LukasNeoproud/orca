@@ -42,6 +42,9 @@ export type PullRequestLookupData = {
   headDefaultBranchName?: string
   stack?: GitHubPRStack
   stackMetadataChecked?: boolean
+  mergedAt?: string | null
+  /** The commit the merge left on the base branch; GitHub names it only once merged. */
+  mergeCommit?: { oid?: string | null } | null
 }
 
 export type PullRequestLookupPolicy = {
@@ -59,6 +62,7 @@ export type RestPullRequest = {
   updated_at?: string
   draft?: boolean
   merged_at?: string | null
+  merge_commit_sha?: string | null
   mergeable?: boolean | null
   mergeable_state?: string | null
   base?: { ref?: string; sha?: string }
@@ -77,7 +81,7 @@ export type RestPullRequest = {
 }
 
 export const PR_LOOKUP_JSON_FIELDS =
-  'number,title,state,url,statusCheckRollup,updatedAt,isDraft,mergeable,reviewDecision,mergeStateStatus,autoMergeRequest,baseRefName,headRefName,baseRefOid,headRefOid,headRepositoryOwner,headRepository'
+  'number,title,state,url,statusCheckRollup,updatedAt,isDraft,mergeable,reviewDecision,mergeStateStatus,autoMergeRequest,baseRefName,headRefName,baseRefOid,headRefOid,headRepositoryOwner,headRepository,mergedAt,mergeCommit'
 
 export const PR_BRANCH_LIST_JSON_FIELDS =
   'number,title,state,url,statusCheckRollup,updatedAt,isDraft,mergeable,baseRefName,headRefName,baseRefOid,headRefOid,headRepositoryOwner,headRepository'
@@ -138,7 +142,11 @@ export function mapRestPullRequest(pr: RestPullRequest): PullRequestLookupData {
     headRepository: pr.head?.repo,
     headDefaultBranchName: pr.head?.repo?.default_branch,
     stackMetadataChecked: true,
-    ...(stack ? { stack } : {})
+    ...(stack ? { stack } : {}),
+    // Why only when merged: on an open pull request `merge_commit_sha` is GitHub's trial merge.
+    ...(pr.merged_at
+      ? { mergedAt: pr.merged_at, mergeCommit: { oid: pr.merge_commit_sha ?? null } }
+      : {})
   }
 }
 

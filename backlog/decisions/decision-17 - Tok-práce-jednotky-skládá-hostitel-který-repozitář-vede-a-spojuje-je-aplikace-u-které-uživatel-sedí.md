@@ -185,3 +185,4 @@ Bez spojení se sítí obnova pull requestů a Jiry neběží.
 - **Dvě desktopové aplikace spárované navzájem** oznámí váznoucí jednotku každá na svém počítači.
 - **Folder workspace nad adresářem, který je git checkout,** jednotkou v M9 není.
 - **Ověřeno** je jen sdílený modul testy (66 testů). Služby, metody a chování proti skutečnému vzdálenému hostiteli staví a ověřují TASK-167 až TASK-176.
+- **Upřesnění z TASK-167:** vlákna otevřených pull requestů uživatele se čtou v každém kole, ne jen po změně, protože seznam Azure DevOps nový komentář neprozradí; iterace jen po změně commitu. Strop 30 platí pro dotazy na vlákna a iterace. Výjimku z pravidla `credential` pro vzdáleného hostitele bez přihlášení přidává decision-18.

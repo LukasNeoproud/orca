@@ -67,8 +67,44 @@ describe('mapAzureDevOpsReviewPullRequest', () => {
       context
     )
     expect(mine?.createdByMe).toBe(true)
-    expect(theirs).not.toHaveProperty('createdByMe')
+    expect(theirs?.createdByMe).toBe(false)
     expect(theirs).not.toHaveProperty('reviewRequested')
+    expect(theirs).not.toHaveProperty('workFacts')
+    // Without a signed-in identity nobody can say whose pull request it is.
+    const unknown = mapAzureDevOpsReviewPullRequest(
+      { pullRequestId: 3, createdBy: { id: 'ME' } },
+      { ...context, meId: null }
+    )
+    expect(unknown).not.toHaveProperty('createdByMe')
+    expect(unknown).not.toHaveProperty('workFacts')
+  })
+
+  it('lists the reviewers and the merge of a pull request the signed-in identity created', () => {
+    const context = { repo, repositoryId: 'r', repositoryWebUrl: '', meId: 'me' }
+    const raw = {
+      pullRequestId: 1,
+      createdBy: { id: 'me' },
+      reviewers: [
+        { id: 'a', displayName: ' Ada ', vote: 5, isRequired: true },
+        { id: 'team', uniqueName: 'vstfs:///Team', vote: 0 }
+      ],
+      closedDate: '2026-11-19T08:00:00Z',
+      lastMergeCommit: { commitId: ' trial-or-merge ' }
+    }
+    expect(
+      mapAzureDevOpsReviewPullRequest({ ...raw, status: 'active' }, context)?.workFacts
+    ).toEqual({
+      reviewers: [
+        { name: 'Ada', vote: 'approved-with-suggestions', required: true },
+        { name: 'vstfs:///Team', vote: 'none', required: false }
+      ],
+      // An open pull request's last merge commit is the trial merge, not a commit of the target.
+      mergedAt: null,
+      mergeCommit: null
+    })
+    expect(
+      mapAzureDevOpsReviewPullRequest({ ...raw, status: 'completed' }, context)?.workFacts
+    ).toMatchObject({ mergedAt: '2026-11-19T08:00:00Z', mergeCommit: 'trial-or-merge' })
   })
 
   it('drops payloads without an id', () => {

@@ -3,6 +3,7 @@
 
 import type { AzureDevOpsReviewDepth } from './azure-devops-review-options'
 import type { AzureDevOpsReviewVoteOutcome } from './azure-devops-review-vote'
+import type { AzureDevOpsPullRequestWorkFacts } from './azure-devops-pull-request-work-facts'
 import type {
   AzureDevOpsReviewDraftFinding,
   AzureDevOpsReviewDraftFindingInput,
@@ -93,8 +94,13 @@ export type AzureDevOpsReviewPullRequest = {
   myVote: AzureDevOpsReviewVote
   /** The signed-in identity is a reviewer by name, not only through a group. Absent from older hosts. */
   reviewRequested?: true
-  /** Absent when the author is someone else or the signed-in identity is unknown. */
-  createdByMe?: true
+  /**
+   * False when the author is someone else. Absent when the signed-in identity is unknown, and for
+   * someone else's pull request from a host that predates the work flow.
+   */
+  createdByMe?: boolean
+  /** Only on a pull request the signed-in user created; absent from older hosts. */
+  workFacts?: AzureDevOpsPullRequestWorkFacts
   createdAt: string
   closedAt: string | null
   sourceBranch: string

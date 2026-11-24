@@ -43,7 +43,7 @@ export function workPullRequestFromHostedReview(
     updatedAt: review.updatedAt || null,
     lastVersionAt: null,
     review: reviewFromDecision(review.reviewDecision),
-    mergedAt: null,
-    mergeCommit: null
+    mergedAt: review.mergedAt ?? null,
+    mergeCommit: review.mergeCommitOid ?? null
   }
 }

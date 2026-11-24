@@ -54,6 +54,10 @@ export type MRInfo = {
   /** Target branch name for review-created worktree compare-base repair. */
   baseRefName?: string
   conflictSummary?: PRConflictSummary
+  /** Set once merged. */
+  mergedAt?: string
+  /** The commit the merge left on the target branch: merge, squash or fast-forwarded head. */
+  mergeCommitOid?: string
 }
 
 // Why: GitLab emoji awards are open-ended, so we carry the raw award name and let the renderer decide.

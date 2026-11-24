@@ -50,6 +50,10 @@ export type HostedReviewInfo = {
   /** Target branch name for review-created worktree compare-base repair. */
   baseRefName?: string
   conflictSummary?: PRConflictSummary
+  /** Absent while not merged, from providers that do not report it and from older hosts. */
+  mergedAt?: string
+  /** The commit the merge left on the target branch, also after a squash; absent like `mergedAt`. */
+  mergeCommitOid?: string
 }
 
 export type HostedReviewForBranchArgs = {

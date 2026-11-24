@@ -4,7 +4,7 @@ title: 'Tok práce: skládání jednotek práce na hostiteli a metoda pro klient
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
-updated_date: '2026-11-24T10:16:00Z'
+updated_date: '2026-11-24T10:38:00Z'
 labels:
   - review-ide
   - effort-high
@@ -57,4 +57,6 @@ Fakta z TASK-167 až TASK-170 má Orca složit do seznamu jednotek práce s fáz
 
 <!-- SECTION:NOTES:BEGIN -->
 Z TASK-166 (decision-17): čtečka odpovědi tolerantní k neznámým hodnotám (důvod, fáze, stav vydání se čtou jako neznámé), zápis workFlow: 'host' do HOST_OPERATION_OWNERSHIP, parametr scope ('host' výchozí, 'all' jen pro okno a spárovaného klienta) a sloučení jednotek se stejným označením z více hostitelů.
+
+Z TASK-167: fakta Azure DevOps čti z azureDevOpsWorkFacts.snapshot() a onChanged (src/main/azure-devops/review/azure-devops-work-facts-store.ts); repozitář, který ve snímku není, ještě nebyl přečten (not-loaded). Převod na model: workPullRequestFromAzureDevOps (src/shared/work-flow/azure-devops-work-facts.ts).
 <!-- SECTION:NOTES:END -->

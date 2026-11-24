@@ -294,6 +294,14 @@ async function startOrcadRuntime(
     await import('../quality-gates/quality-gate-feedback-loop-host')
   registerCleanup(installQualityGateFeedbackLoop(runtime, agentHookServer))
 
+  // Why here too: this host signs in to Azure DevOps itself, so only it can read these facts.
+  const { startAzureDevOpsWorkFactsRefresh } =
+    await import('../azure-devops/review/azure-devops-work-facts-schedule')
+  registerCleanup(
+    // Why always online: orcad has no network signal; a failed round retries with a backoff.
+    startAzureDevOpsWorkFactsRefresh({ listRepos: () => runtime.listRepos(), isOnline: () => true })
+  )
+
   // Why here too and not only on the desktop: nothing else republishes `session.tabs` when a
   // pane's status row changes, and orcad's whole job is serving paired clients.
   uninstallHookStatusRepublish = installHookStatusSessionTabsRepublish(

@@ -97,6 +97,9 @@ type GitLabMRRaw = {
   description?: string | null
   target_branch?: string
   author?: { username?: string | null; avatar_url?: string | null } | null
+  merged_at?: string | null
+  merge_commit_sha?: string | null
+  squash_commit_sha?: string | null
 }
 
 export function mapMRInfo(data: GitLabMRRaw, pipelineStatus: CheckStatus): MRInfo {
@@ -119,7 +122,20 @@ export function mapMRInfo(data: GitLabMRRaw, pipelineStatus: CheckStatus): MRInf
     // from "this came from a list and the body is unknown".
     ...(typeof data.description === 'string' ? { description: data.description } : {}),
     ...(data.author?.username ? { author: data.author.username } : {}),
-    ...(data.author?.avatar_url ? { authorAvatarUrl: data.author.avatar_url } : {})
+    ...(data.author?.avatar_url ? { authorAvatarUrl: data.author.avatar_url } : {}),
+    ...mergeFacts(data)
+  }
+}
+
+function mergeFacts(data: GitLabMRRaw): Pick<MRInfo, 'mergedAt' | 'mergeCommitOid'> {
+  if (data.state !== 'merged') {
+    return {}
+  }
+  // A fast-forward merge makes no commit: the head, or its squash, is what reached the target.
+  const commit = data.merge_commit_sha || data.squash_commit_sha || data.sha
+  return {
+    ...(data.merged_at ? { mergedAt: data.merged_at } : {}),
+    ...(commit ? { mergeCommitOid: commit } : {})
   }
 }
 

@@ -44,6 +44,7 @@ import { ensureAzureDevOpsReviewPiExtension } from '../../../azure-devops/review
 import { getAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-client'
 import { getQualityGateService } from '../../../quality-gates/quality-gate-host'
 import { mapAzureDevOpsReviewPullRequest } from '../../../azure-devops/review/azure-devops-review-mappers'
+import { withAzureDevOpsWorkFactsActivity } from '../../../azure-devops/review/azure-devops-work-facts-store'
 
 function reviewHost(runtime: OrcaRuntimeService): AzureDevOpsReviewHost {
   return {
@@ -158,8 +159,15 @@ export const AZURE_DEVOPS_REVIEW_METHODS = [
     name: 'azureDevOpsReview.list',
     permission: 'workspace',
     params: AzureDevOpsReviewListParams,
-    handler: async (params, { runtime }) =>
-      listAzureDevOpsReviewPullRequests(reviewHost(runtime), params.status, params.pages)
+    handler: async (params, { runtime }) => {
+      const list = await listAzureDevOpsReviewPullRequests(
+        reviewHost(runtime),
+        params.status,
+        params.pages
+      )
+      // The list itself reads no threads; what the background refresh read rides along.
+      return { ...list, pullRequests: list.pullRequests.map(withAzureDevOpsWorkFactsActivity) }
+    }
   }),
   defineMethod({
     name: 'azureDevOpsReview.get',

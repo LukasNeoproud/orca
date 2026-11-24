@@ -12,12 +12,14 @@ import {
   type AzureDevOpsReviewVote,
   type AzureDevOpsThreadStatus
 } from '../../../shared/azure-devops-review-types'
+import { azureDevOpsPullRequestListFacts } from './azure-devops-pull-request-list-facts'
 
 type RawIdentity = {
   id?: string | null
   displayName?: string | null
   uniqueName?: string | null
   vote?: number | null
+  isRequired?: boolean | null
 }
 
 export type RawReviewPullRequest = {
@@ -34,6 +36,7 @@ export type RawReviewPullRequest = {
   reviewers?: RawIdentity[] | null
   lastMergeSourceCommit?: { commitId?: string | null } | null
   lastMergeTargetCommit?: { commitId?: string | null } | null
+  lastMergeCommit?: { commitId?: string | null } | null
   forkSource?: unknown
   repository?: { id?: string | null; name?: string | null; webUrl?: string | null } | null
 }
@@ -44,6 +47,8 @@ export type RawReviewThread = {
   id?: number | null
   status?: string | number | null
   isDeleted?: boolean | null
+  /** System threads name their kind here, e.g. a vote and its value. */
+  properties?: Record<string, { $value?: unknown } | null | undefined> | null
   threadContext?: {
     filePath?: string | null
     rightFileStart?: RawThreadPosition
@@ -81,6 +86,7 @@ export type RawIterationChange = {
 
 export type RawIteration = {
   id?: number | null
+  createdDate?: string | null
   sourceRefCommit?: { commitId?: string | null } | null
   targetRefCommit?: { commitId?: string | null } | null
   commonRefCommit?: { commitId?: string | null } | null
@@ -144,6 +150,7 @@ export function mapAzureDevOpsReviewPullRequest(
   }
   const me = context.meId?.toLowerCase()
   const myReview = me ? raw.reviewers?.find((reviewer) => reviewer.id?.toLowerCase() === me) : null
+  const mine = Boolean(me) && raw.createdBy?.id?.toLowerCase() === me
   return {
     key: azureDevOpsPullRequestKey(
       context.repo.organizationKey,
@@ -165,7 +172,8 @@ export function mapAzureDevOpsReviewPullRequest(
     author: mapIdentity(raw.createdBy),
     myVote: mapAzureDevOpsReviewVote(myReview?.vote),
     ...(myReview ? { reviewRequested: true as const } : {}),
-    ...(me && raw.createdBy?.id?.toLowerCase() === me ? { createdByMe: true as const } : {}),
+    ...(me ? { createdByMe: mine } : {}),
+    ...(mine ? { workFacts: azureDevOpsPullRequestListFacts(raw, mapAzureDevOpsReviewVote) } : {}),
     createdAt: raw.creationDate ?? '',
     closedAt: raw.closedDate ?? null,
     sourceBranch: stripRefsHeads(raw.sourceRefName),

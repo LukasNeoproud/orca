@@ -4,7 +4,7 @@ title: 'Tok práce: tiket z Jiry u jednotky práce'
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
-updated_date: '2026-11-24T10:16:00Z'
+updated_date: '2026-11-24T10:38:00Z'
 labels:
   - review-ide
   - effort-high
@@ -48,10 +48,13 @@ Uživatel chce u své práce vidět tiket z Jiry a jeho stav. Orca už Jiru čte
 - [ ] #2 Bez připojené Jiry, při chybě a u neexistujícího klíče je tiket neznámý s důvodem a čtení se pro ten klíč v dalším kole neopakuje
 - [ ] #3 Mezipaměť omezuje počet dotazů na kolo obnovy; test to dokládá
 - [ ] #4 Testy se smyšlenými odpověďmi Jiry pokrývají dávku, chybu, chybějící přístup a vypršení mezipaměti
+- [ ] #5 Repozitář s nastaveným projektem Jiry přečte tiket z větve s holým číslem; bez nastavení se holé číslo nečte
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Z TASK-166 (decision-17): čtení klíče (src/shared/work-flow/work-ticket-key.ts) předat seznam projektů z Jiry (projectKeys) a ověřit, jestli dotaz JQL na více klíčů selže celý při jednom neexistujícím. Klíč sám neurčuje web Jiry. Holé číslo ve jménu větve se bez projektu nečte; odkud projekt vzít, je otevřená otázka na uživatele (položená 2026-11-24), do odpovědi platí chování bez projektu.
+
+Rozhodnutí uživatele 2026-11-24 (decision-18): přidat u repozitáře nastavení „projekt Jiry“ (klíč projektu) a předat ho čtení klíče tiketu, aby větev s holým číslem (feature/123-nazev) ukázala tiket bez pull requestu. Zápis nastavení cestou ostatních nastavení repozitáře; starší hostitel pole tiše zahodí, proto za schopností.
 <!-- SECTION:NOTES:END -->

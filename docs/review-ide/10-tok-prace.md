@@ -13,8 +13,8 @@ Zadání uživatele z 2026-11-24. Orca má ukázat, kde která práce vázne mez
 ## Co už v Orce je
 
 - **Jira:** klient, hledání a čtení tiketů, přechody a komentáře (`src/main/jira/`), stránka Tasks se zdrojem Jira (`src/renderer/src/components/task-page/`) a nastavení zdrojů úkolů. Workspace nese výslovně připojené položky (`linkedItems` s `provider: 'jira'`). Klíč tiketu ze jména větve se nečte.
-- **Pull requesty Azure DevOps:** seznam se skupinami Čeká na mě, Moje a Ostatní, stránka pull requestu, vlákna a iterace v detailu. Seznam nenese reviewery, čas poslední změny, počet nevyřešených vláken ani navázané položky. Seznam se na pozadí obnovuje jen se zapnutým automatickým review.
-- **Ostatní poskytovatelé:** `src/shared/hosted-review.ts` (`HostedReviewInfo` se stavem a `reviewDecision`), workspace zná `linkedPR` a `linkedGitLabMR`.
+- **Pull requesty Azure DevOps:** seznam se skupinami Čeká na mě, Moje a Ostatní, stránka pull requestu, vlákna a iterace v detailu. U pull requestů uživatele seznam nese fakta pro tok práce (viz Fakta o pull requestech); navázané položky nenese. Seznam v okně se na pozadí obnovuje jen se zapnutým automatickým review; fakta pro tok práce obnovuje hlavní proces sám.
+- **Ostatní poskytovatelé:** `src/shared/hosted-review.ts` (`HostedReviewInfo` se stavem, `reviewDecision` a u GitHubu a GitLabu s časem a commitem sloučení), workspace zná `linkedPR` a `linkedGitLabMR`.
 - **Oznámení:** `src/main/notifications/` s oznámením nového pull requestu a registrem už oznámeného; nastavení v `NotificationsPane.tsx`.
 - **Buildy a vydání:** Orca o tagu ani o buildu neví nic.
 
@@ -53,6 +53,38 @@ Pravidla určuje sdílený modul `src/shared/work-flow/`; architekturu skládán
 - **Cizí pull request** a větev bez vlastních commitů jednotku práce nezakládají.
 - **Neznámá fáze:** když zdroj fakt nedodal (poskytovatel neodpověděl, hostitel je bez spojení, tagy mohou být zastaralé, poskytovatel nedává rozhodnutí review nebo commit sloučení), je fáze neznámá s důvodem. Neznámá fáze nevázne a nevyvolá oznámení.
 - **Nepřesná lhůta:** poskytovatel, který nedává čas poslední verze a poslední připomínky, dává jen čas poslední aktivity. Lhůta se pak počítá od ní a přehled ji označí jako nepřesnou.
+
+## Fakta o pull requestech
+
+Fakta čte hostitel, který repozitář vede, svým přihlášením. Nemají vlastní metodu: u Azure DevOps je nese nepovinné pole `workFacts` pull requestu v `azureDevOpsReview.list`, u ostatních poskytovatelů `HostedReviewInfo`. Chybějící pole znamená neznámé.
+
+### Azure DevOps
+
+Jen pro pull requesty, které založil přihlášený uživatel.
+
+| Fakt | Odkud | Kdy se čte |
+| --- | --- | --- |
+| Revieweři, jejich hlasy a povinnost | odpověď seznamu | při každém čtení seznamu |
+| Čas a commit sloučení | `closedDate` a `lastMergeCommit` dokončeného pull requestu | při každém čtení seznamu |
+| Čas poslední verze | datum poslední iterace | na pozadí, jen když se pohnul commit zdrojové větve |
+| Počet nevyřešených vláken od jiných lidí, čas poslední připomínky | vlákna pull requestu | na pozadí v každém kole |
+
+- **Kolo obnovy** běží v hlavním procesu hostitele každých 15 minut (první 20 s po startu), bez okna a bez ohledu na automatické review, na desktopu i v `orcad`. Posílá jen dotazy pro čtení.
+- **Seznam** čte dvěma dotazy na projekt (otevřené a dokončené pull requesty uživatele), ne po repozitářích. Z dokončených bere 50 nejnovějších, sloučených nejdéle před 90 dny.
+- **Vlákna a iterace** čte jen u otevřených pull requestů, které nejsou koncept. Strop je 30 těchto dotazů na kolo; první jdou pull requesty nové a ty, kterým se změnil commit, koncept nebo hlasy, potom ty nejdéle nečtené. Co se nevejde, přijde v dalším kole.
+- **Proč vlákna v každém kole:** seznam Azure DevOps nový komentář nijak neprozradí, takže „změnil se“ jde poznat jen u verze a hlasů. Decision-17 počítá s podrobnostmi jen u změněných pull requestů; vlákna se proto čtou u všech otevřených a strop drží počet dotazů.
+- **Nevyřešené vlákno** je vlákno ve stavu aktivní nebo čekající, které založil někdo jiný. Poslední připomínka je poslední komentář někoho jiného nebo jeho hlas „čeká na autora“ či zamítnutí.
+- **Bez sítě** kolo neběží a zkouší to po minutě znovu. Po kole, ve kterém něco selhalo, přijde další za 1 minutu a odstup se zdvojuje do 15 minut.
+- **Platnost:** přečtený seznam i vlákna platí 30 minut. Potom jsou pull requesty repozitáře neznámé (`source-failed`), u organizace bez připojení hned (`not-connected`).
+- **Čí je pull request:** `createdByMe` je `true`, `false`, nebo chybí, když hostitel neví, kdo je přihlášený. Chybějící hodnota není „cizí“.
+- **Paměť:** přečtená fakta drží hlavní proces jen v paměti; po restartu je první kolo přečte znovu a do té doby je review otevřeného pull requestu neznámé (`not-loaded`).
+
+### GitHub, GitLab a ostatní
+
+- **GitHub:** čas a commit sloučení z dotazu, který Orca na pull request už posílá (`mergedAt`, `mergeCommit`), a rozhodnutí review jako dosud. Po squash je to commit, který squash nechal v cílové větvi.
+- **GitLab:** čas sloučení a commit v cílové větvi: merge commit, jinak commit squashe, jinak hlava větve po fast-forwardu. Rozhodnutí review GitLab přes stávající rozhraní nedává, fáze otevřeného merge requestu zůstává neznámá.
+- **Bitbucket a Gitea:** commit sloučení nedávají, sloučená práce má fázi neznámou.
+- **U nikoho z nich** není známý čas poslední verze, vlákna, revieweři ani to, jestli pull request založil uživatel.
 
 ## Vydání
 

@@ -122,6 +122,29 @@ export async function listAzureDevOpsRepositoryPullRequests(
   return data.value ?? []
 }
 
+/**
+ * The newest pull requests `creatorId` opened anywhere in the project, in one request instead of
+ * one per repository.
+ */
+export async function listAzureDevOpsProjectPullRequestsByCreator(
+  target: AzureDevOpsReviewTarget,
+  query: { status: AzureDevOpsPullRequestStatusFilter; creatorId: string; top: number }
+): Promise<RawReviewPullRequest[]> {
+  const data = await sendAzureDevOpsRequest<{ value?: RawReviewPullRequest[] }>(
+    projectBase(target),
+    '/_apis/git/pullrequests',
+    {
+      searchParams: {
+        'searchCriteria.status': query.status,
+        'searchCriteria.creatorId': query.creatorId,
+        $top: query.top
+      },
+      timeoutMs: 15_000
+    }
+  )
+  return data.value ?? []
+}
+
 function pullRequestPath(repositoryId: string, pullRequestId: number): string {
   return `/_apis/git/repositories/${segment(repositoryId)}/pullRequests/${segment(pullRequestId)}`
 }

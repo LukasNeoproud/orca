@@ -4,6 +4,7 @@ title: 'Tok práce: ověření na skutečných datech uživatele'
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
+updated_date: '2026-11-24T10:38:00Z'
 labels:
   - review-ide
   - effort-high
@@ -49,3 +50,9 @@ Pravidla toku práce vznikla nad smyšlenými daty. Než uživatel milník přij
 - [ ] #2 Rozdíly jsou založené jako tikety; poznámky tiketu neobsahují názvy firemních projektů
 - [ ] #3 Sdílené soubory mají po skončení stejné otisky jako před začátkem
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-167: na skutečných datech potvrdit commit sloučení po squash merge a čas blokujícího hlasu (ve vzorku se nevyskytly) a posoudit okno sloučené práce (dnes 90 dní a 50 nejnovějších na projekt). Z decision-18: přehodnotit, jestli má odpověď v diskusi bez nové verze ukončit fázi čekají opravy. Klíč projektu Jiry pro nastavení repozitářů je v CLAUDE.local.md.
+<!-- SECTION:NOTES:END -->

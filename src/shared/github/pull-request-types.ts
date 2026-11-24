@@ -87,6 +87,10 @@ export type PRInfo = {
   prRepo?: GitHubRepositoryIdentity
   headRepo?: GitHubRepositoryIdentity
   conflictSummary?: PRConflictSummary
+  /** Set once merged, when the lookup that found the PR reports it. */
+  mergedAt?: string
+  /** The commit the merge left on the base branch, also after a squash. */
+  mergeCommitOid?: string
 }
 
 export type IssueInfo = {
