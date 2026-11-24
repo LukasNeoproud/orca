@@ -4,6 +4,7 @@ title: 'Tok práce: vydání podle tagů a vzory tagů u repozitáře'
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
+updated_date: '2026-11-24T10:16:00Z'
 labels:
   - review-ide
   - effort-high
@@ -50,3 +51,9 @@ Sloučená funkce někdy dlouho nevyjde v buildu. Orca má podle tagů v repozit
 - [ ] #4 SSH repozitář: tagy čte vzdálený hostitel; metoda je za schopností a test kompatibility pokrývá staršího klienta i hostitele
 - [ ] #5 Testy nad skutečným gitem: anotovaný i lehký tag, commit před tagem a po něm, squash merge, tisíc tagů bez neomezeného výstupu
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-166 (decision-17): několik fetchů Orky běží s --no-tags; tiket musí zjistit, jak čerstvé tagy repozitář má, a jinak vracet tags-stale. Přidat metodu workFlow.releaseTags (schopnost work-flow.release-tags.v1) pro zkoušku vzorů v nastavení, protože TASK-173 nesmí měnit výměnu mezi klientem a hostitelem. Zápis vzorů přes repo.update jen s touto schopností.
+<!-- SECTION:NOTES:END -->

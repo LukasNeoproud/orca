@@ -44,6 +44,7 @@ import type { WorktreeVisibilityDefaults } from './repo-types'
 
 export type { WorktreeVisibilityDefaults } from './repo-types'
 import type { NativeChatLinkPreviewMode } from './native-chat-link-preview-mode'
+import type { WorkFlowSettings } from './work-flow/work-flow-settings'
 
 /** MiniMax account region used to select the quota endpoint. */
 export type MiniMaxEndpoint = 'overseas' | 'cn'
@@ -236,6 +237,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   nativeChatShellEnvironmentVariables?: string[]
   /** Where native-chat HTTP link previews appear. */
   nativeChatLinkPreviewMode?: NativeChatLinkPreviewMode
+  /** Work flow deadlines and stall notifications; read with `readWorkFlowSettings`. */
+  workFlow?: WorkFlowSettings
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */
   nativeChatSessionOptions?: PersistedNativeChatSessionOptions
   /** Extra launcher rows for the worktree "Open in" submenu. VS Code is always shown first. */

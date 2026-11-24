@@ -24,6 +24,9 @@ Jednotka práce je jedna větev uživatele v jednom repozitáři a všechno, co 
 
 Tiket se k jednotce přiřadí výslovným připojením k workspace, jinak klíčem tiketu ve jménu větve nebo v názvu pull requestu.
 
+- **Klíč ve jménu** se bere jen velkými písmeny (`feature/APP-123-nazev`), aby se za tiket nepovažovalo třeba `utf-8`. Když Orca zná projekty z Jiry, bere jen jejich klíče a na velikosti písmen nezáleží.
+- **Holé číslo** na začátku poslední části jména větve (`feature/123-nazev`) se čte jen tehdy, když je známý projekt, ke kterému patří.
+
 | Fáze | Kdy | Vázne po (výchozí) |
 | --- | --- | --- |
 | Bez pull requestu | větev má vlastní commity proti základní větvi a žádný otevřený ani dokončený pull request | 1 pracovní den od posledního commitu |
@@ -35,11 +38,27 @@ Tiket se k jednotce přiřadí výslovným připojením k workspace, jinak klí�
 
 U sloučené práce Orca navíc ukáže, jestli je commit aspoň v dev buildu.
 
-Pracovní den je pondělí až pátek; svátky se nepočítají. Lhůty jdou změnit v nastavení.
+Pracovní den je pondělí až pátek; svátky se nepočítají. Lhůta N pracovních dní vyprší ve stejný čas dne o N pracovních dní později, takže páteční odpoledne plus jeden den je pondělní odpoledne. Začátek o víkendu se počítá od pondělní půlnoci. Lhůty jdou změnit v nastavení (1 až 60 dní).
+
+### Zpřesnění fází
+
+Pravidla určuje sdílený modul `src/shared/work-flow/`; architekturu skládání popisuje [decision-17](../../backlog/decisions/decision-17%20-%20Tok-práce-jednotky-skládá-hostitel-který-repozitář-vede-a-spojuje-je-aplikace-u-které-uživatel-sedí.md).
+
+- **Koncept:** pull request ve stavu konceptu má fázi Koncept bez lhůty.
+- **Čekají opravy má přednost před Schváleno:** schválený pull request s nevyřešenými vlákny od jiných lidí čeká na opravy.
+- **Po nové verzi je na tahu reviewer:** když uživatel po připomínce pošle novou verzi, je pull request ve fázi Čeká na review, i když vlákna zůstala otevřená. Odpověď v diskusi bez nové verze fázi nemění.
+- **Čeká na review** je každý otevřený pull request, který není koncept, není schválený a nečekají u něj opravy. Lhůta běží od poslední verze, nebo od pozdější připomínky, která je už vyřešená.
+- **Zrušený pull request** vrací větev s vlastními commity do fáze Bez pull requestu.
+- **Sloučeno** bez lhůty je konec práce v repozitáři, který má ostrý vzor tagu vypnutý.
+- **Cizí pull request** a větev bez vlastních commitů jednotku práce nezakládají.
+- **Neznámá fáze:** když zdroj fakt nedodal (poskytovatel neodpověděl, hostitel je bez spojení, tagy mohou být zastaralé, poskytovatel nedává rozhodnutí review nebo commit sloučení), je fáze neznámá s důvodem. Neznámá fáze nevázne a nevyvolá oznámení.
+- **Nepřesná lhůta:** poskytovatel, který nedává čas poslední verze a poslední připomínky, dává jen čas poslední aktivity. Lhůta se pak počítá od ní a přehled ji označí jako nepřesnou.
 
 ## Vydání
 
 Vydaný build pozná Orca podle tagů v repozitáři. Repozitář má v nastavení dva vzory: ostrý build a dev build. Výchozí vzory odpovídají značení, které uživatel používá u mobilních aplikací: tag začínající `v` je ostrý build, tentýž tvar s příponou `-dev` je dev build. Repozitář s jiným značením si vzory nastaví; repozitář bez vzoru fázi vydání neukazuje.
+
+Ve vzoru je `*` libovolný úsek znaků a `?` jeden znak. Tag, kterému odpovídají oba vzory, je dev build. Repozitář, který má vzor, ale žádný odpovídající tag, má stav vydání neznámý, ne „nevydáno“.
 
 Fakta o tagu zjišťuje hostitel, který repozitář vlastní. Práce je „v buildu“, když je commit sloučení pull requestu předkem tagu.
 

@@ -4,6 +4,7 @@ title: 'Tok práce: tiket z Jiry u jednotky práce'
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
+updated_date: '2026-11-24T10:16:00Z'
 labels:
   - review-ide
   - effort-high
@@ -48,3 +49,9 @@ Uživatel chce u své práce vidět tiket z Jiry a jeho stav. Orca už Jiru čte
 - [ ] #3 Mezipaměť omezuje počet dotazů na kolo obnovy; test to dokládá
 - [ ] #4 Testy se smyšlenými odpověďmi Jiry pokrývají dávku, chybu, chybějící přístup a vypršení mezipaměti
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-166 (decision-17): čtení klíče (src/shared/work-flow/work-ticket-key.ts) předat seznam projektů z Jiry (projectKeys) a ověřit, jestli dotaz JQL na více klíčů selže celý při jednom neexistujícím. Klíč sám neurčuje web Jiry. Holé číslo ve jménu větve se bez projektu nečte; odkud projekt vzít, je otevřená otázka na uživatele (položená 2026-11-24), do odpovědi platí chování bez projektu.
+<!-- SECTION:NOTES:END -->

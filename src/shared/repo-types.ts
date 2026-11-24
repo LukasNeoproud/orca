@@ -8,6 +8,7 @@ import type { RepoSourceControlAiOverrides } from './source-control-ai-types'
 import type { RepoProjectHostSetupMethod } from './project-types'
 import type { QualityGateFeedbackLoopSettings } from './quality-gate-feedback-loop'
 import type { QualityGateDefinition } from './quality-gate-types'
+import type { ReleaseTagPatterns } from './work-flow/release-tag-patterns'
 
 // ─── Repo ────────────────────────────────────────────────────────────
 export type RepoKind = 'git' | 'folder'
@@ -133,6 +134,8 @@ export type Repo = {
   qualityGates?: QualityGateDefinition[]
   /** Feedback loop of the gates; absent means off. Written like the gates, never over RPC. */
   qualityGateFeedbackLoop?: QualityGateFeedbackLoopSettings
+  /** Tag patterns of production and dev builds; read with `readReleaseTagPatterns`. */
+  workFlowReleaseTags?: Partial<ReleaseTagPatterns>
 }
 
 /**

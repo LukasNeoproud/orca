@@ -4,6 +4,7 @@ title: 'Tok práce: skládání jednotek práce na hostiteli a metoda pro klient
 status: To Do
 assignee: []
 created_date: '2026-11-24T09:05:00Z'
+updated_date: '2026-11-24T10:16:00Z'
 labels:
   - review-ide
   - effort-high
@@ -51,3 +52,9 @@ Fakta z TASK-167 až TASK-170 má Orca složit do seznamu jednotek práce s fáz
 - [ ] #5 Metoda je za schopností; test kompatibility pokrývá staršího klienta i staršího hostitele
 - [ ] #6 Testy nad smyšlenými zdroji pokrývají každou fázi z dokumentace a přechody mezi nimi
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Z TASK-166 (decision-17): čtečka odpovědi tolerantní k neznámým hodnotám (důvod, fáze, stav vydání se čtou jako neznámé), zápis workFlow: 'host' do HOST_OPERATION_OWNERSHIP, parametr scope ('host' výchozí, 'all' jen pro okno a spárovaného klienta) a sloučení jednotek se stejným označením z více hostitelů.
+<!-- SECTION:NOTES:END -->
