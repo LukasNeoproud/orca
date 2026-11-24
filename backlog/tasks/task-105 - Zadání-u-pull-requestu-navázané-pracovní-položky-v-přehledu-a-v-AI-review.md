@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:25:00Z'
-updated_date: '2026-11-19T11:45:00Z'
+updated_date: '2026-11-24T09:05:00Z'
 labels:
   - review-ide
   - effort-high
@@ -70,4 +70,6 @@ Review má vycházet ze zadání. Tým eviduje zadání v Jiře a klíč tiketu 
 Čeká na uživatele (2026-11-19, z TASK-59 a decision-8): ve vzorku 455 dokončených pull requestů nemá navázanou pracovní položku žádný, takže funkce by u pull requestů týmu ukazovala jen prázdný stav. Otázka: odložit nebo zrušit (doporučeno, pokud tým položky Azure DevOps nepoužívá), nechat pro jiné týmy, nebo přesměrovat na systém, kde zadání skutečně je. Pokud se bude dělat: Azure DevOps vrací při chybějícím rozsahu Work Items (Read) stav 401 a Orca ho dnes hlásí jako odmítnuté přihlášení s výzvou k novému připojení, což je zavádějící; text u tokenu v Nastavení zmiňuje jen rozsah Code a má zmínit nepovinný Work Items (Read).
 
 Přepsáno 2026-11-19 podle decision-12: zadání z Jiry podle jména větve místo pracovních položek Azure DevOps; text zadání agentovi ve výchozím stavu.
+
+2026-11-24: čtení klíče tiketu ze jména větve a z názvu pull requestu dodá TASK-166 a stav tiketu z Jiry TASK-170 (milník M9, jde dřív). Tento tiket je použije.
 <!-- SECTION:NOTES:END -->

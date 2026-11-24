@@ -4,7 +4,7 @@ title: 'Stránka pull requestu: revieweři, stav kontrol a rozsah změn z lokál
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:21:00Z'
-updated_date: '2026-11-19T09:37:00Z'
+updated_date: '2026-11-24T09:05:00Z'
 labels:
   - review-ide
   - effort-high
@@ -62,4 +62,6 @@ Stránka pull requestu neukazuje to, co recenzent v Azure DevOps vidí hned: kdo
 
 <!-- SECTION:NOTES:BEGIN -->
 Rozděleno 2026-11-19 podle pravidla velikosti: TASK-125 převzal počty draftů u souborů ve stromu souborů a počet souborů v hlavičce.
+
+2026-11-24: fakta o reviewerech, hlasech a nevyřešených vláknech u pull requestů uživatele dodá TASK-167 (milník M9, jde dřív). Tento tiket je použije a nepřidává druhé čtení.
 <!-- SECTION:NOTES:END -->

@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-18T15:24:00Z'
+updated_date: '2026-11-24T09:05:00Z'
 labels:
   - review-ide
   - effort-high
@@ -58,3 +59,9 @@ Seznam pull requestů má říct, co je u kterého potřeba udělat, bez otevír
 - [ ] #6 Starší hostitel vrátí seznam bez souhrnů a řádky se zobrazí jako dosud; starší mobilní klient seznam dál načte
 - [ ] #7 Řádek je ověřený ve skrytém okně proti smyšlenému serveru se snímkem; docs/review-ide/05-funkce.md oddíl 4 uvádí stav po tomto tiketu
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-24: fakta o reviewerech, hlasech a nevyřešených vláknech u pull requestů uživatele dodá TASK-167 (milník M9, jde dřív). Tento tiket je použije a nepřidává druhé čtení.
+<!-- SECTION:NOTES:END -->
